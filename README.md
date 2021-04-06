@@ -4,7 +4,7 @@ Unsigned BigInt implementation, backed by a fixed-size array.
 
 ***Important***: Requires at least Rust 1.51 stable, as it uses `min_const_generics`
 
-`FixedUInt<u8,4>`,`FixedUInt<u16,2>` or `FixedUInt<u32,2>` all create a 32-bit unsigned integer, that behaves mostly the same as builtin `u32`.
+`FixedUInt<u8,4>`,`FixedUInt<u16,2>` or `FixedUInt<u32,1>` all create a 32-bit unsigned integer, that behaves mostly the same as builtin `u32`.
 `FixedUInt<u32, 64>` creates a 2048-bit value, that uses native 32-bit math. If running on 8-bit CPU, `FixedUInt<u8, 2048>` would work the same, just very much slower.
 
 The crate is written for `no_std` and `no_alloc` environments with option for panic-free operation, i.e. embedded MCUs. At least for now, focus is on correctness first and then generated code size, performance comes last. The aim is not to bring in 64-bit math dependencies on 32-bit CPU, to save code space.
