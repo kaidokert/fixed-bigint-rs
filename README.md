@@ -1,5 +1,9 @@
 # Fixed BigInt
 
+[![crate](https://img.shields.io/crates/v/fixed-bigint.svg)](https://crates.io/crates/fixed-bigint)
+[![minimum rustc 1.51](https://img.shields.io/badge/rustc-1.51+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![build status](https://github.com/kaidokert/fixed-bigint-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/kaidokert/fixed-bigint-rs/actions)
+
 Unsigned BigInt implementation, backed by a fixed-size array.
 
 ***Important***: Requires at least Rust 1.51 stable, as it uses `min_const_generics`
