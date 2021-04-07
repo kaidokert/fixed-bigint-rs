@@ -3,8 +3,17 @@ name = "fixed-bigint"
 version = "0.1.0"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 edition = "2018"
+description = """
+Fixed-size big integer implementation for Rust
+"""
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+keywords = ["mathematics", "numerics", "bignum"]
+categories = [ "algorithms", "data-structures", "no-std"]
+repository = "https://github.com/kaidokert/fixed-bigint-rs"
+readme = "README.md"
+homepage = "https://github.com/kaidokert/fixed-bigint-rs"
+license = "Apache-2.0"
+exclude = ["/.github/*"]
 
 [dependencies.num-traits]
 version = "0.2.14"
