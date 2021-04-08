@@ -186,8 +186,10 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     fn from_doubleword(other: T::DoubleWord) -> Self {
         let mut ret = Self::zero();
         ret.array[0] = T::from_double(other);
-        let tmp2 = other >> Self::WORD_BITS;
-        ret.array[1] = T::from_double(tmp2);
+        if N > 1 {
+            let tmp2 = other >> Self::WORD_BITS;
+            ret.array[1] = T::from_double(tmp2);
+        }
         ret
     }
 
