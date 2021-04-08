@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//#![no_std]
+#![no_std]
 
 //! A fixed-size big integer implementation, unsigned only.
 //! [FixedUInt] implements a [num_traits::PrimInt] trait, mimicking built-in `u8`, `u16` and `u32` types.
