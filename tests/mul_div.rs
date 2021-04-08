@@ -16,9 +16,15 @@
 use fixed_bigint::FixedUInt as Bn;
 
 use num_traits::{FromPrimitive, ToPrimitive};
+use std::ops::{Div, Mul};
 
 #[test]
 fn test_mul() {
+    let a: Bn<u8, 1> = 2u8.into();
+    let b: Bn<u8, 1> = 3u8.into();
+    assert_eq!(a * b, 6u8.into());
+    assert_eq!(a.mul(b), 6u8.into());
+
     let a = Bn::<u8, 2>::from_u64(3).unwrap();
     let b = Bn::<u8, 2>::from_u64(4).unwrap();
     let r = a * b;
@@ -62,6 +68,11 @@ fn test_mul() {
 
 #[test]
 fn test_div() {
+    let a: Bn<u8, 1> = 6u8.into();
+    let b: Bn<u8, 1> = 3u8.into();
+    assert_eq!(a / b, 2u8.into());
+    assert_eq!(a.div(b), 2u8.into());
+
     fn test_div_1<BN: num_traits::PrimInt>()
     where
         BN::FromStrRadixErr: core::fmt::Debug,
