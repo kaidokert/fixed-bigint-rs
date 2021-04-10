@@ -146,6 +146,8 @@ fn test_overflowing_mul() {
     fn test_16_bit<
         INT: num_traits::PrimInt
             + num_traits::ops::overflowing::OverflowingMul
+            + num_traits::WrappingMul
+            + num_traits::SaturatingMul
             + core::fmt::Debug
             + core::convert::From<u16>,
     >() {
@@ -182,6 +184,16 @@ fn test_overflowing_mul() {
             let bc: INT = (*b).into();
             assert_eq!(ac.overflowing_mul(&bc), ((*res).into(), *overflow));
             assert_eq!(bc.overflowing_mul(&ac), ((*res).into(), *overflow));
+            assert_eq!(ac.wrapping_mul(&bc), (*res).into());
+            let checked = ac.checked_mul(&bc);
+            let saturating = ac.saturating_mul(&bc);
+            if *overflow {
+                assert_eq!(checked, None);
+                assert_eq!(saturating, INT::max_value());
+            } else {
+                assert_eq!(checked, Some((*res).into()));
+                assert_eq!(saturating, (*res).into())
+            }
         }
     }
 
@@ -192,6 +204,8 @@ fn test_overflowing_mul() {
     fn test_32_bit<
         INT: num_traits::PrimInt
             + num_traits::ops::overflowing::OverflowingMul
+            + num_traits::WrappingMul
+            + num_traits::SaturatingMul
             + core::fmt::Debug
             + core::convert::From<u32>,
     >() {
@@ -202,8 +216,65 @@ fn test_overflowing_mul() {
         assert_eq!(a.overflowing_mul(&b), (6.into(), false));
         assert_eq!(a.overflowing_mul(&c), (4.into(), true));
         assert_eq!(c.overflowing_mul(&a), (4.into(), true));
+        let tests = [
+            (0u32, 0u32, 0u32, false),
+            (2, 3, 6, false),
+            (2, 2_147_483_647, 4_294_967_294, false),
+            (2, 2_147_483_648, 0, true),
+            (2, 2_147_483_650, 4, true),
+            (65535, 65535, 4_294_836_225, false),
+            (65535, 65536, 4_294_901_760, false),
+            (65536, 65536, 0, true),
+            (65536, 65537, 65536, true),
+            (65537, 65537, 131073, true),
+        ];
+        for (a, b, res, overflow) in &tests {
+            let ac: INT = (*a).into();
+            let bc: INT = (*b).into();
+            assert_eq!(ac.overflowing_mul(&bc), ((*res).into(), *overflow));
+            assert_eq!(ac.wrapping_mul(&bc), (*res).into());
+            let checked = ac.checked_mul(&bc);
+            let saturating = ac.saturating_mul(&bc);
+            if *overflow {
+                assert_eq!(checked, None);
+                assert_eq!(saturating, INT::max_value());
+            } else {
+                assert_eq!(checked, Some((*res).into()));
+                assert_eq!(saturating, (*res).into())
+            }
+        }
     }
     test_32_bit::<u32>();
     test_32_bit::<Bn<u16, 2>>();
     test_32_bit::<Bn<u8, 4>>();
+}
+
+#[test]
+#[ignore]
+fn test_full_range_mul() {
+    fn test_ref<
+        REF: num_traits::PrimInt + num_traits::ops::overflowing::OverflowingMul,
+        INT: num_traits::PrimInt + num_traits::ops::overflowing::OverflowingMul + core::fmt::Debug,
+    >()
+    where
+        INT: core::convert::From<REF>,
+        core::ops::Range<REF>: Iterator<Item = REF>,
+    {
+        for i in REF::zero()..REF::max_value() {
+            for j in REF::zero()..REF::max_value() {
+                let ref_val = i.overflowing_mul(&j);
+                let lhs: INT = i.into();
+                let rhs: INT = j.into();
+                let int_val = lhs.overflowing_mul(&rhs);
+                assert_eq!(int_val, (ref_val.0.into(), ref_val.1));
+            }
+        }
+    }
+    test_ref::<u8, Bn<u8, 1>>();
+    test_ref::<u16, Bn<u16, 1>>();
+    test_ref::<u16, Bn<u8, 2>>();
+    //  this would never finish, single-threaded
+    //  test_ref::<Bn<u8, 4>, u32>();
+    //  test_ref::<Bn<u16, 2>, u32>();
+    //  test_ref::<Bn<u32, 1>, u32>();
 }
