@@ -119,3 +119,91 @@ fn test_rem() {
     test_rem_1::<Bn<u16, 4>>();
     test_rem_1::<Bn<u32, 2>>();
 }
+
+#[test]
+fn test_overflowing_mul() {
+    fn test_8_bit<
+        INT: num_traits::PrimInt
+            + num_traits::ops::overflowing::OverflowingMul
+            + core::fmt::Debug
+            + core::convert::From<u8>,
+    >() {
+        let a: INT = 2.into();
+        let b: INT = 3.into();
+        let c: INT = 130.into();
+        assert_eq!(a.overflowing_mul(&b), (6.into(), false));
+        assert_eq!(a.overflowing_mul(&c), (4.into(), true));
+        assert_eq!(Into::<INT>::into(128).overflowing_mul(&a), (0.into(), true));
+        assert_eq!(
+            Into::<INT>::into(127).overflowing_mul(&a),
+            (254.into(), false)
+        );
+    }
+
+    test_8_bit::<u8>();
+    test_8_bit::<Bn<u8, 1>>();
+
+    fn test_16_bit<
+        INT: num_traits::PrimInt
+            + num_traits::ops::overflowing::OverflowingMul
+            + core::fmt::Debug
+            + core::convert::From<u16>,
+    >() {
+        let a: INT = 2.into();
+        let b: INT = 3.into();
+        let c: INT = 32770.into();
+
+        assert_eq!(a.overflowing_mul(&b), (6.into(), false));
+        assert_eq!(a.overflowing_mul(&c), (4.into(), true));
+        assert_eq!(c.overflowing_mul(&a), (4.into(), true));
+        assert_eq!(
+            Into::<INT>::into(32768).overflowing_mul(&a),
+            (0.into(), true)
+        );
+        assert_eq!(
+            Into::<INT>::into(32767).overflowing_mul(&a),
+            (65534.into(), false)
+        );
+
+        let tests = [
+            (0u16, 0u16, 0u16, false),
+            (2, 3, 6, false),
+            (2, 32767, 65534, false),
+            (2, 32768, 0, true),
+            (2, 32770, 4, true),
+            (255, 255, 65025, false),
+            (255, 256, 65280, false),
+            (256, 256, 0, true),
+            (256, 257, 256, true),
+            (257, 257, 513, true),
+        ];
+        for (a, b, res, overflow) in &tests {
+            let ac: INT = (*a).into();
+            let bc: INT = (*b).into();
+            assert_eq!(ac.overflowing_mul(&bc), ((*res).into(), *overflow));
+            assert_eq!(bc.overflowing_mul(&ac), ((*res).into(), *overflow));
+        }
+    }
+
+    test_16_bit::<u16>();
+    test_16_bit::<Bn<u8, 2>>();
+    test_16_bit::<Bn<u16, 1>>();
+
+    fn test_32_bit<
+        INT: num_traits::PrimInt
+            + num_traits::ops::overflowing::OverflowingMul
+            + core::fmt::Debug
+            + core::convert::From<u32>,
+    >() {
+        let a: INT = 2.into();
+        let b: INT = 3.into();
+        let c: INT = 2147483650.into();
+
+        assert_eq!(a.overflowing_mul(&b), (6.into(), false));
+        assert_eq!(a.overflowing_mul(&c), (4.into(), true));
+        assert_eq!(c.overflowing_mul(&a), (4.into(), true));
+    }
+    test_32_bit::<u32>();
+    test_32_bit::<Bn<u16, 2>>();
+    test_32_bit::<Bn<u8, 4>>();
+}

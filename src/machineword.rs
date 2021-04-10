@@ -21,18 +21,20 @@ pub trait MachineWord:
     + num_traits::ops::overflowing::OverflowingSub
     + From<u8>
     + num_traits::WrappingShl
+    + OverflowingShl
+    + OverflowingShr
+    + core::fmt::Debug
 {
     type DoubleWord: num_traits::PrimInt
         + num_traits::Unsigned
         + num_traits::WrappingAdd
-        + num_traits::WrappingSub;
+        + num_traits::WrappingSub
+        + OverflowingShl;
     fn to_double(self) -> Self::DoubleWord;
     fn from_double(word: Self::DoubleWord) -> Self;
 
     // Todo: get rid of this, single use
     fn to_ne_bytes(self) -> [u8; 8];
-    fn overflowing_shl(self, rhs: u32) -> (Self, bool);
-    fn overflowing_shr(self, rhs: u32) -> (Self, bool);
 }
 
 impl MachineWord for u8 {
@@ -47,12 +49,6 @@ impl MachineWord for u8 {
         let mut ret = [0; 8];
         ret[0] = self;
         ret
-    }
-    fn overflowing_shl(self, rhs: u32) -> (u8, bool) {
-        self.overflowing_shl(rhs)
-    }
-    fn overflowing_shr(self, rhs: u32) -> (u8, bool) {
-        self.overflowing_shr(rhs)
     }
 }
 impl MachineWord for u16 {
@@ -69,12 +65,6 @@ impl MachineWord for u16 {
         halfslice.copy_from_slice(&self.to_ne_bytes());
         ret
     }
-    fn overflowing_shl(self, rhs: u32) -> (u16, bool) {
-        self.overflowing_shl(rhs)
-    }
-    fn overflowing_shr(self, rhs: u32) -> (u16, bool) {
-        self.overflowing_shr(rhs)
-    }
 }
 impl MachineWord for u32 {
     type DoubleWord = u64;
@@ -90,13 +80,36 @@ impl MachineWord for u32 {
         halfslice.copy_from_slice(&self.to_ne_bytes());
         ret
     }
-    fn overflowing_shl(self, rhs: u32) -> (u32, bool) {
-        self.overflowing_shl(rhs)
-    }
-    fn overflowing_shr(self, rhs: u32) -> (u32, bool) {
-        self.overflowing_shr(rhs)
-    }
 }
+
+// These should be in num_traits
+pub trait OverflowingShl: Sized {
+    fn overflowing_shl(self, rhs: u32) -> (Self, bool);
+}
+pub trait OverflowingShr: Sized {
+    fn overflowing_shr(self, rhs: u32) -> (Self, bool);
+}
+
+macro_rules! overflowing_shift_impl {
+    ($trait_name:ident, $method:ident, $t:ty) => {
+        impl $trait_name for $t {
+            #[inline]
+            fn $method(self, rhs: u32) -> ($t, bool) {
+                <$t>::$method(self, rhs)
+            }
+        }
+    };
+}
+
+overflowing_shift_impl!(OverflowingShl, overflowing_shl, u8);
+overflowing_shift_impl!(OverflowingShl, overflowing_shl, u16);
+overflowing_shift_impl!(OverflowingShl, overflowing_shl, u32);
+overflowing_shift_impl!(OverflowingShl, overflowing_shl, u64);
+
+overflowing_shift_impl!(OverflowingShr, overflowing_shr, u8);
+overflowing_shift_impl!(OverflowingShr, overflowing_shr, u16);
+overflowing_shift_impl!(OverflowingShr, overflowing_shr, u32);
+overflowing_shift_impl!(OverflowingShr, overflowing_shr, u64);
 
 #[cfg(test)]
 mod tests {
