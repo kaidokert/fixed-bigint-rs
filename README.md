@@ -1,6 +1,7 @@
 # Fixed BigInt
 
 [![crate](https://img.shields.io/crates/v/fixed-bigint.svg)](https://crates.io/crates/fixed-bigint)
+[![documentation](https://docs.rs/fixed-bigint/badge.svg)](https://docs.rs/fixed-bigint/)
 [![minimum rustc 1.51](https://img.shields.io/badge/rustc-1.51+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![build status](https://github.com/kaidokert/fixed-bigint-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/kaidokert/fixed-bigint-rs/actions)
 
