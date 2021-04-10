@@ -1,6 +1,7 @@
 # Fixed BigInt
 
 [![crate](https://img.shields.io/crates/v/fixed-bigint.svg)](https://crates.io/crates/fixed-bigint)
+[![documentation](https://docs.rs/fixed-bigint/badge.svg)](https://docs.rs/fixed-bigint/)
 [![minimum rustc 1.51](https://img.shields.io/badge/rustc-1.51+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![build status](https://github.com/kaidokert/fixed-bigint-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/kaidokert/fixed-bigint-rs/actions)
 
@@ -16,7 +17,8 @@ The crate is written for `no_std` and `no_alloc` environments with option for pa
 The arithmetic operands ( +, -, .add() ) panic on overflow, just like native integer types. Panic-free alternatives like `overlowing_add` and `wrapping_add` are supported.
 
 _TODO list_:
- * Implement missing checked_mul-div, wrapping_mul/div, overflowing_mul/div.
+ * Implement WrappingShl/Shr, CheckedShl/Shr
+ * Implement AddAssign, MulAssign and other xyzAssign operands, memory and speed improvement
  * Implement experimental `unchecked_math` operands, unchecked_mul, unchecked_div etc.
  * Probably needs its own error structs instead of reusing core::fmt::Error and core::num::ParseIntError
  * Decimal string to/from conversion, currently only binary and hex strings are supported.

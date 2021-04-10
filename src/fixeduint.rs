@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use num_traits::{
-    ops::overflowing::OverflowingAdd, ops::overflowing::OverflowingSub, Bounded, One, PrimInt,
-    ToPrimitive, Zero,
-};
+use num_traits::ops::overflowing::{OverflowingAdd, OverflowingMul, OverflowingSub};
+use num_traits::{Bounded, One, PrimInt, ToPrimitive, Zero};
 
 use core::convert::TryFrom;
 use core::fmt::Write;
@@ -181,16 +179,6 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             }
         }
         Ok(())
-    }
-
-    fn from_doubleword(other: T::DoubleWord) -> Self {
-        let mut ret = Self::zero();
-        ret.array[0] = T::from_double(other);
-        if N > 1 {
-            let tmp2 = other >> Self::WORD_BITS;
-            ret.array[1] = T::from_double(tmp2);
-        }
-        ret
     }
 
     // Here to avoid duplicating this in two traits
@@ -409,26 +397,83 @@ impl<T: MachineWord, const N: usize> num_traits::Saturating for FixedUInt<T, N> 
 
 // #region Multiply/Divide
 
+impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingMul
+    for FixedUInt<T, N>
+{
+    fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
+        let mut ret = Self::zero();
+        let mut overflowed = false;
+        // Calculate N+1 rounds, to check for overflow
+        let max_rounds = N + 1;
+        let t_max = T::max_value().to_double();
+        for i in 0..N {
+            let mut carry = T::DoubleWord::zero();
+            for j in 0..N {
+                let round = i + j;
+                if round < max_rounds {
+                    let mul_res = self.array[i].to_double() * other.array[j].to_double();
+                    let mut accumulator = T::DoubleWord::zero();
+                    if round < N {
+                        accumulator = ret.array[round].to_double();
+                    }
+                    accumulator = accumulator + mul_res + carry;
+
+                    if accumulator > t_max {
+                        carry = accumulator >> Self::WORD_BITS;
+                        accumulator = accumulator & t_max;
+                    } else {
+                        carry = T::DoubleWord::zero();
+                    }
+                    if round < N {
+                        ret.array[round] = T::from_double(accumulator);
+                    } else {
+                        overflowed = overflowed || !accumulator.is_zero();
+                    }
+                }
+            }
+            if !carry.is_zero() {
+                overflowed = true;
+            }
+        }
+        (ret, overflowed)
+    }
+}
+
 impl<T: MachineWord, const N: usize> core::ops::Mul for FixedUInt<T, N> {
     type Output = Self;
     fn mul(self, other: Self) -> <Self as core::ops::Mul<Self>>::Output {
-        let mut ret = Self::zero();
+        let res = self.overflowing_mul(&other);
+        res.0
+    }
+}
 
-        for i in 0..N {
-            let mut row = Self::zero();
-            for j in 0..N {
-                if i + j < N {
-                    let intermediate: T::DoubleWord =
-                        self.array[j].to_double() * other.array[i].to_double();
-                    let mut f = Self::from_doubleword(intermediate);
-                    let shiftq: usize = (Self::WORD_BITS * (i + j)) as usize;
-                    f = f << shiftq;
-                    row = f + row;
-                }
-            }
-            ret = ret + row;
+impl<T: MachineWord, const N: usize> num_traits::WrappingMul for FixedUInt<T, N> {
+    fn wrapping_mul(&self, other: &Self) -> Self {
+        self.overflowing_mul(&other).0
+    }
+}
+
+impl<T: MachineWord, const N: usize> num_traits::CheckedMul for FixedUInt<T, N> {
+    fn checked_mul(&self, other: &Self) -> Option<Self> {
+        let res = self.overflowing_mul(&other);
+        if res.1 {
+            None
+        } else {
+            Some(res.0)
         }
-        ret
+    }
+}
+
+impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingMul
+    for FixedUInt<T, N>
+{
+    fn saturating_mul(&self, other: &Self) -> Self {
+        let res = self.overflowing_mul(&other);
+        if res.1 {
+            Self::max_value()
+        } else {
+            res.0
+        }
     }
 }
 
@@ -467,15 +512,13 @@ impl<T: MachineWord, const N: usize> core::ops::Div for FixedUInt<T, N> {
     }
 }
 
-impl<T: MachineWord, const N: usize> num_traits::CheckedMul for FixedUInt<T, N> {
-    fn checked_mul(&self, _: &Self) -> Option<Self> {
-        todo!()
-    }
-}
-
 impl<T: MachineWord, const N: usize> num_traits::CheckedDiv for FixedUInt<T, N> {
-    fn checked_div(&self, _: &Self) -> Option<Self> {
-        todo!()
+    fn checked_div(&self, other: &Self) -> Option<Self> {
+        if other.is_zero() {
+            None
+        } else {
+            Some(core::ops::Div::<Self>::div(*self, *other))
+        }
     }
 }
 
@@ -917,15 +960,6 @@ mod tests {
 
         let f = Bn::<u32, 1>::from(u32::max_value());
         assert_eq!(f.array, [4294967295]);
-    }
-
-    #[test]
-    fn test_from_doubleword() {
-        let f = Bn8::from_doubleword(45);
-        assert_eq!(Some(45), f.to_u32());
-
-        let f = Bn8::from_doubleword(256);
-        assert_eq!(Some(256), f.to_u32());
     }
 
     #[test]
