@@ -513,8 +513,12 @@ impl<T: MachineWord, const N: usize> core::ops::Div for FixedUInt<T, N> {
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedDiv for FixedUInt<T, N> {
-    fn checked_div(&self, _: &Self) -> Option<Self> {
-        todo!()
+    fn checked_div(&self, other: &Self) -> Option<Self> {
+        if other.is_zero() {
+            None
+        } else {
+            Some(core::ops::Div::<Self>::div(*self, *other))
+        }
     }
 }
 

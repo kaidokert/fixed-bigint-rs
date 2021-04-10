@@ -278,3 +278,26 @@ fn test_full_range_mul() {
     //  test_ref::<Bn<u16, 2>, u32>();
     //  test_ref::<Bn<u32, 1>, u32>();
 }
+
+#[test]
+fn test_checked_div() {
+    fn test<
+        INT: num_traits::PrimInt + core::fmt::Debug + num_traits::CheckedDiv + core::convert::From<u8>,
+    >() {
+        let a: INT = 2.into();
+        let b: INT = 0.into();
+        assert_eq!(Into::<INT>::into(128).checked_div(&a), Some(64.into()));
+        assert_eq!(Into::<INT>::into(128).checked_div(&b), None);
+        assert_eq!(Into::<INT>::into(0).checked_div(&b), None);
+        assert_eq!(Into::<INT>::into(0).checked_div(&a), Some(0.into()));
+    }
+    test::<u8>();
+    test::<Bn<u8, 1>>();
+    test::<u16>();
+    test::<Bn<u16, 1>>();
+    test::<Bn<u8, 2>>();
+    test::<u32>();
+    test::<Bn<u32, 1>>();
+    test::<Bn<u16, 2>>();
+    test::<Bn<u8, 4>>();
+}
