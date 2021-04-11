@@ -181,27 +181,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         }
         Ok(())
     }
-
-    // Here to avoid duplicating this in two traits
-    fn saturating_add_impl(self, other: &Self) -> Self {
-        let res = self.overflowing_add(&other);
-        if res.1 {
-            Self::max_value()
-        } else {
-            res.0
-        }
-    }
-
-    fn saturating_sub_impl(self, other: &Self) -> Self {
-        let res = self.overflowing_sub(&other);
-        if res.1 {
-            Self::zero()
-        } else {
-            res.0
-        }
-    }
-
-    // Add other to target, return overflow
+    // Add other to target, return overflow status
     fn add_impl(target: &mut Self, other: &Self) -> bool {
         let mut carry = T::zero();
         for i in 0..N {
@@ -215,6 +195,41 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             target.array[i] = res
         }
         !carry.is_zero()
+    }
+
+    // Here to avoid duplicating this in two traits
+    fn saturating_add_impl(self, other: &Self) -> Self {
+        let res = self.overflowing_add(&other);
+        if res.1 {
+            Self::max_value()
+        } else {
+            res.0
+        }
+    }
+
+    // Subtract other from target, return overflow status
+    fn sub_impl(target: &mut Self, other: &Self) -> bool {
+        let mut borrow = T::zero();
+        for i in 0..N {
+            let (res, borrow1) = target.array[i].overflowing_sub(&other.array[i]);
+            let (res, borrow2) = res.overflowing_sub(&borrow);
+            borrow = if borrow1 || borrow2 {
+                T::one()
+            } else {
+                T::zero()
+            };
+            target.array[i] = res;
+        }
+        !borrow.is_zero()
+    }
+
+    fn saturating_sub_impl(self, other: &Self) -> Self {
+        let res = self.overflowing_sub(&other);
+        if res.1 {
+            Self::zero()
+        } else {
+            res.0
+        }
     }
 }
 
@@ -284,21 +299,9 @@ impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingAd
     for FixedUInt<T, N>
 {
     fn overflowing_add(&self, other: &Self) -> (Self, bool) {
-        let mut ret = Self::new();
-        let carry = Self::add_impl(&mut ret, other);
-        (ret, carry)
-        /*        let mut carry = T::zero();
-        for i in 0..N {
-            let (res, carry1) = self.array[i].overflowing_add(&other.array[i]);
-            let (res, carry2) = res.overflowing_add(&carry);
-            carry = if carry1 || carry2 {
-                T::one()
-            } else {
-                T::zero()
-            };
-            ret.array[i] = res;
-        }
-        (ret, !carry.is_zero())*/
+        let mut ret = *self;
+        let overflow = Self::add_impl(&mut ret, other);
+        (ret, overflow)
     }
 }
 
@@ -320,6 +323,22 @@ impl<T: MachineWord, const N: usize> num_traits::WrappingAdd for FixedUInt<T, N>
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::Add<Wrapping<FixedUInt<T, N>>> for FixedUInt<T, N> {
+    type Output = Wrapping<Self>;
+    fn add(self, other: Wrapping<Self>) -> <Self as core::ops::Add<Wrapping<Self>>>::Output {
+        Wrapping(self.overflowing_add(&other.0).0)
+    }
+}
+
+/*
+impl<T: MachineWord, const N: usize> core::ops::Add<Wrapping<FixedUInt<T, N>>> for Wrapping<FixedUInt<T, N>> {
+    type Output = Self;
+    fn add(self, other: Wrapping<Self>) -> <Self as core::ops::Add<Self>>::Output {
+        self.overflowing_add(&other.0).0
+    }
+}
+*/
+
 impl<T: MachineWord, const N: usize> num_traits::CheckedAdd for FixedUInt<T, N> {
     fn checked_add(&self, other: &Self) -> Option<Self> {
         let res = self.overflowing_add(&other);
@@ -340,24 +359,47 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingAdd
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::AddAssign<Self> for FixedUInt<T, N> {
+    fn add_assign(&mut self, other: Self) {
+        if Self::add_impl(self, &other) {
+            // todo: Add a don't panic option
+            panic!("attempt to add with overflow");
+        }
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::AddAssign<&'_ Self> for FixedUInt<T, N> {
+    fn add_assign(&mut self, other: &Self) {
+        if Self::add_impl(self, other) {
+            // todo: Add a don't panic option
+            panic!("attempt to add with overflow");
+        }
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::AddAssign<Wrapping<FixedUInt<T, N>>>
+    for FixedUInt<T, N>
+{
+    fn add_assign(&mut self, other: Wrapping<Self>) {
+        Self::add_impl(self, &other.0);
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::AddAssign<&'_ Wrapping<FixedUInt<T, N>>>
+    for FixedUInt<T, N>
+{
+    fn add_assign(&mut self, other: &Wrapping<Self>) {
+        Self::add_impl(self, &other.0);
+    }
+}
+
 impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingSub
     for FixedUInt<T, N>
 {
     fn overflowing_sub(&self, other: &Self) -> (Self, bool) {
-        let mut ret = Self::new();
-        let mut borrow = T::zero();
-
-        for i in 0..N {
-            let (res, borrow1) = self.array[i].overflowing_sub(&other.array[i]);
-            let (res, borrow2) = res.overflowing_sub(&borrow);
-            borrow = if borrow1 || borrow2 {
-                T::one()
-            } else {
-                T::zero()
-            };
-            ret.array[i] = res;
-        }
-        (ret, !borrow.is_zero())
+        let mut ret = *self;
+        let overflow = Self::sub_impl(&mut ret, other);
+        (ret, overflow)
     }
 }
 
@@ -409,6 +451,32 @@ impl<T: MachineWord, const N: usize> num_traits::Saturating for FixedUInt<T, N> 
     /// Saturating subtraction operator. Returns a-b, saturating at the numeric bounds instead of overflowing.
     fn saturating_sub(self, other: Self) -> Self {
         self.saturating_sub_impl(&other)
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::SubAssign<Self> for FixedUInt<T, N> {
+    fn sub_assign(&mut self, other: Self) {
+        if Self::sub_impl(self, &other) {
+            // todo: Add a don't panic option
+            panic!("attempt to subtract with overflow");
+        }
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::SubAssign<&'_ Self> for FixedUInt<T, N> {
+    fn sub_assign(&mut self, other: &Self) {
+        if Self::sub_impl(self, other) {
+            // todo: Add a don't panic option
+            panic!("attempt to subtract with overflow");
+        }
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::SubAssign<Wrapping<FixedUInt<T, N>>>
+    for FixedUInt<T, N>
+{
+    fn sub_assign(&mut self, other: Wrapping<Self>) {
+        Self::sub_impl(self, &other.0);
     }
 }
 
@@ -893,40 +961,16 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
     }
 }
 
-impl<T: MachineWord, const N: usize> core::ops::AddAssign<Self> for FixedUInt<T, N> {
-    fn add_assign(&mut self, other: Self) {
-        Self::add_impl(self, &other);
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::AddAssign<Wrapping<FixedUInt<T, N>>>
-    for FixedUInt<T, N>
-{
-    fn add_assign(&mut self, other: Wrapping<Self>) {
-        //num_traits::WrappingAdd::<Self>::wrapping_add(self,other.0)
-        let tmp = *self + other.0;
-        *self = tmp;
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::Add<Wrapping<FixedUInt<T, N>>> for FixedUInt<T, N> {
-    type Output = Self;
-    fn add(self, other: Wrapping<Self>) -> <Self as core::ops::Add<Self>>::Output {
-        let tmp = self.overflowing_add(&other.0);
-        tmp.0
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::SubAssign<Self> for FixedUInt<T, N> {
-    fn sub_assign(&mut self, other: Self) {
-        let tmp = *self - other;
-        *self = tmp;
-    }
-}
-
 impl<T: MachineWord, const N: usize> core::ops::MulAssign<Self> for FixedUInt<T, N> {
     fn mul_assign(&mut self, other: Self) {
         let tmp = *self * other;
+        *self = tmp;
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::MulAssign<&'_ Self> for FixedUInt<T, N> {
+    fn mul_assign(&mut self, other: &Self) {
+        let tmp = *self * *other;
         *self = tmp;
     }
 }
@@ -938,9 +982,23 @@ impl<T: MachineWord, const N: usize> core::ops::DivAssign<Self> for FixedUInt<T,
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::DivAssign<&'_ Self> for FixedUInt<T, N> {
+    fn div_assign(&mut self, other: &Self) {
+        let tmp = *self / *other;
+        *self = tmp;
+    }
+}
+
 impl<T: MachineWord, const N: usize> core::ops::RemAssign<Self> for FixedUInt<T, N> {
     fn rem_assign(&mut self, other: Self) {
         let tmp = *self % other;
+        *self = tmp;
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::RemAssign<&'_ Self> for FixedUInt<T, N> {
+    fn rem_assign(&mut self, other: &Self) {
+        let tmp = *self % *other;
         *self = tmp;
     }
 }
