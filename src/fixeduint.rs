@@ -874,6 +874,42 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::AddAssign<Self> for FixedUInt<T, N> {
+    fn add_assign(&mut self, other: Self) {
+        // TODO: Remove unnecessary temporaries
+        let tmp = *self + other;
+        *self = tmp;
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::SubAssign<Self> for FixedUInt<T, N> {
+    fn sub_assign(&mut self, other: Self) {
+        let tmp = *self - other;
+        *self = tmp;
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::MulAssign<Self> for FixedUInt<T, N> {
+    fn mul_assign(&mut self, other: Self) {
+        let tmp = *self * other;
+        *self = tmp;
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::DivAssign<Self> for FixedUInt<T, N> {
+    fn div_assign(&mut self, other: Self) {
+        let tmp = *self / other;
+        *self = tmp;
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::RemAssign<Self> for FixedUInt<T, N> {
+    fn rem_assign(&mut self, other: Self) {
+        let tmp = *self % other;
+        *self = tmp;
+    }
+}
+
 // #endregion unimplemented
 
 #[cfg(test)]
