@@ -200,6 +200,22 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             res.0
         }
     }
+
+    // Add other to target, return overflow
+    fn add_impl(target: &mut Self, other: &Self) -> bool {
+        let mut carry = T::zero();
+        for i in 0..N {
+            let (res, carry1) = target.array[i].overflowing_add(&other.array[i]);
+            let (res, carry2) = res.overflowing_add(&carry);
+            carry = if carry1 || carry2 {
+                T::one()
+            } else {
+                T::zero()
+            };
+            target.array[i] = res
+        }
+        !carry.is_zero()
+    }
 }
 
 impl<T: MachineWord, const N: usize> Default for FixedUInt<T, N> {
@@ -269,7 +285,9 @@ impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingAd
 {
     fn overflowing_add(&self, other: &Self) -> (Self, bool) {
         let mut ret = Self::new();
-        let mut carry = T::zero();
+        let carry = Self::add_impl(&mut ret, other);
+        (ret, carry)
+        /*        let mut carry = T::zero();
         for i in 0..N {
             let (res, carry1) = self.array[i].overflowing_add(&other.array[i]);
             let (res, carry2) = res.overflowing_add(&carry);
@@ -280,7 +298,7 @@ impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingAd
             };
             ret.array[i] = res;
         }
-        (ret, !carry.is_zero())
+        (ret, !carry.is_zero())*/
     }
 }
 
@@ -877,9 +895,7 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
 
 impl<T: MachineWord, const N: usize> core::ops::AddAssign<Self> for FixedUInt<T, N> {
     fn add_assign(&mut self, other: Self) {
-        // TODO: Remove unnecessary temporaries
-        let tmp = *self + other;
-        *self = tmp;
+        Self::add_impl(self, &other);
     }
 }
 
