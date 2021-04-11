@@ -17,6 +17,7 @@ use num_traits::{Bounded, One, PrimInt, ToPrimitive, Zero};
 
 use core::convert::TryFrom;
 use core::fmt::Write;
+use core::num::Wrapping;
 
 use crate::machineword::MachineWord;
 
@@ -879,6 +880,24 @@ impl<T: MachineWord, const N: usize> core::ops::AddAssign<Self> for FixedUInt<T,
         // TODO: Remove unnecessary temporaries
         let tmp = *self + other;
         *self = tmp;
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::AddAssign<Wrapping<FixedUInt<T, N>>>
+    for FixedUInt<T, N>
+{
+    fn add_assign(&mut self, other: Wrapping<Self>) {
+        //num_traits::WrappingAdd::<Self>::wrapping_add(self,other.0)
+        let tmp = *self + other.0;
+        *self = tmp;
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::Add<Wrapping<FixedUInt<T, N>>> for FixedUInt<T, N> {
+    type Output = Self;
+    fn add(self, other: Wrapping<Self>) -> <Self as core::ops::Add<Self>>::Output {
+        let tmp = self.overflowing_add(&other.0);
+        tmp.0
     }
 }
 
