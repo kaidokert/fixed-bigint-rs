@@ -17,7 +17,6 @@ use num_traits::{Bounded, One, PrimInt, ToPrimitive, Zero};
 
 use core::convert::TryFrom;
 use core::fmt::Write;
-use core::num::Wrapping;
 
 use crate::machineword::MachineWord;
 
@@ -323,22 +322,6 @@ impl<T: MachineWord, const N: usize> num_traits::WrappingAdd for FixedUInt<T, N>
     }
 }
 
-impl<T: MachineWord, const N: usize> core::ops::Add<Wrapping<FixedUInt<T, N>>> for FixedUInt<T, N> {
-    type Output = Wrapping<Self>;
-    fn add(self, other: Wrapping<Self>) -> <Self as core::ops::Add<Wrapping<Self>>>::Output {
-        Wrapping(self.overflowing_add(&other.0).0)
-    }
-}
-
-/*
-impl<T: MachineWord, const N: usize> core::ops::Add<Wrapping<FixedUInt<T, N>>> for Wrapping<FixedUInt<T, N>> {
-    type Output = Self;
-    fn add(self, other: Wrapping<Self>) -> <Self as core::ops::Add<Self>>::Output {
-        self.overflowing_add(&other.0).0
-    }
-}
-*/
-
 impl<T: MachineWord, const N: usize> num_traits::CheckedAdd for FixedUInt<T, N> {
     fn checked_add(&self, other: &Self) -> Option<Self> {
         let res = self.overflowing_add(&other);
@@ -374,22 +357,6 @@ impl<T: MachineWord, const N: usize> core::ops::AddAssign<&'_ Self> for FixedUIn
             // todo: Add a don't panic option
             panic!("attempt to add with overflow");
         }
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::AddAssign<Wrapping<FixedUInt<T, N>>>
-    for FixedUInt<T, N>
-{
-    fn add_assign(&mut self, other: Wrapping<Self>) {
-        Self::add_impl(self, &other.0);
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::AddAssign<&'_ Wrapping<FixedUInt<T, N>>>
-    for FixedUInt<T, N>
-{
-    fn add_assign(&mut self, other: &Wrapping<Self>) {
-        Self::add_impl(self, &other.0);
     }
 }
 
@@ -469,14 +436,6 @@ impl<T: MachineWord, const N: usize> core::ops::SubAssign<&'_ Self> for FixedUIn
             // todo: Add a don't panic option
             panic!("attempt to subtract with overflow");
         }
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::SubAssign<Wrapping<FixedUInt<T, N>>>
-    for FixedUInt<T, N>
-{
-    fn sub_assign(&mut self, other: Wrapping<Self>) {
-        Self::sub_impl(self, &other.0);
     }
 }
 

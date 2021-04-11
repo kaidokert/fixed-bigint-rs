@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::num::Wrapping;
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
 
@@ -24,15 +23,11 @@ fn test_add_variants() {
             + num_traits::ops::wrapping::WrappingAdd
             + num_traits::NumAssign
             + num_traits::NumAssignRef
-            //+ core::ops::AddAssign<Wrapping<T>>
             + core::ops::AddAssign
             + core::convert::From<u8>
             + core::fmt::Debug,
         REF: num_traits::PrimInt,
-    >()
-    where
-        INT: std::ops::AddAssign<Wrapping<INT>>, //where Wrapping<INT> : std::ops::Add<Output = Wrapping<INT>>
-    {
+    >() {
         let one = INT::one();
         let two: INT = 2u8.into();
         let max = INT::max_value();
@@ -62,10 +57,6 @@ fn test_add_variants() {
         let mut val = one;
         val += one;
         assert_eq!(val, 2.into());
-
-        // Wrapping addassign should not panic
-        let mut val: Wrapping<INT> = Wrapping(max);
-        //val += Wrapping(one);
 
         // Test assign by ref works too
         let mut val = one;
