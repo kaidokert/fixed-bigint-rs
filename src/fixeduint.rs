@@ -839,8 +839,15 @@ impl<T: MachineWord, const N: usize> core::ops::BitXorAssign for FixedUInt<T, N>
 }
 
 impl<T: MachineWord, const N: usize> OverflowingShl for FixedUInt<T, N> {
-    fn overflowing_shl(self, _rhs: u32) -> (Self, bool) {
-        todo!()
+    fn overflowing_shl(self, bits: u32) -> (Self, bool) {
+        let rhsu = bits as usize;
+        let (shift, overflow) = if rhsu >= Self::BIT_SIZE {
+            (rhsu & (Self::BIT_SIZE - 1), true)
+        } else {
+            (rhsu, false)
+        };
+        let res = core::ops::Shl::<usize>::shl(self, shift);
+        (res, overflow)
     }
 }
 
@@ -871,14 +878,19 @@ impl<T: MachineWord, const N: usize> core::ops::Shl<&'_ usize> for FixedUInt<T, 
 }
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingShl for FixedUInt<T, N> {
-    fn wrapping_shl(&self, _: u32) -> Self {
-        todo!()
+    fn wrapping_shl(&self, bits: u32) -> Self {
+        self.overflowing_shl(bits).0
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedShl for FixedUInt<T, N> {
-    fn checked_shl(&self, _: u32) -> Option<Self> {
-        todo!()
+    fn checked_shl(&self, bits: u32) -> Option<Self> {
+        let res = self.overflowing_shl(bits);
+        if res.1 {
+            None
+        } else {
+            Some(res.0)
+        }
     }
 }
 

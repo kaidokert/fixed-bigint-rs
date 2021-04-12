@@ -33,7 +33,7 @@ pub use num_traits;
 pub mod fixeduint;
 
 /// Bits that should be in num_traits
-mod patch_num_traits;
+pub mod patch_num_traits;
 
 /// Machine word and doubleword
 mod machineword;

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use fixed_bigint::patch_num_traits::{OverflowingShl, OverflowingShr};
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
 
@@ -130,4 +131,52 @@ fn test_sh_assign() {
     test_shl_16_bit::<u16>();
     test_shl_16_bit::<Bn<u16, 1>>();
     test_shl_16_bit::<Bn<u8, 2>>();
+}
+
+#[test]
+fn test_sh_variants() {
+    fn test_sh_8_bit<
+        INT: num_traits::PrimInt
+            + core::fmt::Debug
+            + core::convert::From<u8>
+            + OverflowingShl
+            + OverflowingShr
+            + num_traits::WrappingShl
+            + num_traits::WrappingShr
+            + num_traits::CheckedShl
+            + num_traits::CheckedShr,
+    >() {
+        let a: INT = 8.into();
+        let left_ops = [(2, 32, false), (7, 0, false), (8, 8, true), (10, 32, true)];
+        for &(shift, res, overflow) in &left_ops {
+            let r = a.overflowing_shl(shift);
+            assert_eq!(r, (res.into(), overflow));
+            let r = a.wrapping_shl(shift);
+            assert_eq!(r, res.into());
+            let r = a.checked_shl(shift);
+            if overflow {
+                assert_eq!(r, None);
+            } else {
+                assert_eq!(r, Some(res.into()));
+            }
+        }
+        /*
+        let a: INT = 32.into();
+        let right_ops = [(2, 8, false), (7, 0, false), (8, 32, true), (10, 8, true)];
+        for &(shift, res, overflow) in &right_ops {
+            let r = a.overflowing_shr(shift);
+            assert_eq!(r, (res.into(), overflow));
+            let r = a.wrapping_shr(shift);
+            assert_eq!(r, res.into());
+            let r = a.checked_shr(shift);
+            if overflow {
+                assert_eq!(r, None);
+            } else {
+                assert_eq!(r, Some(res.into()));
+            }
+        }*/
+    }
+
+    test_sh_8_bit::<u8>();
+    test_sh_8_bit::<Bn<u8, 1>>();
 }
