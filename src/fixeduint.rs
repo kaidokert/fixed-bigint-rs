@@ -289,13 +289,12 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
                 overflow = true;
                 break;
             }
-            // todo: impl ShlAssign/ShrAssign to move things around less here and below
-            current = current << 1;
-            denom = denom << 1;
+            current <<= 1;
+            denom <<= 1;
         }
         if !overflow {
-            current = current >> 1;
-            denom = denom >> 1;
+            current >>= 1;
+            denom >>= 1;
         }
         while !current.is_zero() {
             if tmp >= denom {
@@ -303,8 +302,8 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
                 //todo: impl BitOrAssign to move things around less
                 result = result | current;
             }
-            current = current >> 1;
-            denom = denom >> 1;
+            current >>= 1;
+            denom >>= 1;
         }
         result
     }
@@ -765,6 +764,7 @@ impl<T: MachineWord, const N: usize> core::ops::BitXor for FixedUInt<T, N> {
 
 impl<T: MachineWord, const N: usize> core::ops::Shl<usize> for FixedUInt<T, N> {
     type Output = Self;
+    // todo: implement in-place version
     fn shl(self, bits: usize) -> <Self as core::ops::Shl<usize>>::Output {
         let nwords = (bits as usize) / Self::WORD_BITS;
         let nbits = (bits as usize) - nwords * Self::WORD_BITS;
@@ -790,8 +790,16 @@ impl<T: MachineWord, const N: usize> core::ops::Shl<usize> for FixedUInt<T, N> {
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::ShlAssign<usize> for FixedUInt<T, N> {
+    fn shl_assign(&mut self, bits: usize) {
+        // todo: refactor and eliminate copies
+        *self = core::ops::Shl::<usize>::shl(*self, bits);
+    }
+}
+
 impl<T: MachineWord, const N: usize> core::ops::Shr<usize> for FixedUInt<T, N> {
     type Output = Self;
+    // todo: implement in-place version
     fn shr(self, bits: usize) -> <Self as core::ops::Shr<usize>>::Output {
         let nwords = (bits as usize) / Self::WORD_BITS;
         let nbits = (bits as usize) - nwords * Self::WORD_BITS;
@@ -817,6 +825,12 @@ impl<T: MachineWord, const N: usize> core::ops::Shr<usize> for FixedUInt<T, N> {
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::ShrAssign<usize> for FixedUInt<T, N> {
+    fn shr_assign(&mut self, bits: usize) {
+        // todo: refactor and eliminate copies
+        *self = core::ops::Shr::<usize>::shr(*self, bits);
+    }
+}
 // #endregion Bitops
 
 // #region num_traits Identity
