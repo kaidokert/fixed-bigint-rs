@@ -18,10 +18,16 @@ use fixed_bigint::FixedUInt as Bn;
 #[test]
 fn test_num_assign_simple() {
     fn test<
-        INT: num_traits::NumAssignOps + core::convert::From<u8> + num_traits::PrimInt + core::fmt::Debug,
+        INT: num_traits::NumAssignOps
+            + num_traits::NumAssignRef
+            + core::convert::From<u8>
+            + num_traits::PrimInt
+            + core::fmt::Debug,
     >() {
         let mut a: INT = 2u8.into();
+        let mut a_ref = a;
         let b: INT = 3u8.into();
+        let b_ref = &b;
         a += b;
         assert_eq!(a, 5.into());
         a -= b;
@@ -32,6 +38,18 @@ fn test_num_assign_simple() {
         assert_eq!(a, 2.into());
         a %= b;
         assert_eq!(a, 2.into());
+
+        // Same thing with a ref arg
+        a_ref += b_ref;
+        assert_eq!(a_ref, 5.into());
+        a_ref -= b_ref;
+        assert_eq!(a_ref, 2.into());
+        a_ref *= b_ref;
+        assert_eq!(a_ref, 6.into());
+        a_ref /= b_ref;
+        assert_eq!(a_ref, 2.into());
+        a_ref %= b_ref;
+        assert_eq!(a_ref, 2.into());
     }
     test::<u8>();
     test::<Bn<u8, 1>>();

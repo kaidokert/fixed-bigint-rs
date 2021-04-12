@@ -23,7 +23,7 @@ fn test_add_variants() {
             + num_traits::ops::wrapping::WrappingAdd
             + num_traits::NumAssign
             + num_traits::NumAssignRef
-            + core::ops::AddAssign
+            + num_traits::NumRef
             + core::convert::From<u8>
             + core::fmt::Debug,
         REF: num_traits::PrimInt,

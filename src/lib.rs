@@ -23,7 +23,7 @@
 //!
 //! let a : FixedUInt<u8,2> = 200u8.into();
 //! assert_eq!( a + a , 400u16.into() );
-//! assert_eq!( a * 100u8.into(), 20000u16.into() )
+//! assert_eq!( a * &100u8.into(), 20000u16.into() )
 //! ```
 
 /// Re-export num_traits crate

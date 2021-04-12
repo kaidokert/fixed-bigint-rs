@@ -73,11 +73,12 @@ fn test_div() {
     assert_eq!(a / b, 2u8.into());
     assert_eq!(a.div(b), 2u8.into());
 
-    fn test_div_1<BN: num_traits::PrimInt>()
+    fn test_div_1<BN: num_traits::PrimInt + num_traits::NumAssign + num_traits::NumAssignRef>()
     where
         BN::FromStrRadixErr: core::fmt::Debug,
     {
         let tests = [
+            ("0", "00000002", 0),
             ("00000010", "00000002", 0x8),
             ("0000001b", "00000003", 0x9),
             ("0000012C", "00000064", 3),
@@ -88,6 +89,18 @@ fn test_div() {
             let g = BN::from_str_radix(b, 16).unwrap();
             let e = f / g;
             assert_eq!(e.to_u64().unwrap(), *res);
+            let e = f.div(g);
+            assert_eq!(e.to_u64().unwrap(), *res);
+
+            //div-assign
+            let mut x = f;
+            x /= g;
+            assert_eq!(x.to_u64().unwrap(), *res);
+            // by reference
+            let mut x = f;
+            let gref = &g;
+            x /= gref;
+            assert_eq!(x.to_u64().unwrap(), *res);
         }
     }
     test_div_1::<Bn<u8, 8>>();
@@ -282,7 +295,11 @@ fn test_full_range_mul() {
 #[test]
 fn test_checked_div() {
     fn test<
-        INT: num_traits::PrimInt + core::fmt::Debug + num_traits::CheckedDiv + core::convert::From<u8>,
+        INT: num_traits::PrimInt
+            + core::fmt::Debug
+            + num_traits::CheckedDiv
+            + num_traits::CheckedRem
+            + core::convert::From<u8>,
     >() {
         let a: INT = 2.into();
         let b: INT = 0.into();
@@ -290,6 +307,11 @@ fn test_checked_div() {
         assert_eq!(Into::<INT>::into(128).checked_div(&b), None);
         assert_eq!(Into::<INT>::into(0).checked_div(&b), None);
         assert_eq!(Into::<INT>::into(0).checked_div(&a), Some(0.into()));
+
+        assert_eq!(Into::<INT>::into(127).checked_rem(&a), Some(1.into()));
+        assert_eq!(Into::<INT>::into(127).checked_rem(&b), None);
+        assert_eq!(Into::<INT>::into(0).checked_rem(&b), None);
+        assert_eq!(Into::<INT>::into(0).checked_rem(&a), Some(0.into()));
     }
     test::<u8>();
     test::<Bn<u8, 1>>();
