@@ -71,7 +71,7 @@ fn test_shr() {
 
 #[test]
 fn test_sh_assign() {
-    fn test_shl_8_bit<
+    fn test_sh_8_bit<
         INT: num_traits::PrimInt
             + core::fmt::Debug
             + core::convert::From<u8>
@@ -100,6 +100,34 @@ fn test_sh_assign() {
         assert_eq!(a, 0.into());
         assert_eq!(a_r, 0.into());
     }
-    test_shl_8_bit::<u8>();
-    test_shl_8_bit::<Bn<u8, 1>>();
+    test_sh_8_bit::<u8>();
+    test_sh_8_bit::<Bn<u8, 1>>();
+
+    fn test_shl_16_bit<
+        INT: num_traits::PrimInt
+            + core::fmt::Debug
+            + core::convert::From<u16>
+            + std::ops::ShlAssign<usize>
+            + std::ops::ShrAssign<usize>,
+    >() {
+        let mut a: INT = 2u16.into();
+        let mut a_r = a;
+        a.shl_assign(1);
+        a_r <<= 1;
+        assert_eq!(a, 4.into());
+        assert_eq!(a_r, 4.into());
+
+        a.shl_assign(10);
+        a_r <<= 10;
+        assert_eq!(a, 4096.into());
+        assert_eq!(a_r, 4096.into());
+
+        a.shl_assign(8);
+        a_r <<= 8;
+        assert_eq!(a, 0.into());
+        assert_eq!(a_r, 0.into());
+    }
+    test_shl_16_bit::<u16>();
+    test_shl_16_bit::<Bn<u16, 1>>();
+    test_shl_16_bit::<Bn<u8, 2>>();
 }

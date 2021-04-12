@@ -307,6 +307,58 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         }
         result
     }
+
+    // Shifts left by bits, in-place
+    fn shl_impl(target: &mut Self, bits: usize) {
+        let nwords = bits / Self::WORD_BITS;
+        let nbits = (bits - nwords * Self::WORD_BITS) as u32;
+
+        for i in (nwords..target.array.len()).rev() {
+            target.array[i] = target.array[i - nwords];
+        }
+        // zero out the remainder
+        for i in 0..nwords {
+            target.array[i] = T::zero();
+        }
+
+        if nbits != 0 {
+            for i in (1..target.array.len()).rev() {
+                let f = target.array[i].overflowing_shl(nbits).0;
+                let e = target.array[i - 1]
+                    .overflowing_shr(Self::WORD_BITS as u32 - nbits)
+                    .0;
+                target.array[i] = f | e;
+            }
+            target.array[0] = target.array[0].overflowing_shl(nbits).0;
+        }
+    }
+    // Shifts right by bits, in-place
+    fn shr_impl(target: &mut Self, bits: usize) {
+        let nwords = bits / Self::WORD_BITS;
+        let nbits = (bits - nwords * Self::WORD_BITS) as u32;
+
+        let last_index = target.array.len() - 1;
+
+        for i in 0..target.array.len() - nwords {
+            target.array[i] = target.array[i + nwords];
+        }
+
+        // zero out the remainder
+        for i in target.array.len() - nwords..last_index {
+            target.array[i] = T::zero();
+        }
+
+        if nbits != 0 {
+            for i in 0..last_index {
+                let f = target.array[i].overflowing_shr(nbits as u32).0;
+                let e = target.array[i + 1]
+                    .overflowing_shl(Self::WORD_BITS as u32 - nbits as u32)
+                    .0;
+                target.array[i] = f | e;
+            }
+            target.array[last_index] = target.array[last_index].overflowing_shr(nbits as u32).0;
+        }
+    }
 }
 
 impl<T: MachineWord, const N: usize> Default for FixedUInt<T, N> {
@@ -764,71 +816,33 @@ impl<T: MachineWord, const N: usize> core::ops::BitXor for FixedUInt<T, N> {
 
 impl<T: MachineWord, const N: usize> core::ops::Shl<usize> for FixedUInt<T, N> {
     type Output = Self;
-    // todo: implement in-place version
     fn shl(self, bits: usize) -> <Self as core::ops::Shl<usize>>::Output {
-        let nwords = (bits as usize) / Self::WORD_BITS;
-        let nbits = (bits as usize) - nwords * Self::WORD_BITS;
-
-        let mut ret = Self::Output::zero();
-
-        for i in (nwords..ret.array.len()).rev() {
-            ret.array[i] = self.array[i - nwords];
-        }
-
-        if nbits != 0 {
-            for i in (1..ret.array.len()).rev() {
-                let f = ret.array[i].overflowing_shl(nbits as u32).0;
-                let e = ret.array[i - 1]
-                    .overflowing_shr(Self::WORD_BITS as u32 - nbits as u32)
-                    .0;
-                ret.array[i] = f | e;
-            }
-            ret.array[0] = ret.array[0].overflowing_shl(nbits as u32).0;
-        }
-
-        ret
+        // this copy can be avoided, by adding src + target
+        let mut result = self;
+        Self::shl_impl(&mut result, bits);
+        result
     }
 }
 
 impl<T: MachineWord, const N: usize> core::ops::ShlAssign<usize> for FixedUInt<T, N> {
     fn shl_assign(&mut self, bits: usize) {
-        // todo: refactor and eliminate copies
-        *self = core::ops::Shl::<usize>::shl(*self, bits);
+        Self::shl_impl(self, bits);
     }
 }
 
 impl<T: MachineWord, const N: usize> core::ops::Shr<usize> for FixedUInt<T, N> {
     type Output = Self;
-    // todo: implement in-place version
     fn shr(self, bits: usize) -> <Self as core::ops::Shr<usize>>::Output {
-        let nwords = (bits as usize) / Self::WORD_BITS;
-        let nbits = (bits as usize) - nwords * Self::WORD_BITS;
-
-        let mut ret = Self::Output::zero();
-
-        for i in 0..ret.array.len() - nwords {
-            ret.array[i] = self.array[i + nwords];
-        }
-        if nbits != 0 {
-            for i in 0..ret.array.len() - 1 {
-                let f = ret.array[i].overflowing_shr(nbits as u32).0;
-                let e = ret.array[i + 1]
-                    .overflowing_shl(Self::WORD_BITS as u32 - nbits as u32)
-                    .0;
-                ret.array[i] = f | e;
-            }
-            ret.array[ret.array.len() - 1] = ret.array[ret.array.len() - 1]
-                .overflowing_shr(nbits as u32)
-                .0;
-        }
-        ret
+        // Technically, this copy can be avoided
+        let mut result = self;
+        Self::shr_impl(&mut result, bits);
+        result
     }
 }
 
 impl<T: MachineWord, const N: usize> core::ops::ShrAssign<usize> for FixedUInt<T, N> {
     fn shr_assign(&mut self, bits: usize) {
-        // todo: refactor and eliminate copies
-        *self = core::ops::Shr::<usize>::shr(*self, bits);
+        Self::shr_impl(self, bits);
     }
 }
 // #endregion Bitops
