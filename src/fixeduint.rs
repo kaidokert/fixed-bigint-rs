@@ -235,11 +235,11 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
     // Multiply op1 with op2, return overflow status
     // Note: uses extra `result` variable, not sure if in-place multiply is possible at all.
-    fn mul_impl(op1: &Self, op2: &Self) -> (Self, bool) {
+    fn mul_impl<const CHECK_OVERFLOW: bool>(op1: &Self, op2: &Self) -> (Self, bool) {
         let mut result = Self::zero();
         let mut overflowed = false;
         // Calculate N+1 rounds, to check for overflow
-        let max_rounds = N + 1;
+        let max_rounds = if CHECK_OVERFLOW { N + 1 } else { N };
         let t_max = T::max_value().to_double();
         for i in 0..N {
             let mut carry = T::DoubleWord::zero();
@@ -261,12 +261,12 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
                     }
                     if round < N {
                         result.array[round] = T::from_double(accumulator);
-                    } else {
+                    } else if CHECK_OVERFLOW {
                         overflowed = overflowed || !accumulator.is_zero();
                     }
                 }
             }
-            if !carry.is_zero() {
+            if !carry.is_zero() && CHECK_OVERFLOW {
                 overflowed = true;
             }
         }
@@ -542,7 +542,7 @@ impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingMu
     for FixedUInt<T, N>
 {
     fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
-        Self::mul_impl(self, other)
+        Self::mul_impl::<true>(self, other)
     }
 }
 
@@ -570,7 +570,7 @@ impl<T: MachineWord, const N: usize> core::ops::Mul<&'_ Self> for FixedUInt<T, N
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingMul for FixedUInt<T, N> {
     fn wrapping_mul(&self, other: &Self) -> Self {
-        self.overflowing_mul(&other).0
+        Self::mul_impl::<false>(self, &other).0
     }
 }
 
@@ -600,7 +600,7 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingMul
 
 impl<T: MachineWord, const N: usize> core::ops::MulAssign<Self> for FixedUInt<T, N> {
     fn mul_assign(&mut self, other: Self) {
-        let res = Self::mul_impl(self, &other);
+        let res = self.overflowing_mul(&other);
         *self = res.0;
         if res.1 {
             maybe_panic(PanicReason::Mul);
@@ -610,7 +610,7 @@ impl<T: MachineWord, const N: usize> core::ops::MulAssign<Self> for FixedUInt<T,
 
 impl<T: MachineWord, const N: usize> core::ops::MulAssign<&'_ Self> for FixedUInt<T, N> {
     fn mul_assign(&mut self, other: &Self) {
-        let res = Self::mul_impl(self, other);
+        let res = self.overflowing_mul(other);
         *self = res.0;
         if res.1 {
             maybe_panic(PanicReason::Mul);
