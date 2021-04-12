@@ -21,6 +21,9 @@ fn test_add_variants() {
         INT: num_traits::PrimInt
             + num_traits::ops::overflowing::OverflowingAdd
             + num_traits::ops::wrapping::WrappingAdd
+            + num_traits::NumAssign
+            + num_traits::NumAssignRef
+            + num_traits::NumRef
             + core::convert::From<u8>
             + core::fmt::Debug,
         REF: num_traits::PrimInt,
@@ -49,6 +52,17 @@ fn test_add_variants() {
         assert_eq!(max.saturating_add(one), max);
         // Verify with a builtin primitive too
         assert_eq!(max.saturating_add(one).to_u64().unwrap(), ref_max);
+
+        // AddAssign
+        let mut val = one;
+        val += one;
+        assert_eq!(val, 2.into());
+
+        // Test assign by ref works too
+        let mut val = one;
+        let one_ref = &one;
+        val += one_ref;
+        assert_eq!(val, 2.into());
     }
     test_add_variant::<u8, u8>();
     test_add_variant::<u16, u16>();
