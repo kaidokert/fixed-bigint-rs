@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::patch_num_traits::{OverflowingShl, OverflowingShr};
+
 /// Represents a CPU native word, from 8-bit to 32-bit, with corresponding
 /// double-word to hold multiplication/division products.
 pub trait MachineWord:
@@ -20,10 +22,12 @@ pub trait MachineWord:
     + num_traits::ops::overflowing::OverflowingAdd
     + num_traits::ops::overflowing::OverflowingSub
     + From<u8>
-    + num_traits::WrappingShl
     + OverflowingShl
     + OverflowingShr
     + core::fmt::Debug
+    + core::ops::BitAndAssign
+    + core::ops::BitOrAssign
+    + core::ops::BitXorAssign
 {
     type DoubleWord: num_traits::PrimInt
         + num_traits::Unsigned
@@ -81,35 +85,6 @@ impl MachineWord for u32 {
         ret
     }
 }
-
-// These should be in num_traits
-pub trait OverflowingShl: Sized {
-    fn overflowing_shl(self, rhs: u32) -> (Self, bool);
-}
-pub trait OverflowingShr: Sized {
-    fn overflowing_shr(self, rhs: u32) -> (Self, bool);
-}
-
-macro_rules! overflowing_shift_impl {
-    ($trait_name:ident, $method:ident, $t:ty) => {
-        impl $trait_name for $t {
-            #[inline]
-            fn $method(self, rhs: u32) -> ($t, bool) {
-                <$t>::$method(self, rhs)
-            }
-        }
-    };
-}
-
-overflowing_shift_impl!(OverflowingShl, overflowing_shl, u8);
-overflowing_shift_impl!(OverflowingShl, overflowing_shl, u16);
-overflowing_shift_impl!(OverflowingShl, overflowing_shl, u32);
-overflowing_shift_impl!(OverflowingShl, overflowing_shl, u64);
-
-overflowing_shift_impl!(OverflowingShr, overflowing_shr, u8);
-overflowing_shift_impl!(OverflowingShr, overflowing_shr, u16);
-overflowing_shift_impl!(OverflowingShr, overflowing_shr, u32);
-overflowing_shift_impl!(OverflowingShr, overflowing_shr, u64);
 
 #[cfg(test)]
 mod tests {

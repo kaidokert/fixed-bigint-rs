@@ -19,6 +19,7 @@ use core::convert::TryFrom;
 use core::fmt::Write;
 
 use crate::machineword::MachineWord;
+use crate::patch_num_traits::{OverflowingShl, OverflowingShr};
 
 #[allow(unused_imports)]
 use num_traits::{FromPrimitive, Num};
@@ -71,7 +72,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             for i in 0..Self::WORD_SIZE {
                 let byte = bytes[word * Self::WORD_SIZE + (Self::WORD_SIZE - 1 - i)];
                 v = next | byte.into();
-                next = v.wrapping_shl(8);
+                next = v.overflowing_shl(8).0;
             }
             ret.array[word] = v;
         }
@@ -299,8 +300,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         while !current.is_zero() {
             if tmp >= denom {
                 tmp -= denom;
-                //todo: impl BitOrAssign to move things around less
-                result = result | current;
+                result |= current;
             }
             current >>= 1;
             denom >>= 1;
@@ -313,7 +313,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         let nwords = bits / Self::WORD_BITS;
         let nbits = (bits - nwords * Self::WORD_BITS) as u32;
 
-        for i in (nwords..target.array.len()).rev() {
+        for i in (nwords..N).rev() {
             target.array[i] = target.array[i - nwords];
         }
         // zero out the remainder
@@ -322,7 +322,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         }
 
         if nbits != 0 {
-            for i in (1..target.array.len()).rev() {
+            for i in (1..N).rev() {
                 let f = target.array[i].overflowing_shl(nbits).0;
                 let e = target.array[i - 1]
                     .overflowing_shr(Self::WORD_BITS as u32 - nbits)
@@ -337,14 +337,14 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         let nwords = bits / Self::WORD_BITS;
         let nbits = (bits - nwords * Self::WORD_BITS) as u32;
 
-        let last_index = target.array.len() - 1;
+        let last_index = N - 1;
 
-        for i in 0..target.array.len() - nwords {
+        for i in 0..N - nwords {
             target.array[i] = target.array[i + nwords];
         }
 
         // zero out the remainder
-        for i in target.array.len() - nwords..last_index {
+        for i in N - nwords..last_index {
             target.array[i] = T::zero();
         }
 
@@ -373,7 +373,7 @@ impl<T: MachineWord, const N: usize> num_traits::Unsigned for FixedUInt<T, N> {}
 
 impl<T: MachineWord, const N: usize> core::cmp::Ord for FixedUInt<T, N> {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        for i in (0..self.array.len()).rev() {
+        for i in (0..N).rev() {
             if self.array[i] > other.array[i] {
                 return core::cmp::Ordering::Greater;
             }
@@ -774,7 +774,7 @@ impl<T: MachineWord, const N: usize> core::ops::Not for FixedUInt<T, N> {
     type Output = Self;
     fn not(self) -> <Self as core::ops::Not>::Output {
         let mut ret = Self::zero();
-        for i in 0..ret.array.len() {
+        for i in 0..N {
             ret.array[i] = !self.array[i]
         }
         ret
@@ -785,10 +785,18 @@ impl<T: MachineWord, const N: usize> core::ops::BitAnd for FixedUInt<T, N> {
     type Output = Self;
     fn bitand(self, other: Self) -> <Self as core::ops::BitAnd<Self>>::Output {
         let mut ret = Self::zero();
-        for i in 0..ret.array.len() {
+        for i in 0..N {
             ret.array[i] = self.array[i] & other.array[i]
         }
         ret
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::BitAndAssign for FixedUInt<T, N> {
+    fn bitand_assign(&mut self, other: Self) {
+        for i in 0..N {
+            self.array[i] &= other.array[i]
+        }
     }
 }
 
@@ -796,10 +804,18 @@ impl<T: MachineWord, const N: usize> core::ops::BitOr for FixedUInt<T, N> {
     type Output = Self;
     fn bitor(self, other: Self) -> <Self as core::ops::BitOr<Self>>::Output {
         let mut ret = Self::zero();
-        for i in 0..ret.array.len() {
+        for i in 0..N {
             ret.array[i] = self.array[i] | other.array[i]
         }
         ret
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::BitOrAssign for FixedUInt<T, N> {
+    fn bitor_assign(&mut self, other: Self) {
+        for i in 0..N {
+            self.array[i] |= other.array[i]
+        }
     }
 }
 
@@ -807,10 +823,31 @@ impl<T: MachineWord, const N: usize> core::ops::BitXor for FixedUInt<T, N> {
     type Output = Self;
     fn bitxor(self, other: Self) -> <Self as core::ops::BitXor<Self>>::Output {
         let mut ret = Self::zero();
-        for i in 0..ret.array.len() {
+        for i in 0..N {
             ret.array[i] = self.array[i] ^ other.array[i]
         }
         ret
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::BitXorAssign for FixedUInt<T, N> {
+    fn bitxor_assign(&mut self, other: Self) {
+        for i in 0..N {
+            self.array[i] ^= other.array[i]
+        }
+    }
+}
+
+impl<T: MachineWord, const N: usize> OverflowingShl for FixedUInt<T, N> {
+    fn overflowing_shl(self, _rhs: u32) -> (Self, bool) {
+        todo!()
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::Shl<u32> for FixedUInt<T, N> {
+    type Output = Self;
+    fn shl(self, _bits: u32) -> <Self as core::ops::Shl<u32>>::Output {
+        todo!()
     }
 }
 
@@ -824,9 +861,51 @@ impl<T: MachineWord, const N: usize> core::ops::Shl<usize> for FixedUInt<T, N> {
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::Shl<&'_ usize> for FixedUInt<T, N> {
+    type Output = Self;
+    fn shl(self, bits: &usize) -> <Self as core::ops::Shl<usize>>::Output {
+        let mut result = self;
+        Self::shl_impl(&mut result, *bits);
+        result
+    }
+}
+
+impl<T: MachineWord, const N: usize> num_traits::WrappingShl for FixedUInt<T, N> {
+    fn wrapping_shl(&self, _: u32) -> Self {
+        todo!()
+    }
+}
+
+impl<T: MachineWord, const N: usize> num_traits::CheckedShl for FixedUInt<T, N> {
+    fn checked_shl(&self, _: u32) -> Option<Self> {
+        todo!()
+    }
+}
+
+// SaturatingShl doesn't exist
+
 impl<T: MachineWord, const N: usize> core::ops::ShlAssign<usize> for FixedUInt<T, N> {
     fn shl_assign(&mut self, bits: usize) {
         Self::shl_impl(self, bits);
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::ShlAssign<&'_ usize> for FixedUInt<T, N> {
+    fn shl_assign(&mut self, bits: &usize) {
+        Self::shl_impl(self, *bits);
+    }
+}
+
+impl<T: MachineWord, const N: usize> OverflowingShr for FixedUInt<T, N> {
+    fn overflowing_shr(self, _rhs: u32) -> (Self, bool) {
+        todo!()
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::Shr<u32> for FixedUInt<T, N> {
+    type Output = Self;
+    fn shr(self, _bits: u32) -> <Self as core::ops::Shr<u32>>::Output {
+        todo!()
     }
 }
 
@@ -840,11 +919,41 @@ impl<T: MachineWord, const N: usize> core::ops::Shr<usize> for FixedUInt<T, N> {
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::Shr<&'_ usize> for FixedUInt<T, N> {
+    type Output = Self;
+    fn shr(self, bits: &usize) -> <Self as core::ops::Shr<usize>>::Output {
+        let mut result = self;
+        Self::shr_impl(&mut result, *bits);
+        result
+    }
+}
+
+impl<T: MachineWord, const N: usize> num_traits::WrappingShr for FixedUInt<T, N> {
+    fn wrapping_shr(&self, _: u32) -> Self {
+        todo!()
+    }
+}
+
+impl<T: MachineWord, const N: usize> num_traits::CheckedShr for FixedUInt<T, N> {
+    fn checked_shr(&self, _: u32) -> Option<Self> {
+        todo!()
+    }
+}
+
+// SaturatingShr doesn't exist
+
 impl<T: MachineWord, const N: usize> core::ops::ShrAssign<usize> for FixedUInt<T, N> {
     fn shr_assign(&mut self, bits: usize) {
         Self::shr_impl(self, bits);
     }
 }
+
+impl<T: MachineWord, const N: usize> core::ops::ShrAssign<&'_ usize> for FixedUInt<T, N> {
+    fn shr_assign(&mut self, bits: &usize) {
+        Self::shr_impl(self, *bits);
+    }
+}
+
 // #endregion Bitops
 
 // #region num_traits Identity

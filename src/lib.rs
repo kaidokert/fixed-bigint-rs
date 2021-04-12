@@ -32,6 +32,9 @@ pub use num_traits;
 /// Fixed-size big integer implementation
 pub mod fixeduint;
 
+/// Bits that should be in num_traits
+mod patch_num_traits;
+
 /// Machine word and doubleword
 mod machineword;
 
