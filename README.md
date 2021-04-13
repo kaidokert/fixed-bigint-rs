@@ -17,8 +17,6 @@ The crate is written for `no_std` and `no_alloc` environments with option for pa
 The arithmetic operands ( +, -, .add() ) panic on overflow, just like native integer types. Panic-free alternatives like `overlowing_add` and `wrapping_add` are supported.
 
 _TODO list_:
- * Implement WrappingShl/Shr, CheckedShl/Shr, ShlAssign, ShrAssign
- * Implement BitOrAssign, BitAndAssign, BitXorAssign
  * Implement experimental `unchecked_math` operands, unchecked_mul, unchecked_div etc.
  * Probably needs its own error structs instead of reusing core::fmt::Error and core::num::ParseIntError
  * Decimal string to/from conversion, currently only binary and hex strings are supported.
