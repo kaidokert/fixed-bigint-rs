@@ -12,28 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::patch_num_traits::{OverflowingShl, OverflowingShr};
-
 /// Represents a CPU native word, from 8-bit to 32-bit, with corresponding
 /// double-word to hold multiplication/division products.
 pub trait MachineWord:
     num_traits::PrimInt
-    + num_traits::Unsigned
     + num_traits::ops::overflowing::OverflowingAdd
     + num_traits::ops::overflowing::OverflowingSub
     + From<u8>
-    + OverflowingShl
-    + OverflowingShr
-    + core::fmt::Debug
     + core::ops::BitAndAssign
     + core::ops::BitOrAssign
     + core::ops::BitXorAssign
 {
-    type DoubleWord: num_traits::PrimInt
-        + num_traits::Unsigned
-        + num_traits::WrappingAdd
-        + num_traits::WrappingSub
-        + OverflowingShl;
+    type DoubleWord: num_traits::PrimInt;
     fn to_double(self) -> Self::DoubleWord;
     fn from_double(word: Self::DoubleWord) -> Self;
 
