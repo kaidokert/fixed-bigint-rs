@@ -225,3 +225,39 @@ fn test_sh_variants() {
     test_shifts::<u32, Bn<u16, 2>>(8, &left_ops, 0x20000000, &right_ops);
     test_shifts::<u32, Bn<u8, 4>>(8, &left_ops, 0x20000000, &right_ops);
 }
+
+#[test]
+fn test_rotate() {
+    fn test_rotate<
+        T: num_traits::PrimInt,
+        INT: num_traits::PrimInt + core::fmt::Debug + core::convert::From<T>,
+    >(
+        (a_ref, b_ref, c_ref): (T, T, T),
+        half_shift: u32,
+        full_shift: u32,
+    ) {
+        let a: INT = a_ref.into();
+        let b: INT = b_ref.into();
+        let c: INT = c_ref.into();
+        assert_eq!(a.rotate_left(1), b);
+        assert_eq!(a.rotate_left(half_shift), c);
+        assert_eq!(a.rotate_right(half_shift), c);
+        assert_eq!(a.rotate_left(full_shift), a);
+        assert_eq!(b.rotate_right(1), a);
+        assert_eq!(b.rotate_right(full_shift), b);
+    }
+    let test_8bit = (0xc1, 0x83, 0x1C);
+    test_rotate::<u8, u8>(test_8bit, 4, 8);
+    test_rotate::<u8, Bn<u8, 1>>(test_8bit, 4, 8);
+
+    let test_16bit = (0xc001, 0x8003, 0x01C0);
+    test_rotate::<u16, u16>(test_16bit, 8, 16);
+    test_rotate::<u16, Bn<u8, 2>>(test_16bit, 8, 16);
+    test_rotate::<u16, Bn<u16, 1>>(test_16bit, 8, 16);
+
+    let test_32bit = (0xc0000001u32, 0x80000003u32, 0x0001C000u32);
+    test_rotate::<u32, u32>(test_32bit, 16, 32);
+    test_rotate::<u32, Bn<u8, 4>>(test_32bit, 16, 32);
+    test_rotate::<u32, Bn<u16, 2>>(test_32bit, 16, 32);
+    test_rotate::<u32, Bn<u32, 1>>(test_32bit, 16, 32);
+}

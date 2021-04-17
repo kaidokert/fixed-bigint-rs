@@ -1204,11 +1204,15 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
         }
         ret
     }
-    fn rotate_left(self, _: u32) -> Self {
-        todo!()
+    fn rotate_left(self, bits: u32) -> Self {
+        let a = self << bits;
+        let b = self >> (Self::BIT_SIZE - bits as usize);
+        a | b
     }
-    fn rotate_right(self, _: u32) -> Self {
-        todo!()
+    fn rotate_right(self, bits: u32) -> Self {
+        let a = self >> bits;
+        let b = self << (Self::BIT_SIZE - bits as usize);
+        a | b
     }
     fn signed_shl(self, _: u32) -> Self {
         todo!()
