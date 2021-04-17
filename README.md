@@ -21,7 +21,6 @@ _TODO list_:
  * Implement experimental `unchecked_math` operands, unchecked_mul, unchecked_div etc.
  * Probably needs its own error structs instead of reusing core::fmt::Error and core::num::ParseIntError
  * Decimal string to/from conversion, currently only binary and hex strings are supported.
- * Implement a `dontpanic` feature, changing arithmetic ops to behave like wrapping versions, i.e. a non-standard C-like way.
  * Comprehensive testing fixture, fully validate all ops up to 32-bit against native types
  * Some test code relies on 64-bit ToPrimitive/FromPrimitive conversions, clean this up
  * Lots of test code can be written cleaner
