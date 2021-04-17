@@ -1095,7 +1095,6 @@ enum PanicReason {
     RemByZero,
 }
 
-// todo: Add a "don't panic" option
 fn maybe_panic(r: PanicReason) {
     match r {
         PanicReason::Add => panic!("attempt to add with overflow"),
