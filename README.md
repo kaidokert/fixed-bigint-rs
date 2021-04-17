@@ -4,6 +4,7 @@
 [![documentation](https://docs.rs/fixed-bigint/badge.svg)](https://docs.rs/fixed-bigint/)
 [![minimum rustc 1.51](https://img.shields.io/badge/rustc-1.51+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![build status](https://github.com/kaidokert/fixed-bigint-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/kaidokert/fixed-bigint-rs/actions)
+[![Coverage Status](https://coveralls.io/repos/github/kaidokert/fixed-bigint-rs/badge.svg?branch=main)](https://coveralls.io/github/kaidokert/fixed-bigint-rs?branch=main)
 
 Unsigned BigInt implementation, backed by a fixed-size array.
 
