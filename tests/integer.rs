@@ -14,6 +14,7 @@
 
 #[cfg(test)]
 use fixed_bigint::FixedUInt;
+use num_integer::Integer;
 
 #[test]
 fn test_evenodd() {
@@ -29,4 +30,39 @@ fn test_evenodd() {
     even_odd::<FixedUInt<u8, 1>>();
     even_odd::<FixedUInt<u8, 2>>();
     even_odd::<FixedUInt<u16, 1>>();
+}
+
+#[test]
+fn test_divides() {
+    fn divides<T: num_integer::Integer + From<u8>>() {
+        let tests = [(6u8, 3u8, true), (8, 2, true), (8, 1, true), (17, 2, false)];
+        for &(multiple, multiplier, expected) in &tests {
+            assert_eq!(multiple.is_multiple_of(&multiplier), expected);
+            assert_eq!(multiple.divides(&multiplier), expected);
+        }
+        let divrem = [
+            (6u8, 3u8, 2u8, 0u8),
+            (8, 2, 4, 0),
+            (7, 2, 3, 1),
+            (89, 13, 6, 11),
+        ];
+        for &(multiple, divider, div, rem) in &divrem {
+            let (divres, remres) = multiple.div_rem(&divider);
+            assert_eq!(divres, div);
+            assert_eq!(remres, rem);
+
+            assert_eq!(multiple.div_floor(&divider), divres);
+            assert_eq!(multiple.mod_floor(&divider), remres);
+        }
+    }
+    divides::<u8>();
+    divides::<FixedUInt<u8, 1>>();
+    divides::<FixedUInt<u8, 2>>();
+    divides::<FixedUInt<u16, 1>>();
+}
+
+// TODO: Test GCD / LCM
+#[test]
+fn test_gcd_lcm() {
+    //todo!()
 }
