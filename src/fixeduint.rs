@@ -1253,11 +1253,23 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
 // #region num-integer::Integer
 
 impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N> {
-    fn div_floor(&self, _: &Self) -> Self {
-        todo!()
+    fn div_floor(&self, other: &Self) -> Self {
+        let zero = Self::zero();
+        let (d, r) = self.div_rem(other);
+        if (r > zero && *other < zero) || (r < zero && *other > zero) {
+            d - Self::one()
+        } else {
+            d
+        }
     }
-    fn mod_floor(&self, _: &Self) -> Self {
-        todo!()
+    fn mod_floor(&self, other: &Self) -> Self {
+        let zero = Self::zero();
+        let r = *self % *other;
+        if (r > zero && *other < zero) || (r < zero && *other > zero) {
+            r + *other
+        } else {
+            r
+        }
     }
     fn gcd(&self, _: &Self) -> Self {
         todo!()
@@ -1265,20 +1277,20 @@ impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N> {
     fn lcm(&self, _: &Self) -> Self {
         todo!()
     }
-    fn divides(&self, _: &Self) -> bool {
-        todo!()
+    fn divides(&self, other: &Self) -> bool {
+        self.is_multiple_of(other)
     }
-    fn is_multiple_of(&self, _: &Self) -> bool {
-        todo!()
+    fn is_multiple_of(&self, other: &Self) -> bool {
+        (*self) % other == Self::zero()
     }
     fn is_even(&self) -> bool {
-        todo!()
+        (*self) & Self::one() == Self::zero()
     }
     fn is_odd(&self) -> bool {
-        todo!()
+        !self.is_even()
     }
-    fn div_rem(&self, _: &Self) -> (Self, Self) {
-        todo!()
+    fn div_rem(&self, other: &Self) -> (Self, Self) {
+        self.div_rem(other)
     }
 }
 
