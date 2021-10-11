@@ -200,7 +200,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
     // Here to avoid duplicating this in two traits
     fn saturating_add_impl(self, other: &Self) -> Self {
-        let res = self.overflowing_add(&other);
+        let res = self.overflowing_add(other);
         if res.1 {
             Self::max_value()
         } else {
@@ -226,7 +226,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     }
 
     fn saturating_sub_impl(self, other: &Self) -> Self {
-        let res = self.overflowing_sub(&other);
+        let res = self.overflowing_sub(other);
         if res.1 {
             Self::zero()
         } else {
@@ -461,13 +461,13 @@ impl<T: MachineWord, const N: usize> core::ops::Add<&'_ Self> for FixedUInt<T, N
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingAdd for FixedUInt<T, N> {
     fn wrapping_add(&self, other: &Self) -> Self {
-        self.overflowing_add(&other).0
+        self.overflowing_add(other).0
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedAdd for FixedUInt<T, N> {
     fn checked_add(&self, other: &Self) -> Option<Self> {
-        let res = self.overflowing_add(&other);
+        let res = self.overflowing_add(other);
         if res.1 {
             None
         } else {
@@ -481,7 +481,7 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingAdd
 {
     /// Saturating addition operator. Returns a+b, saturating at the numeric bounds instead of overflowing.
     fn saturating_add(&self, other: &Self) -> Self {
-        self.saturating_add_impl(&other)
+        self.saturating_add_impl(other)
     }
 }
 
@@ -535,13 +535,13 @@ impl<T: MachineWord, const N: usize> core::ops::Sub<&'_ Self> for FixedUInt<T, N
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingSub for FixedUInt<T, N> {
     fn wrapping_sub(&self, other: &Self) -> Self {
-        self.overflowing_sub(&other).0
+        self.overflowing_sub(other).0
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedSub for FixedUInt<T, N> {
     fn checked_sub(&self, other: &Self) -> Option<Self> {
-        let res = self.overflowing_sub(&other);
+        let res = self.overflowing_sub(other);
         if res.1 {
             None
         } else {
@@ -555,7 +555,7 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingSub
 {
     /// Saturating subtraction operator. Returns a-b, saturating at the numeric bounds instead of overflowing.
     fn saturating_sub(&self, other: &Self) -> Self {
-        self.saturating_sub_impl(&other)
+        self.saturating_sub_impl(other)
     }
 }
 
@@ -614,7 +614,7 @@ impl<T: MachineWord, const N: usize> core::ops::Mul for FixedUInt<T, N> {
 impl<T: MachineWord, const N: usize> core::ops::Mul<&'_ Self> for FixedUInt<T, N> {
     type Output = Self;
     fn mul(self, other: &Self) -> <Self as core::ops::Mul<Self>>::Output {
-        let res = self.overflowing_mul(&other);
+        let res = self.overflowing_mul(other);
         if res.1 {
             maybe_panic(PanicReason::Mul);
         }
@@ -624,13 +624,13 @@ impl<T: MachineWord, const N: usize> core::ops::Mul<&'_ Self> for FixedUInt<T, N
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingMul for FixedUInt<T, N> {
     fn wrapping_mul(&self, other: &Self) -> Self {
-        Self::mul_impl::<false>(self, &other).0
+        Self::mul_impl::<false>(self, other).0
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedMul for FixedUInt<T, N> {
     fn checked_mul(&self, other: &Self) -> Option<Self> {
-        let res = self.overflowing_mul(&other);
+        let res = self.overflowing_mul(other);
         if res.1 {
             None
         } else {
@@ -643,7 +643,7 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingMul
     for FixedUInt<T, N>
 {
     fn saturating_mul(&self, other: &Self) -> Self {
-        let res = self.overflowing_mul(&other);
+        let res = self.overflowing_mul(other);
         if res.1 {
             Self::max_value()
         } else {
@@ -688,7 +688,7 @@ impl<T: MachineWord, const N: usize> core::ops::Div<&'_ Self> for FixedUInt<T, N
         if other.is_zero() {
             maybe_panic(PanicReason::DivByZero)
         }
-        Self::div_impl(&self, &other)
+        Self::div_impl(&self, other)
     }
 }
 
@@ -736,7 +736,7 @@ impl<T: MachineWord, const N: usize> core::ops::Rem<&'_ Self> for FixedUInt<T, N
         if other.is_zero() {
             maybe_panic(PanicReason::RemByZero)
         }
-        self.div_rem(&other).1
+        self.div_rem(other).1
     }
 }
 
