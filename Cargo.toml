@@ -20,6 +20,10 @@ exclude = ["/.github/*"]
 version = "0.2.14"
 default-features = false
 
+[dependencies.num-integer]
+version = "0.1.44"
+default-features = false
+
 [profile.dev]
 opt-level = 0
 debug = true

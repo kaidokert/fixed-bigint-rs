@@ -15,6 +15,8 @@
 use num_traits::ops::overflowing::{OverflowingAdd, OverflowingMul, OverflowingSub};
 use num_traits::{Bounded, One, PrimInt, ToPrimitive, Zero};
 
+use num_integer;
+
 use core::convert::TryFrom;
 use core::fmt::Write;
 
@@ -1247,6 +1249,40 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
 }
 
 // #endregion unimplemented
+
+// #region num-integer::Integer
+
+impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N> {
+    fn div_floor(&self, _: &Self) -> Self {
+        todo!()
+    }
+    fn mod_floor(&self, _: &Self) -> Self {
+        todo!()
+    }
+    fn gcd(&self, _: &Self) -> Self {
+        todo!()
+    }
+    fn lcm(&self, _: &Self) -> Self {
+        todo!()
+    }
+    fn divides(&self, _: &Self) -> bool {
+        todo!()
+    }
+    fn is_multiple_of(&self, _: &Self) -> bool {
+        todo!()
+    }
+    fn is_even(&self) -> bool {
+        todo!()
+    }
+    fn is_odd(&self) -> bool {
+        todo!()
+    }
+    fn div_rem(&self, _: &Self) -> (Self, Self) {
+        todo!()
+    }
+}
+
+// #endregion num-integer::Integer
 
 #[cfg(test)]
 mod tests {
