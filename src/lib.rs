@@ -16,6 +16,7 @@
 
 //! A fixed-size big integer implementation, unsigned only.
 //! [FixedUInt] implements a [num_traits::PrimInt] trait, mimicking built-in `u8`, `u16` and `u32` types.
+//! [num_integer::Integer] is also implemented.
 //!
 //! Simple usage example:
 //! ```
@@ -25,9 +26,23 @@
 //! assert_eq!( a + a , 400u16.into() );
 //! assert_eq!( a * &100u8.into(), 20000u16.into() )
 //! ```
+//!
+//! Use Integer trait:
+//! ```
+//! use fixed_bigint::FixedUInt;
+//! use num_integer::Integer;
+//!
+//! let a : FixedUInt<u8,2> = 400u16.into();
+//! assert_eq!( a.is_multiple_of( &(8u8.into()) ) , true );
+//! assert_eq!( a.gcd( &(300u16.into() )) , 100u8.into() );
+//! assert_eq!( a.lcm( &(440u16.into() )) , 4400u16.into() );
+//! ```
 
 /// Re-export num_traits crate
 pub use num_traits;
+
+/// Re-export num_integer crate
+pub use num_integer;
 
 /// Fixed-size big integer implementation
 pub mod fixeduint;
