@@ -64,5 +64,31 @@ fn test_divides() {
 // TODO: Test GCD / LCM
 #[test]
 fn test_gcd_lcm() {
-    //todo!()
+    fn gcd_lcm<T: num_integer::Integer + From<u8>>() {
+        let gcd_tests = [
+            (8u8, 12u8, 4u8),
+            (1, 1, 1),
+            (100, 100, 100),
+            (99, 98, 1),
+            (99, 90, 9),
+        ];
+        for &(a, b, expected) in &gcd_tests {
+            assert_eq!(a.gcd(&b), expected);
+        }
+        let lcm_tests = [
+            (10u8, 2u8, 10u8),
+            (1, 1, 1),
+            (4, 6, 12),
+            (7, 12, 84),
+            (14, 12, 84),
+            (255, 255, 255),
+        ];
+        for &(a, b, expected) in &lcm_tests {
+            assert_eq!(a.lcm(&b), expected);
+        }
+    }
+    gcd_lcm::<u8>();
+    gcd_lcm::<FixedUInt<u8, 1>>();
+    gcd_lcm::<FixedUInt<u8, 2>>();
+    gcd_lcm::<FixedUInt<u16, 1>>();
 }
