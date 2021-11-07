@@ -26,148 +26,149 @@
 use fixed_bigint::FixedUInt as Bn;
 
 use num_traits::{FromPrimitive, ToPrimitive};
-use std::ops::{BitXor, BitXorAssign};
+use std::ops::{BitAnd, BitAndAssign};
 
 
 #[test]
-fn test_xor() {
+fn test_and() {
 	let a: Bn<u8, 1> = 2u8.into();
     let b: Bn<u8, 1> = 3u8.into();
-    assert_eq!(a ^ b, 1u8.into());
-    assert_eq!(a.bitxor(b), 1u8.into());
+    assert_eq!(a & b, 2u8.into());
+    assert_eq!(a.bitand(b), 2u8.into());
     
     let a = Bn::<u8, 2>::from_u64(3).unwrap();
     let b = Bn::<u8, 2>::from_u64(4).unwrap();
-    let r = a ^ b;
-    assert_eq!(r.to_u16().unwrap(), 7);
-    let r = a.bitxor(b);
-    assert_eq!(r.to_u16().unwrap(), 7);
+    let r = a & b;
+    assert_eq!(r.to_u16().unwrap(), 0);
+    let r = a.bitand(b);
+    assert_eq!(r.to_u16().unwrap(), 0);
     
     let a = Bn::<u8, 2>::from_u64(300).unwrap();
     let b = Bn::<u8, 2>::from_u64(4).unwrap();
-    let r = a ^ b;
-    assert_eq!(r.to_u64().unwrap(), 296);
-    let r = a.bitxor(b);
-    assert_eq!(r.to_u64().unwrap(), 296);
+    let r = a & b;
+    assert_eq!(r.to_u64().unwrap(), 4);
+    let r = a.bitand(b);
+    assert_eq!(r.to_u64().unwrap(), 4);
     
     let tests = [
-        (0x010203u64, 0x1020u64, 0x11223u64),
-        (42, 0, 42),
-        (42, 1, 43),
-        (42, 2, 40),
-        (42, 10, 32),
-        (42, 100, 78),
-        (420, 1000, 588),
-        (200, 8, 192),
-        (2, 256, 258),
-        (500, 2, 502),
-        (500000, 2, 500002),
-        (500, 500, 0),
-        (1000000000, 2, 1000000002),
-        (2, 1000000000, 1000000002),
-        (1000000000, 4, 1000000004),
+        (0x010203u64, 0x1020u64, 0x0u64),
+        (42, 0, 0),
+        (42, 1, 0),
+        (42, 2, 2),
+        (42, 10, 10),
+        (42, 100, 32),
+        (420, 1000, 416),
+        (200, 8, 8),
+        (2, 256, 0),
+        (500, 2, 0),
+        (500000, 2, 0),
+        (500, 500, 500),
+        (1000000000, 2, 0),
+        (2, 1000000000, 0),
+        (1000000000, 4, 0),
     ];
     
     for (a, b, res) in &tests {
         let b_a = Bn::<u8, 8>::from_u64(*a).unwrap();
         let b_b = Bn::<u8, 8>::from_u64(*b).unwrap();
-        let b_res = b_a ^ b_b;
+        let b_res = b_a & b_b;
         assert_eq!(b_res.to_u64().unwrap(), *res);
     }
     for (a, b, res) in &tests {
         let b_a = Bn::<u32, 2>::from_u64(*a).unwrap();
         let b_b = Bn::<u32, 2>::from_u64(*b).unwrap();
-        let b_res = b_a ^ b_b;
+        let b_res = b_a & b_b;
         assert_eq!(b_res.to_u64().unwrap(), *res);
     }
            
     for (a, b, res) in &tests {
         let b_a = Bn::<u8, 8>::from_u64(*a).unwrap();
         let b_b = Bn::<u8, 8>::from_u64(*b).unwrap();
-        let b_res = b_a.bitxor(b_b);
+        let b_res = b_a.bitand(b_b);
         assert_eq!(b_res.to_u64().unwrap(), *res);
     }
     for (a, b, res) in &tests {
         let b_a = Bn::<u32, 2>::from_u64(*a).unwrap();
         let b_b = Bn::<u32, 2>::from_u64(*b).unwrap();
-        let b_res = b_a.bitxor(b_b);
+        let b_res = b_a.bitand(b_b);
         assert_eq!(b_res.to_u64().unwrap(), *res);
     }
 }
 
 #[test]
-fn test_xor_assign() {
+fn test_and_assign() {
 	let mut a: Bn<u8, 1> = 2u8.into();
     let b: Bn<u8, 1> = 3u8.into();
-    a ^= b;
-    assert_eq!(a, 1u8.into());
+    a &= b;
+    assert_eq!(a, 2u8.into());
     
     let mut a: Bn<u8, 1> = 2u8.into();
     let b: Bn<u8, 1> = 3u8.into();
-    a.bitxor_assign(b);
-    assert_eq!(a, 1u8.into());
+    a.bitand_assign(b);
+    assert_eq!(a, 2u8.into());
 
         
     let mut a = Bn::<u8, 2>::from_u64(3).unwrap();
     let b = Bn::<u8, 2>::from_u64(4).unwrap();
-    a ^= b;
-    assert_eq!(a.to_u16().unwrap(), 7);
+    a &= b;
+    assert_eq!(a.to_u16().unwrap(), 0);
     let mut a = Bn::<u8, 2>::from_u64(3).unwrap();
-    a.bitxor_assign(b);
-    assert_eq!(a.to_u16().unwrap(), 7);
+    a.bitand_assign(b);
+    assert_eq!(a.to_u16().unwrap(), 0);
     
     let mut a = Bn::<u8, 2>::from_u64(300).unwrap();
     let b = Bn::<u8, 2>::from_u64(4).unwrap();
-    a ^= b;
-    assert_eq!(a.to_u64().unwrap(), 296);
+    a &= b;
+    assert_eq!(a.to_u64().unwrap(), 4);
     let mut a = Bn::<u8, 2>::from_u64(300).unwrap();
-    a.bitxor_assign(b);
-    assert_eq!(a.to_u64().unwrap(), 296);
+    a.bitand_assign(b);
+    assert_eq!(a.to_u64().unwrap(), 4);
 
     
+        
     let tests = [
-        (0x010203u64, 0x1020u64, 0x11223u64),
-        (42, 0, 42),
-        (42, 1, 43),
-        (42, 2, 40),
-        (42, 10, 32),
-        (42, 100, 78),
-        (420, 1000, 588),
-        (200, 8, 192),
-        (2, 256, 258),
-        (500, 2, 502),
-        (500000, 2, 500002),
-        (500, 500, 0),
-        (1000000000, 2, 1000000002),
-        (2, 1000000000, 1000000002),
-        (1000000000, 4, 1000000004),
+        (0x010203u64, 0x1020u64, 0x0u64),
+        (42, 0, 0),
+        (42, 1, 0),
+        (42, 2, 2),
+        (42, 10, 10),
+        (42, 100, 32),
+        (420, 1000, 416),
+        (200, 8, 8),
+        (2, 256, 0),
+        (500, 2, 0),
+        (500000, 2, 0),
+        (500, 500, 500),
+        (1000000000, 2, 0),
+        (2, 1000000000, 0),
+        (1000000000, 4, 0),
     ];
     
     for (a, b, res) in &tests {
         let mut b_a = Bn::<u8, 8>::from_u64(*a).unwrap();
         let b_b = Bn::<u8, 8>::from_u64(*b).unwrap();
-        b_a ^= b_b;
+        b_a &= b_b;
         assert_eq!(b_a.to_u64().unwrap(), *res);
     }
     
     for (a, b, res) in &tests {
         let mut b_a = Bn::<u8, 8>::from_u64(*a).unwrap();
         let b_b = Bn::<u8, 8>::from_u64(*b).unwrap();
-        b_a.bitxor_assign(b_b);
+        b_a.bitand_assign(b_b);
         assert_eq!(b_a.to_u64().unwrap(), *res);
     }
     
     for (a, b, res) in &tests {
         let mut b_a = Bn::<u32, 2>::from_u64(*a).unwrap();
         let b_b = Bn::<u32, 2>::from_u64(*b).unwrap();
-        b_a ^= b_b;
+        b_a &= b_b;
         assert_eq!(b_a.to_u64().unwrap(), *res);
     }
            
     for (a, b, res) in &tests {
         let mut b_a = Bn::<u32, 2>::from_u64(*a).unwrap();
         let b_b = Bn::<u32, 2>::from_u64(*b).unwrap();
-        b_a.bitxor_assign(b_b);
+        b_a.bitand_assign(b_b);
         assert_eq!(b_a.to_u64().unwrap(), *res);
     }
     
