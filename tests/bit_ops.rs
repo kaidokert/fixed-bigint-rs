@@ -1,26 +1,3 @@
-// 
-// MIT License
-// 
-// Copyright (c) 2021 Igram, D.O.O.
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
 
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
@@ -56,18 +33,12 @@ fn test_and() {
         	
         	let b_res = b_a.bitand(b_b);
         	assert_eq!(b_res.to_u64().unwrap(), *res);
-        }
-               
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a &= b_b;
         	assert_eq!(b_a.to_u64().unwrap(), *res);
-        }
-           
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a.bitand_assign(b_b);
         	assert_eq!(b_a.to_u64().unwrap(), *res);
         }
@@ -106,18 +77,13 @@ fn test_and() {
         	
         	let b_res = b_a.bitand(b_b);
         	assert_eq!(b_res.to_u64().unwrap(), *res);
-        }
-               
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a &= b_b;
         	assert_eq!(b_a.to_u64().unwrap(), *res);
-        }
-           
-        for (a, b, res) in &tests {
+        	
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a.bitand_assign(b_b);
         	assert_eq!(b_a.to_u64().unwrap(), *res);
         }
@@ -161,18 +127,13 @@ fn test_and() {
         	
         	let b_res = b_a.bitand(b_b);
         	assert_eq!(b_res.to_u64().unwrap(), *res);
-        }
-               
-        for (a, b, res) in &tests {
+        	
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a &= b_b;
         	assert_eq!(b_a.to_u64().unwrap(), *res);
-        }
-           
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a.bitand_assign(b_b);
         	assert_eq!(b_a.to_u64().unwrap(), *res);
         }
@@ -213,18 +174,12 @@ fn test_or() {
         	
         	let b_res = b_a.bitor(b_b);
         	assert_eq!(b_res.to_u64().unwrap(), *res);
-        }
-               
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a |= b_b;
         	assert_eq!(b_a.to_u64().unwrap(), *res);
-        }
-           
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a.bitor_assign(b_b);
         	assert_eq!(b_a.to_u64().unwrap(), *res);
         }
@@ -263,18 +218,12 @@ fn test_or() {
         	
         	let b_res = b_a.bitor(b_b);
         	assert_eq!(b_res.to_u64().unwrap(), *res);
-        }
-               
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a |= b_b;
         	assert_eq!(b_a.to_u64().unwrap(), *res);
-        }
-           
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a.bitor_assign(b_b);
         	assert_eq!(b_a.to_u64().unwrap(), *res);
         }
@@ -318,18 +267,12 @@ fn test_or() {
         	
         	let b_res = b_a.bitor(b_b);
         	assert_eq!(b_res.to_u64().unwrap(), *res);
-        }
-               
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a |= b_b;
         	assert_eq!(b_a.to_u64().unwrap(), *res);
-        }
-           
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a.bitor_assign(b_b);
         	assert_eq!(b_a.to_u64().unwrap(), *res);
         }
@@ -370,18 +313,12 @@ fn test_xor() {
         	
         	let b_res = b_a.bitxor(b_b);
         	assert_eq!(b_res.to_u64().unwrap(), *res);
-        }
-               
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a ^= b_b;
         	assert_eq!(b_a.to_u64().unwrap(), *res);
-        }
-           
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a.bitxor_assign(b_b);
         	assert_eq!(b_a.to_u64().unwrap(), *res);
         }
@@ -420,18 +357,12 @@ fn test_xor() {
         	
         	let b_res = b_a.bitxor(b_b);
         	assert_eq!(b_res.to_u64().unwrap(), *res);
-        }
-               
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a ^= b_b;
         	assert_eq!(b_a.to_u64().unwrap(), *res);
-        }
-           
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a.bitxor_assign(b_b);
         	assert_eq!(b_a.to_u64().unwrap(), *res);
         }
@@ -475,18 +406,12 @@ fn test_xor() {
         	
         	let b_res = b_a.bitxor(b_b);
         	assert_eq!(b_res.to_u64().unwrap(), *res);
-        }
-               
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a ^= b_b;
         	assert_eq!(b_a.to_u64().unwrap(), *res);
-        }
-           
-        for (a, b, res) in &tests {
+        	
         	let mut b_a = Into::<INT>::into(*a);
-        	let b_b = Into::<INT>::into(*b);
         	b_a.bitxor_assign(b_b);
         	assert_eq!(b_a.to_u64().unwrap(), *res);
         }
