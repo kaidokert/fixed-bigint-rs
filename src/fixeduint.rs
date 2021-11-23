@@ -1229,7 +1229,12 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
         core::ops::Shr::<u32>::shr(self, bits)
     }
     fn swap_bytes(self) -> Self {
-        todo!()
+        let mut ret = Self::new();
+        for index in 0..N {
+            ret.array[index] = self.array[N - 1 - index].swap_bytes();
+        }
+
+        ret
     }
     fn from_be(_: Self) -> Self {
         todo!()
