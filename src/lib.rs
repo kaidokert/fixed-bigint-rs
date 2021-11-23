@@ -54,3 +54,5 @@ pub mod patch_num_traits;
 mod machineword;
 
 pub use crate::fixeduint::FixedUInt;
+
+pub use crate::machineword::MachineWord;
