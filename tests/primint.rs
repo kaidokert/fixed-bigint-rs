@@ -316,3 +316,127 @@ fn test_to_le() {
     test_32_bit::<Bn<u16, 2>>();
     test_32_bit::<Bn<u32, 1>>();
 }
+
+#[test]
+fn test_from_be() {
+    fn test_8_bit<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u8>,
+    >() {
+        let tests = [(0x01, 0x01)];
+
+        for (a, res) in &tests {
+            let b_a = Into::<INT>::into(*a);
+
+            let b_res = INT::from_be(b_a);
+            assert_eq!(b_res.to_u64().unwrap(), *res);
+        }
+    }
+
+    test_8_bit::<u8>();
+    test_8_bit::<Bn<u8, 1>>();
+
+    // 16 bit
+    fn test_16_bit<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u16>,
+    >() {
+        let tests = [(0x0102, 0x0201)];
+
+        for (a, res) in &tests {
+            let b_a = Into::<INT>::into(*a);
+
+            let b_res = INT::from_be(b_a);
+            assert_eq!(b_res.to_u64().unwrap(), *res);
+        }
+    }
+
+    test_16_bit::<u16>();
+    test_16_bit::<Bn<u8, 2>>();
+    test_16_bit::<Bn<u16, 1>>();
+
+    //32 bit
+    fn test_32_bit<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u32>,
+    >() {
+        let tests = [(0x01020304, 0x04030201)];
+
+        for (a, res) in &tests {
+            let b_a = Into::<INT>::into(*a);
+
+            let b_res = INT::from_be(b_a);
+            assert_eq!(b_res.to_u64().unwrap(), *res);
+        }
+    }
+
+    test_32_bit::<u32>();
+    test_32_bit::<Bn<u8, 4>>();
+    test_32_bit::<Bn<u16, 2>>();
+    test_32_bit::<Bn<u32, 1>>();
+}
+
+#[test]
+fn test_from_le() {
+    fn test_8_bit<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u8>,
+    >() {
+        let tests = [(0x01, 0x01)];
+
+        for (a, res) in &tests {
+            let b_a = Into::<INT>::into(*a);
+
+            let b_res = INT::from_le(b_a);
+            assert_eq!(b_res.to_u64().unwrap(), *res);
+        }
+    }
+
+    test_8_bit::<u8>();
+    test_8_bit::<Bn<u8, 1>>();
+
+    // 16 bit
+    fn test_16_bit<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u16>,
+    >() {
+        let tests = [(0x0102, 0x0102)];
+
+        for (a, res) in &tests {
+            let b_a = Into::<INT>::into(*a);
+
+            let b_res = INT::from_le(b_a);
+            assert_eq!(b_res.to_u64().unwrap(), *res);
+        }
+    }
+
+    test_16_bit::<u16>();
+    test_16_bit::<Bn<u8, 2>>();
+    test_16_bit::<Bn<u16, 1>>();
+
+    //32 bit
+    fn test_32_bit<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u32>,
+    >() {
+        let tests = [(0x01020304, 0x01020304)];
+
+        for (a, res) in &tests {
+            let b_a = Into::<INT>::into(*a);
+
+            let b_res = INT::from_le(b_a);
+            assert_eq!(b_res.to_u64().unwrap(), *res);
+        }
+    }
+
+    test_32_bit::<u32>();
+    test_32_bit::<Bn<u8, 4>>();
+    test_32_bit::<Bn<u16, 2>>();
+    test_32_bit::<Bn<u32, 1>>();
+}
