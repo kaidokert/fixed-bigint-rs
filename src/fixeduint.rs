@@ -1243,10 +1243,20 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
         todo!()
     }
     fn to_be(self) -> Self {
-        todo!()
+        let mut ret = Self::new();
+        for index in 0..N {
+            ret.array[index] = self.array[N - 1 - index].swap_bytes();
+        }
+
+        ret
     }
     fn to_le(self) -> Self {
-        todo!()
+        let mut ret = Self::new();
+        for index in 0..N {
+            ret.array[index] = self.array[index];
+        }
+
+        ret
     }
     fn pow(self, _: u32) -> Self {
         todo!()
