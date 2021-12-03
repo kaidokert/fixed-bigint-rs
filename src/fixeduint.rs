@@ -1268,8 +1268,13 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
 
         ret
     }
-    fn pow(self, _: u32) -> Self {
-        todo!()
+    fn pow(self, n: u32) -> Self {
+    	let mut ret = self;
+        for _ in 1..n {
+            ret *= self;
+        }
+
+        ret
     }
 }
 
