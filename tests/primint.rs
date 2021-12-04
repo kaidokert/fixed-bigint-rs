@@ -448,10 +448,13 @@ fn test_pow() {
             + core::fmt::Debug
             + From<u8>,
     >() {
-        let tests = [(0, 0, 1), (2, 8, 1)];
+        let tests = [(0, 0, 1), (1, 1, 1), (2, 8, 1)];
 
         for (a, res, one) in &tests {
             let b_a = Into::<INT>::into(*a);
+
+            let b_res = b_a.pow(1);
+            assert_eq!(b_res.to_u64().unwrap(), b_a.to_u64().unwrap());
 
             let b_res = b_a.pow(3);
             assert_eq!(b_res.to_u64().unwrap(), *res);
@@ -470,10 +473,13 @@ fn test_pow() {
             + core::fmt::Debug
             + From<u16>,
     >() {
-        let tests = [(0, 0, 1), (10, 1000, 1)];
+        let tests = [(0, 0, 1), (1, 1, 1), (10, 1000, 1)];
 
         for (a, res, one) in &tests {
             let b_a = Into::<INT>::into(*a);
+
+            let b_res = b_a.pow(1);
+            assert_eq!(b_res.to_u64().unwrap(), b_a.to_u64().unwrap());
 
             let b_res = b_a.pow(3);
             assert_eq!(b_res.to_u64().unwrap(), *res);
@@ -493,10 +499,13 @@ fn test_pow() {
             + core::fmt::Debug
             + From<u32>,
     >() {
-        let tests = [(0, 0, 1), (1000, 1000000000, 1)];
+        let tests = [(0, 0, 1), (1, 1, 1), (1000, 1000000000, 1)];
 
         for (a, res, one) in &tests {
             let b_a = Into::<INT>::into(*a);
+
+            let b_res = b_a.pow(1);
+            assert_eq!(b_res.to_u64().unwrap(), b_a.to_u64().unwrap());
 
             let b_res = b_a.pow(3);
             assert_eq!(b_res.to_u64().unwrap(), *res);
