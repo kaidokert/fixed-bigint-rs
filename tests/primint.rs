@@ -440,3 +440,83 @@ fn test_from_le() {
     test_32_bit::<Bn<u16, 2>>();
     test_32_bit::<Bn<u32, 1>>();
 }
+
+#[test]
+fn test_pow() {
+    fn test_8_bit<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u8>,
+    >() {
+        let tests = [(0, 0, 1), (1, 1, 1), (2, 8, 1)];
+
+        for (a, res, one) in &tests {
+            let b_a = Into::<INT>::into(*a);
+
+            let b_res = b_a.pow(1);
+            assert_eq!(b_res.to_u64().unwrap(), b_a.to_u64().unwrap());
+
+            let b_res = b_a.pow(3);
+            assert_eq!(b_res.to_u64().unwrap(), *res);
+
+            let b_res = b_a.pow(0);
+            assert_eq!(b_res.to_u64().unwrap(), *one);
+        }
+    }
+
+    test_8_bit::<u8>();
+    test_8_bit::<Bn<u8, 1>>();
+
+    // 16 bit
+    fn test_16_bit<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u16>,
+    >() {
+        let tests = [(0, 0, 1), (1, 1, 1), (10, 1000, 1)];
+
+        for (a, res, one) in &tests {
+            let b_a = Into::<INT>::into(*a);
+
+            let b_res = b_a.pow(1);
+            assert_eq!(b_res.to_u64().unwrap(), b_a.to_u64().unwrap());
+
+            let b_res = b_a.pow(3);
+            assert_eq!(b_res.to_u64().unwrap(), *res);
+
+            let b_res = b_a.pow(0);
+            assert_eq!(b_res.to_u64().unwrap(), *one);
+        }
+    }
+
+    test_16_bit::<u16>();
+    test_16_bit::<Bn<u8, 2>>();
+    test_16_bit::<Bn<u16, 1>>();
+
+    //32 bit
+    fn test_32_bit<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u32>,
+    >() {
+        let tests = [(0, 0, 1), (1, 1, 1), (1000, 1000000000, 1)];
+
+        for (a, res, one) in &tests {
+            let b_a = Into::<INT>::into(*a);
+
+            let b_res = b_a.pow(1);
+            assert_eq!(b_res.to_u64().unwrap(), b_a.to_u64().unwrap());
+
+            let b_res = b_a.pow(3);
+            assert_eq!(b_res.to_u64().unwrap(), *res);
+
+            let b_res = b_a.pow(0);
+            assert_eq!(b_res.to_u64().unwrap(), *one);
+        }
+    }
+
+    test_32_bit::<u32>();
+    test_32_bit::<Bn<u8, 4>>();
+    test_32_bit::<Bn<u16, 2>>();
+    test_32_bit::<Bn<u32, 1>>();
+}
