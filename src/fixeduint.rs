@@ -81,45 +81,40 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         ret
     }
 
-    /// Converts to hex string, given a buffer.
-    // TODO This is messy, needs rewrite and proper error handling
+    /// Converts to hex string, given a buffer. CAVEAT: This method removes any leading zero
     pub fn to_hex_str<'a>(&self, result: &'a mut [u8]) -> Result<&'a str, core::fmt::Error> {
         type Error = core::fmt::Error;
 
+        let word_size = Self::WORD_SIZE;
+        // need length minus leading zeros
         let need_bits = self.bit_length() as usize;
-        let need_chars = if need_bits > 0 {
-            (need_bits - 1) / 4 + 1
-        } else {
-            0
-        };
-        let have_chars = result.len();
-        if have_chars < need_chars {
-            // panic!("Need more space have:{} need:{}", have_chars, need_chars);
+        // number of needed characters (bits/4 = bytes * 2)
+        let need_chars = if need_bits > 0 { need_bits / 4 } else { 0 };
+
+        if result.len() < need_chars {
+            // not enough space in result...
             return Err(Error {});
         }
-        let offset = have_chars - need_chars;
+        let offset = result.len() - need_chars;
         for i in result.iter_mut() {
             *i = b'0';
         }
-        let iterate = if need_bits > 0 {
-            ((need_bits - 1) / Self::WORD_BITS) + 1
-        } else {
-            0
-        };
-        for iter_words in 0..iterate {
+
+        for iter_words in 0..self.array.len() {
             let word = self.array[iter_words];
             let mut encoded = [0u8; LONGEST_WORD_IN_BITS / 4];
-            let encode_slice = &mut encoded[0..Self::WORD_SIZE * 2];
+            let encode_slice = &mut encoded[0..word_size * 2];
             let mut wordbytes = word.to_ne_bytes();
-            let wordslice = &mut wordbytes[0..Self::WORD_SIZE];
+            let wordslice = &mut wordbytes[0..word_size];
             wordslice.reverse();
             to_slice_hex(wordslice, encode_slice).map_err(|_| Error {})?;
             for iter_chars in 0..encode_slice.len() {
                 let getme = encode_slice[(encode_slice.len() - 1) - iter_chars];
-                let copy_char_to = (iter_words * Self::WORD_SIZE * 2) + iter_chars;
+                let copy_char_to = (iter_words * word_size * 2) + iter_chars;
+                // removes leading zero?
                 if copy_char_to <= need_chars {
                     let reverse_index = offset + (need_chars - copy_char_to);
-                    if reverse_index <= have_chars && reverse_index > 0 {
+                    if reverse_index <= result.len() && reverse_index > 0 {
                         result[reverse_index - 1] = getme;
                     }
                 }
