@@ -109,13 +109,12 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             wordslice.reverse();
             to_slice_hex(wordslice, encode_slice).map_err(|_| Error {})?;
             for iter_chars in 0..encode_slice.len() {
-                let getme = encode_slice[(encode_slice.len() - 1) - iter_chars];
                 let copy_char_to = (iter_words * word_size * 2) + iter_chars;
-                // removes leading zero?
                 if copy_char_to <= need_chars {
                     let reverse_index = offset + (need_chars - copy_char_to);
                     if reverse_index <= result.len() && reverse_index > 0 {
-                        result[reverse_index - 1] = getme;
+                        let current_char = encode_slice[(encode_slice.len() - 1) - iter_chars];
+                        result[reverse_index - 1] = current_char;
                     }
                 }
             }
