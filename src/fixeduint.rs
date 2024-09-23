@@ -13,19 +13,21 @@
 // limitations under the License.
 
 use num_traits::ops::overflowing::{OverflowingAdd, OverflowingMul, OverflowingSub};
-use num_traits::{Bounded, FromBytes, One, PrimInt, ToBytes, ToPrimitive, Zero};
+use num_traits::{Bounded, One, PrimInt, ToPrimitive, Zero};
 
 use num_integer;
 
+#[cfg(feature = "use-unsafe")]
 use core::borrow::{Borrow, BorrowMut};
 use core::convert::TryFrom;
 use core::fmt::Write;
+#[cfg(feature = "use-unsafe")]
 use core::hash::Hash;
-use core::marker::PhantomData;
 
-use crate::machineword::{Endianness, MachineWord};
+use crate::machineword::MachineWord;
 use crate::patch_num_traits::{OverflowingShl, OverflowingShr};
 
+#[cfg(feature = "zeroize")]
 use zeroize::DefaultIsZeroes;
 
 #[allow(unused_imports)]
@@ -1395,58 +1397,70 @@ impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N> {
 
 // #endregion num-integer::Integer
 
+#[cfg(feature = "zeroize")]
 impl<T: MachineWord, const N: usize> DefaultIsZeroes for FixedUInt<T, N> {}
 
-// Helper trait to provide byte size
-
-// Holds an owned copy of returned bytes
+// Helper, holds an owned copy of returned bytes
 #[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Debug)]
 pub struct BytesHolder<T: MachineWord, const N: usize> {
     array: [T; N],
-    endianness: Endianness,
 }
+
+#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> BytesHolder<T, N> {
-    fn new(input: [T; N], bigendian: bool) -> Self {
-        let mut array = input.clone();
-        if cfg!(target_endian = "little") && bigendian {
-            array.reverse();
-        } else if cfg!(target_endian = "big") && !bigendian {
-            array.reverse();
+    // Converts internal storage to a mutable byte slice
+    fn as_byte_slice_mut(&mut self) -> &mut [u8] {
+        // SAFETY: This is safe because the size of the array is the same as the size of the slice
+        unsafe {
+            core::slice::from_raw_parts_mut(
+                &mut self.array as *mut T as *mut u8,
+                N * core::mem::size_of::<T>(),
+            )
         }
-        let endianness = if bigendian {
-            Endianness::Big
-        } else {
-            Endianness::Little
-        };
-        Self { array, endianness }
+    }
+    fn as_byte_slice(&self) -> &[u8] {
+        // SAFETY: This is safe because the size of the array is the same as the size of the slice
+        unsafe {
+            core::slice::from_raw_parts(
+                &self.array as *const T as *const u8,
+                N * core::mem::size_of::<T>(),
+            )
+        }
     }
 }
+
+#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> Borrow<[u8]> for BytesHolder<T, N> {
     fn borrow(&self) -> &[u8] {
-        T::to_byte_buffer(&self.array, self.endianness)
+        self.as_byte_slice()
     }
 }
+#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> BorrowMut<[u8]> for BytesHolder<T, N> {
     fn borrow_mut(&mut self) -> &mut [u8] {
-        T::to_byte_buffer_mut(&mut self.array, self.endianness)
+        self.as_byte_slice_mut()
     }
 }
+#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> AsRef<[u8]> for BytesHolder<T, N> {
     fn as_ref(&self) -> &[u8] {
-        T::to_byte_buffer(&self.array, self.endianness)
+        self.as_byte_slice()
     }
 }
+#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> AsMut<[u8]> for BytesHolder<T, N> {
     fn as_mut(&mut self) -> &mut [u8] {
-        T::to_byte_buffer_mut(&mut self.array, self.endianness)
+        self.as_byte_slice_mut()
     }
 }
+#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> Hash for BytesHolder<T, N> {
-    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, _state: &mut H) {
         todo!()
     }
 }
 
+#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> num_traits::ToBytes for FixedUInt<T, N>
 where
     T: core::fmt::Debug,
@@ -1454,11 +1468,15 @@ where
     type Bytes = BytesHolder<T, N>;
 
     fn to_be_bytes(&self) -> Self::Bytes {
-        Self::Bytes::new(self.array, true)
+        let mut ret = Self::Bytes { array: self.array };
+        let _ = self.to_be_bytes(ret.as_byte_slice_mut());
+        ret
     }
 
     fn to_le_bytes(&self) -> Self::Bytes {
-        Self::Bytes::new(self.array, false)
+        let mut ret = Self::Bytes { array: self.array };
+        let _ = self.to_le_bytes(ret.as_byte_slice_mut());
+        ret
     }
 }
 
@@ -1705,5 +1723,36 @@ mod tests {
         assert_eq!(u16_ver.to_be_bytes(&mut output_buffer).unwrap(), &be_bytes);
         assert_eq!(u32_ver.to_le_bytes(&mut output_buffer).unwrap(), &le_bytes);
         assert_eq!(u32_ver.to_be_bytes(&mut output_buffer).unwrap(), &be_bytes);
+    }
+
+    fn test_helper<T: num_traits::ToBytes>(input: &T, expected_be: &[u8]) {
+        let mut buffer = [0u8; 256];
+        buffer[..expected_be.len()].copy_from_slice(expected_be);
+        let expected_le = &mut buffer[..expected_be.len()];
+        expected_le.reverse();
+
+        let out = input.to_be_bytes();
+        assert_eq!(out.as_ref(), expected_be);
+        let out = input.to_le_bytes();
+        assert_eq!(out.as_ref(), expected_le);
+    }
+
+    #[cfg(feature = "use-unsafe")]
+    #[test]
+    fn test_to_bytes() {
+        test_helper(&0xAB_u8, &[0xAB_u8]);
+        test_helper(&0xABCD_u16, &[0xAB, 0xCD]);
+        test_helper(
+            &FixedUInt::<u8, 4>::from_u32(0x12345678).unwrap(),
+            &[0x12, 0x34, 0x56, 0x78],
+        );
+        test_helper(
+            &FixedUInt::<u16, 2>::from_u32(0x12345678).unwrap(),
+            &[0x12, 0x34, 0x56, 0x78],
+        );
+        test_helper(
+            &FixedUInt::<u32, 1>::from_u32(0x12345678).unwrap(),
+            &[0x12, 0x34, 0x56, 0x78],
+        );
     }
 }

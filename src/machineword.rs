@@ -12,14 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Enum to specify byte order.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Endianness {
-    Big,
-    Little,
-    Native,
-}
-
 /// Represents a CPU native word, from 8-bit to 32-bit, with corresponding
 /// double-word to hold multiplication/division products.
 pub trait MachineWord:
@@ -39,15 +31,6 @@ pub trait MachineWord:
 
     // Todo: get rid of this, single use
     fn to_ne_bytes(self) -> [u8; 8];
-
-    #[cfg(feature = "use-unsafe")]
-    fn to_byte_buffer<'a, const N: usize>(array: &'a [Self; N], endianness: Endianness)
-        -> &'a [u8];
-    #[cfg(feature = "use-unsafe")]
-    fn to_byte_buffer_mut<'a, const N: usize>(
-        array: &'a mut [Self; N],
-        endianness: Endianness,
-    ) -> &'a mut [u8];
 }
 
 impl MachineWord for u8 {
@@ -62,20 +45,6 @@ impl MachineWord for u8 {
         let mut ret = [0; 8];
         ret[0] = self;
         ret
-    }
-    #[cfg(feature = "use-unsafe")]
-    fn to_byte_buffer<'a, const N: usize>(
-        array: &'a [Self; N],
-        _endianness: Endianness,
-    ) -> &'a [u8] {
-        array
-    }
-    #[cfg(feature = "use-unsafe")]
-    fn to_byte_buffer_mut<'a, const N: usize>(
-        array: &'a mut [u8; N],
-        _endianness: Endianness,
-    ) -> &'a mut [u8] {
-        array
     }
 }
 impl MachineWord for u16 {
@@ -92,30 +61,6 @@ impl MachineWord for u16 {
         halfslice.copy_from_slice(&self.to_ne_bytes());
         ret
     }
-    #[cfg(feature = "use-unsafe")]
-    fn to_byte_buffer<'a, const N: usize>(
-        array: &'a [Self; N],
-        endianness: Endianness,
-    ) -> &'a [u8] {
-        let buffer = array.map(|word| match endianness {
-            Endianness::Big => word.to_be_bytes(),
-            Endianness::Little => word.to_le_bytes(),
-            Endianness::Native => word.to_ne_bytes(),
-        });
-        unsafe { core::slice::from_raw_parts(buffer.as_ptr() as *const u8, N * 2) }
-    }
-    #[cfg(feature = "use-unsafe")]
-    fn to_byte_buffer_mut<'a, const N: usize>(
-        array: &'a mut [u16; N],
-        endianness: Endianness,
-    ) -> &'a mut [u8] {
-        let mut buffer = array.map(|word| match endianness {
-            Endianness::Big => word.to_be_bytes(),
-            Endianness::Little => word.to_le_bytes(),
-            Endianness::Native => word.to_ne_bytes(),
-        });
-        unsafe { core::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, N * 2) }
-    }
 }
 impl MachineWord for u32 {
     type DoubleWord = u64;
@@ -130,30 +75,6 @@ impl MachineWord for u32 {
         let halfslice = &mut ret[0..4];
         halfslice.copy_from_slice(&self.to_ne_bytes());
         ret
-    }
-    #[cfg(feature = "use-unsafe")]
-    fn to_byte_buffer<'a, const N: usize>(
-        array: &'a [Self; N],
-        endianness: Endianness,
-    ) -> &'a [u8] {
-        let buffer = array.map(|word| match endianness {
-            Endianness::Big => word.to_be_bytes(),
-            Endianness::Little => word.to_le_bytes(),
-            Endianness::Native => word.to_ne_bytes(),
-        });
-        unsafe { core::slice::from_raw_parts(buffer.as_ptr() as *const u8, N * 4) }
-    }
-    #[cfg(feature = "use-unsafe")]
-    fn to_byte_buffer_mut<'a, const N: usize>(
-        array: &'a mut [u32; N],
-        endianness: Endianness,
-    ) -> &'a mut [u8] {
-        let mut buffer = array.map(|word| match endianness {
-            Endianness::Big => word.to_be_bytes(),
-            Endianness::Little => word.to_le_bytes(),
-            Endianness::Native => word.to_ne_bytes(),
-        });
-        unsafe { core::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, N * 4) }
     }
 }
 
@@ -174,59 +95,5 @@ mod tests {
         compare(257u16, [1u8, 1, 0, 0, 0, 0, 0, 0]);
         compare(2u32, [2u8, 0, 0, 0, 0, 0, 0, 0]);
         compare(65537u32, [1u8, 0, 1, 0, 0, 0, 0, 0]);
-    }
-
-    #[cfg(feature = "use-unsafe")]
-    #[test]
-    fn test_to_byte_buffer() {
-        const N: usize = 3;
-        let words_u8: [u8; N] = [1; N];
-        let words_u16: [u16; N] = [256; N];
-        let words_u32: [u32; N] = [65536; N];
-
-        let buffer_u8 = <u8 as MachineWord>::to_byte_buffer(&words_u8, Endianness::Native);
-        let buffer_u16 = <u16 as MachineWord>::to_byte_buffer(&words_u16, Endianness::Native);
-        let buffer_u32 = <u32 as MachineWord>::to_byte_buffer(&words_u32, Endianness::Native);
-
-        assert_eq!(buffer_u8.len(), N);
-        assert_eq!(buffer_u16.len(), N * 2);
-        assert_eq!(buffer_u32.len(), N * 4);
-    }
-    #[cfg(feature = "use-unsafe")]
-    #[test]
-    fn test_to_mut_byte_buffer() {
-        const N: usize = 3;
-        let mut words_u8: [u8; N] = [1; N];
-        let mut words_u16: [u16; N] = [256; N];
-        let mut words_u32: [u32; N] = [65536; N];
-
-        let buffer_u8 = <u8 as MachineWord>::to_byte_buffer_mut(&mut words_u8, Endianness::Native);
-        let buffer_u16 =
-            <u16 as MachineWord>::to_byte_buffer_mut(&mut words_u16, Endianness::Native);
-        let buffer_u32 =
-            <u32 as MachineWord>::to_byte_buffer_mut(&mut words_u32, Endianness::Native);
-
-        buffer_u8[0] = 42;
-        buffer_u16[0] = 42;
-        buffer_u32[0] = 42;
-        assert_eq!(buffer_u8.len(), N);
-        assert_eq!(buffer_u16.len(), N * 2);
-        assert_eq!(buffer_u32.len(), N * 4);
-    }
-    #[cfg(feature = "use-unsafe")]
-    #[test]
-    fn test_actual_correctness_of_to_byte_buffer() {
-        const N: usize = 3;
-        let words_u8: [u8; N] = [1, 2, 3];
-        let words_u16: [u16; N] = [256, 257, 258];
-        let words_u32: [u32; N] = [65536, 65537, 65538];
-
-        let buffer_u8 = <u8 as MachineWord>::to_byte_buffer(&words_u8, Endianness::Native);
-        let buffer_u16 = <u16 as MachineWord>::to_byte_buffer(&words_u16, Endianness::Big);
-        let buffer_u32 = <u32 as MachineWord>::to_byte_buffer(&words_u32, Endianness::Native);
-
-        assert_eq!(buffer_u8, &[1, 2, 3]);
-        //assert_eq!(buffer_u16, &[0, 1, 0, 1, 2, 1]);
-        // assert_eq!(buffer_u32, &[0, 1, 0, 0, 1, 0, 0, 2, 1, 0, 0, 3]);
     }
 }
