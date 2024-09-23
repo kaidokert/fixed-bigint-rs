@@ -27,6 +27,7 @@ default-features = false
 [dependencies.zeroize]
 version = "1.8.1"
 optional = true
+default-features = false
 
 [profile.dev]
 opt-level = 0
