@@ -1406,6 +1406,14 @@ pub struct BytesHolder<T: MachineWord, const N: usize> {
     array: [T; N],
 }
 
+impl<T: MachineWord, const N: usize> Default for BytesHolder<T, N> {
+    fn default() -> Self {
+        Self {
+            array: core::array::from_fn(|_| T::default()),
+        }
+    }
+}
+
 #[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> BytesHolder<T, N> {
     // Converts internal storage to a mutable byte slice
@@ -1477,6 +1485,22 @@ where
         let mut ret = Self::Bytes { array: self.array };
         let _ = self.to_le_bytes(ret.as_byte_slice_mut());
         ret
+    }
+}
+
+#[cfg(feature = "use-unsafe")]
+impl<T: MachineWord, const N: usize> num_traits::FromBytes for FixedUInt<T, N>
+where
+    T: core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, N>;
+
+    fn from_be_bytes(bytes: &Self::Bytes) -> Self {
+        Self::from_be_bytes(bytes.as_ref())
+    }
+
+    fn from_le_bytes(bytes: &Self::Bytes) -> Self {
+        Self::from_le_bytes(bytes.as_ref())
     }
 }
 
@@ -1753,6 +1777,41 @@ mod tests {
         test_helper(
             &FixedUInt::<u32, 1>::from_u32(0x12345678).unwrap(),
             &[0x12, 0x34, 0x56, 0x78],
+        );
+    }
+
+    use num_traits::ops::bytes::NumBytes;
+    use num_traits::FromBytes;
+    fn from_helper<T>(input: &[u8], expected: T)
+    where
+        T: FromBytes + core::fmt::Debug + core::cmp::PartialEq,
+        T::Bytes: NumBytes + Default + core::fmt::Debug,
+    {
+        let mut bytes = T::Bytes::default();
+        bytes.as_mut().copy_from_slice(input);
+        let result = T::from_be_bytes(&bytes);
+        assert_eq!(result, expected);
+        bytes.as_mut().reverse();
+        let result = T::from_le_bytes(&bytes);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_from_bytes() {
+        from_helper(&[0xAB_u8], 0xAB_u8);
+        from_helper(&[0xAB, 0xCD], 0xABCD_u16);
+        from_helper(&[0x12, 0x34, 0x56, 0x78], 0x12345678_u32);
+        from_helper(
+            &[0x12, 0x34, 0x56, 0x78],
+            FixedUInt::<u8, 4>::from_u32(0x12345678).unwrap(),
+        );
+        from_helper(
+            &[0x12, 0x34, 0x56, 0x78],
+            FixedUInt::<u16, 2>::from_u32(0x12345678).unwrap(),
+        );
+        from_helper(
+            &[0x12, 0x34, 0x56, 0x78],
+            FixedUInt::<u32, 1>::from_u32(0x12345678).unwrap(),
         );
     }
 }
