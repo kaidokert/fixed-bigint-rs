@@ -1779,13 +1779,11 @@ mod tests {
             &[0x12, 0x34, 0x56, 0x78],
         );
     }
-
-    use num_traits::ops::bytes::NumBytes;
-    use num_traits::FromBytes;
+  
     fn from_helper<T>(input: &[u8], expected: T)
     where
-        T: FromBytes + core::fmt::Debug + core::cmp::PartialEq,
-        T::Bytes: NumBytes + Default + core::fmt::Debug,
+        T: num_traits::FromBytes + core::fmt::Debug + core::cmp::PartialEq,
+        T::Bytes: num_traits::ops::bytes::NumBytes + Default + core::fmt::Debug,
     {
         let mut bytes = T::Bytes::default();
         bytes.as_mut().copy_from_slice(input);
