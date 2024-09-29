@@ -24,6 +24,7 @@ pub trait MachineWord:
     + core::ops::BitXorAssign
     + num_traits::FromBytes
     + num_traits::ToBytes
+    + Default
 {
     type DoubleWord: num_traits::PrimInt;
     fn to_double(self) -> Self::DoubleWord;
