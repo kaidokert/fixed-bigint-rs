@@ -30,6 +30,8 @@ _TODO list_:
 
 _Note:_ This crate is mostly written as an exercise for learning the Rust type system and understanding how well it works on microcontrollers, its fitness for any particular purpose or quality has precisely zero guarantees.
 
+If you are looking for production quality implementation with `no_std`, fixed-size bigint, suitable for crypto, please check out [crypto-bigint](https://github.com/RustCrypto/crypto-bigint) crate.
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for details.
