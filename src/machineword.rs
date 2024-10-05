@@ -29,9 +29,6 @@ pub trait MachineWord:
     type DoubleWord: num_traits::PrimInt;
     fn to_double(self) -> Self::DoubleWord;
     fn from_double(word: Self::DoubleWord) -> Self;
-
-    // Todo: get rid of this, single use
-    fn to_ne_bytes(self) -> [u8; 8];
 }
 
 impl MachineWord for u8 {
@@ -42,11 +39,6 @@ impl MachineWord for u8 {
     fn from_double(word: Self::DoubleWord) -> Self {
         word as Self
     }
-    fn to_ne_bytes(self) -> [u8; 8] {
-        let mut ret = [0; 8];
-        ret[0] = self;
-        ret
-    }
 }
 impl MachineWord for u16 {
     type DoubleWord = u32;
@@ -55,12 +47,6 @@ impl MachineWord for u16 {
     }
     fn from_double(word: Self::DoubleWord) -> Self {
         word as Self
-    }
-    fn to_ne_bytes(self) -> [u8; 8] {
-        let mut ret = [0; 8];
-        let halfslice = &mut ret[0..2];
-        halfslice.copy_from_slice(&self.to_ne_bytes());
-        ret
     }
 }
 impl MachineWord for u32 {
@@ -71,12 +57,6 @@ impl MachineWord for u32 {
     fn from_double(word: Self::DoubleWord) -> Self {
         word as Self
     }
-    fn to_ne_bytes(self) -> [u8; 8] {
-        let mut ret = [0; 8];
-        let halfslice = &mut ret[0..4];
-        halfslice.copy_from_slice(&self.to_ne_bytes());
-        ret
-    }
 }
 impl MachineWord for u64 {
     type DoubleWord = u128;
@@ -85,31 +65,5 @@ impl MachineWord for u64 {
     }
     fn from_double(word: Self::DoubleWord) -> Self {
         word as Self
-    }
-    fn to_ne_bytes(self) -> [u8; 8] {
-        let mut ret = [0; 8];
-        let halfslice = &mut ret[0..4];
-        halfslice.copy_from_slice(&self.to_ne_bytes());
-        ret
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn machineword_to_ne() {
-        fn compare<T: MachineWord>(input: T, reference: [u8; 8]) {
-            assert_eq!(input.to_ne_bytes(), reference);
-        }
-        compare(1u8, [1u8, 0, 0, 0, 0, 0, 0, 0]);
-        compare(2u8, [2u8, 0, 0, 0, 0, 0, 0, 0]);
-        compare(255u8, [255u8, 0, 0, 0, 0, 0, 0, 0]);
-        compare(0xa3f4u16, [0xf4, 0xa3, 0, 0, 0, 0, 0, 0]);
-        compare(2u16, [2u8, 0, 0, 0, 0, 0, 0, 0]);
-        compare(257u16, [1u8, 1, 0, 0, 0, 0, 0, 0]);
-        compare(2u32, [2u8, 0, 0, 0, 0, 0, 0, 0]);
-        compare(65537u32, [1u8, 0, 1, 0, 0, 0, 0, 0]);
     }
 }
