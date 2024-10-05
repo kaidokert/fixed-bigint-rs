@@ -36,11 +36,11 @@ pub trait MachineWord:
 
 impl MachineWord for u8 {
     type DoubleWord = u16;
-    fn to_double(self) -> u16 {
-        self as u16
+    fn to_double(self) -> Self::DoubleWord {
+        self as Self::DoubleWord
     }
-    fn from_double(word: u16) -> u8 {
-        word as u8
+    fn from_double(word: Self::DoubleWord) -> Self {
+        word as Self
     }
     fn to_ne_bytes(self) -> [u8; 8] {
         let mut ret = [0; 8];
@@ -50,11 +50,11 @@ impl MachineWord for u8 {
 }
 impl MachineWord for u16 {
     type DoubleWord = u32;
-    fn to_double(self) -> u32 {
-        self as u32
+    fn to_double(self) -> Self::DoubleWord {
+        self as Self::DoubleWord
     }
-    fn from_double(word: u32) -> u16 {
-        word as u16
+    fn from_double(word: Self::DoubleWord) -> Self {
+        word as Self
     }
     fn to_ne_bytes(self) -> [u8; 8] {
         let mut ret = [0; 8];
@@ -65,11 +65,26 @@ impl MachineWord for u16 {
 }
 impl MachineWord for u32 {
     type DoubleWord = u64;
-    fn to_double(self) -> u64 {
-        self as u64
+    fn to_double(self) -> Self::DoubleWord {
+        self as Self::DoubleWord
     }
-    fn from_double(word: u64) -> u32 {
-        word as u32
+    fn from_double(word: Self::DoubleWord) -> Self {
+        word as Self
+    }
+    fn to_ne_bytes(self) -> [u8; 8] {
+        let mut ret = [0; 8];
+        let halfslice = &mut ret[0..4];
+        halfslice.copy_from_slice(&self.to_ne_bytes());
+        ret
+    }
+}
+impl MachineWord for u64 {
+    type DoubleWord = u128;
+    fn to_double(self) -> Self::DoubleWord {
+        self as Self::DoubleWord
+    }
+    fn from_double(word: Self::DoubleWord) -> Self {
+        word as Self
     }
     fn to_ne_bytes(self) -> [u8; 8] {
         let mut ret = [0; 8];
