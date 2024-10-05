@@ -160,9 +160,9 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             let word = self.array[iter_words];
             let mut encoded = [0u8; LONGEST_WORD_IN_BITS / 4];
             let encode_slice = &mut encoded[0..word_size * 2];
-            let mut wordbytes = word.to_ne_bytes();
-            let wordslice = &mut wordbytes[0..word_size];
-            wordslice.reverse();
+            let mut wordbytes = word.to_le_bytes();
+            wordbytes.as_mut().reverse();
+            let wordslice = wordbytes.as_ref();
             to_slice_hex(wordslice, encode_slice).map_err(|_| Error {})?;
             for iter_chars in 0..encode_slice.len() {
                 let copy_char_to = (iter_words * word_size * 2) + iter_chars;
