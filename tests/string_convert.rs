@@ -113,6 +113,70 @@ fn test_to_hex_str() {
 }
 
 #[test]
+fn test_to_radix_str() {
+    let mut buf = [0u8; 20];
+
+    let n1 = Bn::<u8, 8>::zero();
+    let slice = n1.to_radix_str(&mut buf, 2);
+    assert_eq!(Ok("0"), slice);
+
+    let n1 = Bn::<u8, 8>::one();
+    assert_eq!(n1.to_u8().unwrap(), 1);
+    let slice = n1.to_radix_str(&mut buf, 2);
+    assert_eq!(Ok("1"), slice);
+
+    let n1 = Bn::<u32, 2>::from_u64(0b110110110101).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 2);
+    assert_eq!(Ok("110110110101"), slice);
+
+    let n1 = Bn::<u32, 2>::from_u64(0o1234567).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 8);
+    assert_eq!(Ok("1234567"), slice);
+
+    let n1 = Bn::<u16, 4>::from_u64(0o7654321).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 8);
+    assert_eq!(Ok("7654321"), slice);
+
+    let n1 = Bn::<u32, 2>::from_u64(987654321).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 10);
+    assert_eq!(Ok("987654321"), slice);
+
+    let n1 = Bn::<u16, 4>::from_u64(123456789).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 10);
+    assert_eq!(Ok("123456789"), slice);
+
+    let n1 = Bn::<u32, 2>::from_u64(0x9a802e1c01b2a3f4).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 16);
+    assert_eq!(Ok("9a802e1c01b2a3f4"), slice);
+
+    let n1 = Bn::<u16, 4>::from_u64(0x01b2a3f4).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 16);
+    assert_eq!(Ok("1b2a3f4"), slice);
+
+    let n1 = Bn::<u32, 2>::from_u64(123456).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 7);
+    assert_eq!(Ok("1022634"), slice);
+
+    let n1 = Bn::<u16, 4>::from_u64(7654321).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 7);
+    assert_eq!(Ok("122026543"), slice);
+
+    let n1 = Bn::<u32, 2>::from_u64(123456789).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 13);
+    assert_eq!(Ok("1c767471"), slice);
+
+    let n1 = Bn::<u16, 4>::from_u64(987654321).unwrap();
+    let slice = n1.to_radix_str(&mut buf, 13);
+    assert_eq!(Ok("129806a54"), slice);
+
+    let mut buf_small = [0u8; 5];
+    let slice = Bn::<u32, 2>::from_u64(123456)
+        .unwrap()
+        .to_radix_str(&mut buf_small, 10);
+    assert!(slice.is_err());
+}
+
+#[test]
 fn from_str_radix() {
     fn test8_bit<
         INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
