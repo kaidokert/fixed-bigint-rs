@@ -178,75 +178,108 @@ fn test_to_radix_str() {
 
 #[test]
 fn from_str_radix() {
+    fn test_radices<
+        INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
+            + core::fmt::Debug
+            + From<u64>,
+    >() {
+        let radices = [2, 3, 4, 7, 10, 13, 16];
+        let max_value: u64 = INT::max_value().to_u64().unwrap();
+
+        for &radix in &radices {
+            assert_eq!(INT::from_str_radix("", radix), Err(make_empty_error()));
+
+            assert_eq!(INT::from_str_radix("0", radix), Ok(0.into()));
+            assert_eq!(INT::from_str_radix("1", radix), Ok(1.into()));
+
+            match radix {
+                2 => {
+                    assert_eq!(INT::from_str_radix("10", 2), Ok(2.into()));
+                    assert_eq!(INT::from_str_radix("10001", 2), Ok(17.into()));
+                    assert_eq!(INT::from_str_radix("11001", 2), Ok(25.into()));
+                    if max_value < 255 {
+                        assert_eq!(
+                            INT::from_str_radix("100000000", 2),
+                            Err(make_overflow_err())
+                        );
+                    }
+                }
+                3 => {
+                    assert_eq!(INT::from_str_radix("21", 3), Ok(7.into()));
+                    assert_eq!(INT::from_str_radix("222", 3), Ok(26.into()));
+                }
+                4 => {
+                    assert_eq!(INT::from_str_radix("33", 4), Ok(15.into()));
+                    assert_eq!(INT::from_str_radix("123", 4), Ok(27.into()));
+                }
+                7 => {
+                    if max_value >= 123456 {
+                        assert_eq!(INT::from_str_radix("1022634", 7), Ok(123456.into()));
+                    }
+                }
+                10 => {
+                    if max_value >= 123456 {
+                        assert_eq!(INT::from_str_radix("12345", 10), Ok(12345.into()));
+                    }
+                    if max_value >= 100000 {
+                        assert_eq!(INT::from_str_radix("100000", 10), Ok(100000.into()));
+                    }
+                    if max_value >= 987654321 {
+                        assert_eq!(INT::from_str_radix("987654321", 10), Ok(987654321.into()));
+                    }
+                }
+                13 => {
+                    assert_eq!(INT::from_str_radix("123", 13), Ok(198.into()));
+                    if max_value >= 1298065482 {
+                        assert_eq!(INT::from_str_radix("178c0B5ac", 13), Ok(1298065482.into()));
+                    }
+                }
+                16 => {
+                    assert_eq!(INT::from_str_radix("08", 16), Ok(8.into()));
+                    if max_value >= 0x1234cbaf {
+                        assert_eq!(INT::from_str_radix("1234cbaf", 16), Ok(0x1234cbaf.into()));
+                    }
+                    if max_value >= 0xcbaf1234 {
+                        assert_eq!(INT::from_str_radix("cbaf1234", 16), Ok(0xcbaf1234.into()));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn test8_bit<
         INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
             + core::fmt::Debug
-            + From<u8>,
+            + From<u64>,
     >() {
-        assert_eq!(INT::from_str_radix("", 3), Err(make_empty_error()));
-        assert_eq!(INT::from_str_radix("08", 16), Ok(8.into()));
-        assert_eq!(INT::from_str_radix("008", 16), Ok(8.into()));
-        assert_eq!(INT::from_str_radix("108", 16), Err(make_overflow_err()));
-
-        assert_eq!(INT::from_str_radix("3333", 4), Ok(255.into()));
-        assert_eq!(INT::from_str_radix("10001000", 2), Ok(0x88.into()));
-        assert_eq!(
-            INT::from_str_radix("110001000", 2),
-            Err(make_overflow_err())
-        );
+        test_radices::<INT>();
     }
-
-    test8_bit::<u8>();
-    test8_bit::<Bn<u8, 1>>();
 
     fn test16_bit<
         INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
             + core::fmt::Debug
-            + From<u16>,
+            + From<u64>,
     >() {
-        assert_eq!(INT::from_str_radix("08", 16), Ok(8.into()));
-        assert_eq!(INT::from_str_radix("108", 16), Ok(264.into()));
-        assert_eq!(INT::from_str_radix("10008", 16), Err(make_overflow_err()));
-
-        assert_eq!(INT::from_str_radix("033333333", 4), Ok(65535.into()));
-        assert_eq!(INT::from_str_radix("ffff", 16), Ok(65535.into()));
-        assert_eq!(INT::from_str_radix("afaf", 16), Ok(0xafaf.into()));
-        assert_eq!(INT::from_str_radix("fabc", 16), Ok(0xfabc.into()));
-        assert_eq!(INT::from_str_radix("cbaf", 16), Ok(0xcbaf.into()));
-
-        assert_eq!(
-            INT::from_str_radix("1101010101010101", 2),
-            Ok(0xD555.into())
-        );
-        assert_eq!(
-            INT::from_str_radix("11101010101010101", 2),
-            Err(make_overflow_err())
-        );
+        test_radices::<INT>();
     }
-
-    test16_bit::<u16>();
-    test16_bit::<Bn<u16, 1>>();
-    test16_bit::<Bn<u8, 2>>();
 
     fn test32_bit<
         INT: num_traits::PrimInt<FromStrRadixErr = core::num::ParseIntError>
             + core::fmt::Debug
-            + From<u32>,
+            + From<u64>,
     >() {
-        assert_eq!(INT::from_str_radix("08", 16), Ok(8.into()));
-        assert_eq!(INT::from_str_radix("1234cbaf", 16), Ok(0x1234cbaf.into()));
-        assert_eq!(INT::from_str_radix("cbaf1234", 16), Ok(0xcbaf1234.into()));
-        assert_eq!(
-            INT::from_str_radix("1cbaf1234", 16),
-            Err(make_overflow_err())
-        );
-        assert_eq!(
-            INT::from_str_radix("3210012332210112", 4),
-            Ok(3827034390.into())
-        );
+        test_radices::<INT>();
     }
 
-    test32_bit::<u32>();
+    // First check the test cases are correct
+    test32_bit::<u64>();
+    test8_bit::<Bn<u8, 1>>();
+    test8_bit::<Bn<u8, 2>>();
+
+    test16_bit::<Bn<u16, 1>>();
+    test16_bit::<Bn<u8, 2>>();
+
     test32_bit::<Bn<u8, 4>>();
     test32_bit::<Bn<u16, 2>>();
     test32_bit::<Bn<u32, 1>>();
