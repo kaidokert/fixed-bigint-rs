@@ -88,7 +88,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         ret
     }
 
-    /// Create a little-endian integer value from its representation as a byte array in big endian.
+    /// Create a big-endian integer value from its representation as a byte array in big endian.
     pub fn from_be_bytes(bytes: &[u8]) -> Self {
         let iter: usize = core::cmp::min(bytes.len() / Self::WORD_SIZE, N);
         let total_bytes = iter * Self::WORD_SIZE;
@@ -107,7 +107,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         ret
     }
 
-    // Converts the FixedUInt into a little-endian byte array.
+    /// Converts the FixedUInt into a little-endian byte array.
     pub fn to_le_bytes<'a>(&self, output_buffer: &'a mut [u8]) -> Result<&'a [u8], bool> {
         let total_bytes = N * Self::WORD_SIZE;
         if output_buffer.len() < total_bytes {
@@ -122,7 +122,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         Ok(&output_buffer[..total_bytes])
     }
 
-    // Converts the FixedUInt into a big-endian byte array.
+    /// Converts the FixedUInt into a big-endian byte array.
     pub fn to_be_bytes<'a>(&self, output_buffer: &'a mut [u8]) -> Result<&'a [u8], bool> {
         let total_bytes = N * Self::WORD_SIZE;
         if output_buffer.len() < total_bytes {
@@ -137,7 +137,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         Ok(&output_buffer[..total_bytes])
     }
 
-    /// Converts to hex string, given a buffer. CAVEAT: This method removes any leading zero
+    /// Converts to hex string, given a buffer. CAVEAT: This method removes any leading zeroes
     pub fn to_hex_str<'a>(&self, result: &'a mut [u8]) -> Result<&'a str, core::fmt::Error> {
         type Error = core::fmt::Error;
 
@@ -190,7 +190,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         }
     }
 
-    /// Converts to decimal string, given a buffer. CAVEAT: This method removes any leading zero
+    /// Converts to decimal string, given a buffer. CAVEAT: This method removes any leading zeroes
     pub fn to_radix_str<'a>(
         &self,
         result: &'a mut [u8],
