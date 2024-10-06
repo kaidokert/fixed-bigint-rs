@@ -190,6 +190,57 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         }
     }
 
+    /// Converts to decimal string, given a buffer. CAVEAT: This method removes any leading zero
+    pub fn to_radix_str<'a>(
+        &self,
+        result: &'a mut [u8],
+        radix: u8,
+    ) -> Result<&'a str, core::fmt::Error> {
+        type Error = core::fmt::Error;
+
+        if !(2..=16).contains(&radix) {
+            return Err(Error {}); // Radix out of supported range
+        }
+        for byte in result.iter_mut() {
+            *byte = b'0';
+        }
+        if self.is_zero() {
+            if !result.is_empty() {
+                result[0] = b'0';
+                return core::str::from_utf8(&result[0..1]).map_err(|_| Error {});
+            } else {
+                return Err(Error {});
+            }
+        }
+
+        let mut number = *self;
+        let mut idx = result.len();
+
+        let radix_t = Self::from(radix);
+
+        while !number.is_zero() {
+            if idx == 0 {
+                return Err(Error {}); // not enough space in result...
+            }
+
+            idx -= 1;
+            let (quotient, remainder) = number.div_rem(&radix_t);
+
+            let digit = remainder.to_u8().unwrap();
+            result[idx] = match digit {
+                0..=9 => b'0' + digit,          // digits
+                10..=16 => b'a' + (digit - 10), // alphabetic digits for bases > 10
+                _ => return Err(Error {}),
+            };
+
+            number = quotient;
+        }
+
+        let start = result[idx..].iter().position(|&c| c != b'0').unwrap_or(0);
+        let radix_str = core::str::from_utf8(&result[idx + start..]).map_err(|_| Error {})?;
+        Ok(radix_str)
+    }
+
     fn hex_fmt(
         &self,
         formatter: &mut core::fmt::Formatter<'_>,
