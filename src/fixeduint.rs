@@ -1166,9 +1166,6 @@ fn make_overflow_err() -> core::num::ParseIntError {
 fn make_empty_error() -> core::num::ParseIntError {
     <u8>::from_str_radix("", 8).err().unwrap()
 }
-fn make_neg_overflow_err() -> core::num::ParseIntError {
-    <u8>::from_str_radix("-ff", 16).err().unwrap()
-}
 
 fn to_slice_hex<T: AsRef<[u8]>>(
     input: T,
@@ -1223,35 +1220,29 @@ impl<T: MachineWord, const N: usize> num_traits::Num for FixedUInt<T, N> {
         if input.is_empty() {
             return Err(make_empty_error());
         }
+
+        if !(2..=16).contains(&radix) {
+            return Err(make_overflow_err()); // Invalid radix
+        }
+
         let mut ret = Self::zero();
         let range = match input.find(|c: char| c != '0') {
             Some(x) => &input[x..],
             _ => input,
         };
-        let bits_per_char = match radix {
-            2 => 1,
-            4 => 2,
-            16 => 4,
-            _ => return Err(make_neg_overflow_err()),
-        };
-        let input_chars = range.len();
-        let input_bits = input_chars * bits_per_char;
-        if input_bits > Self::BIT_SIZE {
-            return Err(make_overflow_err());
-        }
-        let chars_per_word = Self::WORD_BITS / bits_per_char;
-        let input_words = ((input_chars - 1) / chars_per_word) + 1;
-        for idx in 0..input_words {
-            let slice_end = input_chars - idx * chars_per_word;
-            let slice_start =
-                core::cmp::max(0, slice_end as isize - chars_per_word as isize) as usize;
-            let slice = &range[slice_start..slice_end];
-            let val = match T::from_str_radix(slice, radix) {
-                Ok(x) => x,
-                Err(_) => return Err(make_parse_int_err()),
+
+        for c in range.chars() {
+            let digit = match c.to_digit(radix) {
+                Some(d) => d,
+                None => return Err(make_parse_int_err()), // Invalid character for the radix
             };
-            ret.array[idx] = val;
+
+            ret = num_traits::CheckedMul::checked_mul(&ret, &Self::from(radix as u8))
+                .ok_or(make_overflow_err())?;
+            ret = num_traits::CheckedAdd::checked_add(&ret, &Self::from(digit as u8))
+                .ok_or(make_overflow_err())?;
         }
+
         Ok(ret)
     }
 }
