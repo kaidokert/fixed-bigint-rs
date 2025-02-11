@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Note: in the future, #![feature(const_trait_impl)] should allow
+// turning this into a const trait
+
 /// Represents a CPU native word, from 8-bit to 32-bit, with corresponding
 /// double-word to hold multiplication/division products.
 pub trait MachineWord:

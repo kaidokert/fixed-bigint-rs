@@ -1,6 +1,6 @@
 [package]
 name = "fixed-bigint"
-version = "0.1.11"
+version = "0.1.12"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 documentation = "https://docs.rs/fixed-bigint"
 edition = "2018"

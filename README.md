@@ -25,10 +25,11 @@ _TODO list_:
  * Some test code relies on 64-bit ToPrimitive/FromPrimitive conversions, clean this up
  * Lots of test code can be written cleaner
  * Maybe implement signed version as well.
+ * Adopt `const_trait` from nightly and constify everything
 
 _Note:_ This crate is mostly written as an exercise for learning the Rust type system and understanding how well it works on microcontrollers, its fitness for any particular purpose or quality has precisely zero guarantees.
 
-If you are looking for production quality implementation with `no_std`, fixed-size bigint, suitable for crypto, please check out [crypto-bigint](https://github.com/RustCrypto/crypto-bigint) crate.
+If you are looking for production quality implementation with `no_std`, fixed-size bigint, suitable for crypto, please check out [crypto-bigint](https://github.com/RustCrypto/crypto-bigint) or [bnum](https://crates.io/crates/bnum) crate.
 
 ## Contributing
 
