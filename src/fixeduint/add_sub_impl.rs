@@ -34,6 +34,28 @@ impl<T: MachineWord, const N: usize> core::ops::Add<&'_ Self> for FixedUInt<T, N
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::Add<FixedUInt<T, N>> for &FixedUInt<T, N> {
+    type Output = FixedUInt<T, N>;
+    fn add(self, other: FixedUInt<T, N>) -> Self::Output {
+        let (res, overflow) = self.overflowing_add(&other);
+        if overflow {
+            maybe_panic(PanicReason::Add);
+        }
+        res
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::Add<Self> for &FixedUInt<T, N> {
+    type Output = FixedUInt<T, N>;
+    fn add(self, other: Self) -> Self::Output {
+        let (res, overflow) = self.overflowing_add(other);
+        if overflow {
+            maybe_panic(PanicReason::Add);
+        }
+        res
+    }
+}
+
 impl<T: MachineWord, const N: usize> num_traits::WrappingAdd for FixedUInt<T, N> {
     fn wrapping_add(&self, other: &Self) -> Self {
         self.overflowing_add(other).0
@@ -108,6 +130,28 @@ impl<T: MachineWord, const N: usize> core::ops::Sub<&'_ Self> for FixedUInt<T, N
     }
 }
 
+impl<T: MachineWord, const N: usize> core::ops::Sub<FixedUInt<T, N>> for &FixedUInt<T, N> {
+    type Output = FixedUInt<T, N>;
+    fn sub(self, other: FixedUInt<T, N>) -> Self::Output {
+        let (res, overflow) = self.overflowing_sub(&other);
+        if overflow {
+            maybe_panic(PanicReason::Sub);
+        }
+        res
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::ops::Sub<Self> for &FixedUInt<T, N> {
+    type Output = FixedUInt<T, N>;
+    fn sub(self, other: Self) -> Self::Output {
+        let (res, overflow) = self.overflowing_sub(other);
+        if overflow {
+            maybe_panic(PanicReason::Sub);
+        }
+        res
+    }
+}
+
 impl<T: MachineWord, const N: usize> num_traits::WrappingSub for FixedUInt<T, N> {
     fn wrapping_sub(&self, other: &Self) -> Self {
         self.overflowing_sub(other).0
@@ -160,5 +204,42 @@ impl<T: MachineWord, const N: usize> num_traits::Saturating for FixedUInt<T, N> 
     /// Saturating subtraction operator. Returns a-b, saturating at the numeric bounds instead of overflowing.
     fn saturating_sub(self, other: Self) -> Self {
         self.saturating_sub_impl(&other)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add_combinations() {
+        let a = FixedUInt::<u8, 2>::from(12u8);
+        let b = FixedUInt::<u8, 2>::from(3u8);
+        let expected = FixedUInt::<u8, 2>::from(15u8);
+
+        // value + value
+        assert_eq!(a + b, expected);
+        // value + ref
+        assert_eq!(a + &b, expected);
+        // ref + value
+        assert_eq!(&a + b, expected);
+        // ref + ref
+        assert_eq!(&a + &b, expected);
+    }
+
+    #[test]
+    fn test_sub_combinations() {
+        let a = FixedUInt::<u8, 2>::from(15u8);
+        let b = FixedUInt::<u8, 2>::from(3u8);
+        let expected = FixedUInt::<u8, 2>::from(12u8);
+
+        // value - value
+        assert_eq!(a - b, expected);
+        // value - ref
+        assert_eq!(a - &b, expected);
+        // ref - value
+        assert_eq!(&a - b, expected);
+        // ref - ref
+        assert_eq!(&a - &b, expected);
     }
 }
