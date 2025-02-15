@@ -25,6 +25,7 @@ use num_traits::{FromPrimitive, Num};
 
 mod add_sub_impl;
 mod bit_ops_impl;
+mod euclid;
 mod mul_div_impl;
 mod num_integer_impl;
 mod num_traits_casts;
