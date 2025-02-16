@@ -1,13 +1,13 @@
 use super::{FixedUInt, MachineWord};
 
-use num_traits::ToPrimitive;
+use num_traits::{FromPrimitive, ToPrimitive};
 
 impl<T: MachineWord, const N: usize> num_traits::NumCast for FixedUInt<T, N> {
-    fn from<X>(_: X) -> Option<Self>
+    fn from<X>(arg: X) -> Option<Self>
     where
-        T: ToPrimitive,
+        X: ToPrimitive,
     {
-        todo!()
+        Some(Self::from_u64(arg.to_u64()?).unwrap())
     }
 }
 
@@ -31,5 +31,24 @@ impl<T: MachineWord, const N: usize> num_traits::FromPrimitive for FixedUInt<T, 
     }
     fn from_u64(input: u64) -> Option<Self> {
         Some(Self::from_le_bytes(&input.to_le_bytes()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cast<T: num_traits::NumCast + PartialEq>(a: u32, b: u8) -> bool {
+        let my_a = T::from(a).unwrap();
+        let my_b = T::from(b).unwrap();
+        my_a == my_b
+    }
+
+    type Fixed = FixedUInt<u8, 1>;
+    // Test numcast
+    #[test]
+    fn test_numcast() {
+        assert!(cast::<Fixed>(123, 123));
+        assert!(cast::<Fixed>(225, 225));
     }
 }
