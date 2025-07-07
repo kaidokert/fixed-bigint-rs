@@ -1,4 +1,5 @@
-use num_traits::Zero;
+use core::fmt::Write;
+use num_traits::{Num, ToPrimitive, Zero};
 
 use super::{make_empty_error, make_overflow_err, make_parse_int_err, FixedUInt, MachineWord};
 
@@ -53,5 +54,51 @@ where
 {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         self.hex_fmt(formatter, false)
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::fmt::Display for FixedUInt<T, N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        const MAX_DIGITS: usize = 20;
+
+        if self.is_zero() {
+            return f.write_char('0');
+        }
+
+        // 20 is sized for u64
+        let mut digit_blocks = [[0u8; MAX_DIGITS]; N];
+        let mut digit_count = 0;
+        let mut number = *self;
+        let ten = Self::from(10u8);
+
+        // Extract digits into our storage
+        while !number.is_zero() && digit_count < N * MAX_DIGITS {
+            let (quotient, remainder) = number.div_rem(&ten);
+            let digit = remainder.to_u8().unwrap();
+
+            let block_idx = digit_count / MAX_DIGITS;
+            let digit_idx = digit_count % MAX_DIGITS;
+            digit_blocks[block_idx][digit_idx] = b'0' + digit;
+
+            digit_count += 1;
+            number = quotient;
+        }
+
+        // Write digits in reverse order
+        for i in (0..digit_count).rev() {
+            let block_idx = i / MAX_DIGITS;
+            let digit_idx = i % MAX_DIGITS;
+            f.write_char(digit_blocks[block_idx][digit_idx] as char)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::str::FromStr for FixedUInt<T, N> {
+    type Err = core::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_str_radix(s, 10)
     }
 }

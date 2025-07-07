@@ -28,6 +28,7 @@ pub trait MachineWord:
     + num_traits::FromBytes
     + num_traits::ToBytes
     + Default
+    + core::hash::Hash
 {
     type DoubleWord: num_traits::PrimInt;
     fn to_double(self) -> Self::DoubleWord;
