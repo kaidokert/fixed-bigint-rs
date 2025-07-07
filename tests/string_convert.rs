@@ -365,3 +365,66 @@ fn fmt_to_hex() {
     test_16_bit::<Bn<u8, 2>>();
     test_16_bit::<Bn<u16, 1>>();
 }
+
+#[test]
+fn test_display() {
+    // Test zero
+    let zero = Bn::<u32, 2>::zero();
+    assert_eq!(format!("{}", zero), "0");
+
+    // Test small numbers
+    let small = Bn::<u32, 2>::from_u64(42).unwrap();
+    assert_eq!(format!("{}", small), "42");
+
+    // Test larger numbers
+    let large = Bn::<u32, 2>::from_u64(123456789).unwrap();
+    assert_eq!(format!("{}", large), "123456789");
+
+    // Test maximum u64 value
+    let max_u64 = Bn::<u64, 1>::from_u64(u64::MAX).unwrap();
+    assert_eq!(format!("{}", max_u64), "18446744073709551615");
+
+    // Test with different types
+    let u8_val = Bn::<u8, 4>::from_u32(0x12345678).unwrap();
+    assert_eq!(format!("{}", u8_val), "305419896");
+
+    let u16_val = Bn::<u16, 2>::from_u32(0x12345678).unwrap();
+    assert_eq!(format!("{}", u16_val), "305419896");
+}
+
+#[test]
+fn test_fromstr() {
+    // Test zero
+    let zero: Bn<u32, 2> = "0".parse().unwrap();
+    assert_eq!(zero, Bn::<u32, 2>::zero());
+
+    // Test small numbers
+    let small: Bn<u32, 2> = "42".parse().unwrap();
+    assert_eq!(small, Bn::<u32, 2>::from_u64(42).unwrap());
+
+    // Test larger numbers
+    let large: Bn<u32, 2> = "123456789".parse().unwrap();
+    assert_eq!(large, Bn::<u32, 2>::from_u64(123456789).unwrap());
+
+    // Test maximum u64 value
+    let max_u64: Bn<u64, 1> = "18446744073709551615".parse().unwrap();
+    assert_eq!(max_u64, Bn::<u64, 1>::from_u64(u64::MAX).unwrap());
+
+    // Test round-trip with Display
+    let original = Bn::<u32, 2>::from_u64(987654321).unwrap();
+    let string_form = format!("{}", original);
+    let parsed: Bn<u32, 2> = string_form.parse().unwrap();
+    assert_eq!(original, parsed);
+
+    // Test error cases
+    assert!("".parse::<Bn<u32, 2>>().is_err()); // empty string
+    assert!("abc".parse::<Bn<u32, 2>>().is_err()); // invalid characters
+    assert!("12a34".parse::<Bn<u32, 2>>().is_err()); // mixed valid/invalid
+
+    // Test with different types
+    let u8_val: Bn<u8, 4> = "305419896".parse().unwrap();
+    assert_eq!(u8_val, Bn::<u8, 4>::from_u32(0x12345678).unwrap());
+
+    let u16_val: Bn<u16, 2> = "305419896".parse().unwrap();
+    assert_eq!(u16_val, Bn::<u16, 2>::from_u32(0x12345678).unwrap());
+}

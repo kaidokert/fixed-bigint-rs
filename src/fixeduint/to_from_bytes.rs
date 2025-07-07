@@ -1,10 +1,9 @@
 use super::MachineWord;
 
 #[cfg(feature = "use-unsafe")]
-use core::{
-    borrow::{Borrow, BorrowMut},
-    hash::Hash,
-};
+use core::borrow::{Borrow, BorrowMut};
+
+use core::hash::Hash;
 
 #[cfg(feature = "zeroize")]
 use zeroize::DefaultIsZeroes;
@@ -76,10 +75,9 @@ impl<T: MachineWord, const N: usize> AsMut<[u8]> for BytesHolder<T, N> {
         self.as_byte_slice_mut()
     }
 }
-#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> Hash for BytesHolder<T, N> {
-    fn hash<H: core::hash::Hasher>(&self, _state: &mut H) {
-        todo!()
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.array.hash(state)
     }
 }
 

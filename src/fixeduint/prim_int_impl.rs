@@ -41,11 +41,11 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
         let b = self << (Self::BIT_SIZE - bits as usize);
         a | b
     }
-    fn signed_shl(self, _: u32) -> Self {
-        todo!()
+    fn signed_shl(self, bits: u32) -> Self {
+        self.unsigned_shl(bits)
     }
-    fn signed_shr(self, _: u32) -> Self {
-        todo!()
+    fn signed_shr(self, bits: u32) -> Self {
+        self.unsigned_shr(bits)
     }
     fn unsigned_shl(self, bits: u32) -> Self {
         core::ops::Shl::<u32>::shl(self, bits)
