@@ -37,7 +37,10 @@ fn test_divides() {
     fn divides<T: num_integer::Integer + From<u8>>() {
         let tests = [(6u8, 3u8, true), (8, 2, true), (8, 1, true), (17, 2, false)];
         for &(multiple, multiplier, expected) in &tests {
-            assert_eq!(multiple.is_multiple_of(&multiplier), expected);
+            assert_eq!(
+                num_integer::Integer::is_multiple_of(&multiple, &multiplier),
+                expected
+            );
             assert_eq!(multiple.divides(&multiplier), expected);
         }
         let divrem = [
