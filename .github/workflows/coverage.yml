@@ -23,9 +23,5 @@ jobs:
       run: |
         cargo llvm-cov --lcov --output-path lcov.info
 
-    - name: Push to coveralls.io
-      env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-      run: |
-        cargo install coveralls
-        coveralls --lcov lcov.info
+    - name: Coveralls GitHub Action
+      uses: coverallsapp/github-action@v2.3.6
