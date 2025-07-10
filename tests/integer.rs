@@ -197,7 +197,6 @@ fn test_divides_comprehensive() {
             let a = T::from(multiple);
             let b = T::from(divisor);
             assert_eq!(num_integer::Integer::is_multiple_of(&a, &b), expected);
-            assert_eq!(num_integer::Integer::is_multiple_of(&a, &b), expected);
         }
     }
     divides_comprehensive::<FixedUInt<u8, 1>>();
@@ -226,4 +225,28 @@ fn test_integer_div_rem() {
     integer_div_rem::<FixedUInt<u8, 1>>();
     integer_div_rem::<FixedUInt<u8, 2>>();
     integer_div_rem::<FixedUInt<u16, 1>>();
+}
+
+#[test]
+#[should_panic]
+fn test_div_floor_by_zero() {
+    let a = FixedUInt::<u8, 1>::from(10u8);
+    let zero = FixedUInt::<u8, 1>::from(0u8);
+    let _ = num_integer::Integer::div_floor(&a, &zero);
+}
+
+#[test]
+#[should_panic]
+fn test_mod_floor_by_zero() {
+    let a = FixedUInt::<u8, 1>::from(10u8);
+    let zero = FixedUInt::<u8, 1>::from(0u8);
+    let _ = num_integer::Integer::mod_floor(&a, &zero);
+}
+
+#[test]
+#[should_panic]
+fn test_div_rem_by_zero() {
+    let a = FixedUInt::<u8, 1>::from(10u8);
+    let zero = FixedUInt::<u8, 1>::from(0u8);
+    let _ = a.div_rem(&zero);
 }
