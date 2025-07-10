@@ -13,10 +13,19 @@ jobs:
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+
+    - name: Generate coverage data
+      run: |
+        cargo llvm-cov --lcov --output-path lcov.info
 
     - name: Push to coveralls.io
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
       run: |
-        cargo install cargo-tarpaulin
-        cargo tarpaulin --all-features --ciserver github-ci --coveralls $COVERALLS_REPO_TOKEN
+        cargo install coveralls
+        coveralls --lcov lcov.info
