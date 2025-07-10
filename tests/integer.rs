@@ -41,7 +41,10 @@ fn test_divides() {
                 num_integer::Integer::is_multiple_of(&multiple, &multiplier),
                 expected
             );
-            assert_eq!(multiple.divides(&multiplier), expected);
+            assert_eq!(
+                num_integer::Integer::is_multiple_of(&multiple, &multiplier),
+                expected
+            );
         }
         let divrem = [
             (6u8, 3u8, 2u8, 0u8),
@@ -54,8 +57,8 @@ fn test_divides() {
             assert_eq!(divres, div);
             assert_eq!(remres, rem);
 
-            assert_eq!(multiple.div_floor(&divider), divres);
-            assert_eq!(multiple.mod_floor(&divider), remres);
+            assert_eq!(num_integer::Integer::div_floor(&multiple, &divider), divres);
+            assert_eq!(num_integer::Integer::mod_floor(&multiple, &divider), remres);
         }
     }
     divides::<u8>();
@@ -94,4 +97,156 @@ fn test_gcd_lcm() {
     gcd_lcm::<FixedUInt<u8, 1>>();
     gcd_lcm::<FixedUInt<u8, 2>>();
     gcd_lcm::<FixedUInt<u16, 1>>();
+}
+
+#[test]
+fn test_gcd_edge_cases() {
+    fn gcd_edge_cases<T: num_integer::Integer + From<u8> + std::fmt::Debug>() {
+        let zero = T::from(0u8);
+        let _one = T::from(1u8);
+        let five = T::from(5u8);
+        let ten = T::from(10u8);
+
+        // Test zero cases - should return the other value
+        assert_eq!(zero.gcd(&five), five);
+        assert_eq!(five.gcd(&zero), five);
+        assert_eq!(zero.gcd(&zero), zero);
+
+        // Test equal values
+        assert_eq!(five.gcd(&five), five);
+        assert_eq!(ten.gcd(&ten), ten);
+
+        // Test cases where one number is larger
+        assert_eq!(ten.gcd(&five), five);
+        assert_eq!(five.gcd(&ten), five);
+    }
+    gcd_edge_cases::<FixedUInt<u8, 1>>();
+    gcd_edge_cases::<FixedUInt<u8, 2>>();
+    gcd_edge_cases::<FixedUInt<u16, 1>>();
+}
+
+#[test]
+fn test_lcm_edge_cases() {
+    fn lcm_edge_cases<T: num_integer::Integer + From<u8> + std::fmt::Debug>() {
+        let zero = T::from(0u8);
+        let one = T::from(1u8);
+        let five = T::from(5u8);
+        let ten = T::from(10u8);
+
+        // Test zero cases - should return zero
+        assert_eq!(zero.lcm(&five), zero);
+        assert_eq!(five.lcm(&zero), zero);
+        assert_eq!(zero.lcm(&zero), zero);
+
+        // Test with one
+        assert_eq!(one.lcm(&five), five);
+        assert_eq!(five.lcm(&one), five);
+
+        // Test equal values
+        assert_eq!(five.lcm(&five), five);
+        assert_eq!(ten.lcm(&ten), ten);
+    }
+    lcm_edge_cases::<FixedUInt<u8, 1>>();
+    lcm_edge_cases::<FixedUInt<u8, 2>>();
+    lcm_edge_cases::<FixedUInt<u16, 1>>();
+}
+
+#[test]
+fn test_div_floor_mod_floor() {
+    fn div_floor_mod_floor<T: num_integer::Integer + From<u8> + std::fmt::Debug>() {
+        let tests = [
+            (8u8, 3u8, 2u8, 2u8),
+            (10, 5, 2, 0),
+            (7, 3, 2, 1),
+            (15, 4, 3, 3),
+            (100, 7, 14, 2),
+        ];
+
+        for &(dividend, divisor, expected_div, expected_mod) in &tests {
+            let a = T::from(dividend);
+            let b = T::from(divisor);
+            assert_eq!(
+                num_integer::Integer::div_floor(&a, &b),
+                T::from(expected_div)
+            );
+            assert_eq!(
+                num_integer::Integer::mod_floor(&a, &b),
+                T::from(expected_mod)
+            );
+        }
+    }
+    div_floor_mod_floor::<FixedUInt<u8, 1>>();
+    div_floor_mod_floor::<FixedUInt<u8, 2>>();
+    div_floor_mod_floor::<FixedUInt<u16, 1>>();
+}
+
+#[test]
+fn test_divides_comprehensive() {
+    fn divides_comprehensive<T: num_integer::Integer + From<u8> + std::fmt::Debug>() {
+        let tests = [
+            (12u8, 3u8, true),
+            (12, 4, true),
+            (12, 5, false),
+            (15, 3, true),
+            (15, 4, false),
+            (100, 10, true),
+            (100, 11, false),
+        ];
+
+        for &(multiple, divisor, expected) in &tests {
+            let a = T::from(multiple);
+            let b = T::from(divisor);
+            assert_eq!(num_integer::Integer::is_multiple_of(&a, &b), expected);
+        }
+    }
+    divides_comprehensive::<FixedUInt<u8, 1>>();
+    divides_comprehensive::<FixedUInt<u8, 2>>();
+    divides_comprehensive::<FixedUInt<u16, 1>>();
+}
+
+#[test]
+fn test_integer_div_rem() {
+    fn integer_div_rem<T: num_integer::Integer + From<u8> + std::fmt::Debug>() {
+        let tests = [
+            (15u8, 4u8, 3u8, 3u8),
+            (20, 6, 3, 2),
+            (100, 7, 14, 2),
+            (25, 5, 5, 0),
+        ];
+
+        for &(dividend, divisor, expected_div, expected_rem) in &tests {
+            let a = T::from(dividend);
+            let b = T::from(divisor);
+            let (div, rem) = a.div_rem(&b);
+            assert_eq!(div, T::from(expected_div));
+            assert_eq!(rem, T::from(expected_rem));
+        }
+    }
+    integer_div_rem::<FixedUInt<u8, 1>>();
+    integer_div_rem::<FixedUInt<u8, 2>>();
+    integer_div_rem::<FixedUInt<u16, 1>>();
+}
+
+#[test]
+#[should_panic]
+fn test_div_floor_by_zero() {
+    let a = FixedUInt::<u8, 1>::from(10u8);
+    let zero = FixedUInt::<u8, 1>::from(0u8);
+    let _ = num_integer::Integer::div_floor(&a, &zero);
+}
+
+#[test]
+#[should_panic]
+fn test_mod_floor_by_zero() {
+    let a = FixedUInt::<u8, 1>::from(10u8);
+    let zero = FixedUInt::<u8, 1>::from(0u8);
+    let _ = num_integer::Integer::mod_floor(&a, &zero);
+}
+
+#[test]
+#[should_panic]
+fn test_div_rem_by_zero() {
+    let a = FixedUInt::<u8, 1>::from(10u8);
+    let zero = FixedUInt::<u8, 1>::from(0u8);
+    let _ = a.div_rem(&zero);
 }
