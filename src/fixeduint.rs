@@ -32,6 +32,7 @@ mod num_integer_impl;
 mod num_traits_casts;
 mod num_traits_identity;
 mod prim_int_impl;
+mod roots_impl;
 mod string_conversion;
 mod to_from_bytes;
 
@@ -75,36 +76,47 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
     /// Create a little-endian integer value from its representation as a byte array in little endian.
     pub fn from_le_bytes(bytes: &[u8]) -> Self {
-        let iter: usize = core::cmp::min(bytes.len() / Self::WORD_SIZE, N);
-        let mut ret = Self::new(); // FixedUInt::<T, N>::new();
-        for word in 0..iter {
-            let mut v = T::zero();
-            let mut next = T::zero();
-            for i in 0..Self::WORD_SIZE {
-                let byte = bytes[word * Self::WORD_SIZE + (Self::WORD_SIZE - 1 - i)];
-                v = next | byte.into();
-                next = if Self::WORD_BITS == 8 { v } else { v.shl(8) };
+        let mut ret = Self::new();
+        let total_bytes = core::cmp::min(bytes.len(), N * Self::WORD_SIZE);
+
+        for (byte_index, &byte) in bytes.iter().enumerate().take(total_bytes) {
+            let word_index = byte_index / Self::WORD_SIZE;
+            let byte_in_word = byte_index % Self::WORD_SIZE;
+
+            if word_index < N {
+                let byte_value: T = byte.into();
+                let shifted_value = byte_value.shl(byte_in_word * 8);
+                ret.array[word_index] |= shifted_value;
             }
-            ret.array[word] = v;
         }
         ret
     }
 
     /// Create a big-endian integer value from its representation as a byte array in big endian.
     pub fn from_be_bytes(bytes: &[u8]) -> Self {
-        let iter: usize = core::cmp::min(bytes.len() / Self::WORD_SIZE, N);
-        let total_bytes = iter * Self::WORD_SIZE;
         let mut ret = Self::new();
-        for word in 0..iter {
-            let mut v = T::zero();
-            let mut next = T::zero();
-            for i in 0..Self::WORD_SIZE {
-                let byte_index = total_bytes - (word + 1) * Self::WORD_SIZE + i;
-                let byte = bytes[byte_index];
-                v = next | byte.into();
-                next = if Self::WORD_BITS == 8 { v } else { v.shl(8) };
+        let capacity_bytes = N * Self::WORD_SIZE;
+        let total_bytes = core::cmp::min(bytes.len(), capacity_bytes);
+
+        // For consistent truncation semantics with from_le_bytes, always take the
+        // least significant bytes (rightmost bytes in big-endian representation)
+        let start_offset = if bytes.len() > capacity_bytes {
+            bytes.len() - capacity_bytes
+        } else {
+            0
+        };
+
+        for (byte_index, _) in (0..total_bytes).enumerate() {
+            // Take bytes from the end of the input (least significant in BE)
+            let be_byte_index = start_offset + total_bytes - 1 - byte_index;
+            let word_index = byte_index / Self::WORD_SIZE;
+            let byte_in_word = byte_index % Self::WORD_SIZE;
+
+            if word_index < N {
+                let byte_value: T = bytes[be_byte_index].into();
+                let shifted_value = byte_value.shl(byte_in_word * 8);
+                ret.array[word_index] |= shifted_value;
             }
-            ret.array[word] = v;
         }
         ret
     }
@@ -784,6 +796,40 @@ mod tests {
         assert_eq!(32, Bn32::from_u64(0x8fffffff).unwrap().bit_length());
         assert_eq!(31, Bn32::from_u64(0x7fffffff).unwrap().bit_length());
         assert_eq!(34, Bn32::from_u64(0x3ffffffff).unwrap().bit_length());
+    }
+
+    #[test]
+    fn test_bit_length_1000() {
+        // Test bit_length with value 1000
+        let value = Bn32::from_u16(1000).unwrap();
+
+        // 1000 in binary is 1111101000, which has 10 bits
+        // Let's verify the implementation is working correctly
+        assert_eq!(value.to_u32().unwrap(), 1000);
+        assert_eq!(value.bit_length(), 10);
+
+        // Test some edge cases around 1000
+        assert_eq!(Bn32::from_u16(512).unwrap().bit_length(), 10); // 2^9 = 512
+        assert_eq!(Bn32::from_u16(1023).unwrap().bit_length(), 10); // 2^10 - 1 = 1023
+        assert_eq!(Bn32::from_u16(1024).unwrap().bit_length(), 11); // 2^10 = 1024
+
+        // Test with different word sizes to see if this makes a difference
+        assert_eq!(Bn8::from_u16(1000).unwrap().bit_length(), 10);
+        assert_eq!(Bn16::from_u16(1000).unwrap().bit_length(), 10);
+
+        // Test with different initialization methods
+        let value_from_str = Bn32::from_str_radix("1000", 10).unwrap();
+        assert_eq!(value_from_str.bit_length(), 10);
+
+        // This is the problematic case - let's debug it
+        let value_from_bytes = Bn32::from_le_bytes(&1000u16.to_le_bytes());
+        // Let's see what the actual value is
+        assert_eq!(
+            value_from_bytes.to_u32().unwrap_or(0),
+            1000,
+            "from_le_bytes didn't create the correct value"
+        );
+        assert_eq!(value_from_bytes.bit_length(), 10);
     }
     #[test]
     fn test_cmp() {
