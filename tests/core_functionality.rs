@@ -98,19 +98,18 @@ fn test_consistent_truncation_behavior() {
     let le_exact = TestInt::from_le_bytes(&exact_bytes);
     let be_exact = TestInt::from_be_bytes(&exact_bytes);
 
-    // Should be different values due to endianness, but both should work
-    assert_eq!(le_exact, TestInt::from_le_bytes(&exact_bytes));
-    assert_eq!(be_exact, TestInt::from_be_bytes(&exact_bytes));
+    // Verify the created values are correct
+    assert_eq!(le_exact, TestInt::from(0xDDCCBBAAu32));
+    assert_eq!(be_exact, TestInt::from(0xAABBCCDDu32));
 
     // Verify roundtrip works for both
     let mut le_buf = [0u8; 4];
+    le_exact.to_le_bytes(&mut le_buf).unwrap();
+    assert_eq!(le_buf, [0xAA, 0xBB, 0xCC, 0xDD]);
+
     let mut be_buf = [0u8; 4];
-
-    let le_roundtrip = le_exact.to_le_bytes(&mut le_buf).unwrap();
-    let be_roundtrip = be_exact.to_be_bytes(&mut be_buf).unwrap();
-
-    assert_eq!(TestInt::from_le_bytes(le_roundtrip), le_exact);
-    assert_eq!(TestInt::from_be_bytes(be_roundtrip), be_exact);
+    be_exact.to_be_bytes(&mut be_buf).unwrap();
+    assert_eq!(be_buf, [0xAA, 0xBB, 0xCC, 0xDD]);
 }
 
 #[test]

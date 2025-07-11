@@ -83,11 +83,9 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             let word_index = byte_index / Self::WORD_SIZE;
             let byte_in_word = byte_index % Self::WORD_SIZE;
 
-            if word_index < N {
-                let byte_value: T = byte.into();
-                let shifted_value = byte_value.shl(byte_in_word * 8);
-                ret.array[word_index] |= shifted_value;
-            }
+            let byte_value: T = byte.into();
+            let shifted_value = byte_value.shl(byte_in_word * 8);
+            ret.array[word_index] |= shifted_value;
         }
         ret
     }
@@ -112,11 +110,9 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             let word_index = byte_index / Self::WORD_SIZE;
             let byte_in_word = byte_index % Self::WORD_SIZE;
 
-            if word_index < N {
-                let byte_value: T = bytes[be_byte_index].into();
-                let shifted_value = byte_value.shl(byte_in_word * 8);
-                ret.array[word_index] |= shifted_value;
-            }
+            let byte_value: T = bytes[be_byte_index].into();
+            let shifted_value = byte_value.shl(byte_in_word * 8);
+            ret.array[word_index] |= shifted_value;
         }
         ret
     }

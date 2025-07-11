@@ -18,7 +18,7 @@ impl<T: MachineWord, const N: usize> Roots for FixedUInt<T, N> {
         }
 
         let bit_len = self.bit_length();
-        if n > bit_len && !self.is_zero() && !self.is_one() {
+        if n > bit_len {
             return Self::one();
         }
 
@@ -28,11 +28,7 @@ impl<T: MachineWord, const N: usize> Roots for FixedUInt<T, N> {
 
         // Constants using FromPrimitive
         let n_val = Self::from_u32(n).expect("n too large for FixedUInt");
-        let n_minus_1 = if n > 1 {
-            Self::from_u32(n - 1).expect("n too large for FixedUInt")
-        } else {
-            Self::zero()
-        };
+        let n_minus_1 = Self::from_u32(n - 1).expect("n too large for FixedUInt");
 
         // Newton's method iteration
         loop {
