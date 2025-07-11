@@ -9,10 +9,10 @@ fn test_from_le_bytes() {
     let result = TestInt::from_le_bytes(&empty_bytes);
     assert_eq!(result, TestInt::from(0u8));
 
-    // Test with single byte - should create zero since it's not a full word
+    // Test with single byte - should create the value 0x42
     let single_byte = [0x42];
     let result = TestInt::from_le_bytes(&single_byte);
-    assert_eq!(result, TestInt::from(0u8));
+    assert_eq!(result, TestInt::from(0x42u8));
 
     // Test with two bytes (equals word size for u16)
     let two_bytes = [0x34, 0x12];
@@ -43,10 +43,10 @@ fn test_from_be_bytes() {
     let result = TestInt::from_be_bytes(&empty_bytes);
     assert_eq!(result, TestInt::from(0u8));
 
-    // Test with single byte - should create zero since it's not a full word
+    // Test with single byte - should create the value 0x42
     let single_byte = [0x42];
     let result = TestInt::from_be_bytes(&single_byte);
-    assert_eq!(result, TestInt::from(0u8));
+    assert_eq!(result, TestInt::from(0x42u8));
 
     // Test with two bytes (less than word size)
     let two_bytes = [0x12, 0x34];
@@ -58,17 +58,58 @@ fn test_from_be_bytes() {
     let result = TestInt::from_be_bytes(&word_size_bytes);
     assert_eq!(result, TestInt::from(0x12345678u32));
 
-    // Test with more than word size bytes
+    // Test with more than word size bytes - should keep least significant (rightmost) bytes
     let more_bytes = [0x12, 0x34, 0x56, 0x78, 0x00, 0x00];
     let result = TestInt::from_be_bytes(&more_bytes);
-    assert_eq!(result, TestInt::from(0x12345678u32));
+    // With consistent truncation, keeps the last 4 bytes: [0x56, 0x78, 0x00, 0x00]
+    assert_eq!(result, TestInt::from(0x56780000u32));
 
-    // Test with bytes that would fill multiple words
+    // Test with bytes that would fill multiple words - should keep least significant bytes
     let multi_word_bytes = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
     let result = TestInt::from_be_bytes(&multi_word_bytes);
-    // This should create a value with the big-endian interpretation
-    let expected = TestInt::from(0x11223344u32) + (TestInt::from(0x55667788u32) << 32u32);
-    assert_eq!(result, expected);
+    // Keeps the last 4 bytes: [0x55, 0x66, 0x77, 0x88]
+    assert_eq!(result, TestInt::from(0x55667788u32));
+}
+
+#[test]
+fn test_consistent_truncation_behavior() {
+    type TestInt = FixedUInt<u16, 2>; // 4-byte capacity
+
+    // Test with excess bytes to verify consistent truncation semantics
+    let long_bytes = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66]; // 6 bytes, capacity is 4
+
+    // Both methods should now keep the least significant bytes (modulo semantics)
+    let le_result = TestInt::from_le_bytes(&long_bytes);
+    let be_result = TestInt::from_be_bytes(&long_bytes);
+
+    // LE: keeps first 4 bytes [0x11, 0x22, 0x33, 0x44]
+    assert_eq!(le_result, TestInt::from_le_bytes(&[0x11, 0x22, 0x33, 0x44]));
+
+    // BE: keeps last 4 bytes [0x33, 0x44, 0x55, 0x66] (least significant in BE)
+    assert_eq!(be_result, TestInt::from_be_bytes(&[0x33, 0x44, 0x55, 0x66]));
+
+    // Verify they represent the same truncation semantics (modulo behavior)
+    // The LE keeps bytes [0x11, 0x22, 0x33, 0x44] which represents value 0x44332211
+    // The BE keeps bytes [0x33, 0x44, 0x55, 0x66] which represents value 0x33445566
+    // These are different values, but both represent consistent "keep least significant" semantics
+
+    // Test with exactly capacity-sized input (should be identical)
+    let exact_bytes = [0xAA, 0xBB, 0xCC, 0xDD];
+    let le_exact = TestInt::from_le_bytes(&exact_bytes);
+    let be_exact = TestInt::from_be_bytes(&exact_bytes);
+
+    // Verify the created values are correct
+    assert_eq!(le_exact, TestInt::from(0xDDCCBBAAu32));
+    assert_eq!(be_exact, TestInt::from(0xAABBCCDDu32));
+
+    // Verify roundtrip works for both
+    let mut le_buf = [0u8; 4];
+    le_exact.to_le_bytes(&mut le_buf).unwrap();
+    assert_eq!(le_buf, [0xAA, 0xBB, 0xCC, 0xDD]);
+
+    let mut be_buf = [0u8; 4];
+    be_exact.to_be_bytes(&mut be_buf).unwrap();
+    assert_eq!(be_buf, [0xAA, 0xBB, 0xCC, 0xDD]);
 }
 
 #[test]
