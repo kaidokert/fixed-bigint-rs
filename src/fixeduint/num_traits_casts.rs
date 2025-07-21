@@ -1,13 +1,13 @@
 use super::{FixedUInt, MachineWord};
 
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::{Bounded, FromPrimitive, ToPrimitive};
 
 impl<T: MachineWord, const N: usize> num_traits::NumCast for FixedUInt<T, N> {
     fn from<X>(arg: X) -> Option<Self>
     where
         X: ToPrimitive,
     {
-        Some(Self::from_u64(arg.to_u64()?).unwrap())
+        Self::from_u64(arg.to_u64()?)
     }
 }
 
@@ -30,6 +30,11 @@ impl<T: MachineWord, const N: usize> num_traits::FromPrimitive for FixedUInt<T, 
         None
     }
     fn from_u64(input: u64) -> Option<Self> {
+        if let Some(max) = Self::max_value().to_u64() {
+            if input > max {
+                return None;
+            }
+        }
         Some(Self::from_le_bytes(&input.to_le_bytes()))
     }
 }

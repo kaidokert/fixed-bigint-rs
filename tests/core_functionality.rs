@@ -1,4 +1,5 @@
 use fixed_bigint::FixedUInt;
+use fixed_bigint::num_traits::FromPrimitive;
 
 #[test]
 fn test_from_le_bytes() {
@@ -466,4 +467,19 @@ fn test_string_conversion_edge_cases() {
     let result = value.to_radix_str(&mut buffer, 16);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "f");
+}
+
+#[test]
+fn test_from_u64_overflow() {
+    type Small = FixedUInt<u8, 1>; // 8-bit capacity
+
+    // Value that fits
+    assert_eq!(Small::from_u64(255), Some(Small::from(255u8)));
+
+    // Value that exceeds 8-bit should return None
+    assert_eq!(Small::from_u64(256), None);
+
+    type Medium = FixedUInt<u8, 2>; // 16-bit capacity
+    assert_eq!(Medium::from_u64(65535), Some(Medium::from(65535u16)));
+    assert_eq!(Medium::from_u64(65536), None);
 }
