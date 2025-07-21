@@ -16,6 +16,23 @@ use fixed_bigint::patch_num_traits::{OverflowingShl, OverflowingShr};
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
 
+trait BitSize {
+    const BIT_SIZE: u32;
+}
+
+impl BitSize for u8 {
+    const BIT_SIZE: u32 = u8::BITS;
+}
+impl BitSize for u16 {
+    const BIT_SIZE: u32 = u16::BITS;
+}
+impl BitSize for u32 {
+    const BIT_SIZE: u32 = u32::BITS;
+}
+impl<T: fixed_bigint::MachineWord, const N: usize> BitSize for fixed_bigint::FixedUInt<T, N> {
+    const BIT_SIZE: u32 = (core::mem::size_of::<T>() * 8 * N) as u32;
+}
+
 #[test]
 fn test_not() {
     fn _test_not_8_bit<INT: num_traits::PrimInt + core::fmt::Debug + core::convert::From<u8>>() {
@@ -230,7 +247,7 @@ fn test_sh_variants() {
 fn test_rotate() {
     fn test_rotate<
         T: num_traits::PrimInt,
-        INT: num_traits::PrimInt + core::fmt::Debug + core::convert::From<T>,
+        INT: num_traits::PrimInt + BitSize + core::fmt::Debug + core::convert::From<T>,
     >(
         (a_ref, b_ref, c_ref): (T, T, T),
         half_shift: u32,
@@ -247,7 +264,7 @@ fn test_rotate() {
         assert_eq!(b.rotate_right(full_shift), b);
 
         // Rotations larger than the bit width should wrap around
-        let bit_width = (core::mem::size_of::<INT>() * 8) as u32;
+        let bit_width = INT::BIT_SIZE as u32;
         let overflow_shift = full_shift + 5;
         let expected_left = a.rotate_left(overflow_shift % bit_width);
         assert_eq!(a.rotate_left(overflow_shift), expected_left);
