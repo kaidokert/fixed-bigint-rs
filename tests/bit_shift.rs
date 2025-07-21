@@ -245,6 +245,14 @@ fn test_rotate() {
         assert_eq!(a.rotate_left(full_shift), a);
         assert_eq!(b.rotate_right(1), a);
         assert_eq!(b.rotate_right(full_shift), b);
+
+        // Rotations larger than the bit width should wrap around
+        let bit_width = (core::mem::size_of::<INT>() * 8) as u32;
+        let overflow_shift = full_shift + 5;
+        let expected_left = a.rotate_left(overflow_shift % bit_width);
+        assert_eq!(a.rotate_left(overflow_shift), expected_left);
+        let expected_right = a.rotate_right(overflow_shift % bit_width);
+        assert_eq!(a.rotate_right(overflow_shift), expected_right);
     }
     let test_8bit = (0xc1, 0x83, 0x1C);
     test_rotate::<u8, u8>(test_8bit, 4, 8);

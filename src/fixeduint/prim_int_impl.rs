@@ -32,13 +32,15 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
         ret
     }
     fn rotate_left(self, bits: u32) -> Self {
-        let a = self << bits;
-        let b = self >> (Self::BIT_SIZE - bits as usize);
+        let shift = bits % (Self::BIT_SIZE as u32);
+        let a = self << shift;
+        let b = self >> (Self::BIT_SIZE as u32 - shift);
         a | b
     }
     fn rotate_right(self, bits: u32) -> Self {
-        let a = self >> bits;
-        let b = self << (Self::BIT_SIZE - bits as usize);
+        let shift = bits % (Self::BIT_SIZE as u32);
+        let a = self >> shift;
+        let b = self << (Self::BIT_SIZE as u32 - shift);
         a | b
     }
     fn signed_shl(self, bits: u32) -> Self {
