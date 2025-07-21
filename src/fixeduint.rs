@@ -474,6 +474,11 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             target.array[last_index] = target.array[last_index].shr(nbits);
         }
     }
+
+    // Normalize shift amounts for rotations
+    fn normalize_shift(bits: u32) -> u32 {
+        bits % (Self::BIT_SIZE as u32)
+    }
 }
 
 impl<T: MachineWord, const N: usize> Default for FixedUInt<T, N> {
