@@ -24,4 +24,4 @@ jobs:
         cargo llvm-cov --lcov --output-path lcov.info
 
     - name: Coveralls GitHub Action
-      uses: coverallsapp/github-action@v2.3.6
+      uses: coverallsapp/github-action@v2
