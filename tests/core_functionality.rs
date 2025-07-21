@@ -1,5 +1,5 @@
 use fixed_bigint::FixedUInt;
-use fixed_bigint::num_traits::FromPrimitive;
+use fixed_bigint::num_traits::{self, FromPrimitive};
 
 #[test]
 fn test_from_le_bytes() {
@@ -482,4 +482,14 @@ fn test_from_u64_overflow() {
     type Medium = FixedUInt<u8, 2>; // 16-bit capacity
     assert_eq!(Medium::from_u64(65535), Some(Medium::from(65535u16)));
     assert_eq!(Medium::from_u64(65536), None);
+}
+
+#[test]
+fn test_numcast_overflow() {
+    type Small = FixedUInt<u8, 1>;
+
+    // Casting a value larger than the destination should fail
+    assert_eq!(num_traits::cast::<u32, Small>(300u32), None);
+    // Casting a fitting value should succeed
+    assert_eq!(num_traits::cast::<u32, Small>(123u32), Some(Small::from(123u8)));
 }
