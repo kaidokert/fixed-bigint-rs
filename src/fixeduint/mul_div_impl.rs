@@ -249,7 +249,7 @@ impl<T: MachineWord, const N: usize> core::ops::RemAssign<Self> for FixedUInt<T,
         if other.is_zero() {
             maybe_panic(PanicReason::RemByZero)
         }
-        *self = Self::div_assign_impl(self, &other);
+        *self = self.div_rem(&other).1;
     }
 }
 
@@ -258,7 +258,7 @@ impl<T: MachineWord, const N: usize> core::ops::RemAssign<&'_ Self> for FixedUIn
         if other.is_zero() {
             maybe_panic(PanicReason::RemByZero)
         }
-        *self = Self::div_assign_impl(self, other);
+        *self = self.div_rem(other).1;
     }
 }
 

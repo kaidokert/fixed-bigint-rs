@@ -487,7 +487,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         let word_shift = shift_bits / Self::WORD_BITS;
         let bit_shift = shift_bits % Self::WORD_BITS;
 
-        let mut borrow = T::zero();
+        let mut borrow = false;
 
         // Process each word from least significant to most significant
         for i in 0..N {
@@ -495,19 +495,19 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
             // Perform subtraction with borrow
             let (result, new_borrow) =
-                self.sub_with_borrow(self.array[i], other_shifted_word, borrow);
+                Self::sub_with_borrow(self.array[i], other_shifted_word, borrow);
             self.array[i] = result;
-            borrow = if new_borrow { T::one() } else { T::zero() };
+            borrow = new_borrow;
         }
     }
 
     /// Subtract with borrow: a - b - borrow, returns (result, did_borrow)
-    fn sub_with_borrow(&self, a: T, b: T, borrow: T) -> (T, bool) {
+    fn sub_with_borrow(a: T, b: T, borrow: bool) -> (T, bool) {
         // First subtract the borrow
-        let (temp, borrow1) = if borrow.is_zero() {
-            (a, false)
+        let (temp, borrow1) = if borrow {
+            a.overflowing_sub(&T::one())
         } else {
-            a.overflowing_sub(&borrow)
+            (a, false)
         };
 
         // Then subtract b
@@ -1385,6 +1385,29 @@ mod tests {
 
         // The division property should still hold
         assert_eq!(quotient * divisor + remainder, dividend);
+    }
+
+    #[test]
+    fn test_rem_assign_correctness_after_fix() {
+        type TestInt = FixedUInt<u32, 2>;
+
+        // Test specific case: 17 % 5 = 2
+        let mut a = TestInt::from(17u32);
+        let b = TestInt::from(5u32);
+
+        // Before fix: div_assign_impl would modify a to quotient (3), then assign remainder (2)
+        // After fix: div_rem properly computes remainder without corrupting intermediate state
+        a %= b;
+        assert_eq!(a, TestInt::from(2u32), "17 % 5 should be 2");
+
+        // Test that the original RemAssign bug would have failed this
+        let mut test_val = TestInt::from(100u32);
+        test_val %= TestInt::from(7u32);
+        assert_eq!(
+            test_val,
+            TestInt::from(2u32),
+            "100 % 7 should be 2 (not 14, the quotient)"
+        );
     }
 
     #[test]
