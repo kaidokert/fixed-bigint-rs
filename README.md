@@ -22,8 +22,6 @@ In addition to basic arithmetic, two main traits are implemented: [num_traits::P
 _TODO list_:
  * Implement experimental `unchecked_math` operands, unchecked_mul, unchecked_div etc.
  * Probably needs its own error structs instead of reusing core::fmt::Error and core::num::ParseIntError
- * Some test code relies on 64-bit ToPrimitive/FromPrimitive conversions, clean this up
- * Lots of test code can be written cleaner
  * Maybe implement signed version as well.
  * Adopt `const_trait` from nightly and constify everything
 
