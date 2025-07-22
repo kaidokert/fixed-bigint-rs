@@ -181,7 +181,7 @@ impl<T: MachineWord, const N: usize> core::ops::DivAssign<Self> for FixedUInt<T,
         if other.is_zero() {
             maybe_panic(PanicReason::DivByZero)
         }
-        *self = Self::div_impl(self, &other);
+        Self::div_assign_impl(self, &other);
     }
 }
 
@@ -190,7 +190,7 @@ impl<T: MachineWord, const N: usize> core::ops::DivAssign<&'_ Self> for FixedUIn
         if other.is_zero() {
             maybe_panic(PanicReason::DivByZero)
         }
-        *self = Self::div_impl(self, other);
+        Self::div_assign_impl(self, other);
     }
 }
 
@@ -249,7 +249,7 @@ impl<T: MachineWord, const N: usize> core::ops::RemAssign<Self> for FixedUInt<T,
         if other.is_zero() {
             maybe_panic(PanicReason::RemByZero)
         }
-        *self = self.div_rem(&other).1;
+        *self = Self::div_assign_impl(self, &other);
     }
 }
 
@@ -258,7 +258,7 @@ impl<T: MachineWord, const N: usize> core::ops::RemAssign<&'_ Self> for FixedUIn
         if other.is_zero() {
             maybe_panic(PanicReason::RemByZero)
         }
-        *self = self.div_rem(other).1;
+        *self = Self::div_assign_impl(self, other);
     }
 }
 

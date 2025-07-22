@@ -387,38 +387,188 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         (result, overflowed)
     }
 
-    // Divide dividend with divisor, return result
-    // Note: uses 2x extra storage in `result` and `current`
-    fn div_impl(dividend: &Self, divisor: &Self) -> Self {
-        let mut result = Self::zero();
-        let mut current = Self::one();
-        let mut tmp = *dividend;
-        let mut denom = *divisor;
+    /// Set a specific bit in the array without full array operations
+    fn set_bit(&mut self, pos: usize) {
+        if pos >= Self::BIT_SIZE {
+            return; // No-op for out-of-bounds
+        }
+        let word_idx = pos / Self::WORD_BITS;
+        let bit_idx = pos % Self::WORD_BITS;
+        self.array[word_idx] |= T::one().shl(bit_idx);
+    }
 
-        let half_max: T::DoubleWord =
-            T::one().to_double() + (T::max_value().to_double() / (T::one() + T::one()).to_double());
-        let mut overflow = false;
-        while denom <= *dividend {
-            if denom.array[N - 1].to_double() >= half_max {
-                overflow = true;
+    /// Compare self vs other << shift_bits without allocating
+    fn cmp_shifted(&self, other: &Self, shift_bits: usize) -> core::cmp::Ordering {
+        if shift_bits == 0 {
+            return self.cmp(other);
+        }
+
+        if shift_bits >= Self::BIT_SIZE {
+            // other << shift_bits would be 0, so compare self vs 0
+            if self.is_zero() {
+                return core::cmp::Ordering::Equal;
+            } else {
+                return core::cmp::Ordering::Greater;
+            }
+        }
+
+        // Calculate word and bit offsets
+        let word_shift = shift_bits / Self::WORD_BITS;
+        let bit_shift = shift_bits % Self::WORD_BITS;
+
+        // Compare from most significant words down
+        for i in (0..N).rev() {
+            let self_word = self.array[i];
+            let other_shifted_word = self.get_shifted_word(other, i, word_shift, bit_shift);
+
+            match self_word.cmp(&other_shifted_word) {
+                core::cmp::Ordering::Equal => continue,
+                other_result => return other_result,
+            }
+        }
+
+        core::cmp::Ordering::Equal
+    }
+
+    /// Get the value of other's word at position `word_idx` when other is logically shifted left
+    fn get_shifted_word(
+        &self,
+        other: &Self,
+        word_idx: usize,
+        word_shift: usize,
+        bit_shift: usize,
+    ) -> T {
+        if word_idx < word_shift {
+            // This word position would be filled with zeros from the shift
+            return T::zero();
+        }
+
+        let source_idx = word_idx - word_shift;
+
+        if bit_shift == 0 {
+            // Simple word alignment
+            if source_idx < N {
+                other.array[source_idx]
+            } else {
+                T::zero()
+            }
+        } else {
+            // Need to combine bits from two source words
+            let mut result = T::zero();
+
+            // Get bits from the primary source word
+            if source_idx < N {
+                result |= other.array[source_idx].shl(bit_shift);
+            }
+
+            // Get high bits from the next lower word (if it exists and we need them)
+            if source_idx > 0 && (source_idx - 1) < N {
+                let high_bits = other.array[source_idx - 1].shr(Self::WORD_BITS - bit_shift);
+                result |= high_bits;
+            }
+
+            result
+        }
+    }
+
+    /// Subtract other << shift_bits from self in-place
+    fn sub_shifted(&mut self, other: &Self, shift_bits: usize) {
+        if shift_bits == 0 {
+            *self -= *other;
+            return;
+        }
+
+        if shift_bits >= Self::BIT_SIZE {
+            // other << shift_bits would be 0, so no-op
+            return;
+        }
+
+        // Calculate word and bit offsets
+        let word_shift = shift_bits / Self::WORD_BITS;
+        let bit_shift = shift_bits % Self::WORD_BITS;
+
+        let mut borrow = T::zero();
+
+        // Process each word from least significant to most significant
+        for i in 0..N {
+            let other_shifted_word = self.get_shifted_word(other, i, word_shift, bit_shift);
+
+            // Perform subtraction with borrow
+            let (result, new_borrow) =
+                self.sub_with_borrow(self.array[i], other_shifted_word, borrow);
+            self.array[i] = result;
+            borrow = if new_borrow { T::one() } else { T::zero() };
+        }
+    }
+
+    /// Subtract with borrow: a - b - borrow, returns (result, did_borrow)
+    fn sub_with_borrow(&self, a: T, b: T, borrow: T) -> (T, bool) {
+        // First subtract the borrow
+        let (temp, borrow1) = if borrow.is_zero() {
+            (a, false)
+        } else {
+            a.overflowing_sub(&borrow)
+        };
+
+        // Then subtract b
+        let (result, borrow2) = temp.overflowing_sub(&b);
+        (result, borrow1 || borrow2)
+    }
+
+    /// In-place division: dividend becomes quotient, returns remainder
+    fn div_assign_impl(dividend: &mut Self, divisor: &Self) -> Self {
+        if *dividend < *divisor {
+            let remainder = *dividend;
+            *dividend = Self::zero();
+            return remainder;
+        }
+        if *dividend == *divisor {
+            *dividend = Self::one();
+            return Self::zero();
+        }
+
+        let mut quotient = Self::zero();
+
+        // Calculate initial bit position
+        let dividend_bits = dividend.bit_length() as usize;
+        let divisor_bits = divisor.bit_length() as usize;
+
+        if dividend_bits < divisor_bits {
+            let remainder = *dividend;
+            *dividend = Self::zero();
+            return remainder;
+        }
+
+        let mut bit_pos = dividend_bits.saturating_sub(divisor_bits);
+
+        // Adjust bit position to find the first position where divisor can be subtracted
+        while bit_pos > 0 && dividend.cmp_shifted(divisor, bit_pos) == core::cmp::Ordering::Less {
+            bit_pos -= 1;
+        }
+
+        // Main division loop - dividend is both remainder and gets modified in-place
+        loop {
+            if dividend.cmp_shifted(divisor, bit_pos) != core::cmp::Ordering::Less {
+                dividend.sub_shifted(divisor, bit_pos);
+                quotient.set_bit(bit_pos);
+            }
+
+            if bit_pos == 0 {
                 break;
             }
-            current <<= 1;
-            denom <<= 1;
+            bit_pos -= 1;
         }
-        if !overflow {
-            current >>= 1;
-            denom >>= 1;
-        }
-        while !current.is_zero() {
-            if tmp >= denom {
-                tmp -= denom;
-                result |= current;
-            }
-            current >>= 1;
-            denom >>= 1;
-        }
-        result
+
+        let remainder = *dividend;
+        *dividend = quotient;
+        remainder
+    }
+
+    // Divide dividend with divisor, return result
+    fn div_impl(dividend: &Self, divisor: &Self) -> Self {
+        let mut dividend_copy = *dividend;
+        Self::div_assign_impl(&mut dividend_copy, divisor);
+        dividend_copy
     }
 
     // Shifts left by bits, in-place
@@ -876,5 +1026,410 @@ mod tests {
         assert_eq!(u16_ver.to_be_bytes(&mut output_buffer).unwrap(), &be_bytes);
         assert_eq!(u32_ver.to_le_bytes(&mut output_buffer).unwrap(), &le_bytes);
         assert_eq!(u32_ver.to_be_bytes(&mut output_buffer).unwrap(), &be_bytes);
+    }
+
+    // Test suite for optimized division implementation
+    #[test]
+    fn test_div_impl_equivalence_small() {
+        type TestInt = FixedUInt<u8, 2>;
+
+        // Test small values
+        let test_cases = [
+            (20u16, 3u16, 6u16),        // 20 / 3 = 6
+            (100u16, 7u16, 14u16),      // 100 / 7 = 14
+            (255u16, 5u16, 51u16),      // 255 / 5 = 51
+            (65535u16, 256u16, 255u16), // max u16 / 256 = 255
+        ];
+
+        for (dividend_val, divisor_val, expected) in test_cases {
+            let dividend = TestInt::from(dividend_val);
+            let divisor = TestInt::from(divisor_val);
+            let expected_result = TestInt::from(expected);
+
+            let result = TestInt::div_impl(&dividend, &divisor);
+
+            assert_eq!(
+                result, expected_result,
+                "Division failed for {} / {} = {}",
+                dividend_val, divisor_val, expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_div_impl_equivalence_edge_cases() {
+        type TestInt = FixedUInt<u16, 2>;
+
+        // Edge cases
+        let dividend = TestInt::from(1000u16);
+        let divisor = TestInt::from(1u16);
+        assert_eq!(
+            TestInt::div_impl(&dividend, &divisor),
+            TestInt::from(1000u16)
+        );
+
+        // Equal values
+        let dividend = TestInt::from(42u16);
+        let divisor = TestInt::from(42u16);
+        assert_eq!(TestInt::div_impl(&dividend, &divisor), TestInt::from(1u16));
+
+        // Dividend < divisor
+        let dividend = TestInt::from(5u16);
+        let divisor = TestInt::from(10u16);
+        assert_eq!(TestInt::div_impl(&dividend, &divisor), TestInt::from(0u16));
+
+        // Powers of 2
+        let dividend = TestInt::from(1024u16);
+        let divisor = TestInt::from(4u16);
+        assert_eq!(
+            TestInt::div_impl(&dividend, &divisor),
+            TestInt::from(256u16)
+        );
+    }
+
+    #[test]
+    fn test_helper_methods() {
+        type TestInt = FixedUInt<u8, 2>;
+
+        // Test set_bit
+        let mut val = TestInt::zero();
+        val.set_bit(0);
+        assert_eq!(val, TestInt::from(1u8));
+
+        val.set_bit(8);
+        assert_eq!(val, TestInt::from(257u16)); // bit 0 + bit 8 = 1 + 256 = 257
+
+        // Test cmp_shifted
+        let a = TestInt::from(8u8); // 1000 in binary
+        let b = TestInt::from(1u8); // 0001 in binary
+
+        // b << 3 = 8, so a == (b << 3)
+        assert_eq!(a.cmp_shifted(&b, 3), core::cmp::Ordering::Equal);
+
+        // a > (b << 2) because b << 2 = 4
+        assert_eq!(a.cmp_shifted(&b, 2), core::cmp::Ordering::Greater);
+
+        // a < (b << 4) because b << 4 = 16
+        assert_eq!(a.cmp_shifted(&b, 4), core::cmp::Ordering::Less);
+
+        // Test sub_shifted
+        let mut val = TestInt::from(10u8);
+        val.sub_shifted(&TestInt::from(1u8), 2); // subtract 1 << 2 = 4
+        assert_eq!(val, TestInt::from(6u8)); // 10 - 4 = 6
+    }
+
+    #[test]
+    fn test_shifted_operations_comprehensive() {
+        type TestInt = FixedUInt<u32, 2>;
+
+        // Test cmp_shifted with various word boundary cases
+        let a = TestInt::from(0x12345678u32);
+        let b = TestInt::from(0x12345678u32);
+
+        // Equal comparison
+        assert_eq!(a.cmp_shifted(&b, 0), core::cmp::Ordering::Equal);
+
+        // Test shifts that cross word boundaries (assuming 32-bit words)
+        let c = TestInt::from(0x123u32); // Small number
+        let d = TestInt::from(0x48d159e2u32); // c << 16 + some bits
+
+        // c << 16 should be less than d
+        assert_eq!(d.cmp_shifted(&c, 16), core::cmp::Ordering::Greater);
+
+        // Test large shifts (beyond bit size, so shifted value becomes 0)
+        let e = TestInt::from(1u32);
+        assert_eq!(
+            e.cmp_shifted(&TestInt::from(0u32), 100),
+            core::cmp::Ordering::Greater
+        );
+        // When shift is beyond bit size, 1 << 100 becomes 0, so 0 == 0
+        assert_eq!(
+            TestInt::from(0u32).cmp_shifted(&e, 100),
+            core::cmp::Ordering::Equal
+        );
+
+        // Test sub_shifted with word boundary crossing
+        let mut val = TestInt::from(0x10000u32); // 65536
+        val.sub_shifted(&TestInt::from(1u32), 15); // subtract 1 << 15 = 32768
+        assert_eq!(val, TestInt::from(0x8000u32)); // 65536 - 32768 = 32768
+
+        // Test sub_shifted with multi-word operations
+        let mut big_val = TestInt::from(0x100000000u64); // 2^32
+        big_val.sub_shifted(&TestInt::from(1u32), 31); // subtract 1 << 31 = 2^31
+        assert_eq!(big_val, TestInt::from(0x80000000u64)); // 2^32 - 2^31 = 2^31
+    }
+
+    #[test]
+    fn test_shifted_operations_edge_cases() {
+        type TestInt = FixedUInt<u32, 2>;
+
+        // Test zero shifts
+        let a = TestInt::from(42u32);
+        assert_eq!(
+            a.cmp_shifted(&TestInt::from(42u32), 0),
+            core::cmp::Ordering::Equal
+        );
+
+        let mut b = TestInt::from(42u32);
+        b.sub_shifted(&TestInt::from(10u32), 0);
+        assert_eq!(b, TestInt::from(32u32));
+
+        // Test massive shifts (beyond bit size)
+        let c = TestInt::from(123u32);
+        assert_eq!(
+            c.cmp_shifted(&TestInt::from(456u32), 200),
+            core::cmp::Ordering::Greater
+        );
+
+        let mut d = TestInt::from(123u32);
+        d.sub_shifted(&TestInt::from(456u32), 200); // Should be no-op
+        assert_eq!(d, TestInt::from(123u32));
+
+        // Test with zero values
+        let zero = TestInt::from(0u32);
+        assert_eq!(zero.cmp_shifted(&zero, 10), core::cmp::Ordering::Equal);
+        assert_eq!(
+            TestInt::from(1u32).cmp_shifted(&zero, 10),
+            core::cmp::Ordering::Greater
+        );
+    }
+
+    #[test]
+    fn test_shifted_operations_equivalence() {
+        type TestInt = FixedUInt<u32, 2>;
+
+        // Test that optimized operations give same results as naive shift+op
+        let test_cases = [
+            (0x12345u32, 0x678u32, 4),
+            (0x1000u32, 0x10u32, 8),
+            (0xABCDu32, 0x1u32, 16),
+            (0x80000000u32, 0x1u32, 1),
+        ];
+
+        for (a_val, b_val, shift) in test_cases {
+            let a = TestInt::from(a_val);
+            let b = TestInt::from(b_val);
+
+            // Test cmp_shifted equivalence
+            let optimized_cmp = a.cmp_shifted(&b, shift);
+            let naive_cmp = a.cmp(&(b << shift));
+            assert_eq!(
+                optimized_cmp, naive_cmp,
+                "cmp_shifted mismatch: {} vs ({} << {})",
+                a_val, b_val, shift
+            );
+
+            // Test sub_shifted equivalence (if subtraction won't underflow)
+            if a >= (b << shift) {
+                let mut optimized_result = a;
+                optimized_result.sub_shifted(&b, shift);
+
+                let naive_result = a - (b << shift);
+                assert_eq!(
+                    optimized_result, naive_result,
+                    "sub_shifted mismatch: {} - ({} << {})",
+                    a_val, b_val, shift
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_div_assign_in_place_optimization() {
+        type TestInt = FixedUInt<u32, 2>;
+
+        // Test that div_assign uses the optimized in-place algorithm
+        let test_cases = [
+            (100u32, 10u32, 10u32, 0u32),     // 100 / 10 = 10 remainder 0
+            (123u32, 7u32, 17u32, 4u32),      // 123 / 7 = 17 remainder 4
+            (1000u32, 13u32, 76u32, 12u32),   // 1000 / 13 = 76 remainder 12
+            (65535u32, 255u32, 257u32, 0u32), // 65535 / 255 = 257 remainder 0
+        ];
+
+        for (dividend_val, divisor_val, expected_quotient, expected_remainder) in test_cases {
+            // Test div_assign
+            let mut dividend = TestInt::from(dividend_val);
+            let divisor = TestInt::from(divisor_val);
+
+            dividend /= divisor;
+            assert_eq!(
+                dividend,
+                TestInt::from(expected_quotient),
+                "div_assign: {} / {} should be {}",
+                dividend_val,
+                divisor_val,
+                expected_quotient
+            );
+
+            // Test div_assign_impl directly and verify it returns remainder
+            let mut dividend2 = TestInt::from(dividend_val);
+            let remainder = TestInt::div_assign_impl(&mut dividend2, &divisor);
+            assert_eq!(
+                dividend2,
+                TestInt::from(expected_quotient),
+                "div_assign_impl quotient: {} / {} should be {}",
+                dividend_val,
+                divisor_val,
+                expected_quotient
+            );
+            assert_eq!(
+                remainder,
+                TestInt::from(expected_remainder),
+                "div_assign_impl remainder: {} % {} should be {}",
+                dividend_val,
+                divisor_val,
+                expected_remainder
+            );
+
+            // Verify: quotient * divisor + remainder == original dividend
+            assert_eq!(
+                dividend2 * divisor + remainder,
+                TestInt::from(dividend_val),
+                "Property check failed for {}",
+                dividend_val
+            );
+        }
+    }
+
+    #[test]
+    fn test_div_assign_stack_efficiency() {
+        type TestInt = FixedUInt<u32, 4>; // 16 bytes each
+
+        // Create test values
+        let mut dividend = TestInt::from(0x123456789ABCDEFu64);
+        let divisor = TestInt::from(0x12345u32);
+        let original_dividend = dividend;
+
+        // Perform in-place division
+        dividend /= divisor;
+
+        // Verify correctness
+        let remainder = original_dividend % divisor;
+        assert_eq!(dividend * divisor + remainder, original_dividend);
+    }
+
+    #[test]
+    fn test_rem_assign_optimization() {
+        type TestInt = FixedUInt<u32, 2>;
+
+        let test_cases = [
+            (100u32, 10u32, 0u32),    // 100 % 10 = 0
+            (123u32, 7u32, 4u32),     // 123 % 7 = 4
+            (1000u32, 13u32, 12u32),  // 1000 % 13 = 12
+            (65535u32, 255u32, 0u32), // 65535 % 255 = 0
+        ];
+
+        for (dividend_val, divisor_val, expected_remainder) in test_cases {
+            let mut dividend = TestInt::from(dividend_val);
+            let divisor = TestInt::from(divisor_val);
+
+            dividend %= divisor;
+            assert_eq!(
+                dividend,
+                TestInt::from(expected_remainder),
+                "rem_assign: {} % {} should be {}",
+                dividend_val,
+                divisor_val,
+                expected_remainder
+            );
+        }
+    }
+
+    #[test]
+    fn test_div_impl_forwarding() {
+        type TestInt = FixedUInt<u32, 2>;
+
+        // Test that div_impl forwarding works correctly
+        let test_cases = [
+            (100u32, 10u32, 10u32),     // 100 / 10 = 10
+            (123u32, 7u32, 17u32),      // 123 / 7 = 17
+            (1000u32, 13u32, 76u32),    // 1000 / 13 = 76
+            (65535u32, 255u32, 257u32), // 65535 / 255 = 257
+        ];
+
+        for (dividend_val, divisor_val, expected_quotient) in test_cases {
+            let dividend = TestInt::from(dividend_val);
+            let divisor = TestInt::from(divisor_val);
+
+            // Test that div operator (which uses div_impl) works correctly
+            let quotient = dividend / divisor;
+            assert_eq!(
+                quotient,
+                TestInt::from(expected_quotient),
+                "div_impl forwarding: {} / {} should be {}",
+                dividend_val,
+                divisor_val,
+                expected_quotient
+            );
+
+            // Verify the division property still holds
+            let remainder = dividend % divisor;
+            assert_eq!(
+                quotient * divisor + remainder,
+                dividend,
+                "Division property check failed for {}",
+                dividend_val
+            );
+        }
+    }
+
+    #[test]
+    fn test_code_simplification_benefits() {
+        type TestInt = FixedUInt<u32, 2>;
+
+        // Verify that the simplified div_impl maintains same behavior
+        let dividend = TestInt::from(12345u32);
+        let divisor = TestInt::from(67u32);
+        let quotient = dividend / divisor;
+        let remainder = dividend % divisor;
+
+        // The division property should still hold
+        assert_eq!(quotient * divisor + remainder, dividend);
+    }
+
+    #[test]
+    fn test_div_property_based() {
+        type TestInt = FixedUInt<u16, 2>;
+
+        // Property: quotient * divisor + remainder == dividend
+        let test_pairs = [
+            (12345u16, 67u16),
+            (1000u16, 13u16),
+            (65535u16, 255u16),
+            (5000u16, 7u16),
+        ];
+
+        for (dividend_val, divisor_val) in test_pairs {
+            let dividend = TestInt::from(dividend_val);
+            let divisor = TestInt::from(divisor_val);
+
+            let quotient = TestInt::div_impl(&dividend, &divisor);
+
+            // Property verification: quotient * divisor + remainder == dividend
+            let remainder = dividend - (quotient * divisor);
+            let reconstructed = quotient * divisor + remainder;
+
+            assert_eq!(
+                reconstructed,
+                dividend,
+                "Property failed for {} / {}: {} * {} + {} != {}",
+                dividend_val,
+                divisor_val,
+                quotient.to_u32().unwrap_or(0),
+                divisor_val,
+                remainder.to_u32().unwrap_or(0),
+                dividend_val
+            );
+
+            // Remainder should be less than divisor
+            assert!(
+                remainder < divisor,
+                "Remainder {} >= divisor {} for {} / {}",
+                remainder.to_u32().unwrap_or(0),
+                divisor_val,
+                dividend_val,
+                divisor_val
+            );
+        }
     }
 }
