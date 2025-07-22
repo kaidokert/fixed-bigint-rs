@@ -533,12 +533,6 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         let dividend_bits = dividend.bit_length() as usize;
         let divisor_bits = divisor.bit_length() as usize;
 
-        if dividend_bits < divisor_bits {
-            let remainder = *dividend;
-            *dividend = Self::zero();
-            return remainder;
-        }
-
         let mut bit_pos = dividend_bits.saturating_sub(divisor_bits);
 
         // Adjust bit position to find the first position where divisor can be subtracted
