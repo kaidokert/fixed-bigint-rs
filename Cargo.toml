@@ -9,7 +9,7 @@ Fixed-size big integer implementation for Rust
 """
 
 keywords = ["mathematics", "numerics", "bignum"]
-categories = [ "algorithms", "data-structures", "no-std"]
+categories = [ "algorithms", "data-structures", "no-std", "no-std::no-alloc" ]
 repository = "https://github.com/kaidokert/fixed-bigint-rs"
 readme = "README.md"
 homepage = "https://github.com/kaidokert/fixed-bigint-rs"
