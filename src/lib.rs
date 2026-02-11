@@ -13,6 +13,10 @@
 // limitations under the License.
 
 #![no_std]
+#![cfg_attr(
+    feature = "nightly",
+    feature(const_trait_impl, const_ops, const_cmp, const_convert, const_default)
+)]
 
 //! A fixed-size big integer implementation, unsigned only.
 //! [FixedUInt] implements a [num_traits::PrimInt] trait, mimicking built-in `u8`, `u16` and `u32` types.
@@ -49,6 +53,9 @@ pub mod fixeduint;
 
 /// Bits that should be in num_traits
 pub mod patch_num_traits;
+
+/// Constant versions of num_traits
+pub mod const_numtrait;
 
 /// Machine word and doubleword
 mod machineword;

@@ -18,6 +18,7 @@ use num_traits::{Bounded, One, PrimInt, ToPrimitive, Zero};
 use core::convert::TryFrom;
 use core::fmt::Write;
 
+pub use crate::const_numtrait::{ConstOne, ConstPrimInt, ConstZero};
 use crate::machineword::MachineWord;
 
 #[allow(unused_imports)]
