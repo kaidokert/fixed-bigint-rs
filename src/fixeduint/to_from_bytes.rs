@@ -1,18 +1,10 @@
 use super::MachineWord;
 
-#[cfg(feature = "use-unsafe")]
 use core::borrow::{Borrow, BorrowMut};
 
 use core::hash::Hash;
 
-#[cfg(feature = "zeroize")]
-use zeroize::DefaultIsZeroes;
-
-#[cfg(any(feature = "use-unsafe", feature = "zeroize"))]
 use super::FixedUInt;
-
-#[cfg(feature = "zeroize")]
-impl<T: MachineWord, const N: usize> DefaultIsZeroes for FixedUInt<T, N> {}
 
 // Helper, holds an owned copy of returned bytes
 #[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Debug)]
@@ -28,7 +20,6 @@ impl<T: MachineWord, const N: usize> Default for BytesHolder<T, N> {
     }
 }
 
-#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> BytesHolder<T, N> {
     // Converts internal storage to a mutable byte slice
     fn as_byte_slice_mut(&mut self) -> &mut [u8] {
@@ -51,25 +42,21 @@ impl<T: MachineWord, const N: usize> BytesHolder<T, N> {
     }
 }
 
-#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> Borrow<[u8]> for BytesHolder<T, N> {
     fn borrow(&self) -> &[u8] {
         self.as_byte_slice()
     }
 }
-#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> BorrowMut<[u8]> for BytesHolder<T, N> {
     fn borrow_mut(&mut self) -> &mut [u8] {
         self.as_byte_slice_mut()
     }
 }
-#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> AsRef<[u8]> for BytesHolder<T, N> {
     fn as_ref(&self) -> &[u8] {
         self.as_byte_slice()
     }
 }
-#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> AsMut<[u8]> for BytesHolder<T, N> {
     fn as_mut(&mut self) -> &mut [u8] {
         self.as_byte_slice_mut()
@@ -81,7 +68,6 @@ impl<T: MachineWord, const N: usize> Hash for BytesHolder<T, N> {
     }
 }
 
-#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> num_traits::ToBytes for FixedUInt<T, N>
 where
     T: core::fmt::Debug,
@@ -101,7 +87,6 @@ where
     }
 }
 
-#[cfg(feature = "use-unsafe")]
 impl<T: MachineWord, const N: usize> num_traits::FromBytes for FixedUInt<T, N>
 where
     T: core::fmt::Debug,
@@ -118,7 +103,6 @@ where
 }
 
 #[cfg(test)]
-#[cfg(feature = "use-unsafe")]
 mod tests {
     use super::*;
     use num_traits::FromPrimitive;
