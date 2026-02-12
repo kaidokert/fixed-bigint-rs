@@ -64,7 +64,7 @@ impl<T: MachineWord, const N: usize> AsMut<[u8]> for BytesHolder<T, N> {
 }
 impl<T: MachineWord, const N: usize> Hash for BytesHolder<T, N> {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        self.array.hash(state)
+        self.as_byte_slice().hash(state)
     }
 }
 

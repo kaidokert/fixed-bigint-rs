@@ -24,6 +24,9 @@ default-features = false
 version = "0.1.45"
 default-features = false
 
+[dependencies.c0nst]
+version = "0.2"
+
 [dependencies.zeroize]
 version = "1.8.1"
 optional = true
@@ -41,4 +44,5 @@ codegen-units = 16
 
 [features]
 use-unsafe = []
+nightly = ["c0nst/nightly"]
 default = []

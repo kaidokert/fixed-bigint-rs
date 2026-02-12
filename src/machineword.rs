@@ -15,59 +15,87 @@
 // Note: in the future, #![feature(const_trait_impl)] should allow
 // turning this into a const trait
 
-/// Represents a CPU native word, from 8-bit to 32-bit, with corresponding
+pub use crate::const_numtrait::ConstPrimInt;
+use crate::const_numtrait::{ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes};
+
+c0nst::c0nst! {
+    /// A const-friendly trait for MachineWord operations
+    pub c0nst trait ConstMachineWord:
+        [c0nst] ConstPrimInt +
+        [c0nst] ConstOverflowingAdd +
+        [c0nst] ConstOverflowingSub +
+        [c0nst] ConstToBytes
+    {
+        type ConstDoubleWord: [c0nst] ConstPrimInt;
+        fn to_double(self) -> Self::ConstDoubleWord;
+        fn from_double(word: Self::ConstDoubleWord) -> Self;
+    }
+
+    impl c0nst ConstMachineWord for u8 {
+        type ConstDoubleWord = u16;
+        fn to_double(self) -> u16 { self as u16 }
+        fn from_double(word: u16) -> u8 { word as u8 }
+    }
+    impl c0nst ConstMachineWord for u16 {
+        type ConstDoubleWord = u32;
+        fn to_double(self) -> u32 { self as u32 }
+        fn from_double(word: u32) -> u16 { word as u16 }
+    }
+    impl c0nst ConstMachineWord for u32 {
+        type ConstDoubleWord = u64;
+        fn to_double(self) -> u64 { self as u64 }
+        fn from_double(word: u64) -> u32 { word as u32 }
+    }
+    impl c0nst ConstMachineWord for u64 {
+        type ConstDoubleWord = u128;
+        fn to_double(self) -> u128 { self as u128 }
+        fn from_double(word: u128) -> u64 { word as u64 }
+    }
+}
+
+/// Represents a CPU native word, from 8-bit to 64-bit, with corresponding
 /// double-word to hold multiplication/division products.
+///
+/// This trait is intentionally sealed via the `ConstMachineWord` supertrait,
+/// as custom implementations are not supported. The const traits are intended
+/// to be upstreamed to `num_traits` in the future.
 pub trait MachineWord:
-    num_traits::PrimInt
-    + num_traits::ops::overflowing::OverflowingAdd
-    + num_traits::ops::overflowing::OverflowingSub
-    + From<u8>
-    + core::ops::BitAndAssign
-    + core::ops::BitOrAssign
-    + core::ops::BitXorAssign
-    + num_traits::FromBytes
-    + num_traits::ToBytes
-    + Default
-    + core::hash::Hash
+    ConstMachineWord<ConstDoubleWord = Self::DoubleWord> + core::hash::Hash + num_traits::ToPrimitive
 {
-    type DoubleWord: num_traits::PrimInt + core::ops::BitAndAssign;
-    fn to_double(self) -> Self::DoubleWord;
-    fn from_double(word: Self::DoubleWord) -> Self;
+    type DoubleWord: ConstPrimInt;
 }
 
 impl MachineWord for u8 {
     type DoubleWord = u16;
-    fn to_double(self) -> Self::DoubleWord {
-        self as Self::DoubleWord
-    }
-    fn from_double(word: Self::DoubleWord) -> Self {
-        word as Self
-    }
 }
 impl MachineWord for u16 {
     type DoubleWord = u32;
-    fn to_double(self) -> Self::DoubleWord {
-        self as Self::DoubleWord
-    }
-    fn from_double(word: Self::DoubleWord) -> Self {
-        word as Self
-    }
 }
 impl MachineWord for u32 {
     type DoubleWord = u64;
-    fn to_double(self) -> Self::DoubleWord {
-        self as Self::DoubleWord
-    }
-    fn from_double(word: Self::DoubleWord) -> Self {
-        word as Self
-    }
 }
 impl MachineWord for u64 {
     type DoubleWord = u128;
-    fn to_double(self) -> Self::DoubleWord {
-        self as Self::DoubleWord
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    c0nst::c0nst! {
+        pub c0nst fn to_double<T: [c0nst] ConstMachineWord>(a: T) -> T::ConstDoubleWord {
+            a.to_double()
+        }
     }
-    fn from_double(word: Self::DoubleWord) -> Self {
-        word as Self
+
+    #[test]
+    fn test_constmachineword_ops() {
+        assert_eq!(to_double(200u8), 200u16);
+
+        #[cfg(feature = "nightly")]
+        {
+            const DOUBLE_RES: u16 = to_double(200u8);
+            assert_eq!(DOUBLE_RES, 200u16);
+        }
     }
 }

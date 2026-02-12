@@ -17,10 +17,33 @@ impl<T: MachineWord, const N: usize> num_traits::ToPrimitive for FixedUInt<T, N>
     }
     fn to_u64(&self) -> Option<u64> {
         let mut ret: u64 = 0;
-        let iter: usize = core::cmp::min(8 / Self::WORD_SIZE, N);
-        for (word, bits) in (0..iter).map(|x| (x, x as u64 * Self::WORD_SIZE as u64 * 8)) {
-            ret += T::to_u64(&self.array[word])? << bits;
+        // Determine how many words are needed to fill a u64 (64 bits)
+        // If WORD_SIZE is 4 (u32), we read 2 words. If 8 (u64), we read 1.
+        let iter_limit = core::cmp::min(8 / Self::WORD_SIZE, N);
+
+        // Overflow check: any remaining higher limbs must be zero
+        for i in iter_limit..N {
+            if self.array[i] != T::zero() {
+                return None;
+            }
         }
+
+        for (i, word) in self.array.iter().take(iter_limit).enumerate() {
+            // Convert generic T to bytes (Little Endian)
+            let bytes = word.to_le_bytes();
+
+            // Iterate over bytes and shift them into the u64 result
+            for (j, &byte) in bytes.as_ref().iter().enumerate() {
+                // Calculate the global bit position for this byte
+                let bit_shift = (i * Self::WORD_SIZE + j) * 8;
+
+                // Safety check: ensure we don't shift out of u64 bounds
+                if bit_shift < 64 {
+                    ret |= (byte as u64) << bit_shift;
+                }
+            }
+        }
+
         Some(ret)
     }
 }
