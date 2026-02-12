@@ -34,7 +34,11 @@ mod num_traits_identity;
 mod prim_int_impl;
 mod roots_impl;
 mod string_conversion;
+#[cfg(feature = "use-unsafe")]
 mod to_from_bytes;
+
+#[cfg(feature = "zeroize")]
+use zeroize::DefaultIsZeroes;
 
 /// Fixed-size unsigned integer, represented by array of N words of builtin unsigned type T
 #[derive(Debug, Clone, Copy, core::cmp::PartialEq, core::cmp::Eq)]
@@ -45,6 +49,9 @@ where
     /// Little-endian word array
     array: [T; N],
 }
+
+#[cfg(feature = "zeroize")]
+impl<T: MachineWord, const N: usize> DefaultIsZeroes for FixedUInt<T, N> {}
 
 const LONGEST_WORD_IN_BITS: usize = 128;
 
@@ -369,7 +376,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
                     if accumulator > t_max {
                         carry = accumulator >> Self::WORD_BITS;
-                        accumulator = accumulator & t_max;
+                        accumulator &= t_max;
                     } else {
                         carry = T::DoubleWord::zero();
                     }

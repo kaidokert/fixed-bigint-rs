@@ -30,7 +30,7 @@ pub trait MachineWord:
     + Default
     + core::hash::Hash
 {
-    type DoubleWord: num_traits::PrimInt;
+    type DoubleWord: num_traits::PrimInt + core::ops::BitAndAssign;
     fn to_double(self) -> Self::DoubleWord;
     fn from_double(word: Self::DoubleWord) -> Self;
 }
