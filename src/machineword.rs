@@ -16,10 +16,16 @@
 // turning this into a const trait
 
 pub use crate::const_numtrait::ConstPrimInt;
+use crate::const_numtrait::{ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes};
 
 c0nst::c0nst! {
     /// A const-friendly trait for MachineWord operations
-    pub c0nst trait ConstMachineWord: [c0nst] ConstPrimInt {
+    pub c0nst trait ConstMachineWord:
+        [c0nst] ConstPrimInt +
+        [c0nst] ConstOverflowingAdd +
+        [c0nst] ConstOverflowingSub +
+        [c0nst] ConstToBytes
+    {
         type ConstDoubleWord: [c0nst] ConstPrimInt;
         fn to_double(self) -> Self::ConstDoubleWord;
         fn from_double(word: Self::ConstDoubleWord) -> Self;
@@ -47,18 +53,16 @@ c0nst::c0nst! {
     }
 }
 
-/// Represents a CPU native word, from 8-bit to 32-bit, with corresponding
+/// Represents a CPU native word, from 8-bit to 64-bit, with corresponding
 /// double-word to hold multiplication/division products.
+///
+/// This trait is intentionally sealed via the `ConstMachineWord` supertrait,
+/// as custom implementations are not supported. The const traits are intended
+/// to be upstreamed to `num_traits` in the future.
 pub trait MachineWord:
-    ConstMachineWord<ConstDoubleWord = Self::DoubleWord>
-    + num_traits::ops::overflowing::OverflowingAdd
-    + num_traits::ops::overflowing::OverflowingSub
-    + num_traits::ToPrimitive
-    + num_traits::FromBytes
-    + num_traits::ToBytes
-    + core::hash::Hash
+    ConstMachineWord<ConstDoubleWord = Self::DoubleWord> + core::hash::Hash + num_traits::ToPrimitive
 {
-    type DoubleWord: ConstPrimInt + core::ops::BitAndAssign;
+    type DoubleWord: ConstPrimInt;
 }
 
 impl MachineWord for u8 {
