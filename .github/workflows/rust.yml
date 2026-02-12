@@ -32,4 +32,5 @@ jobs:
     - name: Run tests with use-unsafe
       run: cargo test --verbose --features use-unsafe
     - name: Run tests with all features
+      if: matrix.rust == 'nightly'
       run: cargo test --verbose --all-features
