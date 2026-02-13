@@ -306,7 +306,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
 c0nst::c0nst! {
     /// Const-compatible add implementation operating on raw arrays
-    pub c0nst fn add_impl<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn add_impl<T: [c0nst] ConstMachineWord, const N: usize>(
         target: &mut [T; N],
         other: &[T; N]
     ) -> bool {
@@ -341,7 +341,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
 c0nst::c0nst! {
     /// Const-compatible sub implementation operating on raw arrays
-    pub c0nst fn sub_impl<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn sub_impl<T: [c0nst] ConstMachineWord, const N: usize>(
         target: &mut [T; N],
         other: &[T; N]
     ) -> bool {

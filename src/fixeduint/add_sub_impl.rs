@@ -110,7 +110,9 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingAdd
     }
 }
 
-impl<T: MachineWord, const N: usize> core::ops::AddAssign<Self> for FixedUInt<T, N> {
+impl<T: ConstMachineWord + MachineWord, const N: usize> core::ops::AddAssign<Self>
+    for FixedUInt<T, N>
+{
     fn add_assign(&mut self, other: Self) {
         if add_impl(&mut self.array, &other.array) {
             maybe_panic(PanicReason::Add);
@@ -118,7 +120,9 @@ impl<T: MachineWord, const N: usize> core::ops::AddAssign<Self> for FixedUInt<T,
     }
 }
 
-impl<T: MachineWord, const N: usize> core::ops::AddAssign<&'_ Self> for FixedUInt<T, N> {
+impl<T: ConstMachineWord + MachineWord, const N: usize> core::ops::AddAssign<&'_ Self>
+    for FixedUInt<T, N>
+{
     fn add_assign(&mut self, other: &Self) {
         if add_impl(&mut self.array, &other.array) {
             maybe_panic(PanicReason::Add);
@@ -193,7 +197,9 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingSub
     }
 }
 
-impl<T: MachineWord, const N: usize> core::ops::SubAssign<Self> for FixedUInt<T, N> {
+impl<T: ConstMachineWord + MachineWord, const N: usize> core::ops::SubAssign<Self>
+    for FixedUInt<T, N>
+{
     fn sub_assign(&mut self, other: Self) {
         if sub_impl(&mut self.array, &other.array) {
             maybe_panic(PanicReason::Sub);
@@ -201,7 +207,9 @@ impl<T: MachineWord, const N: usize> core::ops::SubAssign<Self> for FixedUInt<T,
     }
 }
 
-impl<T: MachineWord, const N: usize> core::ops::SubAssign<&'_ Self> for FixedUInt<T, N> {
+impl<T: ConstMachineWord + MachineWord, const N: usize> core::ops::SubAssign<&'_ Self>
+    for FixedUInt<T, N>
+{
     fn sub_assign(&mut self, other: &Self) {
         if sub_impl(&mut self.array, &other.array) {
             maybe_panic(PanicReason::Sub);
@@ -304,12 +312,13 @@ mod tests {
         assert_eq!(result, FixedUInt::<u8, 2>::from(15u8));
         assert!(!overflow);
 
-        // With overflow
-        let a = FixedUInt::<u8, 2>::from(255u8);
-        let b = FixedUInt::<u8, 2>::from(255u8);
-        let a = a + FixedUInt::<u8, 2>::from(1u8); // 256
+        // With overflow: max + max wraps to max-1 with overflow
+        let a = FixedUInt::<u8, 2>::max_value();
+        let b = FixedUInt::<u8, 2>::max_value();
         let (result, overflow) = const_overflowing_add(&a, &b);
-        assert!(overflow || result > FixedUInt::<u8, 2>::from(0u8)); // Either overflows or wraps
+        // 0xFFFF + 0xFFFF = 0x1FFFE, which wraps to 0xFFFE with overflow
+        assert_eq!(result, FixedUInt::<u8, 2>::from(u16::MAX - 1));
+        assert!(overflow);
 
         // Max value overflow
         let max = FixedUInt::<u8, 2>::max_value();
