@@ -41,6 +41,104 @@ c0nst::c0nst! {
             res
         }
     }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Add<&'_ Self> for FixedUInt<T, N> {
+        type Output = Self;
+        fn add(self, other: &Self) -> Self {
+            let (res, overflow) = <Self as crate::const_numtrait::ConstOverflowingAdd>::overflowing_add(&self, other);
+            if overflow {
+                maybe_panic(PanicReason::Add);
+            }
+            res
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Add<FixedUInt<T, N>> for &FixedUInt<T, N> {
+        type Output = FixedUInt<T, N>;
+        fn add(self, other: FixedUInt<T, N>) -> Self::Output {
+            let (res, overflow) = <FixedUInt<T, N> as crate::const_numtrait::ConstOverflowingAdd>::overflowing_add(self, &other);
+            if overflow {
+                maybe_panic(PanicReason::Add);
+            }
+            res
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Add<Self> for &FixedUInt<T, N> {
+        type Output = FixedUInt<T, N>;
+        fn add(self, other: Self) -> Self::Output {
+            let (res, overflow) = <FixedUInt<T, N> as crate::const_numtrait::ConstOverflowingAdd>::overflowing_add(self, other);
+            if overflow {
+                maybe_panic(PanicReason::Add);
+            }
+            res
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Sub<&'_ Self> for FixedUInt<T, N> {
+        type Output = Self;
+        fn sub(self, other: &Self) -> Self {
+            let (res, overflow) = <Self as crate::const_numtrait::ConstOverflowingSub>::overflowing_sub(&self, other);
+            if overflow {
+                maybe_panic(PanicReason::Sub);
+            }
+            res
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Sub<FixedUInt<T, N>> for &FixedUInt<T, N> {
+        type Output = FixedUInt<T, N>;
+        fn sub(self, other: FixedUInt<T, N>) -> Self::Output {
+            let (res, overflow) = <FixedUInt<T, N> as crate::const_numtrait::ConstOverflowingSub>::overflowing_sub(self, &other);
+            if overflow {
+                maybe_panic(PanicReason::Sub);
+            }
+            res
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Sub<Self> for &FixedUInt<T, N> {
+        type Output = FixedUInt<T, N>;
+        fn sub(self, other: Self) -> Self::Output {
+            let (res, overflow) = <FixedUInt<T, N> as crate::const_numtrait::ConstOverflowingSub>::overflowing_sub(self, other);
+            if overflow {
+                maybe_panic(PanicReason::Sub);
+            }
+            res
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::AddAssign<Self> for FixedUInt<T, N> {
+        fn add_assign(&mut self, other: Self) {
+            if add_impl(&mut self.array, &other.array) {
+                maybe_panic(PanicReason::Add);
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::AddAssign<&'_ Self> for FixedUInt<T, N> {
+        fn add_assign(&mut self, other: &Self) {
+            if add_impl(&mut self.array, &other.array) {
+                maybe_panic(PanicReason::Add);
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::SubAssign<Self> for FixedUInt<T, N> {
+        fn sub_assign(&mut self, other: Self) {
+            if sub_impl(&mut self.array, &other.array) {
+                maybe_panic(PanicReason::Sub);
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::SubAssign<&'_ Self> for FixedUInt<T, N> {
+        fn sub_assign(&mut self, other: &Self) {
+            if sub_impl(&mut self.array, &other.array) {
+                maybe_panic(PanicReason::Sub);
+            }
+        }
+    }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingAdd
@@ -48,39 +146,6 @@ impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingAd
 {
     fn overflowing_add(&self, other: &Self) -> (Self, bool) {
         <Self as crate::const_numtrait::ConstOverflowingAdd>::overflowing_add(self, other)
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::Add<&'_ Self> for FixedUInt<T, N> {
-    type Output = Self;
-    fn add(self, other: &Self) -> Self {
-        let (res, overflow) = self.overflowing_add(other);
-        if overflow {
-            maybe_panic(PanicReason::Add);
-        }
-        res
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::Add<FixedUInt<T, N>> for &FixedUInt<T, N> {
-    type Output = FixedUInt<T, N>;
-    fn add(self, other: FixedUInt<T, N>) -> Self::Output {
-        let (res, overflow) = self.overflowing_add(&other);
-        if overflow {
-            maybe_panic(PanicReason::Add);
-        }
-        res
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::Add<Self> for &FixedUInt<T, N> {
-    type Output = FixedUInt<T, N>;
-    fn add(self, other: Self) -> Self::Output {
-        let (res, overflow) = self.overflowing_add(other);
-        if overflow {
-            maybe_panic(PanicReason::Add);
-        }
-        res
     }
 }
 
@@ -110,64 +175,11 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingAdd
     }
 }
 
-impl<T: ConstMachineWord + MachineWord, const N: usize> core::ops::AddAssign<Self>
-    for FixedUInt<T, N>
-{
-    fn add_assign(&mut self, other: Self) {
-        if add_impl(&mut self.array, &other.array) {
-            maybe_panic(PanicReason::Add);
-        }
-    }
-}
-
-impl<T: ConstMachineWord + MachineWord, const N: usize> core::ops::AddAssign<&'_ Self>
-    for FixedUInt<T, N>
-{
-    fn add_assign(&mut self, other: &Self) {
-        if add_impl(&mut self.array, &other.array) {
-            maybe_panic(PanicReason::Add);
-        }
-    }
-}
-
 impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingSub
     for FixedUInt<T, N>
 {
     fn overflowing_sub(&self, other: &Self) -> (Self, bool) {
         <Self as crate::const_numtrait::ConstOverflowingSub>::overflowing_sub(self, other)
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::Sub<&'_ Self> for FixedUInt<T, N> {
-    type Output = Self;
-    fn sub(self, other: &Self) -> Self {
-        let (res, overflow) = self.overflowing_sub(other);
-        if overflow {
-            maybe_panic(PanicReason::Sub);
-        }
-        res
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::Sub<FixedUInt<T, N>> for &FixedUInt<T, N> {
-    type Output = FixedUInt<T, N>;
-    fn sub(self, other: FixedUInt<T, N>) -> Self::Output {
-        let (res, overflow) = self.overflowing_sub(&other);
-        if overflow {
-            maybe_panic(PanicReason::Sub);
-        }
-        res
-    }
-}
-
-impl<T: MachineWord, const N: usize> core::ops::Sub<Self> for &FixedUInt<T, N> {
-    type Output = FixedUInt<T, N>;
-    fn sub(self, other: Self) -> Self::Output {
-        let (res, overflow) = self.overflowing_sub(other);
-        if overflow {
-            maybe_panic(PanicReason::Sub);
-        }
-        res
     }
 }
 
@@ -194,26 +206,6 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingSub
     /// Saturating subtraction operator. Returns a-b, saturating at the numeric bounds instead of overflowing.
     fn saturating_sub(&self, other: &Self) -> Self {
         self.saturating_sub_impl(other)
-    }
-}
-
-impl<T: ConstMachineWord + MachineWord, const N: usize> core::ops::SubAssign<Self>
-    for FixedUInt<T, N>
-{
-    fn sub_assign(&mut self, other: Self) {
-        if sub_impl(&mut self.array, &other.array) {
-            maybe_panic(PanicReason::Sub);
-        }
-    }
-}
-
-impl<T: ConstMachineWord + MachineWord, const N: usize> core::ops::SubAssign<&'_ Self>
-    for FixedUInt<T, N>
-{
-    fn sub_assign(&mut self, other: &Self) {
-        if sub_impl(&mut self.array, &other.array) {
-            maybe_panic(PanicReason::Sub);
-        }
     }
 }
 
