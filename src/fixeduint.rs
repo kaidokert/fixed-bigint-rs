@@ -722,8 +722,8 @@ c0nst::c0nst! {
     /// Get bit length of array (total bits - leading zeros)
     pub(crate) c0nst fn const_array_bit_length<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
-        word_bits: usize,
     ) -> usize {
+        let word_bits = core::mem::size_of::<T>() * 8;
         let bit_size = N * word_bits;
         bit_size - const_array_leading_zeros::<T, N>(array) as usize
     }
@@ -742,12 +742,16 @@ c0nst::c0nst! {
         true
     }
 
-    /// Set a specific bit in the array
+    /// Set a specific bit in the array.
+    ///
+    /// The array uses little-endian representation where index 0 contains
+    /// the least significant word, and bit 0 is the least significant bit
+    /// of the entire integer.
     pub(crate) c0nst fn const_array_set_bit<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &mut [T; N],
         pos: usize,
-        word_bits: usize,
     ) {
+        let word_bits = core::mem::size_of::<T>() * 8;
         let bit_size = N * word_bits;
         if pos >= bit_size {
             return;
@@ -924,9 +928,8 @@ mod tests {
 
         pub c0nst fn arr_bit_length<T: [c0nst] ConstMachineWord, const N: usize>(
             a: &[T; N],
-            word_bits: usize,
         ) -> usize {
-            const_array_bit_length::<T, N>(a, word_bits)
+            const_array_bit_length::<T, N>(a)
         }
 
         pub c0nst fn arr_is_zero<T: [c0nst] ConstMachineWord, const N: usize>(
@@ -938,9 +941,8 @@ mod tests {
         pub c0nst fn arr_set_bit<T: [c0nst] ConstMachineWord, const N: usize>(
             a: &mut [T; N],
             pos: usize,
-            word_bits: usize,
         ) {
-            const_array_set_bit::<T, N>(a, pos, word_bits)
+            const_array_set_bit::<T, N>(a, pos)
         }
     }
 
@@ -1114,13 +1116,13 @@ mod tests {
         assert_eq!(arr_trailing_zeros(&[0x80u8, 0, 0, 0]), 7); // bit 7 of first byte
 
         // Test bit_length
-        assert_eq!(arr_bit_length(&[0u8, 0, 0, 0], 8), 0); // zero
-        assert_eq!(arr_bit_length(&[1u8, 0, 0, 0], 8), 1); // 1
-        assert_eq!(arr_bit_length(&[2u8, 0, 0, 0], 8), 2); // 2
-        assert_eq!(arr_bit_length(&[3u8, 0, 0, 0], 8), 2); // 3
-        assert_eq!(arr_bit_length(&[0u8, 1, 0, 0], 8), 9); // 256
-        assert_eq!(arr_bit_length(&[0xF0u8, 0, 0, 0], 8), 8); // 240 (0xF0)
-        assert_eq!(arr_bit_length(&[255u8, 255, 255, 255], 8), 32); // max
+        assert_eq!(arr_bit_length(&[0u8, 0, 0, 0]), 0); // zero
+        assert_eq!(arr_bit_length(&[1u8, 0, 0, 0]), 1); // 1
+        assert_eq!(arr_bit_length(&[2u8, 0, 0, 0]), 2); // 2
+        assert_eq!(arr_bit_length(&[3u8, 0, 0, 0]), 2); // 3
+        assert_eq!(arr_bit_length(&[0u8, 1, 0, 0]), 9); // 256
+        assert_eq!(arr_bit_length(&[0xF0u8, 0, 0, 0]), 8); // 240 (0xF0)
+        assert_eq!(arr_bit_length(&[255u8, 255, 255, 255]), 32); // max
 
         // Test is_zero
         assert!(arr_is_zero(&[0u8, 0, 0, 0]));
@@ -1130,27 +1132,27 @@ mod tests {
 
         // Test set_bit
         let mut arr: [u8; 4] = [0, 0, 0, 0];
-        arr_set_bit(&mut arr, 0, 8);
+        arr_set_bit(&mut arr, 0);
         assert_eq!(arr, [1, 0, 0, 0]);
 
         let mut arr: [u8; 4] = [0, 0, 0, 0];
-        arr_set_bit(&mut arr, 8, 8);
+        arr_set_bit(&mut arr, 8);
         assert_eq!(arr, [0, 1, 0, 0]);
 
         let mut arr: [u8; 4] = [0, 0, 0, 0];
-        arr_set_bit(&mut arr, 31, 8);
+        arr_set_bit(&mut arr, 31);
         assert_eq!(arr, [0, 0, 0, 0x80]);
 
         // Set multiple bits
         let mut arr: [u8; 4] = [0, 0, 0, 0];
-        arr_set_bit(&mut arr, 0, 8);
-        arr_set_bit(&mut arr, 3, 8);
-        arr_set_bit(&mut arr, 8, 8);
+        arr_set_bit(&mut arr, 0);
+        arr_set_bit(&mut arr, 3);
+        arr_set_bit(&mut arr, 8);
         assert_eq!(arr, [0b00001001, 1, 0, 0]);
 
         // Out of bounds should be no-op
         let mut arr: [u8; 4] = [0, 0, 0, 0];
-        arr_set_bit(&mut arr, 32, 8);
+        arr_set_bit(&mut arr, 32);
         assert_eq!(arr, [0, 0, 0, 0]);
 
         // Test with u32 words
@@ -1159,9 +1161,9 @@ mod tests {
         assert_eq!(arr_leading_zeros(&[0u32, 1]), 31);
         assert_eq!(arr_trailing_zeros(&[0u32, 0]), 64);
         assert_eq!(arr_trailing_zeros(&[0u32, 1]), 32);
-        assert_eq!(arr_bit_length(&[0u32, 0], 32), 0);
-        assert_eq!(arr_bit_length(&[1u32, 0], 32), 1);
-        assert_eq!(arr_bit_length(&[0u32, 1], 32), 33);
+        assert_eq!(arr_bit_length(&[0u32, 0]), 0);
+        assert_eq!(arr_bit_length(&[1u32, 0]), 1);
+        assert_eq!(arr_bit_length(&[0u32, 1]), 33);
 
         #[cfg(feature = "nightly")]
         {
@@ -1171,7 +1173,7 @@ mod tests {
             const TRAILING: u32 = arr_trailing_zeros(&[0u8, 0, 1, 0]);
             assert_eq!(TRAILING, 16);
 
-            const BIT_LEN: usize = arr_bit_length(&[0u8, 0, 1, 0], 8);
+            const BIT_LEN: usize = arr_bit_length(&[0u8, 0, 1, 0]);
             assert_eq!(BIT_LEN, 17);
 
             const IS_ZERO: bool = arr_is_zero(&[0u8, 0, 0, 0]);
@@ -1182,7 +1184,7 @@ mod tests {
 
             const SET_BIT_RESULT: [u8; 4] = {
                 let mut arr = [0u8, 0, 0, 0];
-                arr_set_bit(&mut arr, 10, 8);
+                arr_set_bit(&mut arr, 10);
                 arr
             };
             assert_eq!(SET_BIT_RESULT, [0, 0b00000100, 0, 0]);
