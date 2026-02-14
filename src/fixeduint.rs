@@ -627,6 +627,22 @@ c0nst::c0nst! {
         (result, overflowed)
     }
 
+    /// Get the bit width of a word type.
+    pub(crate) c0nst fn const_word_bits<T>() -> usize {
+        core::mem::size_of::<T>() * 8
+    }
+
+    /// Compare two words, returning Some(ordering) if not equal, None if equal.
+    pub(crate) c0nst fn const_cmp_words<T: [c0nst] ConstMachineWord>(a: T, b: T) -> Option<core::cmp::Ordering> {
+        if a > b {
+            Some(core::cmp::Ordering::Greater)
+        } else if a < b {
+            Some(core::cmp::Ordering::Less)
+        } else {
+            None
+        }
+    }
+
     /// Count leading zeros in a const-compatible way
     pub(crate) c0nst fn const_array_leading_zeros<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
@@ -665,7 +681,7 @@ c0nst::c0nst! {
     pub(crate) c0nst fn const_array_bit_length<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
     ) -> usize {
-        let word_bits = core::mem::size_of::<T>() * 8;
+        let word_bits = const_word_bits::<T>();
         let bit_size = N * word_bits;
         bit_size - const_array_leading_zeros::<T, N>(array) as usize
     }
@@ -693,7 +709,7 @@ c0nst::c0nst! {
         array: &mut [T; N],
         pos: usize,
     ) {
-        let word_bits = core::mem::size_of::<T>() * 8;
+        let word_bits = const_word_bits::<T>();
         let word_idx = pos / word_bits;
         if word_idx >= N {
             return;
@@ -713,11 +729,8 @@ c0nst::c0nst! {
         let mut index = N;
         while index > 0 {
             index -= 1;
-            if a[index] > b[index] {
-                return core::cmp::Ordering::Greater;
-            }
-            if a[index] < b[index] {
-                return core::cmp::Ordering::Less;
+            if let Some(ord) = const_cmp_words(a[index], b[index]) {
+                return ord;
             }
         }
         core::cmp::Ordering::Equal
@@ -733,7 +746,7 @@ c0nst::c0nst! {
         word_shift: usize,
         bit_shift: usize,
     ) -> T {
-        let word_bits = core::mem::size_of::<T>() * 8;
+        let word_bits = const_word_bits::<T>();
 
         // Guard against invalid bit_shift that would cause UB
         if bit_shift >= word_bits {
@@ -779,7 +792,7 @@ c0nst::c0nst! {
         other: &[T; N],
         shift_bits: usize,
     ) -> core::cmp::Ordering {
-        let word_bits = core::mem::size_of::<T>() * 8;
+        let word_bits = const_word_bits::<T>();
 
         if shift_bits == 0 {
             return const_array_cmp::<T, N>(array, other);
@@ -806,11 +819,8 @@ c0nst::c0nst! {
                 other, index, word_shift, bit_shift
             );
 
-            if self_word > other_shifted_word {
-                return core::cmp::Ordering::Greater;
-            }
-            if self_word < other_shifted_word {
-                return core::cmp::Ordering::Less;
+            if let Some(ord) = const_cmp_words(self_word, other_shifted_word) {
+                return ord;
             }
         }
 
