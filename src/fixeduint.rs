@@ -727,9 +727,6 @@ c0nst::c0nst! {
     ///
     /// This helper computes what value would be at `word_idx` if the array
     /// were shifted left by `word_shift` words plus `bit_shift` bits.
-    ///
-    /// # Preconditions
-    /// `bit_shift` must be less than `word_bits` (i.e., `core::mem::size_of::<T>() * 8`).
     pub(crate) c0nst fn const_array_get_shifted_word<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
         word_idx: usize,
@@ -737,6 +734,11 @@ c0nst::c0nst! {
         bit_shift: usize,
     ) -> T {
         let word_bits = core::mem::size_of::<T>() * 8;
+
+        // Guard against invalid bit_shift that would cause UB
+        if bit_shift >= word_bits {
+            return <T as ConstZero>::zero();
+        }
 
         if word_idx < word_shift {
             return <T as ConstZero>::zero();
@@ -759,7 +761,7 @@ c0nst::c0nst! {
             }
 
             // Get high bits from the next lower word (if it exists)
-            if source_idx > 0 {
+            if source_idx > 0 && source_idx - 1 < N {
                 let high_bits = array[source_idx - 1] >> (word_bits - bit_shift);
                 result |= high_bits;
             }
