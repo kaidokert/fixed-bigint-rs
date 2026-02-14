@@ -19,7 +19,7 @@ use core::convert::TryFrom;
 use core::fmt::Write;
 
 pub use crate::const_numtrait::{ConstOne, ConstPrimInt, ConstZero};
-use crate::machineword::MachineWord;
+use crate::machineword::{ConstMachineWord, MachineWord};
 
 #[allow(unused_imports)]
 use num_traits::{FromPrimitive, Num};
@@ -48,7 +48,7 @@ where
     T: MachineWord,
 {
     /// Little-endian word array
-    array: [T; N],
+    pub(super) array: [T; N],
 }
 
 #[cfg(feature = "zeroize")]
@@ -302,23 +302,32 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         }
         Ok(())
     }
-    // Add other to target, return overflow status
-    // Note: in-place, no extra storage is used
-    fn add_impl(target: &mut Self, other: &Self) -> bool {
+}
+
+c0nst::c0nst! {
+    /// Const-compatible add implementation operating on raw arrays
+    pub(crate) c0nst fn add_impl<T: [c0nst] ConstMachineWord, const N: usize>(
+        target: &mut [T; N],
+        other: &[T; N]
+    ) -> bool {
         let mut carry = T::zero();
-        for i in 0..N {
-            let (res, carry1) = target.array[i].overflowing_add(&other.array[i]);
+        let mut i = 0usize;
+        while i < N {
+            let (res, carry1) = target[i].overflowing_add(&other[i]);
             let (res, carry2) = res.overflowing_add(&carry);
             carry = if carry1 || carry2 {
                 T::one()
             } else {
                 T::zero()
             };
-            target.array[i] = res
+            target[i] = res;
+            i += 1;
         }
         !carry.is_zero()
     }
+}
 
+impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     // Here to avoid duplicating this in two traits
     fn saturating_add_impl(self, other: &Self) -> Self {
         let res = self.overflowing_add(other);
@@ -328,24 +337,32 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             res.0
         }
     }
+}
 
-    // Subtract other from target, return overflow status
-    // Note: in-place, no extra storage is used
-    fn sub_impl(target: &mut Self, other: &Self) -> bool {
+c0nst::c0nst! {
+    /// Const-compatible sub implementation operating on raw arrays
+    pub(crate) c0nst fn sub_impl<T: [c0nst] ConstMachineWord, const N: usize>(
+        target: &mut [T; N],
+        other: &[T; N]
+    ) -> bool {
         let mut borrow = T::zero();
-        for i in 0..N {
-            let (res, borrow1) = target.array[i].overflowing_sub(&other.array[i]);
+        let mut i = 0usize;
+        while i < N {
+            let (res, borrow1) = target[i].overflowing_sub(&other[i]);
             let (res, borrow2) = res.overflowing_sub(&borrow);
             borrow = if borrow1 || borrow2 {
                 T::one()
             } else {
                 T::zero()
             };
-            target.array[i] = res;
+            target[i] = res;
+            i += 1;
         }
         !borrow.is_zero()
     }
+}
 
+impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     fn saturating_sub_impl(self, other: &Self) -> Self {
         let res = self.overflowing_sub(other);
         if res.1 {
@@ -737,14 +754,16 @@ enum PanicReason {
     RemByZero,
 }
 
-fn maybe_panic(r: PanicReason) {
-    match r {
-        PanicReason::Add => panic!("attempt to add with overflow"),
-        PanicReason::Sub => panic!("attempt to subtract with overflow"),
-        PanicReason::Mul => panic!("attempt to multiply with overflow"),
-        PanicReason::DivByZero => panic!("attempt to divide by zero"),
-        PanicReason::RemByZero => {
-            panic!("attempt to calculate the remainder with a divisor of zero")
+c0nst::c0nst! {
+    pub(super) c0nst fn maybe_panic(r: PanicReason) {
+        match r {
+            PanicReason::Add => panic!("attempt to add with overflow"),
+            PanicReason::Sub => panic!("attempt to subtract with overflow"),
+            PanicReason::Mul => panic!("attempt to multiply with overflow"),
+            PanicReason::DivByZero => panic!("attempt to divide by zero"),
+            PanicReason::RemByZero => {
+                panic!("attempt to calculate the remainder with a divisor of zero")
+            }
         }
     }
 }
@@ -759,6 +778,106 @@ mod tests {
     type Bn8 = Bn<u8, 8>;
     type Bn16 = Bn<u16, 4>;
     type Bn32 = Bn<u32, 2>;
+
+    c0nst::c0nst! {
+        pub c0nst fn test_add<T: [c0nst] ConstMachineWord, const N: usize>(
+            a: &mut [T; N],
+            b: &[T; N]
+        ) -> bool {
+            add_impl(a, b)
+        }
+
+        pub c0nst fn test_sub<T: [c0nst] ConstMachineWord, const N: usize>(
+            a: &mut [T; N],
+            b: &[T; N]
+        ) -> bool {
+            sub_impl(a, b)
+        }
+    }
+
+    #[test]
+    fn test_const_add_impl() {
+        // Simple add, no overflow
+        let mut a: [u8; 4] = [1, 0, 0, 0];
+        let b: [u8; 4] = [2, 0, 0, 0];
+        let overflow = test_add(&mut a, &b);
+        assert_eq!(a, [3, 0, 0, 0]);
+        assert!(!overflow);
+
+        // Add with carry propagation
+        let mut a: [u8; 4] = [255, 0, 0, 0];
+        let b: [u8; 4] = [1, 0, 0, 0];
+        let overflow = test_add(&mut a, &b);
+        assert_eq!(a, [0, 1, 0, 0]);
+        assert!(!overflow);
+
+        // Add with overflow
+        let mut a: [u8; 4] = [255, 255, 255, 255];
+        let b: [u8; 4] = [1, 0, 0, 0];
+        let overflow = test_add(&mut a, &b);
+        assert_eq!(a, [0, 0, 0, 0]);
+        assert!(overflow);
+
+        // Test with u32 words
+        let mut a: [u32; 2] = [0xFFFFFFFF, 0];
+        let b: [u32; 2] = [1, 0];
+        let overflow = test_add(&mut a, &b);
+        assert_eq!(a, [0, 1]);
+        assert!(!overflow);
+
+        #[cfg(feature = "nightly")]
+        {
+            const ADD_RESULT: ([u8; 4], bool) = {
+                let mut a = [1u8, 0, 0, 0];
+                let b = [2u8, 0, 0, 0];
+                let overflow = test_add(&mut a, &b);
+                (a, overflow)
+            };
+            assert_eq!(ADD_RESULT, ([3, 0, 0, 0], false));
+        }
+    }
+
+    #[test]
+    fn test_const_sub_impl() {
+        // Simple sub, no overflow
+        let mut a: [u8; 4] = [3, 0, 0, 0];
+        let b: [u8; 4] = [1, 0, 0, 0];
+        let overflow = test_sub(&mut a, &b);
+        assert_eq!(a, [2, 0, 0, 0]);
+        assert!(!overflow);
+
+        // Sub with borrow propagation
+        let mut a: [u8; 4] = [0, 1, 0, 0];
+        let b: [u8; 4] = [1, 0, 0, 0];
+        let overflow = test_sub(&mut a, &b);
+        assert_eq!(a, [255, 0, 0, 0]);
+        assert!(!overflow);
+
+        // Sub with underflow
+        let mut a: [u8; 4] = [0, 0, 0, 0];
+        let b: [u8; 4] = [1, 0, 0, 0];
+        let overflow = test_sub(&mut a, &b);
+        assert_eq!(a, [255, 255, 255, 255]);
+        assert!(overflow);
+
+        // Test with u32 words
+        let mut a: [u32; 2] = [0, 1];
+        let b: [u32; 2] = [1, 0];
+        let overflow = test_sub(&mut a, &b);
+        assert_eq!(a, [0xFFFFFFFF, 0]);
+        assert!(!overflow);
+
+        #[cfg(feature = "nightly")]
+        {
+            const SUB_RESULT: ([u8; 4], bool) = {
+                let mut a = [3u8, 0, 0, 0];
+                let b = [1u8, 0, 0, 0];
+                let overflow = test_sub(&mut a, &b);
+                (a, overflow)
+            };
+            assert_eq!(SUB_RESULT, ([2, 0, 0, 0], false));
+        }
+    }
 
     #[test]
     fn test_core_convert_u8() {
