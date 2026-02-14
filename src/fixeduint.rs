@@ -362,35 +362,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
     /// Compare self vs other << shift_bits without allocating
     fn cmp_shifted(&self, other: &Self, shift_bits: usize) -> core::cmp::Ordering {
-        if shift_bits == 0 {
-            return self.cmp(other);
-        }
-
-        if shift_bits >= Self::BIT_SIZE {
-            // other << shift_bits would be 0, so compare self vs 0
-            if Zero::is_zero(self) {
-                return core::cmp::Ordering::Equal;
-            } else {
-                return core::cmp::Ordering::Greater;
-            }
-        }
-
-        // Calculate word and bit offsets
-        let word_shift = shift_bits / Self::WORD_BITS;
-        let bit_shift = shift_bits % Self::WORD_BITS;
-
-        // Compare from most significant words down
-        for i in (0..N).rev() {
-            let self_word = self.array[i];
-            let other_shifted_word = self.get_shifted_word(other, i, word_shift, bit_shift);
-
-            match self_word.cmp(&other_shifted_word) {
-                core::cmp::Ordering::Equal => continue,
-                other_result => return other_result,
-            }
-        }
-
-        core::cmp::Ordering::Equal
+        const_array_cmp_shifted(&self.array, &other.array, shift_bits)
     }
 
     /// Get the value of other's word at position `word_idx` when other is logically shifted left
@@ -401,37 +373,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         word_shift: usize,
         bit_shift: usize,
     ) -> T {
-        if word_idx < word_shift {
-            // This word position would be filled with zeros from the shift
-            return T::zero();
-        }
-
-        let source_idx = word_idx - word_shift;
-
-        if bit_shift == 0 {
-            // Simple word alignment
-            if source_idx < N {
-                other.array[source_idx]
-            } else {
-                T::zero()
-            }
-        } else {
-            // Need to combine bits from two source words
-            let mut result = T::zero();
-
-            // Get bits from the primary source word
-            if source_idx < N {
-                result |= other.array[source_idx].shl(bit_shift);
-            }
-
-            // Get high bits from the next lower word (if it exists and we need them)
-            if source_idx > 0 && (source_idx - 1) < N {
-                let high_bits = other.array[source_idx - 1].shr(Self::WORD_BITS - bit_shift);
-                result |= high_bits;
-            }
-
-            result
-        }
+        const_array_get_shifted_word(&other.array, word_idx, word_shift, bit_shift)
     }
 
     /// Subtract other << shift_bits from self in-place
@@ -759,6 +701,118 @@ c0nst::c0nst! {
         let bit_idx = pos % word_bits;
         array[word_idx] |= <T as ConstOne>::one() << bit_idx;
     }
+
+    /// Compare two arrays in a const-compatible way.
+    ///
+    /// Arrays use little-endian representation where index 0 contains
+    /// the least significant word.
+    pub(crate) c0nst fn const_array_cmp<T: [c0nst] ConstMachineWord, const N: usize>(
+        a: &[T; N],
+        b: &[T; N],
+    ) -> core::cmp::Ordering {
+        let mut index = N;
+        while index > 0 {
+            index -= 1;
+            if a[index] > b[index] {
+                return core::cmp::Ordering::Greater;
+            }
+            if a[index] < b[index] {
+                return core::cmp::Ordering::Less;
+            }
+        }
+        core::cmp::Ordering::Equal
+    }
+
+    /// Get the value of array's word at position `word_idx` when logically shifted left.
+    ///
+    /// This helper computes what value would be at `word_idx` if the array
+    /// were shifted left by `word_shift` words plus `bit_shift` bits.
+    pub(crate) c0nst fn const_array_get_shifted_word<T: [c0nst] ConstMachineWord, const N: usize>(
+        array: &[T; N],
+        word_idx: usize,
+        word_shift: usize,
+        bit_shift: usize,
+    ) -> T {
+        let word_bits = core::mem::size_of::<T>() * 8;
+
+        if word_idx < word_shift {
+            return <T as ConstZero>::zero();
+        }
+
+        let source_idx = word_idx - word_shift;
+
+        if bit_shift == 0 {
+            if source_idx < N {
+                array[source_idx]
+            } else {
+                <T as ConstZero>::zero()
+            }
+        } else {
+            let mut result = <T as ConstZero>::zero();
+
+            // Get bits from the primary source word
+            if source_idx < N {
+                result |= array[source_idx] << bit_shift;
+            }
+
+            // Get high bits from the next lower word (if it exists)
+            if source_idx > 0 && (source_idx - 1) < N {
+                let high_bits = array[source_idx - 1] >> (word_bits - bit_shift);
+                result |= high_bits;
+            }
+
+            result
+        }
+    }
+
+    /// Compare array vs (other << shift_bits) in a const-compatible way.
+    ///
+    /// This is useful for division algorithms where we need to compare
+    /// the dividend against a shifted divisor without allocating.
+    pub(crate) c0nst fn const_array_cmp_shifted<T: [c0nst] ConstMachineWord, const N: usize>(
+        array: &[T; N],
+        other: &[T; N],
+        shift_bits: usize,
+    ) -> core::cmp::Ordering {
+        let word_bits = core::mem::size_of::<T>() * 8;
+
+        if shift_bits == 0 {
+            return const_array_cmp::<T, N>(array, other);
+        }
+
+        // Check for shift overflow using division to avoid multiplication overflow
+        let shift_words = shift_bits / word_bits;
+        if shift_words >= N {
+            // other << shift_bits would overflow to 0
+            if const_array_is_zero::<T, N>(array) {
+                return core::cmp::Ordering::Equal;
+            } else {
+                return core::cmp::Ordering::Greater;
+            }
+        }
+
+        let word_shift = shift_bits / word_bits;
+        let bit_shift = shift_bits % word_bits;
+
+        // Compare from most significant words down
+        let mut index = N;
+        while index > 0 {
+            index -= 1;
+            let self_word = array[index];
+            let other_shifted_word = const_array_get_shifted_word::<T, N>(
+                other, index, word_shift, bit_shift
+            );
+
+            if self_word > other_shifted_word {
+                return core::cmp::Ordering::Greater;
+            }
+            if self_word < other_shifted_word {
+                return core::cmp::Ordering::Less;
+            }
+        }
+
+        core::cmp::Ordering::Equal
+    }
 }
 
 impl<T: MachineWord, const N: usize> Default for FixedUInt<T, N> {
@@ -773,15 +827,7 @@ impl<T: MachineWord, const N: usize> num_traits::Unsigned for FixedUInt<T, N> {}
 
 impl<T: MachineWord, const N: usize> core::cmp::Ord for FixedUInt<T, N> {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        for i in (0..N).rev() {
-            if self.array[i] > other.array[i] {
-                return core::cmp::Ordering::Greater;
-            }
-            if self.array[i] < other.array[i] {
-                return core::cmp::Ordering::Less;
-            }
-        }
-        core::cmp::Ordering::Equal
+        const_array_cmp(&self.array, &other.array)
     }
 }
 
@@ -942,6 +988,30 @@ mod tests {
             pos: usize,
         ) {
             const_array_set_bit::<T, N>(a, pos)
+        }
+
+        pub c0nst fn arr_cmp<T: [c0nst] ConstMachineWord, const N: usize>(
+            a: &[T; N],
+            b: &[T; N],
+        ) -> core::cmp::Ordering {
+            const_array_cmp::<T, N>(a, b)
+        }
+
+        pub c0nst fn arr_cmp_shifted<T: [c0nst] ConstMachineWord, const N: usize>(
+            a: &[T; N],
+            b: &[T; N],
+            shift_bits: usize,
+        ) -> core::cmp::Ordering {
+            const_array_cmp_shifted::<T, N>(a, b, shift_bits)
+        }
+
+        pub c0nst fn arr_get_shifted_word<T: [c0nst] ConstMachineWord, const N: usize>(
+            a: &[T; N],
+            word_idx: usize,
+            word_shift: usize,
+            bit_shift: usize,
+        ) -> T {
+            const_array_get_shifted_word::<T, N>(a, word_idx, word_shift, bit_shift)
         }
     }
 
@@ -1187,6 +1257,99 @@ mod tests {
                 arr
             };
             assert_eq!(SET_BIT_RESULT, [0, 0b00000100, 0, 0]);
+        }
+    }
+
+    #[test]
+    fn test_const_array_cmp() {
+        use core::cmp::Ordering;
+
+        // Equal arrays
+        assert_eq!(arr_cmp(&[1u8, 2, 3, 4], &[1u8, 2, 3, 4]), Ordering::Equal);
+        assert_eq!(arr_cmp(&[0u8, 0, 0, 0], &[0u8, 0, 0, 0]), Ordering::Equal);
+
+        // Greater - high word differs
+        assert_eq!(arr_cmp(&[0u8, 0, 0, 2], &[0u8, 0, 0, 1]), Ordering::Greater);
+
+        // Less - high word differs
+        assert_eq!(arr_cmp(&[0u8, 0, 0, 1], &[0u8, 0, 0, 2]), Ordering::Less);
+
+        // Greater - low word differs (high words equal)
+        assert_eq!(arr_cmp(&[2u8, 0, 0, 0], &[1u8, 0, 0, 0]), Ordering::Greater);
+
+        // Less - low word differs
+        assert_eq!(arr_cmp(&[1u8, 0, 0, 0], &[2u8, 0, 0, 0]), Ordering::Less);
+
+        // Test with u32 words
+        assert_eq!(arr_cmp(&[0u32, 1], &[0u32, 1]), Ordering::Equal);
+        assert_eq!(arr_cmp(&[0u32, 2], &[0u32, 1]), Ordering::Greater);
+        assert_eq!(arr_cmp(&[0u32, 1], &[0u32, 2]), Ordering::Less);
+
+        #[cfg(feature = "nightly")]
+        {
+            const CMP_EQ: Ordering = arr_cmp(&[1u8, 2, 3, 4], &[1u8, 2, 3, 4]);
+            const CMP_GT: Ordering = arr_cmp(&[0u8, 0, 0, 2], &[0u8, 0, 0, 1]);
+            const CMP_LT: Ordering = arr_cmp(&[0u8, 0, 0, 1], &[0u8, 0, 0, 2]);
+            assert_eq!(CMP_EQ, Ordering::Equal);
+            assert_eq!(CMP_GT, Ordering::Greater);
+            assert_eq!(CMP_LT, Ordering::Less);
+        }
+    }
+
+    #[test]
+    fn test_const_array_cmp_shifted() {
+        use core::cmp::Ordering;
+
+        // No shift - same as regular cmp
+        assert_eq!(
+            arr_cmp_shifted(&[1u8, 0, 0, 0], &[1u8, 0, 0, 0], 0),
+            Ordering::Equal
+        );
+
+        // Compare [0, 1, 0, 0] (256) vs [1, 0, 0, 0] << 8 (256) = Equal
+        assert_eq!(
+            arr_cmp_shifted(&[0u8, 1, 0, 0], &[1u8, 0, 0, 0], 8),
+            Ordering::Equal
+        );
+
+        // Compare [0, 2, 0, 0] (512) vs [1, 0, 0, 0] << 8 (256) = Greater
+        assert_eq!(
+            arr_cmp_shifted(&[0u8, 2, 0, 0], &[1u8, 0, 0, 0], 8),
+            Ordering::Greater
+        );
+
+        // Compare [0, 0, 0, 0] (0) vs [1, 0, 0, 0] << 8 (256) = Less
+        assert_eq!(
+            arr_cmp_shifted(&[0u8, 0, 0, 0], &[1u8, 0, 0, 0], 8),
+            Ordering::Less
+        );
+
+        // Shift overflow: shift >= bit_size, other becomes 0
+        // Compare [1, 0, 0, 0] vs [1, 0, 0, 0] << 32 (0) = Greater
+        assert_eq!(
+            arr_cmp_shifted(&[1u8, 0, 0, 0], &[1u8, 0, 0, 0], 32),
+            Ordering::Greater
+        );
+
+        // Compare [0, 0, 0, 0] vs anything << 32 (0) = Equal
+        assert_eq!(
+            arr_cmp_shifted(&[0u8, 0, 0, 0], &[255u8, 255, 255, 255], 32),
+            Ordering::Equal
+        );
+
+        // Test get_shifted_word helper
+        // [1, 2, 3, 4] shifted left by 1 word (8 bits for u8)
+        // word 0 should be 0, word 1 should be 1, word 2 should be 2, etc.
+        assert_eq!(arr_get_shifted_word(&[1u8, 2, 3, 4], 0, 1, 0), 0);
+        assert_eq!(arr_get_shifted_word(&[1u8, 2, 3, 4], 1, 1, 0), 1);
+        assert_eq!(arr_get_shifted_word(&[1u8, 2, 3, 4], 2, 1, 0), 2);
+
+        #[cfg(feature = "nightly")]
+        {
+            const CMP_SHIFTED_EQ: Ordering = arr_cmp_shifted(&[0u8, 1, 0, 0], &[1u8, 0, 0, 0], 8);
+            const CMP_SHIFTED_GT: Ordering = arr_cmp_shifted(&[0u8, 2, 0, 0], &[1u8, 0, 0, 0], 8);
+            assert_eq!(CMP_SHIFTED_EQ, Ordering::Equal);
+            assert_eq!(CMP_SHIFTED_GT, Ordering::Greater);
         }
     }
 
