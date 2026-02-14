@@ -1,7 +1,7 @@
 use super::{add_impl, maybe_panic, sub_impl, FixedUInt, MachineWord, PanicReason};
 use crate::const_numtrait::{
-    ConstCheckedAdd, ConstCheckedSub, ConstOverflowingAdd, ConstOverflowingSub, ConstWrappingAdd,
-    ConstWrappingSub,
+    ConstBounded, ConstCheckedAdd, ConstCheckedSub, ConstOverflowingAdd, ConstOverflowingSub,
+    ConstSaturatingAdd, ConstSaturatingSub, ConstWrappingAdd, ConstWrappingSub, ConstZero,
 };
 use crate::machineword::ConstMachineWord;
 
@@ -45,6 +45,20 @@ c0nst::c0nst! {
         fn checked_sub(&self, other: &Self) -> Option<Self> {
             let (res, overflow) = <Self as ConstOverflowingSub>::overflowing_sub(self, other);
             if overflow { None } else { Some(res) }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstSaturatingAdd for FixedUInt<T, N> {
+        fn saturating_add(&self, other: &Self) -> Self {
+            let (res, overflow) = <Self as ConstOverflowingAdd>::overflowing_add(self, other);
+            if overflow { <Self as ConstBounded>::max_value() } else { res }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstSaturatingSub for FixedUInt<T, N> {
+        fn saturating_sub(&self, other: &Self) -> Self {
+            let (res, overflow) = <Self as ConstOverflowingSub>::overflowing_sub(self, other);
+            if overflow { <Self as ConstZero>::zero() } else { res }
         }
     }
 
@@ -192,9 +206,8 @@ impl<T: MachineWord, const N: usize> num_traits::CheckedAdd for FixedUInt<T, N> 
 impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingAdd
     for FixedUInt<T, N>
 {
-    /// Saturating addition operator. Returns a+b, saturating at the numeric bounds instead of overflowing.
     fn saturating_add(&self, other: &Self) -> Self {
-        self.saturating_add_impl(other)
+        <Self as ConstSaturatingAdd>::saturating_add(self, other)
     }
 }
 
@@ -221,22 +234,19 @@ impl<T: MachineWord, const N: usize> num_traits::CheckedSub for FixedUInt<T, N> 
 impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingSub
     for FixedUInt<T, N>
 {
-    /// Saturating subtraction operator. Returns a-b, saturating at the numeric bounds instead of overflowing.
     fn saturating_sub(&self, other: &Self) -> Self {
-        self.saturating_sub_impl(other)
+        <Self as ConstSaturatingSub>::saturating_sub(self, other)
     }
 }
 
 /// Note: This is marked deprecated, but still used by PrimInt
 impl<T: MachineWord, const N: usize> num_traits::Saturating for FixedUInt<T, N> {
-    /// Saturating addition operator. Returns a+b, saturating at the numeric bounds instead of overflowing.
     fn saturating_add(self, other: Self) -> Self {
-        self.saturating_add_impl(&other)
+        <Self as ConstSaturatingAdd>::saturating_add(&self, &other)
     }
 
-    /// Saturating subtraction operator. Returns a-b, saturating at the numeric bounds instead of overflowing.
     fn saturating_sub(self, other: Self) -> Self {
-        self.saturating_sub_impl(&other)
+        <Self as ConstSaturatingSub>::saturating_sub(&self, &other)
     }
 }
 
@@ -358,15 +368,15 @@ mod tests {
         assert!(!overflow);
 
         // With overflow: max + max wraps to max-1 with overflow
-        let a = FixedUInt::<u8, 2>::max_value();
-        let b = FixedUInt::<u8, 2>::max_value();
+        let a = <FixedUInt<u8, 2> as Bounded>::max_value();
+        let b = <FixedUInt<u8, 2> as Bounded>::max_value();
         let (result, overflow) = const_overflowing_add(&a, &b);
         // 0xFFFF + 0xFFFF = 0x1FFFE, which wraps to 0xFFFE with overflow
         assert_eq!(result, FixedUInt::<u8, 2>::from(u16::MAX - 1));
         assert!(overflow);
 
         // Max value overflow
-        let max = FixedUInt::<u8, 2>::max_value();
+        let max = <FixedUInt<u8, 2> as Bounded>::max_value();
         let one = FixedUInt::<u8, 2>::from(1u8);
         let (_, overflow) = const_overflowing_add(&max, &one);
         assert!(overflow);
@@ -459,7 +469,7 @@ mod tests {
         assert_eq!(result, FixedUInt::<u8, 2>::from(150u8));
 
         // Test wrapping_add with overflow
-        let max = FixedUInt::<u8, 2>::max_value();
+        let max = <FixedUInt<u8, 2> as Bounded>::max_value();
         let one = FixedUInt::<u8, 2>::from(1u8);
         let result = const_wrapping_add(&max, &one);
         assert_eq!(result, FixedUInt::<u8, 2>::from(0u8));
@@ -474,7 +484,7 @@ mod tests {
         let zero = FixedUInt::<u8, 2>::from(0u8);
         let one = FixedUInt::<u8, 2>::from(1u8);
         let result = const_wrapping_sub(&zero, &one);
-        assert_eq!(result, FixedUInt::<u8, 2>::max_value());
+        assert_eq!(result, <FixedUInt::<u8, 2> as Bounded>::max_value());
 
         // Test checked_add without overflow
         let a = FixedUInt::<u8, 2>::from(100u8);
@@ -483,7 +493,7 @@ mod tests {
         assert_eq!(result, Some(FixedUInt::<u8, 2>::from(150u8)));
 
         // Test checked_add with overflow
-        let max = FixedUInt::<u8, 2>::max_value();
+        let max = <FixedUInt<u8, 2> as Bounded>::max_value();
         let one = FixedUInt::<u8, 2>::from(1u8);
         let result = const_checked_add(&max, &one);
         assert_eq!(result, None);

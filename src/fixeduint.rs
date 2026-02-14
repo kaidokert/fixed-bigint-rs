@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use num_traits::ops::overflowing::{OverflowingAdd, OverflowingSub};
-use num_traits::{Bounded, One, PrimInt, ToPrimitive, Zero};
+use num_traits::{One, PrimInt, ToPrimitive, Zero};
 
 use core::convert::TryFrom;
 use core::fmt::Write;
@@ -327,18 +326,6 @@ c0nst::c0nst! {
     }
 }
 
-impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
-    // Here to avoid duplicating this in two traits
-    fn saturating_add_impl(self, other: &Self) -> Self {
-        let res = self.overflowing_add(other);
-        if res.1 {
-            Self::max_value()
-        } else {
-            res.0
-        }
-    }
-}
-
 c0nst::c0nst! {
     /// Const-compatible sub implementation operating on raw arrays
     pub(crate) c0nst fn sub_impl<T: [c0nst] ConstMachineWord, const N: usize>(
@@ -363,15 +350,6 @@ c0nst::c0nst! {
 }
 
 impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
-    fn saturating_sub_impl(self, other: &Self) -> Self {
-        let res = self.overflowing_sub(other);
-        if res.1 {
-            <Self as Zero>::zero()
-        } else {
-            res.0
-        }
-    }
-
     // Multiply op1 with op2, return overflow status
     // Note: uses extra `result` variable, not sure if in-place multiply is possible at all.
     fn mul_impl<const CHECK_OVERFLOW: bool>(op1: &Self, op2: &Self) -> (Self, bool) {
