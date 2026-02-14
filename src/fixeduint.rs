@@ -653,7 +653,7 @@ c0nst::c0nst! {
         let mut overflowed = false;
         let t_max = <T as ConstMachineWord>::to_double(<T as ConstBounded>::max_value());
         // Zero for double word type
-        let dw_zero: <T as ConstMachineWord>::ConstDoubleWord = core::convert::From::from(0u8);
+        let dw_zero = <<T as ConstMachineWord>::ConstDoubleWord as ConstZero>::zero();
 
         let mut i = 0;
         while i < N {
