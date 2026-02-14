@@ -299,7 +299,13 @@ impl<T: MachineWord, const N: usize> OverflowingShl for FixedUInt<T, N> {
     fn overflowing_shl(self, bits: u32) -> (Self, bool) {
         let bitsu = bits as usize;
         let (shift, overflow) = if bitsu >= Self::BIT_SIZE {
-            (bitsu & (Self::BIT_SIZE - 1), true)
+            // Use modulo for correct wrapping with non-power-of-2 bit sizes
+            let shift = if Self::BIT_SIZE == 0 {
+                0
+            } else {
+                bitsu % Self::BIT_SIZE
+            };
+            (shift, true)
         } else {
             (bitsu, false)
         };
@@ -312,7 +318,13 @@ impl<T: MachineWord, const N: usize> OverflowingShr for FixedUInt<T, N> {
     fn overflowing_shr(self, bits: u32) -> (Self, bool) {
         let bitsu = bits as usize;
         let (shift, overflow) = if bitsu >= Self::BIT_SIZE {
-            (bitsu & (Self::BIT_SIZE - 1), true)
+            // Use modulo for correct wrapping with non-power-of-2 bit sizes
+            let shift = if Self::BIT_SIZE == 0 {
+                0
+            } else {
+                bitsu % Self::BIT_SIZE
+            };
+            (shift, true)
         } else {
             (bitsu, false)
         };
@@ -494,8 +506,8 @@ mod tests {
             const AND_AB: TestInt = A & B;
             const OR_AB: TestInt = A | B;
             const XOR_AB: TestInt = A ^ B;
-            const SHL_1: TestInt = FixedUInt::<u8, 2> { array: [1, 0] } << 4usize;
-            const SHR_16: TestInt = FixedUInt::<u8, 2> { array: [16, 0] } >> 2usize;
+            const SHL_1: TestInt = FixedUInt { array: [1u8, 0] } << 4usize;
+            const SHR_16: TestInt = FixedUInt { array: [16u8, 0] } >> 2usize;
 
             assert_eq!(NOT_A.array[0], 0b00110011);
             assert_eq!(AND_AB.array[0], 0b10001000);

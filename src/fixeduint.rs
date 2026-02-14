@@ -580,9 +580,22 @@ c0nst::c0nst! {
         target: &mut FixedUInt<T, N>,
         bits: usize,
     ) {
+        if N == 0 {
+            return;
+        }
         let word_bits = FixedUInt::<T, N>::WORD_BITS;
         let nwords = bits / word_bits;
         let nbits = bits - nwords * word_bits;
+
+        // If shift >= total bits, result is zero
+        if nwords >= N {
+            let mut i = 0;
+            while i < N {
+                target.array[i] = T::zero();
+                i += 1;
+            }
+            return;
+        }
 
         // Move words (backwards)
         let mut i = N;
@@ -592,7 +605,7 @@ c0nst::c0nst! {
         }
         // Zero out the lower words
         let mut i = 0;
-        while i < nwords && i < N {
+        while i < nwords {
             target.array[i] = T::zero();
             i += 1;
         }
@@ -615,9 +628,22 @@ c0nst::c0nst! {
         target: &mut FixedUInt<T, N>,
         bits: usize,
     ) {
+        if N == 0 {
+            return;
+        }
         let word_bits = FixedUInt::<T, N>::WORD_BITS;
         let nwords = bits / word_bits;
         let nbits = bits - nwords * word_bits;
+
+        // If shift >= total bits, result is zero
+        if nwords >= N {
+            let mut i = 0;
+            while i < N {
+                target.array[i] = T::zero();
+                i += 1;
+            }
+            return;
+        }
 
         let last_index = N - 1;
         let last_word = N - nwords;
