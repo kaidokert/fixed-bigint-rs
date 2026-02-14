@@ -1,7 +1,9 @@
-use num_traits::ops::overflowing::OverflowingMul;
-use num_traits::{Bounded, Zero};
+use num_traits::Zero;
 
 use super::{const_array_mul, maybe_panic, FixedUInt, MachineWord, PanicReason};
+use crate::const_numtrait::{
+    ConstBounded, ConstCheckedMul, ConstOverflowingMul, ConstSaturatingMul, ConstWrappingMul,
+};
 use crate::machineword::ConstMachineWord;
 
 impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingMul
@@ -9,6 +11,36 @@ impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingMu
 {
     fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
         Self::mul_impl::<true>(self, other)
+    }
+}
+
+c0nst::c0nst! {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstOverflowingMul for FixedUInt<T, N> {
+        fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
+            let (array, overflow) = const_array_mul::<T, N, true>(&self.array, &other.array, Self::WORD_BITS);
+            (Self { array }, overflow)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstWrappingMul for FixedUInt<T, N> {
+        fn wrapping_mul(&self, other: &Self) -> Self {
+            let (array, _) = const_array_mul::<T, N, false>(&self.array, &other.array, Self::WORD_BITS);
+            Self { array }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedMul for FixedUInt<T, N> {
+        fn checked_mul(&self, other: &Self) -> Option<Self> {
+            let (res, overflow) = <Self as ConstOverflowingMul>::overflowing_mul(self, other);
+            if overflow { None } else { Some(res) }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstSaturatingMul for FixedUInt<T, N> {
+        fn saturating_mul(&self, other: &Self) -> Self {
+            let (res, overflow) = <Self as ConstOverflowingMul>::overflowing_mul(self, other);
+            if overflow { <Self as ConstBounded>::max_value() } else { res }
+        }
     }
 }
 
@@ -89,21 +121,16 @@ c0nst::c0nst! {
     }
 }
 
-// num_traits wrappers - not constified (external traits)
+// num_traits wrappers - delegate to const versions
 impl<T: MachineWord, const N: usize> num_traits::WrappingMul for FixedUInt<T, N> {
     fn wrapping_mul(&self, other: &Self) -> Self {
-        Self::mul_impl::<false>(self, other).0
+        <Self as ConstWrappingMul>::wrapping_mul(self, other)
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedMul for FixedUInt<T, N> {
     fn checked_mul(&self, other: &Self) -> Option<Self> {
-        let res = self.overflowing_mul(other);
-        if res.1 {
-            None
-        } else {
-            Some(res.0)
-        }
+        <Self as ConstCheckedMul>::checked_mul(self, other)
     }
 }
 
@@ -111,12 +138,7 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingMul
     for FixedUInt<T, N>
 {
     fn saturating_mul(&self, other: &Self) -> Self {
-        let res = self.overflowing_mul(other);
-        if res.1 {
-            Self::max_value()
-        } else {
-            res.0
-        }
+        <Self as ConstSaturatingMul>::saturating_mul(self, other)
     }
 }
 
@@ -276,6 +298,38 @@ impl<T: MachineWord, const N: usize> core::ops::Rem<FixedUInt<T, N>> for &FixedU
     }
 }
 
+// Test wrappers for const mul traits
+#[cfg(test)]
+c0nst::c0nst! {
+    pub c0nst fn const_wrapping_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        a: &FixedUInt<T, N>,
+        b: &FixedUInt<T, N>
+    ) -> FixedUInt<T, N> {
+        <FixedUInt<T, N> as ConstWrappingMul>::wrapping_mul(a, b)
+    }
+
+    pub c0nst fn const_checked_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        a: &FixedUInt<T, N>,
+        b: &FixedUInt<T, N>
+    ) -> Option<FixedUInt<T, N>> {
+        <FixedUInt<T, N> as ConstCheckedMul>::checked_mul(a, b)
+    }
+
+    pub c0nst fn const_saturating_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        a: &FixedUInt<T, N>,
+        b: &FixedUInt<T, N>
+    ) -> FixedUInt<T, N> {
+        <FixedUInt<T, N> as ConstSaturatingMul>::saturating_mul(a, b)
+    }
+
+    pub c0nst fn const_overflowing_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        a: &FixedUInt<T, N>,
+        b: &FixedUInt<T, N>
+    ) -> (FixedUInt<T, N>, bool) {
+        <FixedUInt<T, N> as ConstOverflowingMul>::overflowing_mul(a, b)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -334,5 +388,60 @@ mod tests {
         assert_eq!(&a % b, expected);
         // ref % ref
         assert_eq!(&a % &b, expected);
+    }
+
+    #[test]
+    fn test_const_mul_traits() {
+        let a = FixedUInt::<u8, 2>::from(12u8);
+        let b = FixedUInt::<u8, 2>::from(3u8);
+        let expected = FixedUInt::<u8, 2>::from(36u8);
+
+        // ConstWrappingMul
+        assert_eq!(const_wrapping_mul(&a, &b), expected);
+
+        // ConstCheckedMul - no overflow
+        assert_eq!(const_checked_mul(&a, &b), Some(expected));
+
+        // ConstSaturatingMul - no overflow
+        assert_eq!(const_saturating_mul(&a, &b), expected);
+
+        // ConstOverflowingMul - no overflow
+        let (result, overflow) = const_overflowing_mul(&a, &b);
+        assert_eq!(result, expected);
+        assert!(!overflow);
+
+        // Test overflow cases
+        let max = FixedUInt::<u8, 2>::from(256u16); // 0x100
+        let two = FixedUInt::<u8, 2>::from(256u16);
+
+        // ConstCheckedMul - with overflow
+        assert_eq!(const_checked_mul(&max, &two), None);
+
+        // ConstSaturatingMul - with overflow saturates to max
+        let saturated = const_saturating_mul(&max, &two);
+        assert_eq!(saturated, FixedUInt::<u8, 2>::from(0xFFFFu16));
+
+        // ConstOverflowingMul - with overflow
+        let (_, overflow) = const_overflowing_mul(&max, &two);
+        assert!(overflow);
+
+        #[cfg(feature = "nightly")]
+        {
+            const A: FixedUInt<u8, 2> = FixedUInt { array: [12, 0] };
+            const B: FixedUInt<u8, 2> = FixedUInt { array: [3, 0] };
+
+            const WRAPPING_RESULT: FixedUInt<u8, 2> = const_wrapping_mul(&A, &B);
+            assert_eq!(WRAPPING_RESULT.array, [36, 0]);
+
+            const CHECKED_RESULT: Option<FixedUInt<u8, 2>> = const_checked_mul(&A, &B);
+            assert!(CHECKED_RESULT.is_some());
+
+            const SATURATING_RESULT: FixedUInt<u8, 2> = const_saturating_mul(&A, &B);
+            assert_eq!(SATURATING_RESULT.array, [36, 0]);
+
+            const OVERFLOWING_RESULT: (FixedUInt<u8, 2>, bool) = const_overflowing_mul(&A, &B);
+            assert_eq!(OVERFLOWING_RESULT.0.array, [36, 0]);
+            assert!(!OVERFLOWING_RESULT.1);
+        }
     }
 }

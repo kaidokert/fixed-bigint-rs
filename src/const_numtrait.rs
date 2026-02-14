@@ -72,6 +72,27 @@ c0nst::c0nst! {
         fn saturating_sub(&self, v: &Self) -> Self;
     }
 
+    pub c0nst trait ConstOverflowingMul: Sized + [c0nst] core::ops::Mul<Output = Self> {
+        /// Returns a tuple of the product along with a boolean indicating whether an arithmetic overflow would occur.
+        /// If an overflow would have occurred then the wrapped value is returned.
+        fn overflowing_mul(&self, v: &Self) -> (Self, bool);
+    }
+
+    pub c0nst trait ConstWrappingMul: Sized + [c0nst] ConstOverflowingMul {
+        /// Wrapping (modular) multiplication. Computes `self * other`, wrapping around at the boundary of the type.
+        fn wrapping_mul(&self, v: &Self) -> Self;
+    }
+
+    pub c0nst trait ConstCheckedMul: Sized + [c0nst] ConstOverflowingMul {
+        /// Checked multiplication. Returns `None` if overflow occurred.
+        fn checked_mul(&self, v: &Self) -> Option<Self>;
+    }
+
+    pub c0nst trait ConstSaturatingMul: Sized + [c0nst] ConstOverflowingMul + [c0nst] ConstBounded {
+        /// Saturating multiplication. Computes `self * other`, saturating at max_value().
+        fn saturating_mul(&self, v: &Self) -> Self;
+    }
+
     pub c0nst trait ConstToBytes {
         type Bytes: Copy + AsRef<[u8]> + AsMut<[u8]>;
         fn to_le_bytes(&self) -> Self::Bytes;
@@ -330,6 +351,80 @@ const_saturating_sub_impl!(u16);
 const_saturating_sub_impl!(u32);
 const_saturating_sub_impl!(u64);
 const_saturating_sub_impl!(u128);
+
+macro_rules! const_overflowing_mul_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstOverflowingMul for $t {
+                fn overflowing_mul(&self, v: &Self) -> (Self, bool) {
+                    (*self).overflowing_mul(*v)
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_wrapping_mul_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstWrappingMul for $t {
+                fn wrapping_mul(&self, v: &Self) -> Self {
+                    self.overflowing_mul(v).0
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_checked_mul_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCheckedMul for $t {
+                fn checked_mul(&self, v: &Self) -> Option<Self> {
+                    let (res, overflow) = self.overflowing_mul(v);
+                    if overflow { None } else { Some(res) }
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_saturating_mul_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstSaturatingMul for $t {
+                fn saturating_mul(&self, v: &Self) -> Self {
+                    let (res, overflow) = self.overflowing_mul(v);
+                    if overflow { Self::max_value() } else { res }
+                }
+            }
+        }
+    };
+}
+
+const_overflowing_mul_impl!(u8);
+const_overflowing_mul_impl!(u16);
+const_overflowing_mul_impl!(u32);
+const_overflowing_mul_impl!(u64);
+const_overflowing_mul_impl!(u128);
+
+const_wrapping_mul_impl!(u8);
+const_wrapping_mul_impl!(u16);
+const_wrapping_mul_impl!(u32);
+const_wrapping_mul_impl!(u64);
+const_wrapping_mul_impl!(u128);
+
+const_checked_mul_impl!(u8);
+const_checked_mul_impl!(u16);
+const_checked_mul_impl!(u32);
+const_checked_mul_impl!(u64);
+const_checked_mul_impl!(u128);
+
+const_saturating_mul_impl!(u8);
+const_saturating_mul_impl!(u16);
+const_saturating_mul_impl!(u32);
+const_saturating_mul_impl!(u64);
+const_saturating_mul_impl!(u128);
 
 macro_rules! const_to_bytes_impl {
     ($t:ty, $n:expr) => {
