@@ -1,7 +1,9 @@
 use super::{add_impl, maybe_panic, sub_impl, FixedUInt, MachineWord, PanicReason};
+use crate::const_numtrait::{
+    ConstCheckedAdd, ConstCheckedSub, ConstOverflowingAdd, ConstOverflowingSub, ConstWrappingAdd,
+    ConstWrappingSub,
+};
 use crate::machineword::ConstMachineWord;
-
-use num_traits::ops::overflowing::{OverflowingAdd, OverflowingSub};
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst crate::const_numtrait::ConstOverflowingAdd for FixedUInt<T, N> {
@@ -17,6 +19,32 @@ c0nst::c0nst! {
             let mut ret = *self;
             let overflow = sub_impl(&mut ret.array, &other.array);
             (ret, overflow)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstWrappingAdd for FixedUInt<T, N> {
+        fn wrapping_add(&self, other: &Self) -> Self {
+            <Self as ConstOverflowingAdd>::overflowing_add(self, other).0
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstWrappingSub for FixedUInt<T, N> {
+        fn wrapping_sub(&self, other: &Self) -> Self {
+            <Self as ConstOverflowingSub>::overflowing_sub(self, other).0
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedAdd for FixedUInt<T, N> {
+        fn checked_add(&self, other: &Self) -> Option<Self> {
+            let (res, overflow) = <Self as ConstOverflowingAdd>::overflowing_add(self, other);
+            if overflow { None } else { Some(res) }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedSub for FixedUInt<T, N> {
+        fn checked_sub(&self, other: &Self) -> Option<Self> {
+            let (res, overflow) = <Self as ConstOverflowingSub>::overflowing_sub(self, other);
+            if overflow { None } else { Some(res) }
         }
     }
 
@@ -151,18 +179,13 @@ impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingAd
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingAdd for FixedUInt<T, N> {
     fn wrapping_add(&self, other: &Self) -> Self {
-        self.overflowing_add(other).0
+        <Self as ConstWrappingAdd>::wrapping_add(self, other)
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedAdd for FixedUInt<T, N> {
     fn checked_add(&self, other: &Self) -> Option<Self> {
-        let res = self.overflowing_add(other);
-        if res.1 {
-            None
-        } else {
-            Some(res.0)
-        }
+        <Self as ConstCheckedAdd>::checked_add(self, other)
     }
 }
 
@@ -185,18 +208,13 @@ impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingSu
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingSub for FixedUInt<T, N> {
     fn wrapping_sub(&self, other: &Self) -> Self {
-        self.overflowing_sub(other).0
+        <Self as ConstWrappingSub>::wrapping_sub(self, other)
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedSub for FixedUInt<T, N> {
     fn checked_sub(&self, other: &Self) -> Option<Self> {
-        let res = self.overflowing_sub(other);
-        if res.1 {
-            None
-        } else {
-            Some(res.0)
-        }
+        <Self as ConstCheckedSub>::checked_sub(self, other)
     }
 }
 
@@ -225,7 +243,10 @@ impl<T: MachineWord, const N: usize> num_traits::Saturating for FixedUInt<T, N> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::const_numtrait::{ConstOverflowingAdd, ConstOverflowingSub};
+    use crate::const_numtrait::{
+        ConstCheckedAdd, ConstCheckedSub, ConstOverflowingAdd, ConstOverflowingSub,
+        ConstWrappingAdd, ConstWrappingSub,
+    };
     use crate::machineword::ConstMachineWord;
     use num_traits::Bounded;
 
@@ -260,6 +281,38 @@ mod tests {
             b: FixedUInt<T, N>
         ) -> FixedUInt<T, N> {
             a - b
+        }
+
+        /// Test wrapper for ConstWrappingAdd
+        pub c0nst fn const_wrapping_add<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+            a: &FixedUInt<T, N>,
+            b: &FixedUInt<T, N>
+        ) -> FixedUInt<T, N> {
+            <FixedUInt<T, N> as ConstWrappingAdd>::wrapping_add(a, b)
+        }
+
+        /// Test wrapper for ConstWrappingSub
+        pub c0nst fn const_wrapping_sub<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+            a: &FixedUInt<T, N>,
+            b: &FixedUInt<T, N>
+        ) -> FixedUInt<T, N> {
+            <FixedUInt<T, N> as ConstWrappingSub>::wrapping_sub(a, b)
+        }
+
+        /// Test wrapper for ConstCheckedAdd
+        pub c0nst fn const_checked_add<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+            a: &FixedUInt<T, N>,
+            b: &FixedUInt<T, N>
+        ) -> Option<FixedUInt<T, N>> {
+            <FixedUInt<T, N> as ConstCheckedAdd>::checked_add(a, b)
+        }
+
+        /// Test wrapper for ConstCheckedSub
+        pub c0nst fn const_checked_sub<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+            a: &FixedUInt<T, N>,
+            b: &FixedUInt<T, N>
+        ) -> Option<FixedUInt<T, N>> {
+            <FixedUInt<T, N> as ConstCheckedSub>::checked_sub(a, b)
         }
     }
 
@@ -394,6 +447,78 @@ mod tests {
             const B: FixedUInt<u8, 2> = FixedUInt { array: [3, 0] };
             const RESULT: FixedUInt<u8, 2> = const_sub(A, B);
             assert_eq!(RESULT.array, [12, 0]);
+        }
+    }
+
+    #[test]
+    fn test_const_wrapping_checked() {
+        // Test wrapping_add without overflow
+        let a = FixedUInt::<u8, 2>::from(100u8);
+        let b = FixedUInt::<u8, 2>::from(50u8);
+        let result = const_wrapping_add(&a, &b);
+        assert_eq!(result, FixedUInt::<u8, 2>::from(150u8));
+
+        // Test wrapping_add with overflow
+        let max = FixedUInt::<u8, 2>::max_value();
+        let one = FixedUInt::<u8, 2>::from(1u8);
+        let result = const_wrapping_add(&max, &one);
+        assert_eq!(result, FixedUInt::<u8, 2>::from(0u8));
+
+        // Test wrapping_sub without overflow
+        let a = FixedUInt::<u8, 2>::from(100u8);
+        let b = FixedUInt::<u8, 2>::from(50u8);
+        let result = const_wrapping_sub(&a, &b);
+        assert_eq!(result, FixedUInt::<u8, 2>::from(50u8));
+
+        // Test wrapping_sub with underflow
+        let zero = FixedUInt::<u8, 2>::from(0u8);
+        let one = FixedUInt::<u8, 2>::from(1u8);
+        let result = const_wrapping_sub(&zero, &one);
+        assert_eq!(result, FixedUInt::<u8, 2>::max_value());
+
+        // Test checked_add without overflow
+        let a = FixedUInt::<u8, 2>::from(100u8);
+        let b = FixedUInt::<u8, 2>::from(50u8);
+        let result = const_checked_add(&a, &b);
+        assert_eq!(result, Some(FixedUInt::<u8, 2>::from(150u8)));
+
+        // Test checked_add with overflow
+        let max = FixedUInt::<u8, 2>::max_value();
+        let one = FixedUInt::<u8, 2>::from(1u8);
+        let result = const_checked_add(&max, &one);
+        assert_eq!(result, None);
+
+        // Test checked_sub without overflow
+        let a = FixedUInt::<u8, 2>::from(100u8);
+        let b = FixedUInt::<u8, 2>::from(50u8);
+        let result = const_checked_sub(&a, &b);
+        assert_eq!(result, Some(FixedUInt::<u8, 2>::from(50u8)));
+
+        // Test checked_sub with underflow
+        let zero = FixedUInt::<u8, 2>::from(0u8);
+        let one = FixedUInt::<u8, 2>::from(1u8);
+        let result = const_checked_sub(&zero, &one);
+        assert_eq!(result, None);
+
+        #[cfg(feature = "nightly")]
+        {
+            const A: FixedUInt<u8, 2> = FixedUInt { array: [100, 0] };
+            const B: FixedUInt<u8, 2> = FixedUInt { array: [50, 0] };
+
+            const WRAP_ADD: FixedUInt<u8, 2> = const_wrapping_add(&A, &B);
+            const WRAP_SUB: FixedUInt<u8, 2> = const_wrapping_sub(&A, &B);
+            const CHECK_ADD: Option<FixedUInt<u8, 2>> = const_checked_add(&A, &B);
+            const CHECK_SUB: Option<FixedUInt<u8, 2>> = const_checked_sub(&A, &B);
+
+            assert_eq!(WRAP_ADD.array, [150, 0]);
+            assert_eq!(WRAP_SUB.array, [50, 0]);
+            assert!(CHECK_ADD.is_some());
+            assert!(CHECK_SUB.is_some());
+
+            const MAX: FixedUInt<u8, 2> = FixedUInt { array: [255, 255] };
+            const ONE: FixedUInt<u8, 2> = FixedUInt { array: [1, 0] };
+            const CHECK_ADD_OVERFLOW: Option<FixedUInt<u8, 2>> = const_checked_add(&MAX, &ONE);
+            assert!(CHECK_ADD_OVERFLOW.is_none());
         }
     }
 }
