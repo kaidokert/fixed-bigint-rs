@@ -1,4 +1,4 @@
-use super::{FixedUInt, MachineWord};
+use super::{const_array_is_zero, FixedUInt, MachineWord};
 use crate::const_numtrait::{ConstBounded, ConstOne, ConstZero};
 use crate::machineword::ConstMachineWord;
 
@@ -10,14 +10,7 @@ c0nst::c0nst! {
             }
         }
         fn is_zero(&self) -> bool {
-            let mut i = 0;
-            while i < N {
-                if !self.array[i].is_zero() {
-                    return false;
-                }
-                i += 1;
-            }
-            true
+            const_array_is_zero(&self.array)
         }
         fn set_zero(&mut self) {
             let mut i = 0;

@@ -1,4 +1,4 @@
-use super::{FixedUInt, MachineWord};
+use super::{const_array_leading_zeros, const_array_trailing_zeros, FixedUInt, MachineWord};
 
 use num_traits::One;
 
@@ -10,26 +10,10 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
         self.array.iter().map(|&val| val.count_zeros()).sum()
     }
     fn leading_zeros(self) -> u32 {
-        let mut ret = 0u32;
-        for index in (0..N).rev() {
-            let v = self.array[index];
-            ret += v.leading_zeros();
-            if !v.is_zero() {
-                break;
-            }
-        }
-        ret
+        const_array_leading_zeros(&self.array)
     }
     fn trailing_zeros(self) -> u32 {
-        let mut ret = 0u32;
-        for index in 0..N {
-            let v = self.array[index];
-            ret += v.trailing_zeros();
-            if !v.is_zero() {
-                break;
-            }
-        }
-        ret
+        const_array_trailing_zeros(&self.array)
     }
     fn rotate_left(self, bits: u32) -> Self {
         let shift = Self::normalize_shift(bits);
