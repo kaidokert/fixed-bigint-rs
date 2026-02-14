@@ -960,6 +960,38 @@ mod tests {
         let (_result, overflow) = test_mul(&a, &b, 8);
         assert!(overflow, "N=3 high-position overflow not detected");
 
+        // N=3 overflow with larger high word values
+        // a = [0, 0, 2] = 131072, b = [0, 0, 2] = 131072
+        // a * b = 131072^2 = 17179869184 which overflows 24 bits
+        let a: [u8; 3] = [0, 0, 2];
+        let b: [u8; 3] = [0, 0, 2];
+        let (_result, overflow) = test_mul(&a, &b, 8);
+        assert!(
+            overflow,
+            "N=3 high-position overflow with larger values not detected"
+        );
+
+        // N=3 non-overflow case: values that fit in 24 bits
+        // a = [0, 1, 0] = 256, b = [0, 1, 0] = 256
+        // a * b = 256 * 256 = 65536 = [0, 0, 1] which fits in 24 bits
+        let a: [u8; 3] = [0, 1, 0];
+        let b: [u8; 3] = [0, 1, 0];
+        let (result, overflow) = test_mul(&a, &b, 8);
+        assert_eq!(result, [0, 0, 1]);
+        assert!(
+            !overflow,
+            "N=3 non-overflow incorrectly detected as overflow"
+        );
+
+        // N=3 non-overflow with carry propagation
+        // a = [255, 0, 0] = 255, b = [255, 0, 0] = 255
+        // a * b = 255 * 255 = 65025 = 0xFE01 = [0x01, 0xFE, 0x00]
+        let a: [u8; 3] = [255, 0, 0];
+        let b: [u8; 3] = [255, 0, 0];
+        let (result, overflow) = test_mul(&a, &b, 8);
+        assert_eq!(result, [0x01, 0xFE, 0x00]);
+        assert!(!overflow);
+
         #[cfg(feature = "nightly")]
         {
             const MUL_RESULT: ([u8; 2], bool) = test_mul(&[3u8, 0], &[4u8, 0], 8);
