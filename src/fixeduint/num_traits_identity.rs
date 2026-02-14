@@ -35,7 +35,7 @@ c0nst::c0nst! {
             ret
         }
         fn is_one(&self) -> bool {
-            if !self.array[0].is_one() {
+            if N == 0 || !self.array[0].is_one() {
                 return false;
             }
             let mut i = 1;
