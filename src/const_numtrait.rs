@@ -42,6 +42,26 @@ c0nst::c0nst! {
         fn overflowing_sub(&self, v: &Self) -> (Self, bool);
     }
 
+    pub c0nst trait ConstWrappingAdd: Sized + [c0nst] ConstOverflowingAdd {
+        /// Wrapping (modular) addition. Computes `self + other`, wrapping around at the boundary of the type.
+        fn wrapping_add(&self, v: &Self) -> Self;
+    }
+
+    pub c0nst trait ConstWrappingSub: Sized + [c0nst] ConstOverflowingSub {
+        /// Wrapping (modular) subtraction. Computes `self - other`, wrapping around at the boundary of the type.
+        fn wrapping_sub(&self, v: &Self) -> Self;
+    }
+
+    pub c0nst trait ConstCheckedAdd: Sized + [c0nst] ConstOverflowingAdd {
+        /// Checked addition. Returns `None` if overflow occurred.
+        fn checked_add(&self, v: &Self) -> Option<Self>;
+    }
+
+    pub c0nst trait ConstCheckedSub: Sized + [c0nst] ConstOverflowingSub {
+        /// Checked subtraction. Returns `None` if overflow occurred.
+        fn checked_sub(&self, v: &Self) -> Option<Self>;
+    }
+
     pub c0nst trait ConstToBytes {
         type Bytes: Copy + AsRef<[u8]> + AsMut<[u8]>;
         fn to_le_bytes(&self) -> Self::Bytes;
@@ -189,6 +209,80 @@ const_overflowing_sub_impl!(u32);
 const_overflowing_sub_impl!(u64);
 const_overflowing_sub_impl!(u128);
 
+macro_rules! const_wrapping_add_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstWrappingAdd for $t {
+                fn wrapping_add(&self, v: &Self) -> Self {
+                    self.overflowing_add(v).0
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_wrapping_sub_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstWrappingSub for $t {
+                fn wrapping_sub(&self, v: &Self) -> Self {
+                    self.overflowing_sub(v).0
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_checked_add_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCheckedAdd for $t {
+                fn checked_add(&self, v: &Self) -> Option<Self> {
+                    let (res, overflow) = self.overflowing_add(v);
+                    if overflow { None } else { Some(res) }
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_checked_sub_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCheckedSub for $t {
+                fn checked_sub(&self, v: &Self) -> Option<Self> {
+                    let (res, overflow) = self.overflowing_sub(v);
+                    if overflow { None } else { Some(res) }
+                }
+            }
+        }
+    };
+}
+
+const_wrapping_add_impl!(u8);
+const_wrapping_add_impl!(u16);
+const_wrapping_add_impl!(u32);
+const_wrapping_add_impl!(u64);
+const_wrapping_add_impl!(u128);
+
+const_wrapping_sub_impl!(u8);
+const_wrapping_sub_impl!(u16);
+const_wrapping_sub_impl!(u32);
+const_wrapping_sub_impl!(u64);
+const_wrapping_sub_impl!(u128);
+
+const_checked_add_impl!(u8);
+const_checked_add_impl!(u16);
+const_checked_add_impl!(u32);
+const_checked_add_impl!(u64);
+const_checked_add_impl!(u128);
+
+const_checked_sub_impl!(u8);
+const_checked_sub_impl!(u16);
+const_checked_sub_impl!(u32);
+const_checked_sub_impl!(u64);
+const_checked_sub_impl!(u128);
+
 macro_rules! const_to_bytes_impl {
     ($t:ty, $n:expr) => {
         c0nst::c0nst! {
@@ -276,6 +370,22 @@ mod tests {
 
         pub c0nst fn to_be_bytes_word<T: [c0nst] ConstToBytes>(v: &T) -> T::Bytes {
             v.to_be_bytes()
+        }
+
+        pub c0nst fn wrapping_add_word<T: [c0nst] ConstWrappingAdd>(a: &T, b: &T) -> T {
+            a.wrapping_add(b)
+        }
+
+        pub c0nst fn wrapping_sub_word<T: [c0nst] ConstWrappingSub>(a: &T, b: &T) -> T {
+            a.wrapping_sub(b)
+        }
+
+        pub c0nst fn checked_add_word<T: [c0nst] ConstCheckedAdd>(a: &T, b: &T) -> Option<T> {
+            a.checked_add(b)
+        }
+
+        pub c0nst fn checked_sub_word<T: [c0nst] ConstCheckedSub>(a: &T, b: &T) -> Option<T> {
+            a.checked_sub(b)
         }
     }
 
@@ -432,6 +542,56 @@ mod tests {
             const BE_BYTES: [u8; 4] = to_be_bytes_word(&0x12345678u32);
             assert_eq!(LE_BYTES, [0x78, 0x56, 0x34, 0x12]);
             assert_eq!(BE_BYTES, [0x12, 0x34, 0x56, 0x78]);
+        }
+    }
+
+    #[test]
+    fn test_const_wrapping_checked_ops() {
+        // Test wrapping_add without overflow
+        assert_eq!(wrapping_add_word(&100u8, &50u8), 150u8);
+        // Test wrapping_add with overflow
+        assert_eq!(wrapping_add_word(&200u8, &100u8), 44u8);
+
+        // Test wrapping_sub without overflow
+        assert_eq!(wrapping_sub_word(&100u8, &50u8), 50u8);
+        // Test wrapping_sub with overflow (underflow)
+        assert_eq!(wrapping_sub_word(&50u8, &100u8), 206u8);
+
+        // Test checked_add without overflow
+        assert_eq!(checked_add_word(&100u8, &50u8), Some(150u8));
+        // Test checked_add with overflow
+        assert_eq!(checked_add_word(&200u8, &100u8), None);
+
+        // Test checked_sub without overflow
+        assert_eq!(checked_sub_word(&100u8, &50u8), Some(50u8));
+        // Test checked_sub with overflow (underflow)
+        assert_eq!(checked_sub_word(&50u8, &100u8), None);
+
+        // Test with larger types
+        assert_eq!(wrapping_add_word(&u64::MAX, &1u64), 0u64);
+        assert_eq!(checked_add_word(&u64::MAX, &1u64), None);
+
+        #[cfg(feature = "nightly")]
+        {
+            const WRAP_ADD_NO_OVERFLOW: u8 = wrapping_add_word(&100u8, &50u8);
+            const WRAP_ADD_OVERFLOW: u8 = wrapping_add_word(&200u8, &100u8);
+            const WRAP_SUB_NO_OVERFLOW: u8 = wrapping_sub_word(&100u8, &50u8);
+            const WRAP_SUB_OVERFLOW: u8 = wrapping_sub_word(&50u8, &100u8);
+
+            const CHECK_ADD_OK: Option<u8> = checked_add_word(&100u8, &50u8);
+            const CHECK_ADD_OVERFLOW: Option<u8> = checked_add_word(&200u8, &100u8);
+            const CHECK_SUB_OK: Option<u8> = checked_sub_word(&100u8, &50u8);
+            const CHECK_SUB_OVERFLOW: Option<u8> = checked_sub_word(&50u8, &100u8);
+
+            assert_eq!(WRAP_ADD_NO_OVERFLOW, 150u8);
+            assert_eq!(WRAP_ADD_OVERFLOW, 44u8);
+            assert_eq!(WRAP_SUB_NO_OVERFLOW, 50u8);
+            assert_eq!(WRAP_SUB_OVERFLOW, 206u8);
+
+            assert_eq!(CHECK_ADD_OK, Some(150u8));
+            assert_eq!(CHECK_ADD_OVERFLOW, None);
+            assert_eq!(CHECK_SUB_OK, Some(50u8));
+            assert_eq!(CHECK_SUB_OVERFLOW, None);
         }
     }
 }
