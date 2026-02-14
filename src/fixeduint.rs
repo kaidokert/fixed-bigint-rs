@@ -651,8 +651,6 @@ c0nst::c0nst! {
     ) -> ([T; N], bool) {
         let mut result: [T; N] = [<T as ConstZero>::zero(); N];
         let mut overflowed = false;
-        // Calculate N+1 rounds, to check for overflow
-        let max_rounds = if CHECK_OVERFLOW { N + 1 } else { N };
         let t_max = <T as ConstMachineWord>::to_double(<T as ConstBounded>::max_value());
         // Zero for double word type
         let dw_zero: <T as ConstMachineWord>::ConstDoubleWord = core::convert::From::from(0u8);
@@ -663,28 +661,26 @@ c0nst::c0nst! {
             let mut j = 0;
             while j < N {
                 let round = i + j;
-                if round < max_rounds {
-                    let op1_dw = <T as ConstMachineWord>::to_double(op1[i]);
-                    let op2_dw = <T as ConstMachineWord>::to_double(op2[j]);
-                    let mul_res = op1_dw * op2_dw;
-                    let mut accumulator = if round < N {
-                        <T as ConstMachineWord>::to_double(result[round])
-                    } else {
-                        dw_zero
-                    };
-                    accumulator = accumulator + mul_res + carry;
+                let op1_dw = <T as ConstMachineWord>::to_double(op1[i]);
+                let op2_dw = <T as ConstMachineWord>::to_double(op2[j]);
+                let mul_res = op1_dw * op2_dw;
+                let mut accumulator = if round < N {
+                    <T as ConstMachineWord>::to_double(result[round])
+                } else {
+                    dw_zero
+                };
+                accumulator = accumulator + mul_res + carry;
 
-                    if accumulator > t_max {
-                        carry = accumulator >> word_bits;
-                        accumulator &= t_max;
-                    } else {
-                        carry = dw_zero;
-                    }
-                    if round < N {
-                        result[round] = <T as ConstMachineWord>::from_double(accumulator);
-                    } else if CHECK_OVERFLOW {
-                        overflowed = overflowed || accumulator != dw_zero;
-                    }
+                if accumulator > t_max {
+                    carry = accumulator >> word_bits;
+                    accumulator &= t_max;
+                } else {
+                    carry = dw_zero;
+                }
+                if round < N {
+                    result[round] = <T as ConstMachineWord>::from_double(accumulator);
+                } else if CHECK_OVERFLOW {
+                    overflowed = overflowed || accumulator != dw_zero;
                 }
                 j += 1;
             }
@@ -955,6 +951,14 @@ mod tests {
         let b: [u8; 2] = [0, 1]; // 256
         let (_result, overflow) = test_mul(&a, &b, 8);
         assert!(overflow);
+
+        // N=3 overflow at high position (round=4, i=2, j=2)
+        // a = [0, 0, 1] = 65536, b = [0, 0, 1] = 65536
+        // a * b = 65536^2 = 4294967296 which overflows 24 bits
+        let a: [u8; 3] = [0, 0, 1];
+        let b: [u8; 3] = [0, 0, 1];
+        let (_result, overflow) = test_mul(&a, &b, 8);
+        assert!(overflow, "N=3 high-position overflow not detected");
 
         #[cfg(feature = "nightly")]
         {
