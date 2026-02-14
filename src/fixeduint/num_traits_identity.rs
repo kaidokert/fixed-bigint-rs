@@ -31,7 +31,9 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstOne for FixedUInt<T, N> {
         fn one() -> Self {
             let mut ret = <Self as ConstZero>::zero();
-            ret.array[0] = T::one();
+            if N > 0 {
+                ret.array[0] = T::one();
+            }
             ret
         }
         fn is_one(&self) -> bool {
@@ -49,7 +51,9 @@ c0nst::c0nst! {
         }
         fn set_one(&mut self) {
             <Self as ConstZero>::set_zero(self);
-            self.array[0].set_one();
+            if N > 0 {
+                self.array[0].set_one();
+            }
         }
     }
 
@@ -94,35 +98,35 @@ mod tests {
     use super::*;
 
     c0nst::c0nst! {
-        pub c0nst fn const_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>() -> FixedUInt<T, N> {
+        c0nst fn const_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>() -> FixedUInt<T, N> {
             <FixedUInt<T, N> as ConstZero>::zero()
         }
 
-        pub c0nst fn const_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>() -> FixedUInt<T, N> {
+        c0nst fn const_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>() -> FixedUInt<T, N> {
             <FixedUInt<T, N> as ConstOne>::one()
         }
 
-        pub c0nst fn const_is_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: &FixedUInt<T, N>) -> bool {
+        c0nst fn const_is_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: &FixedUInt<T, N>) -> bool {
             <FixedUInt<T, N> as ConstZero>::is_zero(v)
         }
 
-        pub c0nst fn const_is_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: &FixedUInt<T, N>) -> bool {
+        c0nst fn const_is_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: &FixedUInt<T, N>) -> bool {
             <FixedUInt<T, N> as ConstOne>::is_one(v)
         }
 
-        pub c0nst fn const_min_value<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>() -> FixedUInt<T, N> {
+        c0nst fn const_min_value<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>() -> FixedUInt<T, N> {
             <FixedUInt<T, N> as ConstBounded>::min_value()
         }
 
-        pub c0nst fn const_max_value<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>() -> FixedUInt<T, N> {
+        c0nst fn const_max_value<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>() -> FixedUInt<T, N> {
             <FixedUInt<T, N> as ConstBounded>::max_value()
         }
 
-        pub c0nst fn const_set_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: &mut FixedUInt<T, N>) {
+        c0nst fn const_set_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: &mut FixedUInt<T, N>) {
             <FixedUInt<T, N> as ConstZero>::set_zero(v)
         }
 
-        pub c0nst fn const_set_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: &mut FixedUInt<T, N>) {
+        c0nst fn const_set_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: &mut FixedUInt<T, N>) {
             <FixedUInt<T, N> as ConstOne>::set_one(v)
         }
     }
