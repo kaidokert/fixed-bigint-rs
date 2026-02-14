@@ -727,6 +727,9 @@ c0nst::c0nst! {
     ///
     /// This helper computes what value would be at `word_idx` if the array
     /// were shifted left by `word_shift` words plus `bit_shift` bits.
+    ///
+    /// # Preconditions
+    /// `bit_shift` must be less than `word_bits` (i.e., `core::mem::size_of::<T>() * 8`).
     pub(crate) c0nst fn const_array_get_shifted_word<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
         word_idx: usize,
@@ -756,7 +759,7 @@ c0nst::c0nst! {
             }
 
             // Get high bits from the next lower word (if it exists)
-            if source_idx > 0 && (source_idx - 1) < N {
+            if source_idx > 0 {
                 let high_bits = array[source_idx - 1] >> (word_bits - bit_shift);
                 result |= high_bits;
             }
@@ -780,9 +783,8 @@ c0nst::c0nst! {
             return const_array_cmp::<T, N>(array, other);
         }
 
-        // Check for shift overflow using division to avoid multiplication overflow
-        let shift_words = shift_bits / word_bits;
-        if shift_words >= N {
+        let word_shift = shift_bits / word_bits;
+        if word_shift >= N {
             // other << shift_bits would overflow to 0
             if const_array_is_zero::<T, N>(array) {
                 return core::cmp::Ordering::Equal;
@@ -791,7 +793,6 @@ c0nst::c0nst! {
             }
         }
 
-        let word_shift = shift_bits / word_bits;
         let bit_shift = shift_bits % word_bits;
 
         // Compare from most significant words down
@@ -1337,12 +1338,34 @@ mod tests {
             Ordering::Equal
         );
 
-        // Test get_shifted_word helper
+        // Test get_shifted_word helper with bit_shift == 0
         // [1, 2, 3, 4] shifted left by 1 word (8 bits for u8)
         // word 0 should be 0, word 1 should be 1, word 2 should be 2, etc.
         assert_eq!(arr_get_shifted_word(&[1u8, 2, 3, 4], 0, 1, 0), 0);
         assert_eq!(arr_get_shifted_word(&[1u8, 2, 3, 4], 1, 1, 0), 1);
         assert_eq!(arr_get_shifted_word(&[1u8, 2, 3, 4], 2, 1, 0), 2);
+
+        // Test get_shifted_word with bit_shift != 0 (cross-word bit combination)
+        // [0x0F, 0xF0, 0, 0] with word_shift=0, bit_shift=4
+        // word 0: 0x0F << 4 = 0xF0 (no lower word to borrow from)
+        assert_eq!(arr_get_shifted_word(&[0x0Fu8, 0xF0, 0, 0], 0, 0, 4), 0xF0);
+        // word 1: (0xF0 << 4) | (0x0F >> 4) = 0x00 | 0x00 = 0x00
+        assert_eq!(arr_get_shifted_word(&[0x0Fu8, 0xF0, 0, 0], 1, 0, 4), 0x00);
+
+        // [0xFF, 0x00, 0, 0] with bit_shift=4
+        // word 0: 0xFF << 4 = 0xF0
+        assert_eq!(arr_get_shifted_word(&[0xFFu8, 0x00, 0, 0], 0, 0, 4), 0xF0);
+        // word 1: (0x00 << 4) | (0xFF >> 4) = 0x00 | 0x0F = 0x0F
+        assert_eq!(arr_get_shifted_word(&[0xFFu8, 0x00, 0, 0], 1, 0, 4), 0x0F);
+
+        // Combined word_shift and bit_shift
+        // [0xAB, 0xCD, 0, 0] with word_shift=1, bit_shift=4
+        // word 0: below word_shift, returns 0
+        assert_eq!(arr_get_shifted_word(&[0xABu8, 0xCD, 0, 0], 0, 1, 4), 0);
+        // word 1: source_idx=0, 0xAB << 4 = 0xB0 (no lower word)
+        assert_eq!(arr_get_shifted_word(&[0xABu8, 0xCD, 0, 0], 1, 1, 4), 0xB0);
+        // word 2: source_idx=1, (0xCD << 4) | (0xAB >> 4) = 0xD0 | 0x0A = 0xDA
+        assert_eq!(arr_get_shifted_word(&[0xABu8, 0xCD, 0, 0], 2, 1, 4), 0xDA);
 
         #[cfg(feature = "nightly")]
         {
