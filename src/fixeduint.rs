@@ -17,7 +17,7 @@ use num_traits::{One, PrimInt, ToPrimitive, Zero};
 use core::convert::TryFrom;
 use core::fmt::Write;
 
-pub use crate::const_numtrait::{ConstOne, ConstPrimInt, ConstZero};
+pub use crate::const_numtrait::{ConstBounded, ConstOne, ConstPrimInt, ConstZero};
 use crate::machineword::{ConstMachineWord, MachineWord};
 
 #[allow(unused_imports)]
@@ -351,43 +351,10 @@ c0nst::c0nst! {
 
 impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     // Multiply op1 with op2, return overflow status
-    // Note: uses extra `result` variable, not sure if in-place multiply is possible at all.
     fn mul_impl<const CHECK_OVERFLOW: bool>(op1: &Self, op2: &Self) -> (Self, bool) {
-        let mut result = <Self as Zero>::zero();
-        let mut overflowed = false;
-        // Calculate N+1 rounds, to check for overflow
-        let max_rounds = if CHECK_OVERFLOW { N + 1 } else { N };
-        let t_max = T::max_value().to_double();
-        for i in 0..N {
-            let mut carry = T::DoubleWord::zero();
-            for j in 0..N {
-                let round = i + j;
-                if round < max_rounds {
-                    let mul_res = op1.array[i].to_double() * op2.array[j].to_double();
-                    let mut accumulator = T::DoubleWord::zero();
-                    if round < N {
-                        accumulator = result.array[round].to_double();
-                    }
-                    accumulator = accumulator + mul_res + carry;
-
-                    if accumulator > t_max {
-                        carry = accumulator >> Self::WORD_BITS;
-                        accumulator &= t_max;
-                    } else {
-                        carry = T::DoubleWord::zero();
-                    }
-                    if round < N {
-                        result.array[round] = T::from_double(accumulator);
-                    } else if CHECK_OVERFLOW {
-                        overflowed = overflowed || !accumulator.is_zero();
-                    }
-                }
-            }
-            if !carry.is_zero() && CHECK_OVERFLOW {
-                overflowed = true;
-            }
-        }
-        (result, overflowed)
+        let (array, overflowed) =
+            const_array_mul::<T, N, CHECK_OVERFLOW>(&op1.array, &op2.array, Self::WORD_BITS);
+        (Self { array }, overflowed)
     }
 
     /// Set a specific bit in the array without full array operations
@@ -674,6 +641,60 @@ c0nst::c0nst! {
             target.array[last_index] >>= nbits;
         }
     }
+
+    /// Standalone const-compatible array multiplication (no FixedUInt dependency)
+    /// Returns (result_array, overflowed)
+    pub(crate) c0nst fn const_array_mul<T: [c0nst] ConstMachineWord, const N: usize, const CHECK_OVERFLOW: bool>(
+        op1: &[T; N],
+        op2: &[T; N],
+        word_bits: usize,
+    ) -> ([T; N], bool) {
+        let mut result: [T; N] = [<T as ConstZero>::zero(); N];
+        let mut overflowed = false;
+        // Calculate N+1 rounds, to check for overflow
+        let max_rounds = if CHECK_OVERFLOW { N + 1 } else { N };
+        let t_max = <T as ConstMachineWord>::to_double(<T as ConstBounded>::max_value());
+        // Zero for double word type
+        let dw_zero: <T as ConstMachineWord>::ConstDoubleWord = core::convert::From::from(0u8);
+
+        let mut i = 0;
+        while i < N {
+            let mut carry = dw_zero;
+            let mut j = 0;
+            while j < N {
+                let round = i + j;
+                if round < max_rounds {
+                    let op1_dw = <T as ConstMachineWord>::to_double(op1[i]);
+                    let op2_dw = <T as ConstMachineWord>::to_double(op2[j]);
+                    let mul_res = op1_dw * op2_dw;
+                    let mut accumulator = if round < N {
+                        <T as ConstMachineWord>::to_double(result[round])
+                    } else {
+                        dw_zero
+                    };
+                    accumulator = accumulator + mul_res + carry;
+
+                    if accumulator > t_max {
+                        carry = accumulator >> word_bits;
+                        accumulator &= t_max;
+                    } else {
+                        carry = dw_zero;
+                    }
+                    if round < N {
+                        result[round] = <T as ConstMachineWord>::from_double(accumulator);
+                    } else if CHECK_OVERFLOW {
+                        overflowed = overflowed || accumulator != dw_zero;
+                    }
+                }
+                j += 1;
+            }
+            if carry != dw_zero && CHECK_OVERFLOW {
+                overflowed = true;
+            }
+            i += 1;
+        }
+        (result, overflowed)
+    }
 }
 
 impl<T: MachineWord, const N: usize> Default for FixedUInt<T, N> {
@@ -819,6 +840,14 @@ mod tests {
         ) -> bool {
             sub_impl(a, b)
         }
+
+        pub c0nst fn test_mul<T: [c0nst] ConstMachineWord, const N: usize>(
+            a: &[T; N],
+            b: &[T; N],
+            word_bits: usize,
+        ) -> ([T; N], bool) {
+            const_array_mul::<T, N, true>(a, b, word_bits)
+        }
     }
 
     #[test]
@@ -902,6 +931,35 @@ mod tests {
                 (a, overflow)
             };
             assert_eq!(SUB_RESULT, ([2, 0, 0, 0], false));
+        }
+    }
+
+    #[test]
+    fn test_const_mul_impl() {
+        // Simple mul: 3 * 4 = 12
+        let a: [u8; 2] = [3, 0];
+        let b: [u8; 2] = [4, 0];
+        let (result, overflow) = test_mul(&a, &b, 8);
+        assert_eq!(result, [12, 0]);
+        assert!(!overflow);
+
+        // Mul with carry: 200 * 2 = 400 = 0x190 = [0x90, 0x01]
+        let a: [u8; 2] = [200, 0];
+        let b: [u8; 2] = [2, 0];
+        let (result, overflow) = test_mul(&a, &b, 8);
+        assert_eq!(result, [0x90, 0x01]);
+        assert!(!overflow);
+
+        // Mul with overflow: 256 * 256 = 65536 which overflows 16 bits
+        let a: [u8; 2] = [0, 1]; // 256
+        let b: [u8; 2] = [0, 1]; // 256
+        let (_result, overflow) = test_mul(&a, &b, 8);
+        assert!(overflow);
+
+        #[cfg(feature = "nightly")]
+        {
+            const MUL_RESULT: ([u8; 2], bool) = test_mul(&[3u8, 0], &[4u8, 0], 8);
+            assert_eq!(MUL_RESULT, ([12, 0], false));
         }
     }
 
