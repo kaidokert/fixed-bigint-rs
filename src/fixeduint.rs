@@ -732,12 +732,12 @@ c0nst::c0nst! {
     pub(crate) c0nst fn const_array_is_zero<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
     ) -> bool {
-        let mut i = 0;
-        while i < N {
-            if !<T as ConstZero>::is_zero(&array[i]) {
+        let mut index = 0;
+        while index < N {
+            if !<T as ConstZero>::is_zero(&array[index]) {
                 return false;
             }
-            i += 1;
+            index += 1;
         }
         true
     }
@@ -752,11 +752,10 @@ c0nst::c0nst! {
         pos: usize,
     ) {
         let word_bits = core::mem::size_of::<T>() * 8;
-        let bit_size = N * word_bits;
-        if pos >= bit_size {
+        let word_idx = pos / word_bits;
+        if word_idx >= N {
             return;
         }
-        let word_idx = pos / word_bits;
         let bit_idx = pos % word_bits;
         array[word_idx] |= <T as ConstOne>::one() << bit_idx;
     }
