@@ -10,7 +10,7 @@ impl<T: MachineWord, const N: usize> num_traits::ops::overflowing::OverflowingMu
     for FixedUInt<T, N>
 {
     fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
-        Self::mul_impl::<true>(self, other)
+        <Self as ConstOverflowingMul>::overflowing_mul(self, other)
     }
 }
 
@@ -410,19 +410,18 @@ mod tests {
         assert_eq!(result, expected);
         assert!(!overflow);
 
-        // Test overflow cases
-        let max = FixedUInt::<u8, 2>::from(256u16); // 0x100
-        let two = FixedUInt::<u8, 2>::from(256u16);
+        // Test overflow cases: 256 * 256 = 65536 which overflows 16 bits
+        let large = FixedUInt::<u8, 2>::from(256u16); // 0x100
 
         // ConstCheckedMul - with overflow
-        assert_eq!(const_checked_mul(&max, &two), None);
+        assert_eq!(const_checked_mul(&large, &large), None);
 
         // ConstSaturatingMul - with overflow saturates to max
-        let saturated = const_saturating_mul(&max, &two);
+        let saturated = const_saturating_mul(&large, &large);
         assert_eq!(saturated, FixedUInt::<u8, 2>::from(0xFFFFu16));
 
         // ConstOverflowingMul - with overflow
-        let (_, overflow) = const_overflowing_mul(&max, &two);
+        let (_, overflow) = const_overflowing_mul(&large, &large);
         assert!(overflow);
 
         #[cfg(feature = "nightly")]

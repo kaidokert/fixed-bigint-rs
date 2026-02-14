@@ -350,13 +350,6 @@ c0nst::c0nst! {
 }
 
 impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
-    // Multiply op1 with op2, return overflow status
-    fn mul_impl<const CHECK_OVERFLOW: bool>(op1: &Self, op2: &Self) -> (Self, bool) {
-        let (array, overflowed) =
-            const_array_mul::<T, N, CHECK_OVERFLOW>(&op1.array, &op2.array, Self::WORD_BITS);
-        (Self { array }, overflowed)
-    }
-
     /// Set a specific bit in the array without full array operations
     fn set_bit(&mut self, pos: usize) {
         if pos >= Self::BIT_SIZE {
