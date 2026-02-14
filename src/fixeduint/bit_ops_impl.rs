@@ -1,4 +1,4 @@
-use super::{FixedUInt, MachineWord};
+use super::{const_shl_impl, const_shr_impl, FixedUInt, MachineWord};
 
 use crate::const_numtrait::ConstZero;
 use crate::machineword::ConstMachineWord;
@@ -155,7 +155,7 @@ c0nst::c0nst! {
         type Output = Self;
         fn shl(self, bits: usize) -> Self::Output {
             let mut result = self;
-            Self::const_shl_impl(&mut result, bits);
+            const_shl_impl(&mut result, bits);
             result
         }
     }
@@ -164,7 +164,7 @@ c0nst::c0nst! {
         type Output = Self;
         fn shr(self, bits: usize) -> Self::Output {
             let mut result = self;
-            Self::const_shr_impl(&mut result, bits);
+            const_shr_impl(&mut result, bits);
             result
         }
     }
@@ -271,25 +271,25 @@ c0nst::c0nst! {
     // ShlAssign/ShrAssign
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::ShlAssign<usize> for FixedUInt<T, N> {
         fn shl_assign(&mut self, bits: usize) {
-            Self::const_shl_impl(self, bits);
+            const_shl_impl(self, bits);
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::ShrAssign<usize> for FixedUInt<T, N> {
         fn shr_assign(&mut self, bits: usize) {
-            Self::const_shr_impl(self, bits);
+            const_shr_impl(self, bits);
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::ShlAssign<&usize> for FixedUInt<T, N> {
         fn shl_assign(&mut self, bits: &usize) {
-            Self::const_shl_impl(self, *bits);
+            const_shl_impl(self, *bits);
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::ShrAssign<&usize> for FixedUInt<T, N> {
         fn shr_assign(&mut self, bits: &usize) {
-            Self::const_shr_impl(self, *bits);
+            const_shr_impl(self, *bits);
         }
     }
 }

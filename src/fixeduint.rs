@@ -575,71 +575,77 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N> {
-        /// Const-compatible left shift implementation
-        pub(crate) c0nst fn const_shl_impl(target: &mut Self, bits: usize) {
-            let nwords = bits / Self::WORD_BITS;
-            let nbits = bits - nwords * Self::WORD_BITS;
+    /// Const-compatible left shift implementation
+    pub(crate) c0nst fn const_shl_impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        target: &mut FixedUInt<T, N>,
+        bits: usize,
+    ) {
+        let word_bits = FixedUInt::<T, N>::WORD_BITS;
+        let nwords = bits / word_bits;
+        let nbits = bits - nwords * word_bits;
 
-            // Move words (backwards)
-            let mut i = N;
-            while i > nwords {
-                i -= 1;
-                target.array[i] = target.array[i - nwords];
-            }
-            // Zero out the lower words
-            let mut i = 0;
-            while i < nwords && i < N {
-                target.array[i] = T::zero();
-                i += 1;
-            }
-
-            if nbits != 0 {
-                // Shift remaining bits (backwards)
-                let mut i = N;
-                while i > 1 {
-                    i -= 1;
-                    let right = target.array[i] << nbits;
-                    let left = target.array[i - 1] >> (Self::WORD_BITS - nbits);
-                    target.array[i] = right | left;
-                }
-                target.array[0] <<= nbits;
-            }
+        // Move words (backwards)
+        let mut i = N;
+        while i > nwords {
+            i -= 1;
+            target.array[i] = target.array[i - nwords];
+        }
+        // Zero out the lower words
+        let mut i = 0;
+        while i < nwords && i < N {
+            target.array[i] = T::zero();
+            i += 1;
         }
 
-        /// Const-compatible right shift implementation
-        pub(crate) c0nst fn const_shr_impl(target: &mut Self, bits: usize) {
-            let nwords = bits / Self::WORD_BITS;
-            let nbits = bits - nwords * Self::WORD_BITS;
+        if nbits != 0 {
+            // Shift remaining bits (backwards)
+            let mut i = N;
+            while i > 1 {
+                i -= 1;
+                let right = target.array[i] << nbits;
+                let left = target.array[i - 1] >> (word_bits - nbits);
+                target.array[i] = right | left;
+            }
+            target.array[0] <<= nbits;
+        }
+    }
 
-            let last_index = N - 1;
-            let last_word = N - nwords;
+    /// Const-compatible right shift implementation
+    pub(crate) c0nst fn const_shr_impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        target: &mut FixedUInt<T, N>,
+        bits: usize,
+    ) {
+        let word_bits = FixedUInt::<T, N>::WORD_BITS;
+        let nwords = bits / word_bits;
+        let nbits = bits - nwords * word_bits;
 
-            // Move words (forwards)
+        let last_index = N - 1;
+        let last_word = N - nwords;
+
+        // Move words (forwards)
+        let mut i = 0;
+        while i < last_word {
+            target.array[i] = target.array[i + nwords];
+            i += 1;
+        }
+
+        // Zero out the upper words
+        let mut i = last_word;
+        while i < N {
+            target.array[i] = T::zero();
+            i += 1;
+        }
+
+        if nbits != 0 {
+            // Shift remaining bits (forwards)
             let mut i = 0;
-            while i < last_word {
-                target.array[i] = target.array[i + nwords];
+            while i < last_index {
+                let left = target.array[i] >> nbits;
+                let right = target.array[i + 1] << (word_bits - nbits);
+                target.array[i] = left | right;
                 i += 1;
             }
-
-            // Zero out the upper words
-            let mut i = last_word;
-            while i < N {
-                target.array[i] = T::zero();
-                i += 1;
-            }
-
-            if nbits != 0 {
-                // Shift remaining bits (forwards)
-                let mut i = 0;
-                while i < last_index {
-                    let left = target.array[i] >> nbits;
-                    let right = target.array[i + 1] << (Self::WORD_BITS - nbits);
-                    target.array[i] = left | right;
-                    i += 1;
-                }
-                target.array[last_index] >>= nbits;
-            }
+            target.array[last_index] >>= nbits;
         }
     }
 }
