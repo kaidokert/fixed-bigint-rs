@@ -62,6 +62,16 @@ c0nst::c0nst! {
         fn checked_sub(&self, v: &Self) -> Option<Self>;
     }
 
+    pub c0nst trait ConstSaturatingAdd: Sized + [c0nst] ConstOverflowingAdd + [c0nst] ConstBounded {
+        /// Saturating addition. Computes `self + other`, saturating at max_value().
+        fn saturating_add(&self, v: &Self) -> Self;
+    }
+
+    pub c0nst trait ConstSaturatingSub: Sized + [c0nst] ConstOverflowingSub + [c0nst] ConstZero {
+        /// Saturating subtraction. Computes `self - other`, saturating at zero.
+        fn saturating_sub(&self, v: &Self) -> Self;
+    }
+
     pub c0nst trait ConstToBytes {
         type Bytes: Copy + AsRef<[u8]> + AsMut<[u8]>;
         fn to_le_bytes(&self) -> Self::Bytes;
@@ -283,6 +293,44 @@ const_checked_sub_impl!(u32);
 const_checked_sub_impl!(u64);
 const_checked_sub_impl!(u128);
 
+macro_rules! const_saturating_add_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstSaturatingAdd for $t {
+                fn saturating_add(&self, v: &Self) -> Self {
+                    let (res, overflow) = self.overflowing_add(v);
+                    if overflow { Self::max_value() } else { res }
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_saturating_sub_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstSaturatingSub for $t {
+                fn saturating_sub(&self, v: &Self) -> Self {
+                    let (res, overflow) = self.overflowing_sub(v);
+                    if overflow { Self::zero() } else { res }
+                }
+            }
+        }
+    };
+}
+
+const_saturating_add_impl!(u8);
+const_saturating_add_impl!(u16);
+const_saturating_add_impl!(u32);
+const_saturating_add_impl!(u64);
+const_saturating_add_impl!(u128);
+
+const_saturating_sub_impl!(u8);
+const_saturating_sub_impl!(u16);
+const_saturating_sub_impl!(u32);
+const_saturating_sub_impl!(u64);
+const_saturating_sub_impl!(u128);
+
 macro_rules! const_to_bytes_impl {
     ($t:ty, $n:expr) => {
         c0nst::c0nst! {
@@ -386,6 +434,14 @@ mod tests {
 
         pub c0nst fn checked_sub_word<T: [c0nst] ConstCheckedSub>(a: &T, b: &T) -> Option<T> {
             a.checked_sub(b)
+        }
+
+        pub c0nst fn saturating_add_word<T: [c0nst] ConstSaturatingAdd>(a: &T, b: &T) -> T {
+            a.saturating_add(b)
+        }
+
+        pub c0nst fn saturating_sub_word<T: [c0nst] ConstSaturatingSub>(a: &T, b: &T) -> T {
+            a.saturating_sub(b)
         }
     }
 
@@ -592,6 +648,36 @@ mod tests {
             assert_eq!(CHECK_ADD_OVERFLOW, None);
             assert_eq!(CHECK_SUB_OK, Some(50u8));
             assert_eq!(CHECK_SUB_OVERFLOW, None);
+        }
+    }
+
+    #[test]
+    fn test_const_saturating_ops() {
+        // Test saturating_add without overflow
+        assert_eq!(saturating_add_word(&100u8, &50u8), 150u8);
+        // Test saturating_add with overflow (saturates at max)
+        assert_eq!(saturating_add_word(&200u8, &100u8), 255u8);
+
+        // Test saturating_sub without overflow
+        assert_eq!(saturating_sub_word(&100u8, &50u8), 50u8);
+        // Test saturating_sub with underflow (saturates at zero)
+        assert_eq!(saturating_sub_word(&50u8, &100u8), 0u8);
+
+        // Test with larger types
+        assert_eq!(saturating_add_word(&u64::MAX, &1u64), u64::MAX);
+        assert_eq!(saturating_sub_word(&0u64, &1u64), 0u64);
+
+        #[cfg(feature = "nightly")]
+        {
+            const SAT_ADD_NO_OVERFLOW: u8 = saturating_add_word(&100u8, &50u8);
+            const SAT_ADD_OVERFLOW: u8 = saturating_add_word(&200u8, &100u8);
+            const SAT_SUB_NO_OVERFLOW: u8 = saturating_sub_word(&100u8, &50u8);
+            const SAT_SUB_OVERFLOW: u8 = saturating_sub_word(&50u8, &100u8);
+
+            assert_eq!(SAT_ADD_NO_OVERFLOW, 150u8);
+            assert_eq!(SAT_ADD_OVERFLOW, 255u8);
+            assert_eq!(SAT_SUB_NO_OVERFLOW, 50u8);
+            assert_eq!(SAT_SUB_OVERFLOW, 0u8);
         }
     }
 }
