@@ -222,7 +222,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         for byte in result.iter_mut() {
             *byte = b'0';
         }
-        if self.is_zero() {
+        if Zero::is_zero(self) {
             if !result.is_empty() {
                 result[0] = b'0';
                 return core::str::from_utf8(&result[0..1]).map_err(|_| Error {});
@@ -236,7 +236,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
         let radix_t = Self::from(radix);
 
-        while !number.is_zero() {
+        while !Zero::is_zero(&number) {
             if idx == 0 {
                 return Err(Error {}); // not enough space in result...
             }
@@ -366,7 +366,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     fn saturating_sub_impl(self, other: &Self) -> Self {
         let res = self.overflowing_sub(other);
         if res.1 {
-            Self::zero()
+            <Self as Zero>::zero()
         } else {
             res.0
         }
@@ -375,7 +375,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     // Multiply op1 with op2, return overflow status
     // Note: uses extra `result` variable, not sure if in-place multiply is possible at all.
     fn mul_impl<const CHECK_OVERFLOW: bool>(op1: &Self, op2: &Self) -> (Self, bool) {
-        let mut result = Self::zero();
+        let mut result = <Self as Zero>::zero();
         let mut overflowed = false;
         // Calculate N+1 rounds, to check for overflow
         let max_rounds = if CHECK_OVERFLOW { N + 1 } else { N };
@@ -430,7 +430,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
         if shift_bits >= Self::BIT_SIZE {
             // other << shift_bits would be 0, so compare self vs 0
-            if self.is_zero() {
+            if Zero::is_zero(self) {
                 return core::cmp::Ordering::Equal;
             } else {
                 return core::cmp::Ordering::Greater;
@@ -544,15 +544,15 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     fn div_assign_impl(dividend: &mut Self, divisor: &Self) -> Self {
         if *dividend < *divisor {
             let remainder = *dividend;
-            *dividend = Self::zero();
+            *dividend = <Self as Zero>::zero();
             return remainder;
         }
         if *dividend == *divisor {
-            *dividend = Self::one();
-            return Self::zero();
+            *dividend = <Self as One>::one();
+            return <Self as Zero>::zero();
         }
 
-        let mut quotient = Self::zero();
+        let mut quotient = <Self as Zero>::zero();
 
         // Calculate initial bit position
         let dividend_bits = dividend.bit_length() as usize;
@@ -1105,9 +1105,9 @@ mod tests {
     }
     #[test]
     fn test_cmp() {
-        let f0 = Bn8::zero();
-        let f1 = Bn8::zero();
-        let f2 = Bn8::one();
+        let f0 = <Bn8 as Zero>::zero();
+        let f1 = <Bn8 as Zero>::zero();
+        let f2 = <Bn8 as One>::one();
         assert_eq!(f0, f1);
         assert!(f2 > f0);
         assert!(f0 < f2);
@@ -1213,7 +1213,7 @@ mod tests {
         type TestInt = FixedUInt<u8, 2>;
 
         // Test set_bit
-        let mut val = TestInt::zero();
+        let mut val = <TestInt as Zero>::zero();
         val.set_bit(0);
         assert_eq!(val, TestInt::from(1u8));
 
