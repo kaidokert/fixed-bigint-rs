@@ -578,7 +578,7 @@ macro_rules! const_wrapping_shl_impl {
         c0nst::c0nst! {
             impl c0nst ConstWrappingShl for $t {
                 fn wrapping_shl(&self, rhs: u32) -> Self {
-                    (*self).wrapping_shl(rhs)
+                    ConstOverflowingShl::overflowing_shl(self, rhs).0
                 }
             }
         }
@@ -590,7 +590,7 @@ macro_rules! const_wrapping_shr_impl {
         c0nst::c0nst! {
             impl c0nst ConstWrappingShr for $t {
                 fn wrapping_shr(&self, rhs: u32) -> Self {
-                    (*self).wrapping_shr(rhs)
+                    ConstOverflowingShr::overflowing_shr(self, rhs).0
                 }
             }
         }
@@ -602,7 +602,8 @@ macro_rules! const_checked_shl_impl {
         c0nst::c0nst! {
             impl c0nst ConstCheckedShl for $t {
                 fn checked_shl(&self, rhs: u32) -> Option<Self> {
-                    (*self).checked_shl(rhs)
+                    let (res, overflow) = ConstOverflowingShl::overflowing_shl(self, rhs);
+                    if overflow { None } else { Some(res) }
                 }
             }
         }
@@ -614,7 +615,8 @@ macro_rules! const_checked_shr_impl {
         c0nst::c0nst! {
             impl c0nst ConstCheckedShr for $t {
                 fn checked_shr(&self, rhs: u32) -> Option<Self> {
-                    (*self).checked_shr(rhs)
+                    let (res, overflow) = ConstOverflowingShr::overflowing_shr(self, rhs);
+                    if overflow { None } else { Some(res) }
                 }
             }
         }
