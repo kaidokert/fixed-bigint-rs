@@ -212,7 +212,7 @@ c0nst::c0nst! {
             if <Self as ConstZero>::is_zero(other) {
                 None
             } else {
-                Some(Self { array: div_impl(&self.array, &other.array) })
+                Some(*self / *other)
             }
         }
     }
@@ -284,7 +284,7 @@ c0nst::c0nst! {
             if <Self as ConstZero>::is_zero(other) {
                 None
             } else {
-                Some(Self { array: rem_impl(&self.array, &other.array) })
+                Some(*self % *other)
             }
         }
     }
@@ -491,12 +491,10 @@ mod tests {
             const CHECKED_REM_OK: Option<FixedUInt<u8, 2>> = const_checked_rem(&A, &B);
             const CHECKED_REM_ZERO: Option<FixedUInt<u8, 2>> = const_checked_rem(&A, &ZERO);
 
-            assert!(CHECKED_DIV_OK.is_some());
-            assert_eq!(CHECKED_DIV_OK.unwrap().array, [7, 0]);
-            assert!(CHECKED_DIV_ZERO.is_none());
-            assert!(CHECKED_REM_OK.is_some());
-            assert_eq!(CHECKED_REM_OK.unwrap().array, [1, 0]);
-            assert!(CHECKED_REM_ZERO.is_none());
+            assert_eq!(CHECKED_DIV_OK, Some(FixedUInt { array: [7, 0] }));
+            assert_eq!(CHECKED_DIV_ZERO, None);
+            assert_eq!(CHECKED_REM_OK, Some(FixedUInt { array: [1, 0] }));
+            assert_eq!(CHECKED_REM_ZERO, None);
         }
     }
 }
