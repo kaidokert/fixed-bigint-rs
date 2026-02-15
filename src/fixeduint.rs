@@ -73,12 +73,14 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         Self::BIT_SIZE as u32 - self.leading_zeros()
     }
 
-    /// Performs a division, returning both the quotient and reminder in a tuple.
+    /// Performs a division, returning both the quotient and remainder in a tuple.
     pub fn div_rem(&self, divisor: &Self) -> (Self, Self) {
-        let quot = *self / *divisor;
-        let tmp = quot * *divisor;
-        let rem = *self - tmp;
-        (quot, rem)
+        if const_is_zero(&divisor.array) {
+            maybe_panic(PanicReason::DivByZero)
+        }
+        let mut dividend = *self;
+        let remainder = Self::div_assign_impl(&mut dividend, divisor);
+        (dividend, remainder)
     }
 
     /// Create a little-endian integer value from its representation as a byte array in little endian.
@@ -356,13 +358,6 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         Self {
             array: remainder_array,
         }
-    }
-
-    // Divide dividend with divisor, return result
-    fn div_impl(dividend: &Self, divisor: &Self) -> Self {
-        let mut dividend_copy = *dividend;
-        Self::div_assign_impl(&mut dividend_copy, divisor);
-        dividend_copy
     }
 
     // Normalize shift amounts for rotations
@@ -1663,9 +1658,9 @@ mod tests {
         assert_eq!(u32_ver.to_be_bytes(&mut output_buffer).unwrap(), &be_bytes);
     }
 
-    // Test suite for optimized division implementation
+    // Test suite for division implementation
     #[test]
-    fn test_div_impl_equivalence_small() {
+    fn test_div_small() {
         type TestInt = FixedUInt<u8, 2>;
 
         // Test small values
@@ -1681,45 +1676,40 @@ mod tests {
             let divisor = TestInt::from(divisor_val);
             let expected_result = TestInt::from(expected);
 
-            let result = TestInt::div_impl(&dividend, &divisor);
-
             assert_eq!(
-                result, expected_result,
+                dividend / divisor,
+                expected_result,
                 "Division failed for {} / {} = {}",
-                dividend_val, divisor_val, expected
+                dividend_val,
+                divisor_val,
+                expected
             );
         }
     }
 
     #[test]
-    fn test_div_impl_equivalence_edge_cases() {
+    fn test_div_edge_cases() {
         type TestInt = FixedUInt<u16, 2>;
 
-        // Edge cases
+        // Division by 1
         let dividend = TestInt::from(1000u16);
         let divisor = TestInt::from(1u16);
-        assert_eq!(
-            TestInt::div_impl(&dividend, &divisor),
-            TestInt::from(1000u16)
-        );
+        assert_eq!(dividend / divisor, TestInt::from(1000u16));
 
         // Equal values
         let dividend = TestInt::from(42u16);
         let divisor = TestInt::from(42u16);
-        assert_eq!(TestInt::div_impl(&dividend, &divisor), TestInt::from(1u16));
+        assert_eq!(dividend / divisor, TestInt::from(1u16));
 
         // Dividend < divisor
         let dividend = TestInt::from(5u16);
         let divisor = TestInt::from(10u16);
-        assert_eq!(TestInt::div_impl(&dividend, &divisor), TestInt::from(0u16));
+        assert_eq!(dividend / divisor, TestInt::from(0u16));
 
         // Powers of 2
         let dividend = TestInt::from(1024u16);
         let divisor = TestInt::from(4u16);
-        assert_eq!(
-            TestInt::div_impl(&dividend, &divisor),
-            TestInt::from(256u16)
-        );
+        assert_eq!(dividend / divisor, TestInt::from(256u16));
     }
 
     #[test]
@@ -1996,10 +1986,10 @@ mod tests {
     }
 
     #[test]
-    fn test_div_impl_forwarding() {
+    fn test_div_with_remainder_property() {
         type TestInt = FixedUInt<u32, 2>;
 
-        // Test that div_impl forwarding works correctly
+        // Test division with remainder property verification
         let test_cases = [
             (100u32, 10u32, 10u32),     // 100 / 10 = 10
             (123u32, 7u32, 17u32),      // 123 / 7 = 17
@@ -2016,7 +2006,7 @@ mod tests {
             assert_eq!(
                 quotient,
                 TestInt::from(expected_quotient),
-                "div_impl forwarding: {} / {} should be {}",
+                "Division: {} / {} should be {}",
                 dividend_val,
                 divisor_val,
                 expected_quotient
@@ -2037,7 +2027,7 @@ mod tests {
     fn test_code_simplification_benefits() {
         type TestInt = FixedUInt<u32, 2>;
 
-        // Verify that the simplified div_impl maintains same behavior
+        // Verify division property holds
         let dividend = TestInt::from(12345u32);
         let divisor = TestInt::from(67u32);
         let quotient = dividend / divisor;
@@ -2086,7 +2076,7 @@ mod tests {
             let dividend = TestInt::from(dividend_val);
             let divisor = TestInt::from(divisor_val);
 
-            let quotient = TestInt::div_impl(&dividend, &divisor);
+            let quotient = dividend / divisor;
 
             // Property verification: quotient * divisor + remainder == dividend
             let remainder = dividend - (quotient * divisor);
