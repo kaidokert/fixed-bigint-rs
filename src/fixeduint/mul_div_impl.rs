@@ -145,69 +145,67 @@ impl<T: MachineWord, const N: usize> num_traits::ops::saturating::SaturatingMul
 }
 
 c0nst::c0nst! {
+    /// Checked division: panics on divide by zero, returns quotient
+    c0nst fn div_impl<T: [c0nst] ConstMachineWord, const N: usize>(
+        dividend: &[T; N],
+        divisor: &[T; N],
+    ) -> [T; N] {
+        if const_is_zero(divisor) {
+            maybe_panic(PanicReason::DivByZero)
+        }
+        let mut result = *dividend;
+        const_div::<T, N>(&mut result, divisor);
+        result
+    }
+
+    /// Checked division in place: panics on divide by zero
+    c0nst fn div_assign_impl<T: [c0nst] ConstMachineWord, const N: usize>(
+        dividend: &mut [T; N],
+        divisor: &[T; N],
+    ) {
+        if const_is_zero(divisor) {
+            maybe_panic(PanicReason::DivByZero)
+        }
+        const_div::<T, N>(dividend, divisor);
+    }
+
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Div for FixedUInt<T, N> {
         type Output = Self;
         fn div(self, other: Self) -> Self::Output {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::DivByZero)
-            }
-            let mut dividend = self.array;
-            const_div::<T, N>(&mut dividend, &other.array);
-            Self { array: dividend }
+            Self { array: div_impl(&self.array, &other.array) }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Div<&FixedUInt<T, N>> for FixedUInt<T, N> {
         type Output = Self;
         fn div(self, other: &FixedUInt<T, N>) -> Self::Output {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::DivByZero)
-            }
-            let mut dividend = self.array;
-            const_div::<T, N>(&mut dividend, &other.array);
-            Self { array: dividend }
+            Self { array: div_impl(&self.array, &other.array) }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Div<FixedUInt<T, N>> for &FixedUInt<T, N> {
         type Output = FixedUInt<T, N>;
         fn div(self, other: FixedUInt<T, N>) -> Self::Output {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::DivByZero)
-            }
-            let mut dividend = self.array;
-            const_div::<T, N>(&mut dividend, &other.array);
-            FixedUInt { array: dividend }
+            Self::Output { array: div_impl(&self.array, &other.array) }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Div<&FixedUInt<T, N>> for &FixedUInt<T, N> {
         type Output = FixedUInt<T, N>;
         fn div(self, other: &FixedUInt<T, N>) -> Self::Output {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::DivByZero)
-            }
-            let mut dividend = self.array;
-            const_div::<T, N>(&mut dividend, &other.array);
-            FixedUInt { array: dividend }
+            Self::Output { array: div_impl(&self.array, &other.array) }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::DivAssign for FixedUInt<T, N> {
         fn div_assign(&mut self, other: Self) {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::DivByZero)
-            }
-            const_div::<T, N>(&mut self.array, &other.array);
+            div_assign_impl(&mut self.array, &other.array);
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::DivAssign<&FixedUInt<T, N>> for FixedUInt<T, N> {
         fn div_assign(&mut self, other: &FixedUInt<T, N>) {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::DivByZero)
-            }
-            const_div::<T, N>(&mut self.array, &other.array);
+            div_assign_impl(&mut self.array, &other.array);
         }
     }
 }
@@ -223,71 +221,55 @@ impl<T: MachineWord, const N: usize> num_traits::CheckedDiv for FixedUInt<T, N> 
 }
 
 c0nst::c0nst! {
+    /// Checked remainder: panics on divide by zero, returns remainder
+    c0nst fn rem_impl<T: [c0nst] ConstMachineWord, const N: usize>(
+        dividend: &[T; N],
+        divisor: &[T; N],
+    ) -> [T; N] {
+        if const_is_zero(divisor) {
+            maybe_panic(PanicReason::RemByZero)
+        }
+        let mut temp = *dividend;
+        const_div::<T, N>(&mut temp, divisor)
+    }
+
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Rem for FixedUInt<T, N> {
         type Output = Self;
         fn rem(self, other: Self) -> Self::Output {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::RemByZero)
-            }
-            let mut dividend = self.array;
-            let remainder = const_div::<T, N>(&mut dividend, &other.array);
-            Self { array: remainder }
+            Self { array: rem_impl(&self.array, &other.array) }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Rem<&FixedUInt<T, N>> for FixedUInt<T, N> {
         type Output = Self;
         fn rem(self, other: &FixedUInt<T, N>) -> Self::Output {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::RemByZero)
-            }
-            let mut dividend = self.array;
-            let remainder = const_div::<T, N>(&mut dividend, &other.array);
-            Self { array: remainder }
+            Self { array: rem_impl(&self.array, &other.array) }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Rem<FixedUInt<T, N>> for &FixedUInt<T, N> {
         type Output = FixedUInt<T, N>;
         fn rem(self, other: FixedUInt<T, N>) -> Self::Output {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::RemByZero)
-            }
-            let mut dividend = self.array;
-            let remainder = const_div::<T, N>(&mut dividend, &other.array);
-            FixedUInt { array: remainder }
+            Self::Output { array: rem_impl(&self.array, &other.array) }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Rem<&FixedUInt<T, N>> for &FixedUInt<T, N> {
         type Output = FixedUInt<T, N>;
         fn rem(self, other: &FixedUInt<T, N>) -> Self::Output {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::RemByZero)
-            }
-            let mut dividend = self.array;
-            let remainder = const_div::<T, N>(&mut dividend, &other.array);
-            FixedUInt { array: remainder }
+            Self::Output { array: rem_impl(&self.array, &other.array) }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::RemAssign for FixedUInt<T, N> {
         fn rem_assign(&mut self, other: Self) {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::RemByZero)
-            }
-            let mut dividend = self.array;
-            self.array = const_div::<T, N>(&mut dividend, &other.array);
+            self.array = rem_impl(&self.array, &other.array);
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::RemAssign<&FixedUInt<T, N>> for FixedUInt<T, N> {
         fn rem_assign(&mut self, other: &FixedUInt<T, N>) {
-            if const_is_zero(&other.array) {
-                maybe_panic(PanicReason::RemByZero)
-            }
-            let mut dividend = self.array;
-            self.array = const_div::<T, N>(&mut dividend, &other.array);
+            self.array = rem_impl(&self.array, &other.array);
         }
     }
 }
