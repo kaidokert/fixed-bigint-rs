@@ -1,6 +1,9 @@
 use super::{const_shl_impl, const_shr_impl, FixedUInt, MachineWord};
 
-use crate::const_numtrait::ConstZero;
+use crate::const_numtrait::{
+    ConstCheckedShl, ConstCheckedShr, ConstOverflowingShl, ConstOverflowingShr, ConstWrappingShl,
+    ConstWrappingShr, ConstZero,
+};
 use crate::machineword::ConstMachineWord;
 use crate::patch_num_traits::{OverflowingShl, OverflowingShr};
 
@@ -292,79 +295,104 @@ c0nst::c0nst! {
             const_shr_impl(self, *bits);
         }
     }
+
+    // Helper to normalize shift amount and detect overflow.
+    // Handles both 16-bit (usize < u32) and 64-bit (bit_size > u32::MAX) platforms.
+    c0nst fn normalize_shift_amount(bits: u32, bit_size: usize) -> (usize, bool) {
+        let bit_size_u32 = bit_size as u32;
+        if bit_size == 0 {
+            // Zero-size type: always overflow
+            (0, true)
+        } else if bit_size_u32 == 0 {
+            // bit_size is a non-zero multiple of 2^32 (huge type on 64-bit).
+            // Since bits is u32, it's always smaller than bit_size. No overflow.
+            (bits as usize, false)
+        } else if bits >= bit_size_u32 {
+            // Normal case: shift exceeds bit width
+            ((bits % bit_size_u32) as usize, true)
+        } else {
+            (bits as usize, false)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstOverflowingShl for FixedUInt<T, N> {
+        fn overflowing_shl(&self, bits: u32) -> (Self, bool) {
+            let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
+            let res = core::ops::Shl::<usize>::shl(*self, shift);
+            (res, overflow)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstOverflowingShr for FixedUInt<T, N> {
+        fn overflowing_shr(&self, bits: u32) -> (Self, bool) {
+            let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
+            let res = core::ops::Shr::<usize>::shr(*self, shift);
+            (res, overflow)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstWrappingShl for FixedUInt<T, N> {
+        fn wrapping_shl(&self, bits: u32) -> Self {
+            ConstOverflowingShl::overflowing_shl(self, bits).0
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstWrappingShr for FixedUInt<T, N> {
+        fn wrapping_shr(&self, bits: u32) -> Self {
+            ConstOverflowingShr::overflowing_shr(self, bits).0
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedShl for FixedUInt<T, N> {
+        fn checked_shl(&self, bits: u32) -> Option<Self> {
+            let (res, overflow) = ConstOverflowingShl::overflowing_shl(self, bits);
+            if overflow { None } else { Some(res) }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedShr for FixedUInt<T, N> {
+        fn checked_shr(&self, bits: u32) -> Option<Self> {
+            let (res, overflow) = ConstOverflowingShr::overflowing_shr(self, bits);
+            if overflow { None } else { Some(res) }
+        }
+    }
 }
 
-// OverflowingShl/Shr from patch_num_traits (not core::ops)
+// OverflowingShl/Shr from patch_num_traits - delegate to const impls
 impl<T: MachineWord, const N: usize> OverflowingShl for FixedUInt<T, N> {
     fn overflowing_shl(self, bits: u32) -> (Self, bool) {
-        let bitsu = bits as usize;
-        let (shift, overflow) = if bitsu >= Self::BIT_SIZE {
-            // Use modulo for correct wrapping with non-power-of-2 bit sizes
-            let shift = if Self::BIT_SIZE == 0 {
-                0
-            } else {
-                bitsu % Self::BIT_SIZE
-            };
-            (shift, true)
-        } else {
-            (bitsu, false)
-        };
-        let res = core::ops::Shl::<usize>::shl(self, shift);
-        (res, overflow)
+        ConstOverflowingShl::overflowing_shl(&self, bits)
     }
 }
 
 impl<T: MachineWord, const N: usize> OverflowingShr for FixedUInt<T, N> {
     fn overflowing_shr(self, bits: u32) -> (Self, bool) {
-        let bitsu = bits as usize;
-        let (shift, overflow) = if bitsu >= Self::BIT_SIZE {
-            // Use modulo for correct wrapping with non-power-of-2 bit sizes
-            let shift = if Self::BIT_SIZE == 0 {
-                0
-            } else {
-                bitsu % Self::BIT_SIZE
-            };
-            (shift, true)
-        } else {
-            (bitsu, false)
-        };
-        let res = core::ops::Shr::<usize>::shr(self, shift);
-        (res, overflow)
+        ConstOverflowingShr::overflowing_shr(&self, bits)
     }
 }
 
-// num_traits wrappers
+// num_traits wrappers - delegate to const impls
 impl<T: MachineWord, const N: usize> num_traits::WrappingShl for FixedUInt<T, N> {
     fn wrapping_shl(&self, bits: u32) -> Self {
-        self.overflowing_shl(bits).0
+        ConstWrappingShl::wrapping_shl(self, bits)
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingShr for FixedUInt<T, N> {
     fn wrapping_shr(&self, bits: u32) -> Self {
-        self.overflowing_shr(bits).0
+        ConstWrappingShr::wrapping_shr(self, bits)
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedShl for FixedUInt<T, N> {
     fn checked_shl(&self, bits: u32) -> Option<Self> {
-        let res = self.overflowing_shl(bits);
-        if res.1 {
-            None
-        } else {
-            Some(res.0)
-        }
+        ConstCheckedShl::checked_shl(self, bits)
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedShr for FixedUInt<T, N> {
     fn checked_shr(&self, bits: u32) -> Option<Self> {
-        let res = self.overflowing_shr(bits);
-        if res.1 {
-            None
-        } else {
-            Some(res.0)
-        }
+        ConstCheckedShr::checked_shr(self, bits)
     }
 }
 
@@ -516,5 +544,115 @@ mod tests {
             assert_eq!(SHL_1.array[0], 16);
             assert_eq!(SHR_16.array[0], 4);
         }
+    }
+
+    #[test]
+    fn test_const_shift_traits() {
+        type TestInt = FixedUInt<u8, 2>; // 16-bit
+
+        // Test overflowing_shl
+        let a = TestInt::from(0x80u8); // 0x0080
+        let (res, overflow) = ConstOverflowingShl::overflowing_shl(&a, 8);
+        assert_eq!(res.array, [0, 0x80]); // 0x8000
+        assert!(!overflow);
+
+        let (res, overflow) = ConstOverflowingShl::overflowing_shl(&a, 16);
+        assert_eq!(res.array, [0x80, 0]); // wraps around
+        assert!(overflow);
+
+        let (res, overflow) = ConstOverflowingShl::overflowing_shl(&a, 9);
+        assert_eq!(res.array, [0, 0]); // high bits shifted out (but shift < bit_width)
+        assert!(!overflow); // 9 < 16, so no overflow
+
+        // Test overflowing_shr
+        let b = TestInt::from(0x0100u16); // 0x0100
+        let (res, overflow) = ConstOverflowingShr::overflowing_shr(&b, 8);
+        assert_eq!(res.array, [1, 0]); // 0x0001
+        assert!(!overflow);
+
+        let (res, overflow) = ConstOverflowingShr::overflowing_shr(&b, 16);
+        assert_eq!(res.array, [0, 1]); // wraps
+        assert!(overflow);
+
+        // Test wrapping_shl
+        let c = TestInt::from(1u8);
+        assert_eq!(ConstWrappingShl::wrapping_shl(&c, 4).array, [16, 0]);
+        assert_eq!(ConstWrappingShl::wrapping_shl(&c, 16).array, [1, 0]); // wraps
+        assert_eq!(ConstWrappingShl::wrapping_shl(&c, 17).array, [2, 0]); // wraps
+
+        // Test wrapping_shr
+        let d = TestInt::from(0x8000u16);
+        assert_eq!(ConstWrappingShr::wrapping_shr(&d, 4).array, [0, 0x08]);
+        assert_eq!(ConstWrappingShr::wrapping_shr(&d, 16).array, [0, 0x80]); // wraps
+        assert_eq!(ConstWrappingShr::wrapping_shr(&d, 17).array, [0, 0x40]); // wraps
+
+        // Test checked_shl
+        let e = TestInt::from(1u8);
+        assert_eq!(
+            ConstCheckedShl::checked_shl(&e, 4),
+            Some(TestInt::from(16u8))
+        );
+        assert_eq!(
+            ConstCheckedShl::checked_shl(&e, 15),
+            Some(TestInt::from(0x8000u16))
+        );
+        assert_eq!(ConstCheckedShl::checked_shl(&e, 16), None); // overflow
+
+        // Test checked_shr
+        let f = TestInt::from(0x8000u16);
+        assert_eq!(
+            ConstCheckedShr::checked_shr(&f, 15),
+            Some(TestInt::from(1u8))
+        );
+        assert_eq!(ConstCheckedShr::checked_shr(&f, 16), None); // overflow
+
+        // Test edge case: zero shift
+        let g = TestInt::from(42u8);
+        assert_eq!(ConstOverflowingShl::overflowing_shl(&g, 0), (g, false));
+        assert_eq!(ConstOverflowingShr::overflowing_shr(&g, 0), (g, false));
+        assert_eq!(ConstWrappingShl::wrapping_shl(&g, 0), g);
+        assert_eq!(ConstWrappingShr::wrapping_shr(&g, 0), g);
+        assert_eq!(ConstCheckedShl::checked_shl(&g, 0), Some(g));
+        assert_eq!(ConstCheckedShr::checked_shr(&g, 0), Some(g));
+    }
+
+    #[test]
+    fn test_const_shift_traits_n0() {
+        // Test with N=0 (zero-sized type)
+        type ZeroInt = FixedUInt<u8, 0>;
+        let z = ZeroInt { array: [] };
+
+        // All shifts on zero-sized type should overflow
+        assert_eq!(ConstOverflowingShl::overflowing_shl(&z, 0), (z, true));
+        assert_eq!(ConstOverflowingShr::overflowing_shr(&z, 0), (z, true));
+        assert_eq!(ConstWrappingShl::wrapping_shl(&z, 0), z);
+        assert_eq!(ConstWrappingShr::wrapping_shr(&z, 0), z);
+        assert_eq!(ConstCheckedShl::checked_shl(&z, 0), None);
+        assert_eq!(ConstCheckedShr::checked_shr(&z, 0), None);
+    }
+
+    #[test]
+    fn test_num_traits_shift_wrappers() {
+        use num_traits::{CheckedShl, CheckedShr, WrappingShl, WrappingShr};
+
+        type TestInt = FixedUInt<u8, 2>;
+
+        let a = TestInt::from(1u8);
+
+        // num_traits::WrappingShl delegates to ConstWrappingShl
+        assert_eq!(WrappingShl::wrapping_shl(&a, 4), TestInt::from(16u8));
+        assert_eq!(WrappingShl::wrapping_shl(&a, 16), a); // wraps
+
+        // num_traits::WrappingShr
+        let b = TestInt::from(16u8);
+        assert_eq!(WrappingShr::wrapping_shr(&b, 4), TestInt::from(1u8));
+
+        // num_traits::CheckedShl
+        assert_eq!(CheckedShl::checked_shl(&a, 4), Some(TestInt::from(16u8)));
+        assert_eq!(CheckedShl::checked_shl(&a, 16), None);
+
+        // num_traits::CheckedShr
+        assert_eq!(CheckedShr::checked_shr(&b, 4), Some(TestInt::from(1u8)));
+        assert_eq!(CheckedShr::checked_shr(&b, 16), None);
     }
 }
