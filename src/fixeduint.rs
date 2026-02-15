@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use num_traits::{PrimInt, ToPrimitive, Zero};
+use num_traits::{ToPrimitive, Zero};
 
 use core::convert::TryFrom;
 use core::fmt::Write;
@@ -70,7 +70,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
     /// Returns number of used bits.
     pub fn bit_length(&self) -> u32 {
-        Self::BIT_SIZE as u32 - self.leading_zeros()
+        Self::BIT_SIZE as u32 - ConstPrimInt::leading_zeros(*self)
     }
 
     /// Performs a division, returning both the quotient and remainder in a tuple.
@@ -358,11 +358,6 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         Self {
             array: remainder_array,
         }
-    }
-
-    // Normalize shift amounts for rotations
-    fn normalize_shift(bits: u32) -> u32 {
-        bits % (Self::BIT_SIZE as u32)
     }
 }
 

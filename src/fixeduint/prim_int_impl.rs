@@ -1,6 +1,72 @@
 use super::{const_leading_zeros, const_trailing_zeros, FixedUInt, MachineWord};
+use crate::const_numtrait::ConstPrimInt;
+use crate::machineword::ConstMachineWord;
 
 use num_traits::One;
+
+c0nst::c0nst! {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstPrimInt for FixedUInt<T, N> {
+        fn count_ones(self) -> u32 {
+            let mut count = 0u32;
+            let mut i = 0;
+            while i < N {
+                count += self.array[i].count_ones();
+                i += 1;
+            }
+            count
+        }
+        fn count_zeros(self) -> u32 {
+            let mut count = 0u32;
+            let mut i = 0;
+            while i < N {
+                count += self.array[i].count_zeros();
+                i += 1;
+            }
+            count
+        }
+        fn leading_zeros(self) -> u32 {
+            const_leading_zeros(&self.array)
+        }
+        fn trailing_zeros(self) -> u32 {
+            const_trailing_zeros(&self.array)
+        }
+        fn swap_bytes(self) -> Self {
+            let mut ret = <Self as crate::const_numtrait::ConstZero>::zero();
+            let mut i = 0;
+            while i < N {
+                ret.array[i] = self.array[N - 1 - i].swap_bytes();
+                i += 1;
+            }
+            ret
+        }
+        fn rotate_left(self, n: u32) -> Self {
+            let bit_size = Self::BIT_SIZE as u32;
+            if bit_size == 0 {
+                return self;
+            }
+            let shift = n % bit_size;
+            let a = core::ops::Shl::<u32>::shl(self, shift);
+            let b = core::ops::Shr::<u32>::shr(self, bit_size - shift);
+            core::ops::BitOr::bitor(a, b)
+        }
+        fn rotate_right(self, n: u32) -> Self {
+            let bit_size = Self::BIT_SIZE as u32;
+            if bit_size == 0 {
+                return self;
+            }
+            let shift = n % bit_size;
+            let a = core::ops::Shr::<u32>::shr(self, shift);
+            let b = core::ops::Shl::<u32>::shl(self, bit_size - shift);
+            core::ops::BitOr::bitor(a, b)
+        }
+        fn unsigned_shl(self, n: u32) -> Self {
+            core::ops::Shl::<u32>::shl(self, n)
+        }
+        fn unsigned_shr(self, n: u32) -> Self {
+            core::ops::Shr::<u32>::shr(self, n)
+        }
+    }
+}
 
 impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
     fn count_ones(self) -> u32 {
@@ -16,28 +82,36 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
         const_trailing_zeros(&self.array)
     }
     fn rotate_left(self, bits: u32) -> Self {
-        let shift = Self::normalize_shift(bits);
+        let bit_size = Self::BIT_SIZE as u32;
+        if bit_size == 0 {
+            return self;
+        }
+        let shift = bits % bit_size;
         let a = self << shift;
-        let b = self >> (Self::BIT_SIZE as u32 - shift);
+        let b = self >> (bit_size - shift);
         a | b
     }
     fn rotate_right(self, bits: u32) -> Self {
-        let shift = Self::normalize_shift(bits);
+        let bit_size = Self::BIT_SIZE as u32;
+        if bit_size == 0 {
+            return self;
+        }
+        let shift = bits % bit_size;
         let a = self >> shift;
-        let b = self << (Self::BIT_SIZE as u32 - shift);
+        let b = self << (bit_size - shift);
         a | b
     }
     fn signed_shl(self, bits: u32) -> Self {
-        self.unsigned_shl(bits)
+        <Self as num_traits::PrimInt>::unsigned_shl(self, bits)
     }
     fn signed_shr(self, bits: u32) -> Self {
-        self.unsigned_shr(bits)
+        <Self as num_traits::PrimInt>::unsigned_shr(self, bits)
     }
     fn unsigned_shl(self, bits: u32) -> Self {
-        core::ops::Shl::<u32>::shl(self, bits)
+        self << bits
     }
     fn unsigned_shr(self, bits: u32) -> Self {
-        core::ops::Shr::<u32>::shr(self, bits)
+        self >> bits
     }
     fn swap_bytes(self) -> Self {
         let mut ret = Self::new();

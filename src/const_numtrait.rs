@@ -109,7 +109,16 @@ c0nst::c0nst! {
         fn to_be_bytes(&self) -> Self::Bytes;
     }
 
-    /// Base arithmetic traits for constant primitive integers
+    /// Base arithmetic traits for constant primitive integers.
+    ///
+    /// # Implementor requirements for default methods
+    ///
+    /// The default implementations of `leading_ones` and `trailing_ones` rely on
+    /// `!self` (bitwise NOT) producing a value with the same fixed bit-width, and
+    /// `leading_zeros`/`trailing_zeros` counting from the MSB/LSB of that full
+    /// representation. This is correct for all fixed-width unsigned integers
+    /// (primitives and `FixedUInt`), but implementors of custom types should
+    /// verify these assumptions hold or override the defaults.
     pub c0nst trait ConstPrimInt:
         [c0nst] core::ops::Add<Output = Self> +
         [c0nst] core::ops::Sub<Output = Self> +
@@ -144,6 +153,24 @@ c0nst::c0nst! {
             fn trailing_zeros(self) -> u32;
             fn count_zeros(self) -> u32;
             fn count_ones(self) -> u32;
+
+            // PR 1: Shifts, rotations, and trivial derivations
+            fn leading_ones(self) -> u32 {
+                (!self).leading_zeros()
+            }
+            fn trailing_ones(self) -> u32 {
+                (!self).trailing_zeros()
+            }
+            fn rotate_left(self, n: u32) -> Self;
+            fn rotate_right(self, n: u32) -> Self;
+            fn unsigned_shl(self, n: u32) -> Self;
+            fn unsigned_shr(self, n: u32) -> Self;
+            fn signed_shl(self, n: u32) -> Self {
+                self.unsigned_shl(n)
+            }
+            fn signed_shr(self, n: u32) -> Self {
+                self.unsigned_shr(n)
+            }
     }
 }
 
@@ -191,6 +218,10 @@ macro_rules! const_prim_int_impl {
                 fn count_zeros(self) -> u32 { self.count_zeros() }
                 fn count_ones(self) -> u32 { self.count_ones() }
                 fn swap_bytes(self) -> Self { self.swap_bytes() }
+                fn rotate_left(self, n: u32) -> Self { self.rotate_left(n) }
+                fn rotate_right(self, n: u32) -> Self { self.rotate_right(n) }
+                fn unsigned_shl(self, n: u32) -> Self { self << n }
+                fn unsigned_shr(self, n: u32) -> Self { self >> n }
             }
         }
     };
