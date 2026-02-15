@@ -86,16 +86,16 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
         a | b
     }
     fn signed_shl(self, bits: u32) -> Self {
-        core::ops::Shl::<u32>::shl(self, bits)
+        <Self as num_traits::PrimInt>::unsigned_shl(self, bits)
     }
     fn signed_shr(self, bits: u32) -> Self {
-        core::ops::Shr::<u32>::shr(self, bits)
+        <Self as num_traits::PrimInt>::unsigned_shr(self, bits)
     }
     fn unsigned_shl(self, bits: u32) -> Self {
-        core::ops::Shl::<u32>::shl(self, bits)
+        self << bits
     }
     fn unsigned_shr(self, bits: u32) -> Self {
-        core::ops::Shr::<u32>::shr(self, bits)
+        self >> bits
     }
     fn swap_bytes(self) -> Self {
         let mut ret = Self::new();

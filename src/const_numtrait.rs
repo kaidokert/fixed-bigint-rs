@@ -109,7 +109,16 @@ c0nst::c0nst! {
         fn to_be_bytes(&self) -> Self::Bytes;
     }
 
-    /// Base arithmetic traits for constant primitive integers
+    /// Base arithmetic traits for constant primitive integers.
+    ///
+    /// # Implementor requirements for default methods
+    ///
+    /// The default implementations of `leading_ones` and `trailing_ones` rely on
+    /// `!self` (bitwise NOT) producing a value with the same fixed bit-width, and
+    /// `leading_zeros`/`trailing_zeros` counting from the MSB/LSB of that full
+    /// representation. This is correct for all fixed-width unsigned integers
+    /// (primitives and `FixedUInt`), but implementors of custom types should
+    /// verify these assumptions hold or override the defaults.
     pub c0nst trait ConstPrimInt:
         [c0nst] core::ops::Add<Output = Self> +
         [c0nst] core::ops::Sub<Output = Self> +
