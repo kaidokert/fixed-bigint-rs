@@ -65,6 +65,51 @@ c0nst::c0nst! {
         fn unsigned_shr(self, n: u32) -> Self {
             core::ops::Shr::<u32>::shr(self, n)
         }
+        fn reverse_bits(self) -> Self {
+            let mut ret = <Self as crate::const_numtrait::ConstZero>::zero();
+            let mut i = 0;
+            while i < N {
+                ret.array[N - 1 - i] = self.array[i].reverse_bits();
+                i += 1;
+            }
+            ret
+        }
+        fn from_be(x: Self) -> Self {
+            let mut ret = <Self as crate::const_numtrait::ConstZero>::zero();
+            let mut i = 0;
+            while i < N {
+                ret.array[i] = x.array[N - 1 - i].swap_bytes();
+                i += 1;
+            }
+            ret
+        }
+        fn from_le(x: Self) -> Self {
+            x
+        }
+        fn to_be(self) -> Self {
+            let mut ret = <Self as crate::const_numtrait::ConstZero>::zero();
+            let mut i = 0;
+            while i < N {
+                ret.array[i] = self.array[N - 1 - i].swap_bytes();
+                i += 1;
+            }
+            ret
+        }
+        fn to_le(self) -> Self {
+            self
+        }
+        fn pow(self, exp: u32) -> Self {
+            if exp == 0 {
+                return <Self as crate::const_numtrait::ConstOne>::one();
+            }
+            let mut ret = self;
+            let mut i = 1u32;
+            while i < exp {
+                ret = core::ops::Mul::mul(ret, self);
+                i += 1;
+            }
+            ret
+        }
     }
 }
 
