@@ -171,6 +171,14 @@ c0nst::c0nst! {
             fn signed_shr(self, n: u32) -> Self {
                 self.unsigned_shr(n)
             }
+
+            // PR 2: Endianness conversions, reverse_bits, pow
+            fn reverse_bits(self) -> Self;
+            fn from_be(x: Self) -> Self;
+            fn from_le(x: Self) -> Self;
+            fn to_be(self) -> Self;
+            fn to_le(self) -> Self;
+            fn pow(self, exp: u32) -> Self;
     }
 }
 
@@ -222,6 +230,12 @@ macro_rules! const_prim_int_impl {
                 fn rotate_right(self, n: u32) -> Self { self.rotate_right(n) }
                 fn unsigned_shl(self, n: u32) -> Self { self << n }
                 fn unsigned_shr(self, n: u32) -> Self { self >> n }
+                fn reverse_bits(self) -> Self { self.reverse_bits() }
+                fn from_be(x: Self) -> Self { <$t>::from_be(x) }
+                fn from_le(x: Self) -> Self { <$t>::from_le(x) }
+                fn to_be(self) -> Self { self.to_be() }
+                fn to_le(self) -> Self { self.to_le() }
+                fn pow(self, exp: u32) -> Self { self.pow(exp) }
             }
         }
     };

@@ -65,6 +65,47 @@ c0nst::c0nst! {
         fn unsigned_shr(self, n: u32) -> Self {
             core::ops::Shr::<u32>::shr(self, n)
         }
+        fn reverse_bits(self) -> Self {
+            let mut ret = <Self as crate::const_numtrait::ConstZero>::zero();
+            let mut i = 0;
+            while i < N {
+                ret.array[N - 1 - i] = self.array[i].reverse_bits();
+                i += 1;
+            }
+            ret
+        }
+        // TODO: Add big-endian support via #[cfg(target_endian = "big")]
+        fn from_be(x: Self) -> Self {
+            x.swap_bytes()
+        }
+        fn from_le(x: Self) -> Self {
+            x
+        }
+        fn to_be(self) -> Self {
+            self.swap_bytes()
+        }
+        fn to_le(self) -> Self {
+            self
+        }
+        fn pow(self, exp: u32) -> Self {
+            if exp == 0 {
+                return <Self as crate::const_numtrait::ConstOne>::one();
+            }
+            // Exponentiation by squaring: O(log exp) instead of O(exp)
+            let mut result = <Self as crate::const_numtrait::ConstOne>::one();
+            let mut base = self;
+            let mut e = exp;
+            while e > 0 {
+                if (e & 1) == 1 {
+                    result = core::ops::Mul::mul(result, base);
+                }
+                e >>= 1;
+                if e > 0 {
+                    base = core::ops::Mul::mul(base, base);
+                }
+            }
+            result
+        }
     }
 }
 
@@ -121,47 +162,36 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
 
         ret
     }
+    // TODO: Add big-endian support via #[cfg(target_endian = "big")]
     fn from_be(source: Self) -> Self {
-        let mut ret = Self::new();
-        for index in 0..N {
-            ret.array[index] = source.array[N - 1 - index].swap_bytes();
-        }
-
-        ret
+        <Self as num_traits::PrimInt>::swap_bytes(source)
     }
     fn from_le(source: Self) -> Self {
-        let mut ret = Self::new();
-        for index in 0..N {
-            ret.array[index] = source.array[index];
-        }
-
-        ret
+        source
     }
     fn to_be(self) -> Self {
-        let mut ret = Self::new();
-        for index in 0..N {
-            ret.array[index] = self.array[N - 1 - index].swap_bytes();
-        }
-
-        ret
+        <Self as num_traits::PrimInt>::swap_bytes(self)
     }
     fn to_le(self) -> Self {
-        let mut ret = Self::new();
-        for index in 0..N {
-            ret.array[index] = self.array[index];
-        }
-
-        ret
+        self
     }
-    fn pow(self, n: u32) -> Self {
-        if n == 0 {
-            Self::one()
-        } else {
-            let mut ret = self;
-            for _ in 1..n {
-                ret *= self;
-            }
-            ret
+    fn pow(self, exp: u32) -> Self {
+        if exp == 0 {
+            return Self::one();
         }
+        // Exponentiation by squaring: O(log exp) instead of O(exp)
+        let mut result = Self::one();
+        let mut base = self;
+        let mut e = exp;
+        while e > 0 {
+            if (e & 1) == 1 {
+                result *= base;
+            }
+            e >>= 1;
+            if e > 0 {
+                base *= base;
+            }
+        }
+        result
     }
 }
