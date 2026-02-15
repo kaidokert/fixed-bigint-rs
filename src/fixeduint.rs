@@ -1672,7 +1672,7 @@ mod tests {
         #[cfg(feature = "nightly")]
         {
             const D: FixedUInt<u8, 2> = <FixedUInt<u8, 2> as Default>::default();
-            assert_eq!(D.array, [0, 0]);
+            assert!(Zero::is_zero(&D));
         }
     }
 
