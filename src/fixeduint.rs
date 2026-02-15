@@ -827,9 +827,11 @@ c0nst::c0nst! {
     }
 }
 
-impl<T: MachineWord, const N: usize> Default for FixedUInt<T, N> {
-    fn default() -> Self {
-        Self::new()
+c0nst::c0nst! {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Default for FixedUInt<T, N> {
+        fn default() -> Self {
+            <Self as ConstZero>::zero()
+        }
     }
 }
 
@@ -1659,6 +1661,18 @@ mod tests {
             assert_eq!(CMP_EQ, Ordering::Equal);
             assert!(EQ_TRUE);
             assert!(!EQ_FALSE);
+        }
+    }
+
+    #[test]
+    fn test_default() {
+        let d: Bn8 = Default::default();
+        assert!(Zero::is_zero(&d));
+
+        #[cfg(feature = "nightly")]
+        {
+            const D: FixedUInt<u8, 2> = <FixedUInt<u8, 2> as Default>::default();
+            assert_eq!(D.array, [0, 0]);
         }
     }
 
