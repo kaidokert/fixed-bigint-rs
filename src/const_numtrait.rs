@@ -93,6 +93,16 @@ c0nst::c0nst! {
         fn saturating_mul(&self, v: &Self) -> Self;
     }
 
+    pub c0nst trait ConstCheckedDiv: Sized + [c0nst] core::ops::Div<Output = Self> + [c0nst] ConstZero {
+        /// Checked division. Returns `None` if the divisor is zero.
+        fn checked_div(&self, v: &Self) -> Option<Self>;
+    }
+
+    pub c0nst trait ConstCheckedRem: Sized + [c0nst] core::ops::Rem<Output = Self> + [c0nst] ConstZero {
+        /// Checked remainder. Returns `None` if the divisor is zero.
+        fn checked_rem(&self, v: &Self) -> Option<Self>;
+    }
+
     pub c0nst trait ConstToBytes {
         type Bytes: Copy + AsRef<[u8]> + AsMut<[u8]>;
         fn to_le_bytes(&self) -> Self::Bytes;
@@ -425,6 +435,42 @@ const_saturating_mul_impl!(u16);
 const_saturating_mul_impl!(u32);
 const_saturating_mul_impl!(u64);
 const_saturating_mul_impl!(u128);
+
+macro_rules! const_checked_div_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCheckedDiv for $t {
+                fn checked_div(&self, v: &Self) -> Option<Self> {
+                    if v.is_zero() { None } else { Some(*self / *v) }
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_checked_rem_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCheckedRem for $t {
+                fn checked_rem(&self, v: &Self) -> Option<Self> {
+                    if v.is_zero() { None } else { Some(*self % *v) }
+                }
+            }
+        }
+    };
+}
+
+const_checked_div_impl!(u8);
+const_checked_div_impl!(u16);
+const_checked_div_impl!(u32);
+const_checked_div_impl!(u64);
+const_checked_div_impl!(u128);
+
+const_checked_rem_impl!(u8);
+const_checked_rem_impl!(u16);
+const_checked_rem_impl!(u32);
+const_checked_rem_impl!(u64);
+const_checked_rem_impl!(u128);
 
 macro_rules! const_to_bytes_impl {
     ($t:ty, $n:expr) => {
