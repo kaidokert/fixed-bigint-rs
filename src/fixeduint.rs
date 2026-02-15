@@ -765,28 +765,30 @@ c0nst::c0nst! {
     ) -> [T; N] {
         use core::cmp::Ordering;
 
-        // dividend < divisor: quotient = 0, remainder = dividend
-        if matches!(const_cmp::<T, N>(dividend, divisor), Ordering::Less) {
-            let remainder = *dividend;
-            let mut i = 0;
-            while i < N {
-                dividend[i] = <T as ConstZero>::zero();
-                i += 1;
+        match const_cmp::<T, N>(dividend, divisor) {
+            // dividend < divisor: quotient = 0, remainder = dividend
+            Ordering::Less => {
+                let remainder = *dividend;
+                let mut i = 0;
+                while i < N {
+                    dividend[i] = <T as ConstZero>::zero();
+                    i += 1;
+                }
+                return remainder;
             }
-            return remainder;
-        }
-
-        // dividend == divisor: quotient = 1, remainder = 0
-        if matches!(const_cmp::<T, N>(dividend, divisor), Ordering::Equal) {
-            let mut i = 0;
-            while i < N {
-                dividend[i] = <T as ConstZero>::zero();
-                i += 1;
+            // dividend == divisor: quotient = 1, remainder = 0
+            Ordering::Equal => {
+                let mut i = 0;
+                while i < N {
+                    dividend[i] = <T as ConstZero>::zero();
+                    i += 1;
+                }
+                if N > 0 {
+                    dividend[0] = <T as ConstOne>::one();
+                }
+                return [<T as ConstZero>::zero(); N];
             }
-            if N > 0 {
-                dividend[0] = <T as ConstOne>::one();
-            }
-            return [<T as ConstZero>::zero(); N];
+            Ordering::Greater => {}
         }
 
         let mut quotient = [<T as ConstZero>::zero(); N];
