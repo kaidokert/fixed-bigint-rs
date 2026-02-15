@@ -362,7 +362,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
     /// Compare self vs other << shift_bits without allocating
     fn cmp_shifted(&self, other: &Self, shift_bits: usize) -> core::cmp::Ordering {
-        const_array_cmp_shifted(&self.array, &other.array, shift_bits)
+        const_cmp_shifted(&self.array, &other.array, shift_bits)
     }
 
     /// Get the value of other's word at position `word_idx` when other is logically shifted left
@@ -373,7 +373,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         word_shift: usize,
         bit_shift: usize,
     ) -> T {
-        const_array_get_shifted_word(&other.array, word_idx, word_shift, bit_shift)
+        const_get_shifted_word(&other.array, word_idx, word_shift, bit_shift)
     }
 
     /// Subtract other << shift_bits from self in-place
@@ -579,7 +579,7 @@ c0nst::c0nst! {
 
     /// Standalone const-compatible array multiplication (no FixedUInt dependency)
     /// Returns (result_array, overflowed)
-    pub(crate) c0nst fn const_array_mul<T: [c0nst] ConstMachineWord, const N: usize, const CHECK_OVERFLOW: bool>(
+    pub(crate) c0nst fn const_mul<T: [c0nst] ConstMachineWord, const N: usize, const CHECK_OVERFLOW: bool>(
         op1: &[T; N],
         op2: &[T; N],
         word_bits: usize,
@@ -644,7 +644,7 @@ c0nst::c0nst! {
     }
 
     /// Count leading zeros in a const-compatible way
-    pub(crate) c0nst fn const_array_leading_zeros<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn const_leading_zeros<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
     ) -> u32 {
         let mut ret = 0u32;
@@ -661,7 +661,7 @@ c0nst::c0nst! {
     }
 
     /// Count trailing zeros in a const-compatible way
-    pub(crate) c0nst fn const_array_trailing_zeros<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn const_trailing_zeros<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
     ) -> u32 {
         let mut ret = 0u32;
@@ -678,16 +678,16 @@ c0nst::c0nst! {
     }
 
     /// Get bit length of array (total bits - leading zeros)
-    pub(crate) c0nst fn const_array_bit_length<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn const_bit_length<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
     ) -> usize {
         let word_bits = const_word_bits::<T>();
         let bit_size = N * word_bits;
-        bit_size - const_array_leading_zeros::<T, N>(array) as usize
+        bit_size - const_leading_zeros::<T, N>(array) as usize
     }
 
     /// Check if array is zero
-    pub(crate) c0nst fn const_array_is_zero<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn const_is_zero<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
     ) -> bool {
         let mut index = 0;
@@ -705,7 +705,7 @@ c0nst::c0nst! {
     /// The array uses little-endian representation where index 0 contains
     /// the least significant word, and bit 0 is the least significant bit
     /// of the entire integer.
-    pub(crate) c0nst fn const_array_set_bit<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn const_set_bit<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &mut [T; N],
         pos: usize,
     ) {
@@ -722,7 +722,7 @@ c0nst::c0nst! {
     ///
     /// Arrays use little-endian representation where index 0 contains
     /// the least significant word.
-    pub(crate) c0nst fn const_array_cmp<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn const_cmp<T: [c0nst] ConstMachineWord, const N: usize>(
         a: &[T; N],
         b: &[T; N],
     ) -> core::cmp::Ordering {
@@ -740,7 +740,7 @@ c0nst::c0nst! {
     ///
     /// This helper computes what value would be at `word_idx` if the array
     /// were shifted left by `word_shift` words plus `bit_shift` bits.
-    pub(crate) c0nst fn const_array_get_shifted_word<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn const_get_shifted_word<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
         word_idx: usize,
         word_shift: usize,
@@ -787,7 +787,7 @@ c0nst::c0nst! {
     ///
     /// This is useful for division algorithms where we need to compare
     /// the dividend against a shifted divisor without allocating.
-    pub(crate) c0nst fn const_array_cmp_shifted<T: [c0nst] ConstMachineWord, const N: usize>(
+    pub(crate) c0nst fn const_cmp_shifted<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
         other: &[T; N],
         shift_bits: usize,
@@ -795,13 +795,13 @@ c0nst::c0nst! {
         let word_bits = const_word_bits::<T>();
 
         if shift_bits == 0 {
-            return const_array_cmp::<T, N>(array, other);
+            return const_cmp::<T, N>(array, other);
         }
 
         let word_shift = shift_bits / word_bits;
         if word_shift >= N {
             // other << shift_bits would overflow to 0
-            if const_array_is_zero::<T, N>(array) {
+            if const_is_zero::<T, N>(array) {
                 return core::cmp::Ordering::Equal;
             } else {
                 return core::cmp::Ordering::Greater;
@@ -815,7 +815,7 @@ c0nst::c0nst! {
         while index > 0 {
             index -= 1;
             let self_word = array[index];
-            let other_shifted_word = const_array_get_shifted_word::<T, N>(
+            let other_shifted_word = const_get_shifted_word::<T, N>(
                 other, index, word_shift, bit_shift
             );
 
@@ -840,7 +840,7 @@ impl<T: MachineWord, const N: usize> num_traits::Unsigned for FixedUInt<T, N> {}
 
 impl<T: MachineWord, const N: usize> core::cmp::Ord for FixedUInt<T, N> {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        const_array_cmp(&self.array, &other.array)
+        const_cmp(&self.array, &other.array)
     }
 }
 
@@ -969,45 +969,45 @@ mod tests {
             b: &[T; N],
             word_bits: usize,
         ) -> ([T; N], bool) {
-            const_array_mul::<T, N, true>(a, b, word_bits)
+            const_mul::<T, N, true>(a, b, word_bits)
         }
 
         pub c0nst fn arr_leading_zeros<T: [c0nst] ConstMachineWord, const N: usize>(
             a: &[T; N],
         ) -> u32 {
-            const_array_leading_zeros::<T, N>(a)
+            const_leading_zeros::<T, N>(a)
         }
 
         pub c0nst fn arr_trailing_zeros<T: [c0nst] ConstMachineWord, const N: usize>(
             a: &[T; N],
         ) -> u32 {
-            const_array_trailing_zeros::<T, N>(a)
+            const_trailing_zeros::<T, N>(a)
         }
 
         pub c0nst fn arr_bit_length<T: [c0nst] ConstMachineWord, const N: usize>(
             a: &[T; N],
         ) -> usize {
-            const_array_bit_length::<T, N>(a)
+            const_bit_length::<T, N>(a)
         }
 
         pub c0nst fn arr_is_zero<T: [c0nst] ConstMachineWord, const N: usize>(
             a: &[T; N],
         ) -> bool {
-            const_array_is_zero::<T, N>(a)
+            const_is_zero::<T, N>(a)
         }
 
         pub c0nst fn arr_set_bit<T: [c0nst] ConstMachineWord, const N: usize>(
             a: &mut [T; N],
             pos: usize,
         ) {
-            const_array_set_bit::<T, N>(a, pos)
+            const_set_bit::<T, N>(a, pos)
         }
 
         pub c0nst fn arr_cmp<T: [c0nst] ConstMachineWord, const N: usize>(
             a: &[T; N],
             b: &[T; N],
         ) -> core::cmp::Ordering {
-            const_array_cmp::<T, N>(a, b)
+            const_cmp::<T, N>(a, b)
         }
 
         pub c0nst fn arr_cmp_shifted<T: [c0nst] ConstMachineWord, const N: usize>(
@@ -1015,7 +1015,7 @@ mod tests {
             b: &[T; N],
             shift_bits: usize,
         ) -> core::cmp::Ordering {
-            const_array_cmp_shifted::<T, N>(a, b, shift_bits)
+            const_cmp_shifted::<T, N>(a, b, shift_bits)
         }
 
         pub c0nst fn arr_get_shifted_word<T: [c0nst] ConstMachineWord, const N: usize>(
@@ -1024,7 +1024,7 @@ mod tests {
             word_shift: usize,
             bit_shift: usize,
         ) -> T {
-            const_array_get_shifted_word::<T, N>(a, word_idx, word_shift, bit_shift)
+            const_get_shifted_word::<T, N>(a, word_idx, word_shift, bit_shift)
         }
     }
 
@@ -1182,7 +1182,7 @@ mod tests {
     }
 
     #[test]
-    fn test_const_array_helpers() {
+    fn test_const_helpers() {
         // Test leading_zeros
         assert_eq!(arr_leading_zeros(&[0u8, 0, 0, 0]), 32); // all zeros
         assert_eq!(arr_leading_zeros(&[1u8, 0, 0, 0]), 31); // single bit
@@ -1274,7 +1274,7 @@ mod tests {
     }
 
     #[test]
-    fn test_const_array_cmp() {
+    fn test_const_cmp() {
         use core::cmp::Ordering;
 
         // Equal arrays
@@ -1310,7 +1310,7 @@ mod tests {
     }
 
     #[test]
-    fn test_const_array_cmp_shifted() {
+    fn test_const_cmp_shifted() {
         use core::cmp::Ordering;
 
         // No shift - same as regular cmp
