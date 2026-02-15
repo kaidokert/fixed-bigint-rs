@@ -106,33 +106,33 @@ c0nst::c0nst! {
     pub c0nst trait ConstOverflowingShl: Sized + [c0nst] core::ops::Shl<u32, Output = Self> {
         /// Shift left with overflow detection.
         /// Returns the shifted value and whether the shift amount exceeded the bit width.
-        fn overflowing_shl(self, rhs: u32) -> (Self, bool);
+        fn overflowing_shl(&self, rhs: u32) -> (Self, bool);
     }
 
     pub c0nst trait ConstOverflowingShr: Sized + [c0nst] core::ops::Shr<u32, Output = Self> {
         /// Shift right with overflow detection.
         /// Returns the shifted value and whether the shift amount exceeded the bit width.
-        fn overflowing_shr(self, rhs: u32) -> (Self, bool);
+        fn overflowing_shr(&self, rhs: u32) -> (Self, bool);
     }
 
     pub c0nst trait ConstWrappingShl: Sized + [c0nst] ConstOverflowingShl {
         /// Wrapping shift left. Shifts, masking the shift amount to the bit width.
-        fn wrapping_shl(self, rhs: u32) -> Self;
+        fn wrapping_shl(&self, rhs: u32) -> Self;
     }
 
     pub c0nst trait ConstWrappingShr: Sized + [c0nst] ConstOverflowingShr {
         /// Wrapping shift right. Shifts, masking the shift amount to the bit width.
-        fn wrapping_shr(self, rhs: u32) -> Self;
+        fn wrapping_shr(&self, rhs: u32) -> Self;
     }
 
     pub c0nst trait ConstCheckedShl: Sized + [c0nst] ConstOverflowingShl {
         /// Checked shift left. Returns `None` if the shift amount exceeds bit width.
-        fn checked_shl(self, rhs: u32) -> Option<Self>;
+        fn checked_shl(&self, rhs: u32) -> Option<Self>;
     }
 
     pub c0nst trait ConstCheckedShr: Sized + [c0nst] ConstOverflowingShr {
         /// Checked shift right. Returns `None` if the shift amount exceeds bit width.
-        fn checked_shr(self, rhs: u32) -> Option<Self>;
+        fn checked_shr(&self, rhs: u32) -> Option<Self>;
     }
 
     pub c0nst trait ConstToBytes {
@@ -553,8 +553,8 @@ macro_rules! const_overflowing_shl_impl {
     ($t:ty) => {
         c0nst::c0nst! {
             impl c0nst ConstOverflowingShl for $t {
-                fn overflowing_shl(self, rhs: u32) -> (Self, bool) {
-                    self.overflowing_shl(rhs)
+                fn overflowing_shl(&self, rhs: u32) -> (Self, bool) {
+                    (*self).overflowing_shl(rhs)
                 }
             }
         }
@@ -565,8 +565,8 @@ macro_rules! const_overflowing_shr_impl {
     ($t:ty) => {
         c0nst::c0nst! {
             impl c0nst ConstOverflowingShr for $t {
-                fn overflowing_shr(self, rhs: u32) -> (Self, bool) {
-                    self.overflowing_shr(rhs)
+                fn overflowing_shr(&self, rhs: u32) -> (Self, bool) {
+                    (*self).overflowing_shr(rhs)
                 }
             }
         }
@@ -577,9 +577,8 @@ macro_rules! const_wrapping_shl_impl {
     ($t:ty) => {
         c0nst::c0nst! {
             impl c0nst ConstWrappingShl for $t {
-                fn wrapping_shl(self, rhs: u32) -> Self {
-                    // Use inherent method which masks shift amount correctly
-                    self.wrapping_shl(rhs)
+                fn wrapping_shl(&self, rhs: u32) -> Self {
+                    (*self).wrapping_shl(rhs)
                 }
             }
         }
@@ -590,9 +589,8 @@ macro_rules! const_wrapping_shr_impl {
     ($t:ty) => {
         c0nst::c0nst! {
             impl c0nst ConstWrappingShr for $t {
-                fn wrapping_shr(self, rhs: u32) -> Self {
-                    // Use inherent method which masks shift amount correctly
-                    self.wrapping_shr(rhs)
+                fn wrapping_shr(&self, rhs: u32) -> Self {
+                    (*self).wrapping_shr(rhs)
                 }
             }
         }
@@ -603,9 +601,8 @@ macro_rules! const_checked_shl_impl {
     ($t:ty) => {
         c0nst::c0nst! {
             impl c0nst ConstCheckedShl for $t {
-                fn checked_shl(self, rhs: u32) -> Option<Self> {
-                    // Use inherent method for correct semantics
-                    self.checked_shl(rhs)
+                fn checked_shl(&self, rhs: u32) -> Option<Self> {
+                    (*self).checked_shl(rhs)
                 }
             }
         }
@@ -616,9 +613,8 @@ macro_rules! const_checked_shr_impl {
     ($t:ty) => {
         c0nst::c0nst! {
             impl c0nst ConstCheckedShr for $t {
-                fn checked_shr(self, rhs: u32) -> Option<Self> {
-                    // Use inherent method for correct semantics
-                    self.checked_shr(rhs)
+                fn checked_shr(&self, rhs: u32) -> Option<Self> {
+                    (*self).checked_shr(rhs)
                 }
             }
         }
