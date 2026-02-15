@@ -296,16 +296,23 @@ c0nst::c0nst! {
         }
     }
 
+    // Helper to normalize shift amount and detect overflow.
+    // Compares in u32 space to avoid truncation on 16-bit platforms.
+    c0nst fn normalize_shift_amount(bits: u32, bit_size: usize) -> (usize, bool) {
+        // Compare in u32 to handle 16-bit targets where usize < u32
+        let bit_size_u32 = bit_size as u32;
+        if bit_size_u32 == 0 {
+            (0, true)
+        } else if bits >= bit_size_u32 {
+            ((bits % bit_size_u32) as usize, true)
+        } else {
+            (bits as usize, false)
+        }
+    }
+
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstOverflowingShl for FixedUInt<T, N> {
         fn overflowing_shl(self, bits: u32) -> (Self, bool) {
-            let bitsu = bits as usize;
-            let bit_size = Self::BIT_SIZE;
-            let (shift, overflow) = if bitsu >= bit_size {
-                let shift = if bit_size == 0 { 0 } else { bitsu % bit_size };
-                (shift, true)
-            } else {
-                (bitsu, false)
-            };
+            let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
             let res = core::ops::Shl::<usize>::shl(self, shift);
             (res, overflow)
         }
@@ -313,14 +320,7 @@ c0nst::c0nst! {
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstOverflowingShr for FixedUInt<T, N> {
         fn overflowing_shr(self, bits: u32) -> (Self, bool) {
-            let bitsu = bits as usize;
-            let bit_size = Self::BIT_SIZE;
-            let (shift, overflow) = if bitsu >= bit_size {
-                let shift = if bit_size == 0 { 0 } else { bitsu % bit_size };
-                (shift, true)
-            } else {
-                (bitsu, false)
-            };
+            let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
             let res = core::ops::Shr::<usize>::shr(self, shift);
             (res, overflow)
         }
@@ -353,42 +353,16 @@ c0nst::c0nst! {
     }
 }
 
-// OverflowingShl/Shr from patch_num_traits (not core::ops)
+// OverflowingShl/Shr from patch_num_traits - delegate to const impls
 impl<T: MachineWord, const N: usize> OverflowingShl for FixedUInt<T, N> {
     fn overflowing_shl(self, bits: u32) -> (Self, bool) {
-        let bitsu = bits as usize;
-        let (shift, overflow) = if bitsu >= Self::BIT_SIZE {
-            // Use modulo for correct wrapping with non-power-of-2 bit sizes
-            let shift = if Self::BIT_SIZE == 0 {
-                0
-            } else {
-                bitsu % Self::BIT_SIZE
-            };
-            (shift, true)
-        } else {
-            (bitsu, false)
-        };
-        let res = core::ops::Shl::<usize>::shl(self, shift);
-        (res, overflow)
+        ConstOverflowingShl::overflowing_shl(self, bits)
     }
 }
 
 impl<T: MachineWord, const N: usize> OverflowingShr for FixedUInt<T, N> {
     fn overflowing_shr(self, bits: u32) -> (Self, bool) {
-        let bitsu = bits as usize;
-        let (shift, overflow) = if bitsu >= Self::BIT_SIZE {
-            // Use modulo for correct wrapping with non-power-of-2 bit sizes
-            let shift = if Self::BIT_SIZE == 0 {
-                0
-            } else {
-                bitsu % Self::BIT_SIZE
-            };
-            (shift, true)
-        } else {
-            (bitsu, false)
-        };
-        let res = core::ops::Shr::<usize>::shr(self, shift);
-        (res, overflow)
+        ConstOverflowingShr::overflowing_shr(self, bits)
     }
 }
 
