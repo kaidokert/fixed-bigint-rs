@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use num_traits::{One, PrimInt, ToPrimitive, Zero};
+use num_traits::{PrimInt, ToPrimitive, Zero};
 
 use core::convert::TryFrom;
 use core::fmt::Write;
@@ -350,117 +350,12 @@ c0nst::c0nst! {
 }
 
 impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
-    /// Set a specific bit in the array without full array operations
-    fn set_bit(&mut self, pos: usize) {
-        if pos >= Self::BIT_SIZE {
-            return; // No-op for out-of-bounds
-        }
-        let word_idx = pos / Self::WORD_BITS;
-        let bit_idx = pos % Self::WORD_BITS;
-        self.array[word_idx] |= T::one().shl(bit_idx);
-    }
-
-    /// Compare self vs other << shift_bits without allocating
-    fn cmp_shifted(&self, other: &Self, shift_bits: usize) -> core::cmp::Ordering {
-        const_cmp_shifted(&self.array, &other.array, shift_bits)
-    }
-
-    /// Get the value of other's word at position `word_idx` when other is logically shifted left
-    fn get_shifted_word(
-        &self,
-        other: &Self,
-        word_idx: usize,
-        word_shift: usize,
-        bit_shift: usize,
-    ) -> T {
-        const_get_shifted_word(&other.array, word_idx, word_shift, bit_shift)
-    }
-
-    /// Subtract other << shift_bits from self in-place
-    fn sub_shifted(&mut self, other: &Self, shift_bits: usize) {
-        if shift_bits == 0 {
-            *self -= *other;
-            return;
-        }
-
-        if shift_bits >= Self::BIT_SIZE {
-            // other << shift_bits would be 0, so no-op
-            return;
-        }
-
-        // Calculate word and bit offsets
-        let word_shift = shift_bits / Self::WORD_BITS;
-        let bit_shift = shift_bits % Self::WORD_BITS;
-
-        let mut borrow = false;
-
-        // Process each word from least significant to most significant
-        for i in 0..N {
-            let other_shifted_word = self.get_shifted_word(other, i, word_shift, bit_shift);
-
-            // Perform subtraction with borrow
-            let (result, new_borrow) =
-                Self::sub_with_borrow(self.array[i], other_shifted_word, borrow);
-            self.array[i] = result;
-            borrow = new_borrow;
-        }
-    }
-
-    /// Subtract with borrow: a - b - borrow, returns (result, did_borrow)
-    fn sub_with_borrow(a: T, b: T, borrow: bool) -> (T, bool) {
-        // First subtract the borrow
-        let (temp, borrow1) = if borrow {
-            a.overflowing_sub(&T::one())
-        } else {
-            (a, false)
-        };
-
-        // Then subtract b
-        let (result, borrow2) = temp.overflowing_sub(&b);
-        (result, borrow1 || borrow2)
-    }
-
     /// In-place division: dividend becomes quotient, returns remainder
     fn div_assign_impl(dividend: &mut Self, divisor: &Self) -> Self {
-        if *dividend < *divisor {
-            let remainder = *dividend;
-            *dividend = <Self as Zero>::zero();
-            return remainder;
+        let remainder_array = const_div(&mut dividend.array, &divisor.array);
+        Self {
+            array: remainder_array,
         }
-        if *dividend == *divisor {
-            *dividend = <Self as One>::one();
-            return <Self as Zero>::zero();
-        }
-
-        let mut quotient = <Self as Zero>::zero();
-
-        // Calculate initial bit position
-        let dividend_bits = dividend.bit_length() as usize;
-        let divisor_bits = divisor.bit_length() as usize;
-
-        let mut bit_pos = dividend_bits.saturating_sub(divisor_bits);
-
-        // Adjust bit position to find the first position where divisor can be subtracted
-        while bit_pos > 0 && dividend.cmp_shifted(divisor, bit_pos) == core::cmp::Ordering::Less {
-            bit_pos -= 1;
-        }
-
-        // Main division loop - dividend is both remainder and gets modified in-place
-        loop {
-            if dividend.cmp_shifted(divisor, bit_pos) != core::cmp::Ordering::Less {
-                dividend.sub_shifted(divisor, bit_pos);
-                quotient.set_bit(bit_pos);
-            }
-
-            if bit_pos == 0 {
-                break;
-            }
-            bit_pos -= 1;
-        }
-
-        let remainder = *dividend;
-        *dividend = quotient;
-        remainder
     }
 
     // Divide dividend with divisor, return result
@@ -826,6 +721,113 @@ c0nst::c0nst! {
 
         core::cmp::Ordering::Equal
     }
+
+    /// Subtract (other << shift_bits) from array in-place.
+    ///
+    /// This is used in division algorithms to subtract shifted divisor
+    /// from the remainder without allocating.
+    pub(crate) c0nst fn const_sub_shifted<T: [c0nst] ConstMachineWord, const N: usize>(
+        array: &mut [T; N],
+        other: &[T; N],
+        shift_bits: usize,
+    ) {
+        let word_bits = const_word_bits::<T>();
+
+        if shift_bits == 0 {
+            sub_impl::<T, N>(array, other);
+            return;
+        }
+
+        let word_shift = shift_bits / word_bits;
+        if word_shift >= N {
+            return;
+        }
+
+        let bit_shift = shift_bits % word_bits;
+        let mut borrow = T::zero();
+        let mut index = 0;
+        while index < N {
+            let other_word = const_get_shifted_word::<T, N>(other, index, word_shift, bit_shift);
+            let (res, borrow1) = array[index].overflowing_sub(&other_word);
+            let (res, borrow2) = res.overflowing_sub(&borrow);
+            borrow = if borrow1 || borrow2 { T::one() } else { T::zero() };
+            array[index] = res;
+            index += 1;
+        }
+    }
+
+    /// In-place division: dividend becomes quotient, returns remainder.
+    ///
+    /// This is the const-compatible version of div_assign_impl.
+    pub(crate) c0nst fn const_div<T: [c0nst] ConstMachineWord, const N: usize>(
+        dividend: &mut [T; N],
+        divisor: &[T; N],
+    ) -> [T; N] {
+        use core::cmp::Ordering;
+
+        // dividend < divisor: quotient = 0, remainder = dividend
+        if matches!(const_cmp::<T, N>(dividend, divisor), Ordering::Less) {
+            let remainder = *dividend;
+            let mut i = 0;
+            while i < N {
+                dividend[i] = <T as ConstZero>::zero();
+                i += 1;
+            }
+            return remainder;
+        }
+
+        // dividend == divisor: quotient = 1, remainder = 0
+        if matches!(const_cmp::<T, N>(dividend, divisor), Ordering::Equal) {
+            let mut i = 0;
+            while i < N {
+                dividend[i] = <T as ConstZero>::zero();
+                i += 1;
+            }
+            if N > 0 {
+                dividend[0] = <T as ConstOne>::one();
+            }
+            return [<T as ConstZero>::zero(); N];
+        }
+
+        let mut quotient = [<T as ConstZero>::zero(); N];
+
+        // Calculate initial bit position
+        let dividend_bits = const_bit_length::<T, N>(dividend);
+        let divisor_bits = const_bit_length::<T, N>(divisor);
+
+        let mut bit_pos = if dividend_bits >= divisor_bits {
+            dividend_bits - divisor_bits
+        } else {
+            0
+        };
+
+        // Adjust bit position to find the first position where divisor can be subtracted
+        while bit_pos > 0 {
+            let cmp = const_cmp_shifted::<T, N>(dividend, divisor, bit_pos);
+            if !matches!(cmp, Ordering::Less) {
+                break;
+            }
+            bit_pos -= 1;
+        }
+
+        // Main division loop
+        loop {
+            let cmp = const_cmp_shifted::<T, N>(dividend, divisor, bit_pos);
+            if !matches!(cmp, Ordering::Less) {
+                const_sub_shifted::<T, N>(dividend, divisor, bit_pos);
+                const_set_bit::<T, N>(&mut quotient, bit_pos);
+            }
+
+            if bit_pos == 0 {
+                break;
+            }
+            bit_pos -= 1;
+        }
+
+        let remainder = *dividend;
+        *dividend = quotient;
+        remainder
+    }
 }
 
 impl<T: MachineWord, const N: usize> Default for FixedUInt<T, N> {
@@ -944,6 +946,7 @@ c0nst::c0nst! {
 mod tests {
     use super::FixedUInt as Bn;
     use super::*;
+    use num_traits::One;
 
     type Bn8 = Bn<u8, 8>;
     type Bn16 = Bn<u16, 4>;
@@ -1721,30 +1724,40 @@ mod tests {
     fn test_helper_methods() {
         type TestInt = FixedUInt<u8, 2>;
 
-        // Test set_bit
+        // Test const_set_bit
         let mut val = <TestInt as Zero>::zero();
-        val.set_bit(0);
+        const_set_bit(&mut val.array, 0);
         assert_eq!(val, TestInt::from(1u8));
 
-        val.set_bit(8);
+        const_set_bit(&mut val.array, 8);
         assert_eq!(val, TestInt::from(257u16)); // bit 0 + bit 8 = 1 + 256 = 257
 
-        // Test cmp_shifted
+        // Test const_cmp_shifted
         let a = TestInt::from(8u8); // 1000 in binary
         let b = TestInt::from(1u8); // 0001 in binary
 
         // b << 3 = 8, so a == (b << 3)
-        assert_eq!(a.cmp_shifted(&b, 3), core::cmp::Ordering::Equal);
+        assert_eq!(
+            const_cmp_shifted(&a.array, &b.array, 3),
+            core::cmp::Ordering::Equal
+        );
 
         // a > (b << 2) because b << 2 = 4
-        assert_eq!(a.cmp_shifted(&b, 2), core::cmp::Ordering::Greater);
+        assert_eq!(
+            const_cmp_shifted(&a.array, &b.array, 2),
+            core::cmp::Ordering::Greater
+        );
 
         // a < (b << 4) because b << 4 = 16
-        assert_eq!(a.cmp_shifted(&b, 4), core::cmp::Ordering::Less);
+        assert_eq!(
+            const_cmp_shifted(&a.array, &b.array, 4),
+            core::cmp::Ordering::Less
+        );
 
-        // Test sub_shifted
+        // Test const_sub_shifted
         let mut val = TestInt::from(10u8);
-        val.sub_shifted(&TestInt::from(1u8), 2); // subtract 1 << 2 = 4
+        let one = TestInt::from(1u8);
+        const_sub_shifted(&mut val.array, &one.array, 2); // subtract 1 << 2 = 4
         assert_eq!(val, TestInt::from(6u8)); // 10 - 4 = 6
     }
 
@@ -1757,35 +1770,43 @@ mod tests {
         let b = TestInt::from(0x12345678u32);
 
         // Equal comparison
-        assert_eq!(a.cmp_shifted(&b, 0), core::cmp::Ordering::Equal);
+        assert_eq!(
+            const_cmp_shifted(&a.array, &b.array, 0),
+            core::cmp::Ordering::Equal
+        );
 
         // Test shifts that cross word boundaries (assuming 32-bit words)
         let c = TestInt::from(0x123u32); // Small number
         let d = TestInt::from(0x48d159e2u32); // c << 16 + some bits
 
         // c << 16 should be less than d
-        assert_eq!(d.cmp_shifted(&c, 16), core::cmp::Ordering::Greater);
+        assert_eq!(
+            const_cmp_shifted(&d.array, &c.array, 16),
+            core::cmp::Ordering::Greater
+        );
 
         // Test large shifts (beyond bit size, so shifted value becomes 0)
         let e = TestInt::from(1u32);
+        let zero = TestInt::from(0u32);
         assert_eq!(
-            e.cmp_shifted(&TestInt::from(0u32), 100),
+            const_cmp_shifted(&e.array, &zero.array, 100),
             core::cmp::Ordering::Greater
         );
         // When shift is beyond bit size, 1 << 100 becomes 0, so 0 == 0
         assert_eq!(
-            TestInt::from(0u32).cmp_shifted(&e, 100),
+            const_cmp_shifted(&zero.array, &e.array, 100),
             core::cmp::Ordering::Equal
         );
 
         // Test sub_shifted with word boundary crossing
         let mut val = TestInt::from(0x10000u32); // 65536
-        val.sub_shifted(&TestInt::from(1u32), 15); // subtract 1 << 15 = 32768
+        let one = TestInt::from(1u32);
+        const_sub_shifted(&mut val.array, &one.array, 15); // subtract 1 << 15 = 32768
         assert_eq!(val, TestInt::from(0x8000u32)); // 65536 - 32768 = 32768
 
         // Test sub_shifted with multi-word operations
         let mut big_val = TestInt::from(0x100000000u64); // 2^32
-        big_val.sub_shifted(&TestInt::from(1u32), 31); // subtract 1 << 31 = 2^31
+        const_sub_shifted(&mut big_val.array, &one.array, 31); // subtract 1 << 31 = 2^31
         assert_eq!(big_val, TestInt::from(0x80000000u64)); // 2^32 - 2^31 = 2^31
     }
 
@@ -1795,31 +1816,38 @@ mod tests {
 
         // Test zero shifts
         let a = TestInt::from(42u32);
+        let a2 = TestInt::from(42u32);
         assert_eq!(
-            a.cmp_shifted(&TestInt::from(42u32), 0),
+            const_cmp_shifted(&a.array, &a2.array, 0),
             core::cmp::Ordering::Equal
         );
 
         let mut b = TestInt::from(42u32);
-        b.sub_shifted(&TestInt::from(10u32), 0);
+        let ten = TestInt::from(10u32);
+        const_sub_shifted(&mut b.array, &ten.array, 0);
         assert_eq!(b, TestInt::from(32u32));
 
         // Test massive shifts (beyond bit size)
         let c = TestInt::from(123u32);
+        let large = TestInt::from(456u32);
         assert_eq!(
-            c.cmp_shifted(&TestInt::from(456u32), 200),
+            const_cmp_shifted(&c.array, &large.array, 200),
             core::cmp::Ordering::Greater
         );
 
         let mut d = TestInt::from(123u32);
-        d.sub_shifted(&TestInt::from(456u32), 200); // Should be no-op
+        const_sub_shifted(&mut d.array, &large.array, 200); // Should be no-op
         assert_eq!(d, TestInt::from(123u32));
 
         // Test with zero values
         let zero = TestInt::from(0u32);
-        assert_eq!(zero.cmp_shifted(&zero, 10), core::cmp::Ordering::Equal);
+        let one = TestInt::from(1u32);
         assert_eq!(
-            TestInt::from(1u32).cmp_shifted(&zero, 10),
+            const_cmp_shifted(&zero.array, &zero.array, 10),
+            core::cmp::Ordering::Equal
+        );
+        assert_eq!(
+            const_cmp_shifted(&one.array, &zero.array, 10),
             core::cmp::Ordering::Greater
         );
     }
@@ -1841,7 +1869,7 @@ mod tests {
             let b = TestInt::from(b_val);
 
             // Test cmp_shifted equivalence
-            let optimized_cmp = a.cmp_shifted(&b, shift);
+            let optimized_cmp = const_cmp_shifted(&a.array, &b.array, shift);
             let naive_cmp = a.cmp(&(b << shift));
             assert_eq!(
                 optimized_cmp, naive_cmp,
@@ -1852,7 +1880,7 @@ mod tests {
             // Test sub_shifted equivalence (if subtraction won't underflow)
             if a >= (b << shift) {
                 let mut optimized_result = a;
-                optimized_result.sub_shifted(&b, shift);
+                const_sub_shifted(&mut optimized_result.array, &b.array, shift);
 
                 let naive_result = a - (b << shift);
                 assert_eq!(
