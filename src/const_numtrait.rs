@@ -144,6 +144,24 @@ c0nst::c0nst! {
             fn trailing_zeros(self) -> u32;
             fn count_zeros(self) -> u32;
             fn count_ones(self) -> u32;
+
+            // PR 1: Shifts, rotations, and trivial derivations
+            fn leading_ones(self) -> u32 {
+                (!self).leading_zeros()
+            }
+            fn trailing_ones(self) -> u32 {
+                (!self).trailing_zeros()
+            }
+            fn rotate_left(self, n: u32) -> Self;
+            fn rotate_right(self, n: u32) -> Self;
+            fn unsigned_shl(self, n: u32) -> Self;
+            fn unsigned_shr(self, n: u32) -> Self;
+            fn signed_shl(self, n: u32) -> Self {
+                self.unsigned_shl(n)
+            }
+            fn signed_shr(self, n: u32) -> Self {
+                self.unsigned_shr(n)
+            }
     }
 }
 
@@ -191,6 +209,10 @@ macro_rules! const_prim_int_impl {
                 fn count_zeros(self) -> u32 { self.count_zeros() }
                 fn count_ones(self) -> u32 { self.count_ones() }
                 fn swap_bytes(self) -> Self { self.swap_bytes() }
+                fn rotate_left(self, n: u32) -> Self { self.rotate_left(n) }
+                fn rotate_right(self, n: u32) -> Self { self.rotate_right(n) }
+                fn unsigned_shl(self, n: u32) -> Self { self << n }
+                fn unsigned_shr(self, n: u32) -> Self { self >> n }
             }
         }
     };
