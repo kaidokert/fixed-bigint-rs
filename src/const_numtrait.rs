@@ -93,6 +93,16 @@ c0nst::c0nst! {
         fn saturating_mul(&self, v: &Self) -> Self;
     }
 
+    pub c0nst trait ConstCheckedDiv: Sized + [c0nst] core::ops::Div<Output = Self> + [c0nst] ConstZero {
+        /// Checked division. Returns `None` if the divisor is zero.
+        fn checked_div(&self, v: &Self) -> Option<Self>;
+    }
+
+    pub c0nst trait ConstCheckedRem: Sized + [c0nst] core::ops::Rem<Output = Self> + [c0nst] ConstZero {
+        /// Checked remainder. Returns `None` if the divisor is zero.
+        fn checked_rem(&self, v: &Self) -> Option<Self>;
+    }
+
     pub c0nst trait ConstToBytes {
         type Bytes: Copy + AsRef<[u8]> + AsMut<[u8]>;
         fn to_le_bytes(&self) -> Self::Bytes;
