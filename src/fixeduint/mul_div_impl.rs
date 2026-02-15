@@ -150,11 +150,8 @@ c0nst::c0nst! {
         dividend: &[T; N],
         divisor: &[T; N],
     ) -> [T; N] {
-        if const_is_zero(divisor) {
-            maybe_panic(PanicReason::DivByZero)
-        }
         let mut result = *dividend;
-        const_div::<T, N>(&mut result, divisor);
+        div_assign_impl(&mut result, divisor);
         result
     }
 
