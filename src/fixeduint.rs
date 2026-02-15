@@ -41,7 +41,7 @@ mod to_from_bytes;
 use zeroize::DefaultIsZeroes;
 
 /// Fixed-size unsigned integer, represented by array of N words of builtin unsigned type T
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Copy)]
 pub struct FixedUInt<T, const N: usize>
 where
     T: MachineWord,
@@ -831,6 +831,12 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Default for FixedUInt<T, N> {
         fn default() -> Self {
             <Self as ConstZero>::zero()
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Clone for FixedUInt<T, N> {
+        fn clone(&self) -> Self {
+            *self
         }
     }
 }
@@ -1730,6 +1736,20 @@ mod tests {
         {
             const D: FixedUInt<u8, 2> = <FixedUInt<u8, 2> as Default>::default();
             assert!(Zero::is_zero(&D));
+        }
+    }
+
+    #[test]
+    fn test_clone() {
+        let a: Bn8 = 42u8.into();
+        let b = a.clone();
+        assert_eq!(a, b);
+
+        #[cfg(feature = "nightly")]
+        {
+            const A: FixedUInt<u8, 2> = FixedUInt { array: [42, 0] };
+            const B: FixedUInt<u8, 2> = A.clone();
+            assert_eq!(A.array, B.array);
         }
     }
 

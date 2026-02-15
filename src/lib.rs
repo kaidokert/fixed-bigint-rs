@@ -15,7 +15,14 @@
 #![no_std]
 #![cfg_attr(
     feature = "nightly",
-    feature(const_trait_impl, const_ops, const_cmp, const_convert, const_default)
+    feature(
+        const_trait_impl,
+        const_ops,
+        const_cmp,
+        const_convert,
+        const_default,
+        const_clone
+    )
 )]
 
 //! A fixed-size big integer implementation, unsigned only.
