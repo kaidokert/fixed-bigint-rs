@@ -865,29 +865,47 @@ c0nst::c0nst! {
 
 // #region core::convert::From<primitive>
 
-impl<T: MachineWord, const N: usize> core::convert::From<u8> for FixedUInt<T, N> {
-    fn from(x: u8) -> Self {
-        let mut ret = Self::new();
-        ret.array[0] = x.into();
-        ret
+c0nst::c0nst! {
+    /// Const-compatible conversion from little-endian bytes to array of words
+    c0nst fn const_from_le_bytes<T: [c0nst] ConstMachineWord, const N: usize, const B: usize>(
+        bytes: [u8; B],
+    ) -> [T; N] {
+        let mut result: [T; N] = [T::zero(); N];
+        let word_size = core::mem::size_of::<T>();
+        let mut byte_idx = 0;
+        while byte_idx < B && byte_idx < N * word_size {
+            let word_idx = byte_idx / word_size;
+            let byte_in_word = byte_idx % word_size;
+            let byte_value: T = T::from(bytes[byte_idx]);
+            let shifted: T = byte_value.shl(byte_in_word * 8);
+            result[word_idx] = result[word_idx].bitor(shifted);
+            byte_idx += 1;
+        }
+        result
     }
-}
 
-impl<T: MachineWord, const N: usize> core::convert::From<u16> for FixedUInt<T, N> {
-    fn from(x: u16) -> Self {
-        Self::from_le_bytes(&x.to_le_bytes())
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::convert::From<u8> for FixedUInt<T, N> {
+        fn from(x: u8) -> Self {
+            Self { array: const_from_le_bytes(x.to_le_bytes()) }
+        }
     }
-}
 
-impl<T: MachineWord, const N: usize> core::convert::From<u32> for FixedUInt<T, N> {
-    fn from(x: u32) -> Self {
-        Self::from_le_bytes(&x.to_le_bytes())
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::convert::From<u16> for FixedUInt<T, N> {
+        fn from(x: u16) -> Self {
+            Self { array: const_from_le_bytes(x.to_le_bytes()) }
+        }
     }
-}
 
-impl<T: MachineWord, const N: usize> core::convert::From<u64> for FixedUInt<T, N> {
-    fn from(x: u64) -> Self {
-        Self::from_le_bytes(&x.to_le_bytes())
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::convert::From<u32> for FixedUInt<T, N> {
+        fn from(x: u32) -> Self {
+            Self { array: const_from_le_bytes(x.to_le_bytes()) }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::convert::From<u64> for FixedUInt<T, N> {
+        fn from(x: u64) -> Self {
+            Self { array: const_from_le_bytes(x.to_le_bytes()) }
+        }
     }
 }
 
@@ -1411,6 +1429,12 @@ mod tests {
         assert_eq!(f.array, [1]);
         let f = Bn::<u16, 2>::from(1u8);
         assert_eq!(f.array, [1, 0]);
+
+        #[cfg(feature = "nightly")]
+        {
+            const F1: Bn<u8, 2> = Bn::<u8, 2>::from(42u8);
+            assert_eq!(F1.array, [42, 0]);
+        }
     }
 
     #[test]
@@ -1434,6 +1458,12 @@ mod tests {
 
         let f = Bn::<u16, 1>::from(65535u16);
         assert_eq!(f.array, [65535]);
+
+        #[cfg(feature = "nightly")]
+        {
+            const F1: Bn<u8, 2> = Bn::<u8, 2>::from(0x0102u16);
+            assert_eq!(F1.array, [0x02, 0x01]);
+        }
     }
 
     #[test]
@@ -1475,6 +1505,33 @@ mod tests {
 
         let f = Bn::<u32, 1>::from(u32::max_value());
         assert_eq!(f.array, [4294967295]);
+
+        #[cfg(feature = "nightly")]
+        {
+            const F1: Bn<u8, 4> = Bn::<u8, 4>::from(0x01020304u32);
+            assert_eq!(F1.array, [0x04, 0x03, 0x02, 0x01]);
+        }
+    }
+
+    #[test]
+    fn test_core_convert_u64() {
+        let f = Bn::<u8, 8>::from(0x0102030405060708u64);
+        assert_eq!(f.array, [0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01]);
+
+        let f = Bn::<u16, 4>::from(0x0102030405060708u64);
+        assert_eq!(f.array, [0x0708, 0x0506, 0x0304, 0x0102]);
+
+        let f = Bn::<u32, 2>::from(0x0102030405060708u64);
+        assert_eq!(f.array, [0x05060708, 0x01020304]);
+
+        let f = Bn::<u64, 1>::from(0x0102030405060708u64);
+        assert_eq!(f.array, [0x0102030405060708]);
+
+        #[cfg(feature = "nightly")]
+        {
+            const F1: Bn<u8, 8> = Bn::<u8, 8>::from(0x0102030405060708u64);
+            assert_eq!(F1.array, [0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01]);
+        }
     }
 
     #[test]
