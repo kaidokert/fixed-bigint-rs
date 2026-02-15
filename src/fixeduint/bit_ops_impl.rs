@@ -1,6 +1,9 @@
 use super::{const_shl_impl, const_shr_impl, FixedUInt, MachineWord};
 
-use crate::const_numtrait::ConstZero;
+use crate::const_numtrait::{
+    ConstCheckedShl, ConstCheckedShr, ConstOverflowingShl, ConstOverflowingShr, ConstWrappingShl,
+    ConstWrappingShr, ConstZero,
+};
 use crate::machineword::ConstMachineWord;
 use crate::patch_num_traits::{OverflowingShl, OverflowingShr};
 
@@ -292,6 +295,62 @@ c0nst::c0nst! {
             const_shr_impl(self, *bits);
         }
     }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstOverflowingShl for FixedUInt<T, N> {
+        fn overflowing_shl(self, bits: u32) -> (Self, bool) {
+            let bitsu = bits as usize;
+            let bit_size = Self::BIT_SIZE;
+            let (shift, overflow) = if bitsu >= bit_size {
+                let shift = if bit_size == 0 { 0 } else { bitsu % bit_size };
+                (shift, true)
+            } else {
+                (bitsu, false)
+            };
+            let res = core::ops::Shl::<usize>::shl(self, shift);
+            (res, overflow)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstOverflowingShr for FixedUInt<T, N> {
+        fn overflowing_shr(self, bits: u32) -> (Self, bool) {
+            let bitsu = bits as usize;
+            let bit_size = Self::BIT_SIZE;
+            let (shift, overflow) = if bitsu >= bit_size {
+                let shift = if bit_size == 0 { 0 } else { bitsu % bit_size };
+                (shift, true)
+            } else {
+                (bitsu, false)
+            };
+            let res = core::ops::Shr::<usize>::shr(self, shift);
+            (res, overflow)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstWrappingShl for FixedUInt<T, N> {
+        fn wrapping_shl(self, bits: u32) -> Self {
+            ConstOverflowingShl::overflowing_shl(self, bits).0
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstWrappingShr for FixedUInt<T, N> {
+        fn wrapping_shr(self, bits: u32) -> Self {
+            ConstOverflowingShr::overflowing_shr(self, bits).0
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedShl for FixedUInt<T, N> {
+        fn checked_shl(self, bits: u32) -> Option<Self> {
+            let (res, overflow) = ConstOverflowingShl::overflowing_shl(self, bits);
+            if overflow { None } else { Some(res) }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedShr for FixedUInt<T, N> {
+        fn checked_shr(self, bits: u32) -> Option<Self> {
+            let (res, overflow) = ConstOverflowingShr::overflowing_shr(self, bits);
+            if overflow { None } else { Some(res) }
+        }
+    }
 }
 
 // OverflowingShl/Shr from patch_num_traits (not core::ops)
@@ -336,34 +395,34 @@ impl<T: MachineWord, const N: usize> OverflowingShr for FixedUInt<T, N> {
 // num_traits wrappers
 impl<T: MachineWord, const N: usize> num_traits::WrappingShl for FixedUInt<T, N> {
     fn wrapping_shl(&self, bits: u32) -> Self {
-        self.overflowing_shl(bits).0
+        OverflowingShl::overflowing_shl(*self, bits).0
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingShr for FixedUInt<T, N> {
     fn wrapping_shr(&self, bits: u32) -> Self {
-        self.overflowing_shr(bits).0
+        OverflowingShr::overflowing_shr(*self, bits).0
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedShl for FixedUInt<T, N> {
     fn checked_shl(&self, bits: u32) -> Option<Self> {
-        let res = self.overflowing_shl(bits);
-        if res.1 {
+        let (res, overflow) = OverflowingShl::overflowing_shl(*self, bits);
+        if overflow {
             None
         } else {
-            Some(res.0)
+            Some(res)
         }
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedShr for FixedUInt<T, N> {
     fn checked_shr(&self, bits: u32) -> Option<Self> {
-        let res = self.overflowing_shr(bits);
-        if res.1 {
+        let (res, overflow) = OverflowingShr::overflowing_shr(*self, bits);
+        if overflow {
             None
         } else {
-            Some(res.0)
+            Some(res)
         }
     }
 }

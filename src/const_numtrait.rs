@@ -103,6 +103,38 @@ c0nst::c0nst! {
         fn checked_rem(&self, v: &Self) -> Option<Self>;
     }
 
+    pub c0nst trait ConstOverflowingShl: Sized + [c0nst] core::ops::Shl<u32, Output = Self> {
+        /// Shift left with overflow detection.
+        /// Returns the shifted value and whether the shift amount exceeded the bit width.
+        fn overflowing_shl(self, rhs: u32) -> (Self, bool);
+    }
+
+    pub c0nst trait ConstOverflowingShr: Sized + [c0nst] core::ops::Shr<u32, Output = Self> {
+        /// Shift right with overflow detection.
+        /// Returns the shifted value and whether the shift amount exceeded the bit width.
+        fn overflowing_shr(self, rhs: u32) -> (Self, bool);
+    }
+
+    pub c0nst trait ConstWrappingShl: Sized + [c0nst] ConstOverflowingShl {
+        /// Wrapping shift left. Shifts, masking the shift amount to the bit width.
+        fn wrapping_shl(self, rhs: u32) -> Self;
+    }
+
+    pub c0nst trait ConstWrappingShr: Sized + [c0nst] ConstOverflowingShr {
+        /// Wrapping shift right. Shifts, masking the shift amount to the bit width.
+        fn wrapping_shr(self, rhs: u32) -> Self;
+    }
+
+    pub c0nst trait ConstCheckedShl: Sized + [c0nst] ConstOverflowingShl {
+        /// Checked shift left. Returns `None` if the shift amount exceeds bit width.
+        fn checked_shl(self, rhs: u32) -> Option<Self>;
+    }
+
+    pub c0nst trait ConstCheckedShr: Sized + [c0nst] ConstOverflowingShr {
+        /// Checked shift right. Returns `None` if the shift amount exceeds bit width.
+        fn checked_shr(self, rhs: u32) -> Option<Self>;
+    }
+
     pub c0nst trait ConstToBytes {
         type Bytes: Copy + AsRef<[u8]> + AsMut<[u8]>;
         fn to_le_bytes(&self) -> Self::Bytes;
@@ -516,6 +548,116 @@ const_checked_rem_impl!(u16);
 const_checked_rem_impl!(u32);
 const_checked_rem_impl!(u64);
 const_checked_rem_impl!(u128);
+
+macro_rules! const_overflowing_shl_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstOverflowingShl for $t {
+                fn overflowing_shl(self, rhs: u32) -> (Self, bool) {
+                    self.overflowing_shl(rhs)
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_overflowing_shr_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstOverflowingShr for $t {
+                fn overflowing_shr(self, rhs: u32) -> (Self, bool) {
+                    self.overflowing_shr(rhs)
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_wrapping_shl_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstWrappingShl for $t {
+                fn wrapping_shl(self, rhs: u32) -> Self {
+                    self.overflowing_shl(rhs).0
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_wrapping_shr_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstWrappingShr for $t {
+                fn wrapping_shr(self, rhs: u32) -> Self {
+                    self.overflowing_shr(rhs).0
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_checked_shl_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCheckedShl for $t {
+                fn checked_shl(self, rhs: u32) -> Option<Self> {
+                    let (res, overflow) = self.overflowing_shl(rhs);
+                    if overflow { None } else { Some(res) }
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_checked_shr_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCheckedShr for $t {
+                fn checked_shr(self, rhs: u32) -> Option<Self> {
+                    let (res, overflow) = self.overflowing_shr(rhs);
+                    if overflow { None } else { Some(res) }
+                }
+            }
+        }
+    };
+}
+
+const_overflowing_shl_impl!(u8);
+const_overflowing_shl_impl!(u16);
+const_overflowing_shl_impl!(u32);
+const_overflowing_shl_impl!(u64);
+const_overflowing_shl_impl!(u128);
+
+const_overflowing_shr_impl!(u8);
+const_overflowing_shr_impl!(u16);
+const_overflowing_shr_impl!(u32);
+const_overflowing_shr_impl!(u64);
+const_overflowing_shr_impl!(u128);
+
+const_wrapping_shl_impl!(u8);
+const_wrapping_shl_impl!(u16);
+const_wrapping_shl_impl!(u32);
+const_wrapping_shl_impl!(u64);
+const_wrapping_shl_impl!(u128);
+
+const_wrapping_shr_impl!(u8);
+const_wrapping_shr_impl!(u16);
+const_wrapping_shr_impl!(u32);
+const_wrapping_shr_impl!(u64);
+const_wrapping_shr_impl!(u128);
+
+const_checked_shl_impl!(u8);
+const_checked_shl_impl!(u16);
+const_checked_shl_impl!(u32);
+const_checked_shl_impl!(u64);
+const_checked_shl_impl!(u128);
+
+const_checked_shr_impl!(u8);
+const_checked_shr_impl!(u16);
+const_checked_shr_impl!(u32);
+const_checked_shr_impl!(u64);
+const_checked_shr_impl!(u128);
 
 macro_rules! const_to_bytes_impl {
     ($t:ty, $n:expr) => {
