@@ -886,11 +886,7 @@ c0nst::c0nst! {
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::convert::From<u8> for FixedUInt<T, N> {
         fn from(x: u8) -> Self {
-            let mut arr: [T; N] = [T::zero(); N];
-            if N > 0 {
-                arr[0] = T::from(x);
-            }
-            Self { array: arr }
+            Self { array: const_from_le_bytes(x.to_le_bytes()) }
         }
     }
 
