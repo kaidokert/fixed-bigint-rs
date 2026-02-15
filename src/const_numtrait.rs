@@ -578,7 +578,8 @@ macro_rules! const_wrapping_shl_impl {
         c0nst::c0nst! {
             impl c0nst ConstWrappingShl for $t {
                 fn wrapping_shl(self, rhs: u32) -> Self {
-                    self.overflowing_shl(rhs).0
+                    // Use inherent method which masks shift amount correctly
+                    self.wrapping_shl(rhs)
                 }
             }
         }
@@ -590,7 +591,8 @@ macro_rules! const_wrapping_shr_impl {
         c0nst::c0nst! {
             impl c0nst ConstWrappingShr for $t {
                 fn wrapping_shr(self, rhs: u32) -> Self {
-                    self.overflowing_shr(rhs).0
+                    // Use inherent method which masks shift amount correctly
+                    self.wrapping_shr(rhs)
                 }
             }
         }
@@ -602,8 +604,8 @@ macro_rules! const_checked_shl_impl {
         c0nst::c0nst! {
             impl c0nst ConstCheckedShl for $t {
                 fn checked_shl(self, rhs: u32) -> Option<Self> {
-                    let (res, overflow) = self.overflowing_shl(rhs);
-                    if overflow { None } else { Some(res) }
+                    // Use inherent method for correct semantics
+                    self.checked_shl(rhs)
                 }
             }
         }
@@ -615,8 +617,8 @@ macro_rules! const_checked_shr_impl {
         c0nst::c0nst! {
             impl c0nst ConstCheckedShr for $t {
                 fn checked_shr(self, rhs: u32) -> Option<Self> {
-                    let (res, overflow) = self.overflowing_shr(rhs);
-                    if overflow { None } else { Some(res) }
+                    // Use inherent method for correct semantics
+                    self.checked_shr(rhs)
                 }
             }
         }

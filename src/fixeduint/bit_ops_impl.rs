@@ -297,13 +297,18 @@ c0nst::c0nst! {
     }
 
     // Helper to normalize shift amount and detect overflow.
-    // Compares in u32 space to avoid truncation on 16-bit platforms.
+    // Handles both 16-bit (usize < u32) and 64-bit (bit_size > u32::MAX) platforms.
     c0nst fn normalize_shift_amount(bits: u32, bit_size: usize) -> (usize, bool) {
-        // Compare in u32 to handle 16-bit targets where usize < u32
         let bit_size_u32 = bit_size as u32;
-        if bit_size_u32 == 0 {
+        if bit_size == 0 {
+            // Zero-size type: always overflow
             (0, true)
+        } else if bit_size_u32 == 0 {
+            // bit_size is a non-zero multiple of 2^32 (huge type on 64-bit).
+            // Since bits is u32, it's always smaller than bit_size. No overflow.
+            (bits as usize, false)
         } else if bits >= bit_size_u32 {
+            // Normal case: shift exceeds bit width
             ((bits % bit_size_u32) as usize, true)
         } else {
             (bits as usize, false)
