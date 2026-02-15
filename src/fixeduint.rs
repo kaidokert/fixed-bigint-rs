@@ -359,11 +359,6 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             array: remainder_array,
         }
     }
-
-    // Normalize shift amounts for rotations
-    fn normalize_shift(bits: u32) -> u32 {
-        bits % (Self::BIT_SIZE as u32)
-    }
 }
 
 c0nst::c0nst! {

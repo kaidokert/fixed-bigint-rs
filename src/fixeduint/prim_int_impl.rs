@@ -40,15 +40,23 @@ c0nst::c0nst! {
             ret
         }
         fn rotate_left(self, n: u32) -> Self {
-            let shift = n % (Self::BIT_SIZE as u32);
+            let bit_size = Self::BIT_SIZE as u32;
+            if bit_size == 0 {
+                return self;
+            }
+            let shift = n % bit_size;
             let a = core::ops::Shl::<u32>::shl(self, shift);
-            let b = core::ops::Shr::<u32>::shr(self, Self::BIT_SIZE as u32 - shift);
+            let b = core::ops::Shr::<u32>::shr(self, bit_size - shift);
             core::ops::BitOr::bitor(a, b)
         }
         fn rotate_right(self, n: u32) -> Self {
-            let shift = n % (Self::BIT_SIZE as u32);
+            let bit_size = Self::BIT_SIZE as u32;
+            if bit_size == 0 {
+                return self;
+            }
+            let shift = n % bit_size;
             let a = core::ops::Shr::<u32>::shr(self, shift);
-            let b = core::ops::Shl::<u32>::shl(self, Self::BIT_SIZE as u32 - shift);
+            let b = core::ops::Shl::<u32>::shl(self, bit_size - shift);
             core::ops::BitOr::bitor(a, b)
         }
         fn unsigned_shl(self, n: u32) -> Self {
@@ -74,15 +82,23 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
         const_trailing_zeros(&self.array)
     }
     fn rotate_left(self, bits: u32) -> Self {
-        let shift = Self::normalize_shift(bits);
+        let bit_size = Self::BIT_SIZE as u32;
+        if bit_size == 0 {
+            return self;
+        }
+        let shift = bits % bit_size;
         let a = self << shift;
-        let b = self >> (Self::BIT_SIZE as u32 - shift);
+        let b = self >> (bit_size - shift);
         a | b
     }
     fn rotate_right(self, bits: u32) -> Self {
-        let shift = Self::normalize_shift(bits);
+        let bit_size = Self::BIT_SIZE as u32;
+        if bit_size == 0 {
+            return self;
+        }
+        let shift = bits % bit_size;
         let a = self >> shift;
-        let b = self << (Self::BIT_SIZE as u32 - shift);
+        let b = self << (bit_size - shift);
         a | b
     }
     fn signed_shl(self, bits: u32) -> Self {
