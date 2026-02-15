@@ -840,7 +840,7 @@ impl<T: MachineWord, const N: usize> num_traits::Unsigned for FixedUInt<T, N> {}
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::cmp::PartialEq for FixedUInt<T, N> {
         fn eq(&self, other: &Self) -> bool {
-            matches!(const_cmp(&self.array, &other.array), core::cmp::Ordering::Equal)
+            self.array == other.array
         }
     }
 
