@@ -371,38 +371,28 @@ impl<T: MachineWord, const N: usize> OverflowingShr for FixedUInt<T, N> {
     }
 }
 
-// num_traits wrappers
+// num_traits wrappers - delegate to const impls
 impl<T: MachineWord, const N: usize> num_traits::WrappingShl for FixedUInt<T, N> {
     fn wrapping_shl(&self, bits: u32) -> Self {
-        OverflowingShl::overflowing_shl(*self, bits).0
+        ConstWrappingShl::wrapping_shl(*self, bits)
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::WrappingShr for FixedUInt<T, N> {
     fn wrapping_shr(&self, bits: u32) -> Self {
-        OverflowingShr::overflowing_shr(*self, bits).0
+        ConstWrappingShr::wrapping_shr(*self, bits)
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedShl for FixedUInt<T, N> {
     fn checked_shl(&self, bits: u32) -> Option<Self> {
-        let (res, overflow) = OverflowingShl::overflowing_shl(*self, bits);
-        if overflow {
-            None
-        } else {
-            Some(res)
-        }
+        ConstCheckedShl::checked_shl(*self, bits)
     }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedShr for FixedUInt<T, N> {
     fn checked_shr(&self, bits: u32) -> Option<Self> {
-        let (res, overflow) = OverflowingShr::overflowing_shr(*self, bits);
-        if overflow {
-            None
-        } else {
-            Some(res)
-        }
+        ConstCheckedShr::checked_shr(*self, bits)
     }
 }
 
