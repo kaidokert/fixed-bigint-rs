@@ -41,7 +41,7 @@ mod to_from_bytes;
 use zeroize::DefaultIsZeroes;
 
 /// Fixed-size unsigned integer, represented by array of N words of builtin unsigned type T
-#[derive(Debug, Clone, Copy, core::cmp::PartialEq, core::cmp::Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct FixedUInt<T, const N: usize>
 where
     T: MachineWord,
@@ -835,21 +835,31 @@ impl<T: MachineWord, const N: usize> Default for FixedUInt<T, N> {
 
 impl<T: MachineWord, const N: usize> num_traits::Unsigned for FixedUInt<T, N> {}
 
-// #region Ordering
+// #region Equality and Ordering
 
-impl<T: MachineWord, const N: usize> core::cmp::Ord for FixedUInt<T, N> {
-    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        const_cmp(&self.array, &other.array)
+c0nst::c0nst! {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::cmp::PartialEq for FixedUInt<T, N> {
+        fn eq(&self, other: &Self) -> bool {
+            self.array == other.array
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::cmp::Eq for FixedUInt<T, N> {}
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::cmp::Ord for FixedUInt<T, N> {
+        fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+            const_cmp(&self.array, &other.array)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::cmp::PartialOrd for FixedUInt<T, N> {
+        fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
     }
 }
 
-impl<T: MachineWord, const N: usize> core::cmp::PartialOrd for FixedUInt<T, N> {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-// #endregion Ordering
+// #endregion Equality and Ordering
 
 // #region core::convert::From<primitive>
 
@@ -1629,6 +1639,27 @@ mod tests {
         assert_eq!(f3, Bn8::from_u64(990223).unwrap());
         let f4 = Bn8::from_u64(990224).unwrap();
         assert!(f4 > Bn8::from_u64(990223).unwrap());
+
+        #[cfg(feature = "nightly")]
+        {
+            use core::cmp::Ordering;
+
+            const A: FixedUInt<u8, 2> = FixedUInt { array: [10, 0] };
+            const B: FixedUInt<u8, 2> = FixedUInt { array: [20, 0] };
+            const C: FixedUInt<u8, 2> = FixedUInt { array: [10, 0] };
+
+            const CMP_LT: Ordering = A.cmp(&B);
+            const CMP_GT: Ordering = B.cmp(&A);
+            const CMP_EQ: Ordering = A.cmp(&C);
+            const EQ_TRUE: bool = A.eq(&C);
+            const EQ_FALSE: bool = A.eq(&B);
+
+            assert_eq!(CMP_LT, Ordering::Less);
+            assert_eq!(CMP_GT, Ordering::Greater);
+            assert_eq!(CMP_EQ, Ordering::Equal);
+            assert!(EQ_TRUE);
+            assert!(!EQ_FALSE);
+        }
     }
 
     #[test]
