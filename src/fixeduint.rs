@@ -17,7 +17,7 @@ use num_traits::{ToPrimitive, Zero};
 use core::convert::TryFrom;
 use core::fmt::Write;
 
-pub use crate::const_numtrait::{ConstBounded, ConstOne, ConstPrimInt, ConstZero};
+pub use crate::const_numtrait::{ConstBounded, ConstOne, ConstPowerOfTwo, ConstPrimInt, ConstZero};
 use crate::machineword::{ConstMachineWord, MachineWord};
 
 #[allow(unused_imports)]
@@ -31,6 +31,7 @@ mod mul_div_impl;
 mod num_integer_impl;
 mod num_traits_casts;
 mod num_traits_identity;
+mod power_of_two_impl;
 mod prim_int_impl;
 mod roots_impl;
 mod string_conversion;

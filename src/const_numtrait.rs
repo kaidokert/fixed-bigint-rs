@@ -155,6 +155,29 @@ c0nst::c0nst! {
         fn to_be_bytes(&self) -> Self::Bytes;
     }
 
+    /// Const-compatible power-of-two operations.
+    ///
+    /// These methods mirror the inherent methods on primitive integers
+    /// but are not part of num_traits.
+    pub c0nst trait ConstPowerOfTwo: Sized + [c0nst] ConstZero + [c0nst] ConstOne + [c0nst] ConstBounded {
+        /// Returns `true` if `self` is a power of two.
+        ///
+        /// Zero is not a power of two.
+        fn is_power_of_two(&self) -> bool;
+
+        /// Returns the smallest power of two greater than or equal to `self`.
+        ///
+        /// # Panics
+        ///
+        /// Panics if the result overflows (i.e., `self > (1 << (bits-1))`).
+        fn next_power_of_two(self) -> Self;
+
+        /// Returns the smallest power of two greater than or equal to `self`.
+        ///
+        /// Returns `None` if the result would overflow.
+        fn checked_next_power_of_two(self) -> Option<Self>;
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -734,6 +757,30 @@ const_to_bytes_impl!(u16, 2);
 const_to_bytes_impl!(u32, 4);
 const_to_bytes_impl!(u64, 8);
 const_to_bytes_impl!(u128, 16);
+
+macro_rules! const_power_of_two_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstPowerOfTwo for $t {
+                fn is_power_of_two(&self) -> bool {
+                    (*self).is_power_of_two()
+                }
+                fn next_power_of_two(self) -> Self {
+                    self.next_power_of_two()
+                }
+                fn checked_next_power_of_two(self) -> Option<Self> {
+                    self.checked_next_power_of_two()
+                }
+            }
+        }
+    };
+}
+
+const_power_of_two_impl!(u8);
+const_power_of_two_impl!(u16);
+const_power_of_two_impl!(u32);
+const_power_of_two_impl!(u64);
+const_power_of_two_impl!(u128);
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
