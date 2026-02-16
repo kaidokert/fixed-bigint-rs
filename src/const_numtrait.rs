@@ -159,6 +159,13 @@ c0nst::c0nst! {
     ///
     /// These methods mirror the inherent methods on primitive integers
     /// but are not part of num_traits.
+    ///
+    /// # Unsigned types only
+    ///
+    /// This trait is designed for unsigned integer types. Implementing it for
+    /// signed types may produce unexpected results (e.g., negative values are
+    /// never powers of two, and `next_power_of_two` behavior is undefined for
+    /// negative inputs).
     pub c0nst trait ConstPowerOfTwo: Sized + [c0nst] ConstZero + [c0nst] ConstOne {
         /// Returns `true` if `self` is a power of two.
         ///

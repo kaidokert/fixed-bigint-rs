@@ -30,7 +30,7 @@ c0nst::c0nst! {
         fn next_power_of_two(self) -> Self {
             match self.checked_next_power_of_two() {
                 Some(v) => v,
-                None => panic!("next_power_of_two overflow"),
+                None => panic!("FixedUInt::next_power_of_two overflow: result exceeds type capacity"),
             }
         }
 
