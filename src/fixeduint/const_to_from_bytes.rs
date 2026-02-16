@@ -24,7 +24,7 @@ use core::mem::size_of;
 
 /// Byte array type for FixedUInt<T, N> with computed size.
 /// Size = N * size_of::<T>() bytes.
-#[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Debug)]
+#[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Debug, Hash)]
 pub struct ConstBytesHolder<const SIZE: usize> {
     bytes: [u8; SIZE],
 }
@@ -32,6 +32,18 @@ pub struct ConstBytesHolder<const SIZE: usize> {
 impl<const SIZE: usize> Default for ConstBytesHolder<SIZE> {
     fn default() -> Self {
         Self { bytes: [0u8; SIZE] }
+    }
+}
+
+impl<const SIZE: usize> From<[u8; SIZE]> for ConstBytesHolder<SIZE> {
+    fn from(bytes: [u8; SIZE]) -> Self {
+        Self { bytes }
+    }
+}
+
+impl<const SIZE: usize> From<ConstBytesHolder<SIZE>> for [u8; SIZE] {
+    fn from(holder: ConstBytesHolder<SIZE>) -> Self {
+        holder.bytes
     }
 }
 
@@ -56,12 +68,6 @@ impl<const SIZE: usize> core::borrow::Borrow<[u8]> for ConstBytesHolder<SIZE> {
 impl<const SIZE: usize> core::borrow::BorrowMut<[u8]> for ConstBytesHolder<SIZE> {
     fn borrow_mut(&mut self) -> &mut [u8] {
         &mut self.bytes
-    }
-}
-
-impl<const SIZE: usize> core::hash::Hash for ConstBytesHolder<SIZE> {
-    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        self.bytes.hash(state)
     }
 }
 
@@ -126,7 +132,7 @@ where
     }
 }
 
-// num_traits::FromBytes implementation
+// num_traits::FromBytes implementation - delegates to inherent FixedUInt methods
 impl<T: MachineWord, const N: usize> num_traits::FromBytes for FixedUInt<T, N>
 where
     [(); N * size_of::<T>()]:,
@@ -134,11 +140,13 @@ where
     type Bytes = ConstBytesHolder<{ N * size_of::<T>() }>;
 
     fn from_be_bytes(bytes: &Self::Bytes) -> Self {
-        Self::from_be_bytes(&bytes.bytes)
+        // Use UFCS to call the inherent method, not this trait method
+        FixedUInt::<T, N>::from_be_bytes(&bytes.bytes)
     }
 
     fn from_le_bytes(bytes: &Self::Bytes) -> Self {
-        Self::from_le_bytes(&bytes.bytes)
+        // Use UFCS to call the inherent method, not this trait method
+        FixedUInt::<T, N>::from_le_bytes(&bytes.bytes)
     }
 }
 
