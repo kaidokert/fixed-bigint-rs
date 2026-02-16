@@ -21,12 +21,10 @@ use crate::machineword::ConstMachineWord;
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstPowerOfTwo for FixedUInt<T, N> {
         fn is_power_of_two(&self) -> bool {
-            // A number is a power of two if it has exactly one bit set
-            // and is not zero
-            if self.is_zero() {
-                return false;
-            }
-            ConstPrimInt::count_ones(*self) == 1u32
+            // Standard bitwise trick: n is power of two iff n != 0 && (n & (n-1)) == 0
+            // This works because a power of two has exactly one bit set,
+            // and subtracting 1 flips all lower bits, so AND gives zero.
+            !self.is_zero() && (*self & (*self - Self::one())).is_zero()
         }
 
         fn next_power_of_two(self) -> Self {
@@ -44,8 +42,8 @@ c0nst::c0nst! {
                 return Some(self);
             }
             // Find the position of the highest set bit using leading_zeros
-            // bit_length = total_bits - leading_zeros
-            let total_bits = (N * core::mem::size_of::<T>() * 8) as u32;
+            // bit_length = BIT_SIZE - leading_zeros
+            let total_bits = Self::BIT_SIZE as u32;
             let leading = ConstPrimInt::leading_zeros(self);
             let bits = total_bits - leading;
             // Check if we can shift 1 left by that many bits

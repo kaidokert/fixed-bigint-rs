@@ -159,7 +159,7 @@ c0nst::c0nst! {
     ///
     /// These methods mirror the inherent methods on primitive integers
     /// but are not part of num_traits.
-    pub c0nst trait ConstPowerOfTwo: Sized + [c0nst] ConstZero + [c0nst] ConstOne + [c0nst] ConstBounded {
+    pub c0nst trait ConstPowerOfTwo: Sized + [c0nst] ConstZero + [c0nst] ConstOne {
         /// Returns `true` if `self` is a power of two.
         ///
         /// Zero is not a power of two.
