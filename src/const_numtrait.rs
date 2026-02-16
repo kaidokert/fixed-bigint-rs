@@ -185,6 +185,22 @@ c0nst::c0nst! {
         fn checked_next_power_of_two(self) -> Option<Self>;
     }
 
+    /// Const-compatible absolute difference.
+    ///
+    /// Computes the absolute difference between two values. For unsigned types,
+    /// this is `max(a, b) - min(a, b)`.
+    ///
+    /// # Unsigned types only
+    ///
+    /// This trait is designed for unsigned integer types where `abs_diff` cannot
+    /// overflow. Implementors for signed types must ensure overflow is handled
+    /// correctly (e.g., by returning an unsigned result type or using checked
+    /// arithmetic), as the trait bounds do not enforce this.
+    pub c0nst trait ConstAbsDiff: Sized + [c0nst] core::cmp::Ord + [c0nst] core::ops::Sub<Output = Self> {
+        /// Computes the absolute difference between `self` and `other`.
+        fn abs_diff(self, other: Self) -> Self;
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -788,6 +804,28 @@ const_power_of_two_impl!(u16);
 const_power_of_two_impl!(u32);
 const_power_of_two_impl!(u64);
 const_power_of_two_impl!(u128);
+
+macro_rules! const_abs_diff_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstAbsDiff for $t {
+                fn abs_diff(self, other: Self) -> Self {
+                    if self >= other {
+                        self - other
+                    } else {
+                        other - self
+                    }
+                }
+            }
+        }
+    };
+}
+
+const_abs_diff_impl!(u8);
+const_abs_diff_impl!(u16);
+const_abs_diff_impl!(u32);
+const_abs_diff_impl!(u64);
+const_abs_diff_impl!(u128);
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
