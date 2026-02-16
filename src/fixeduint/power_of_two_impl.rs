@@ -38,16 +38,15 @@ c0nst::c0nst! {
             if self.is_zero() {
                 return Some(Self::one());
             }
-            if self.is_power_of_two() {
-                return Some(self);
-            }
-            // Find the position of the highest set bit using leading_zeros
-            // bit_length = BIT_SIZE - leading_zeros
-            let total_bits = Self::BIT_SIZE as u32;
-            let leading = ConstPrimInt::leading_zeros(self);
-            let bits = total_bits - leading;
-            // Check if we can shift 1 left by that many bits
-            if bits >= total_bits {
+            // Bit manipulation trick: (n-1).leading_zeros() gives the bit position
+            // needed for the next power of two, handling both power-of-two and
+            // non-power-of-two inputs correctly.
+            let m_one = self - Self::one();
+            let leading = ConstPrimInt::leading_zeros(m_one);
+            let bits = Self::BIT_SIZE as u32 - leading;
+
+            // Check for overflow
+            if bits >= Self::BIT_SIZE as u32 {
                 return None;
             }
             Some(Self::one() << (bits as usize))
