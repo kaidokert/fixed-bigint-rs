@@ -187,8 +187,15 @@ c0nst::c0nst! {
 
     /// Const-compatible absolute difference.
     ///
-    /// Computes the absolute difference between two values without risk of
-    /// overflow. For unsigned types, this is `max(a, b) - min(a, b)`.
+    /// Computes the absolute difference between two values. For unsigned types,
+    /// this is `max(a, b) - min(a, b)`.
+    ///
+    /// # Unsigned types only
+    ///
+    /// This trait is designed for unsigned integer types where `abs_diff` cannot
+    /// overflow. Implementors for signed types must ensure overflow is handled
+    /// correctly (e.g., by returning an unsigned result type or using checked
+    /// arithmetic), as the trait bounds do not enforce this.
     pub c0nst trait ConstAbsDiff: Sized + [c0nst] core::cmp::Ord + [c0nst] core::ops::Sub<Output = Self> {
         /// Computes the absolute difference between `self` and `other`.
         fn abs_diff(self, other: Self) -> Self;
