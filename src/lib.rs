@@ -21,9 +21,11 @@
         const_cmp,
         const_convert,
         const_default,
-        const_clone
+        const_clone,
+        generic_const_exprs
     )
 )]
+#![cfg_attr(feature = "nightly", allow(incomplete_features))]
 
 //! A fixed-size big integer implementation, unsigned only.
 //! [FixedUInt] implements a [num_traits::PrimInt] trait, mimicking built-in `u8`, `u16` and `u32` types.

@@ -34,7 +34,10 @@ mod num_traits_identity;
 mod prim_int_impl;
 mod roots_impl;
 mod string_conversion;
-#[cfg(feature = "use-unsafe")]
+// Prefer nightly (safe const impl) over use-unsafe when both are enabled
+#[cfg(feature = "nightly")]
+mod const_to_from_bytes;
+#[cfg(all(feature = "use-unsafe", not(feature = "nightly")))]
 mod to_from_bytes;
 
 #[cfg(feature = "zeroize")]
