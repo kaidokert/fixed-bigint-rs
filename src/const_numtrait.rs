@@ -103,6 +103,20 @@ c0nst::c0nst! {
         fn checked_rem(&self, v: &Self) -> Option<Self>;
     }
 
+    pub c0nst trait ConstEuclid: Sized + [c0nst] core::ops::Div<Output = Self> + [c0nst] core::ops::Rem<Output = Self> {
+        /// Euclidean division. For unsigned integers, same as regular division.
+        fn div_euclid(&self, v: &Self) -> Self;
+        /// Euclidean remainder. For unsigned integers, same as regular remainder.
+        fn rem_euclid(&self, v: &Self) -> Self;
+    }
+
+    pub c0nst trait ConstCheckedEuclid: Sized + [c0nst] ConstEuclid + [c0nst] ConstZero {
+        /// Checked Euclidean division. Returns `None` if the divisor is zero.
+        fn checked_div_euclid(&self, v: &Self) -> Option<Self>;
+        /// Checked Euclidean remainder. Returns `None` if the divisor is zero.
+        fn checked_rem_euclid(&self, v: &Self) -> Option<Self>;
+    }
+
     pub c0nst trait ConstOverflowingShl: Sized + [c0nst] core::ops::Shl<u32, Output = Self> {
         /// Shift left with overflow detection.
         /// Returns the shifted value and whether the shift amount exceeded the bit width.
@@ -548,6 +562,50 @@ const_checked_rem_impl!(u16);
 const_checked_rem_impl!(u32);
 const_checked_rem_impl!(u64);
 const_checked_rem_impl!(u128);
+
+macro_rules! const_euclid_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstEuclid for $t {
+                fn div_euclid(&self, v: &Self) -> Self {
+                    // For unsigned integers, Euclidean division is the same as regular division
+                    *self / *v
+                }
+                fn rem_euclid(&self, v: &Self) -> Self {
+                    // For unsigned integers, Euclidean remainder is the same as regular remainder
+                    *self % *v
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_checked_euclid_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCheckedEuclid for $t {
+                fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
+                    if v.is_zero() { None } else { Some(*self / *v) }
+                }
+                fn checked_rem_euclid(&self, v: &Self) -> Option<Self> {
+                    if v.is_zero() { None } else { Some(*self % *v) }
+                }
+            }
+        }
+    };
+}
+
+const_euclid_impl!(u8);
+const_euclid_impl!(u16);
+const_euclid_impl!(u32);
+const_euclid_impl!(u64);
+const_euclid_impl!(u128);
+
+const_checked_euclid_impl!(u8);
+const_checked_euclid_impl!(u16);
+const_checked_euclid_impl!(u32);
+const_checked_euclid_impl!(u64);
+const_checked_euclid_impl!(u128);
 
 macro_rules! const_overflowing_shl_impl {
     ($t:ty) => {
