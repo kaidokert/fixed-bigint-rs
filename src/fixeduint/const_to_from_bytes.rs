@@ -22,6 +22,11 @@ use crate::const_numtrait::ConstToBytes;
 use crate::machineword::ConstMachineWord;
 use core::mem::size_of;
 
+/// Compute byte length for FixedUInt<T, N>.
+pub const fn byte_len<T, const N: usize>() -> usize {
+    N * size_of::<T>()
+}
+
 /// Byte array type for FixedUInt<T, N> with computed size.
 /// Size = N * size_of::<T>() bytes.
 #[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Debug, Hash)]
@@ -29,19 +34,19 @@ pub struct ConstBytesHolder<const SIZE: usize> {
     bytes: [u8; SIZE],
 }
 
-impl<const SIZE: usize> Default for ConstBytesHolder<SIZE> {
+impl<const SIZE: usize> const Default for ConstBytesHolder<SIZE> {
     fn default() -> Self {
         Self { bytes: [0u8; SIZE] }
     }
 }
 
-impl<const SIZE: usize> From<[u8; SIZE]> for ConstBytesHolder<SIZE> {
+impl<const SIZE: usize> const From<[u8; SIZE]> for ConstBytesHolder<SIZE> {
     fn from(bytes: [u8; SIZE]) -> Self {
         Self { bytes }
     }
 }
 
-impl<const SIZE: usize> From<ConstBytesHolder<SIZE>> for [u8; SIZE] {
+impl<const SIZE: usize> const From<ConstBytesHolder<SIZE>> for [u8; SIZE] {
     fn from(holder: ConstBytesHolder<SIZE>) -> Self {
         holder.bytes
     }
@@ -74,12 +79,12 @@ impl<const SIZE: usize> core::borrow::BorrowMut<[u8]> for ConstBytesHolder<SIZE>
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstToBytes for FixedUInt<T, N>
     where
-        [(); N * size_of::<T>()]:,
+        [(); byte_len::<T, N>()]:,
     {
-        type Bytes = ConstBytesHolder<{ N * size_of::<T>() }>;
+        type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
 
         fn to_le_bytes(&self) -> Self::Bytes {
-            let mut result = ConstBytesHolder { bytes: [0u8; N * size_of::<T>()] };
+            let mut result = ConstBytesHolder { bytes: [0u8; byte_len::<T, N>()] };
             let word_size = size_of::<T>();
             let mut i = 0;
             while i < N {
@@ -96,7 +101,7 @@ c0nst::c0nst! {
         }
 
         fn to_be_bytes(&self) -> Self::Bytes {
-            let mut result = ConstBytesHolder { bytes: [0u8; N * size_of::<T>()] };
+            let mut result = ConstBytesHolder { bytes: [0u8; byte_len::<T, N>()] };
             let word_size = size_of::<T>();
             let mut i = 0;
             while i < N {
@@ -119,9 +124,9 @@ c0nst::c0nst! {
 // num_traits::ToBytes implementation - delegates to ConstToBytes
 impl<T: MachineWord, const N: usize> num_traits::ToBytes for FixedUInt<T, N>
 where
-    [(); N * size_of::<T>()]:,
+    [(); byte_len::<T, N>()]:,
 {
-    type Bytes = ConstBytesHolder<{ N * size_of::<T>() }>;
+    type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
 
     fn to_be_bytes(&self) -> Self::Bytes {
         ConstToBytes::to_be_bytes(self)
@@ -135,9 +140,9 @@ where
 // num_traits::FromBytes implementation - delegates to inherent FixedUInt methods
 impl<T: MachineWord, const N: usize> num_traits::FromBytes for FixedUInt<T, N>
 where
-    [(); N * size_of::<T>()]:,
+    [(); byte_len::<T, N>()]:,
 {
-    type Bytes = ConstBytesHolder<{ N * size_of::<T>() }>;
+    type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
 
     fn from_be_bytes(bytes: &Self::Bytes) -> Self {
         // Use UFCS to call the inherent method, not this trait method
