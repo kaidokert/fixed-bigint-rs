@@ -136,7 +136,7 @@ c0nst::c0nst! {
     }
 
     pub c0nst trait ConstToBytes {
-        type Bytes: Copy + AsRef<[u8]> + AsMut<[u8]>;
+        type Bytes: Copy + [c0nst] AsRef<[u8]> + [c0nst] AsMut<[u8]>;
         fn to_le_bytes(&self) -> Self::Bytes;
         fn to_be_bytes(&self) -> Self::Bytes;
     }
