@@ -15,7 +15,7 @@
 //! Ceiling division for FixedUInt.
 
 use super::{const_div, const_is_zero, FixedUInt, MachineWord};
-use crate::const_numtrait::{ConstDivCeil, ConstOne};
+use crate::const_numtrait::{ConstCheckedAdd, ConstDivCeil, ConstOne};
 use crate::machineword::ConstMachineWord;
 
 c0nst::c0nst! {
@@ -23,7 +23,7 @@ c0nst::c0nst! {
         fn div_ceil(self, rhs: Self) -> Self {
             match self.checked_div_ceil(rhs) {
                 Some(v) => v,
-                None => panic!("div_ceil: division by zero"),
+                None => panic!("div_ceil: division by zero or overflow"),
             }
         }
 
@@ -37,7 +37,8 @@ c0nst::c0nst! {
             if const_is_zero(&remainder) {
                 Some(Self { array: quotient })
             } else {
-                Some(Self { array: quotient } + Self::one())
+                // Use checked_add to return None on overflow
+                ConstCheckedAdd::checked_add(&Self { array: quotient }, &Self::one())
             }
         }
     }
@@ -103,6 +104,18 @@ mod tests {
         assert_eq!(
             ConstDivCeil::checked_div_ceil(U16::from(10u8), U16::from(0u8)),
             None
+        );
+
+        // Edge case: MAX / 2 = 32767 remainder 1, ceil = 32768
+        assert_eq!(
+            ConstDivCeil::checked_div_ceil(U16::from(65535u16), U16::from(2u16)),
+            Some(U16::from(32768u16))
+        );
+
+        // Edge case: MAX / 1 = MAX exactly (no remainder, no +1 needed)
+        assert_eq!(
+            ConstDivCeil::checked_div_ceil(U16::from(65535u16), U16::from(1u16)),
+            Some(U16::from(65535u16))
         );
     }
 

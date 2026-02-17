@@ -981,7 +981,7 @@ macro_rules! const_multiple_impl {
         c0nst::c0nst! {
             impl c0nst ConstMultiple for $t {
                 fn is_multiple_of(&self, rhs: &Self) -> bool {
-                    if *rhs == 0 {
+                    if rhs.is_zero() {
                         false
                     } else {
                         *self % *rhs == 0
@@ -1012,7 +1012,7 @@ macro_rules! const_div_ceil_impl {
                     <$t>::div_ceil(self, rhs)
                 }
                 fn checked_div_ceil(self, rhs: Self) -> Option<Self> {
-                    if rhs == 0 {
+                    if rhs.is_zero() {
                         None
                     } else {
                         Some(<$t>::div_ceil(self, rhs))
