@@ -285,7 +285,7 @@ c0nst::c0nst! {
     /// Const-compatible ceiling division.
     ///
     /// Returns the smallest integer greater than or equal to the exact quotient.
-    pub c0nst trait ConstDivCeil: Sized + [c0nst] ConstZero + [c0nst] core::ops::Div<Output = Self> + [c0nst] core::ops::Rem<Output = Self> + [c0nst] ConstOne + [c0nst] core::ops::Add<Output = Self> + [c0nst] core::cmp::Eq {
+    pub c0nst trait ConstDivCeil: Sized + [c0nst] ConstZero + [c0nst] ConstOne + [c0nst] ConstCheckedAdd {
         /// Calculates the quotient of `self` and `rhs`, rounding up.
         ///
         /// # Panics
