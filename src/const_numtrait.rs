@@ -201,6 +201,15 @@ c0nst::c0nst! {
         fn abs_diff(self, other: Self) -> Self;
     }
 
+    /// Const-compatible checked exponentiation.
+    ///
+    /// Returns `None` if the result would overflow.
+    pub c0nst trait ConstCheckedPow: Sized + [c0nst] ConstOne + [c0nst] ConstCheckedMul {
+        /// Checked exponentiation. Computes `self.pow(exp)`, returning `None`
+        /// if overflow occurred.
+        fn checked_pow(self, exp: u32) -> Option<Self>;
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -826,6 +835,24 @@ const_abs_diff_impl!(u16);
 const_abs_diff_impl!(u32);
 const_abs_diff_impl!(u64);
 const_abs_diff_impl!(u128);
+
+macro_rules! const_checked_pow_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCheckedPow for $t {
+                fn checked_pow(self, exp: u32) -> Option<Self> {
+                    self.checked_pow(exp)
+                }
+            }
+        }
+    };
+}
+
+const_checked_pow_impl!(u8);
+const_checked_pow_impl!(u16);
+const_checked_pow_impl!(u32);
+const_checked_pow_impl!(u64);
+const_checked_pow_impl!(u128);
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
