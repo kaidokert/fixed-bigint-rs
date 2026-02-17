@@ -210,6 +210,52 @@ c0nst::c0nst! {
         fn checked_pow(self, exp: u32) -> Option<Self>;
     }
 
+    /// Const-compatible integer logarithm operations.
+    ///
+    /// # Unsigned types only
+    ///
+    /// This trait is designed for unsigned integer types. The logarithm of zero
+    /// is undefined and will panic (or return `None` for checked variants).
+    pub c0nst trait ConstIlog: Sized + [c0nst] ConstZero + [c0nst] ConstOne + [c0nst] core::cmp::Ord + [c0nst] core::ops::Div<Output = Self> {
+        /// Returns the base 2 logarithm of the number, rounded down.
+        ///
+        /// # Panics
+        ///
+        /// Panics if `self` is zero.
+        fn ilog2(self) -> u32;
+
+        /// Returns the base 10 logarithm of the number, rounded down.
+        ///
+        /// # Panics
+        ///
+        /// Panics if `self` is zero.
+        fn ilog10(self) -> u32;
+
+        /// Returns the logarithm of the number with respect to an arbitrary base,
+        /// rounded down.
+        ///
+        /// # Panics
+        ///
+        /// Panics if `self` is zero, or if `base` is less than 2.
+        fn ilog(self, base: Self) -> u32;
+
+        /// Returns the base 2 logarithm of the number, rounded down.
+        ///
+        /// Returns `None` if `self` is zero.
+        fn checked_ilog2(self) -> Option<u32>;
+
+        /// Returns the base 10 logarithm of the number, rounded down.
+        ///
+        /// Returns `None` if `self` is zero.
+        fn checked_ilog10(self) -> Option<u32>;
+
+        /// Returns the logarithm of the number with respect to an arbitrary base,
+        /// rounded down.
+        ///
+        /// Returns `None` if `self` is zero, or if `base` is less than 2.
+        fn checked_ilog(self, base: Self) -> Option<u32>;
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -853,6 +899,39 @@ const_checked_pow_impl!(u16);
 const_checked_pow_impl!(u32);
 const_checked_pow_impl!(u64);
 const_checked_pow_impl!(u128);
+
+macro_rules! const_ilog_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstIlog for $t {
+                fn ilog2(self) -> u32 {
+                    self.ilog2()
+                }
+                fn ilog10(self) -> u32 {
+                    self.ilog10()
+                }
+                fn ilog(self, base: Self) -> u32 {
+                    self.ilog(base)
+                }
+                fn checked_ilog2(self) -> Option<u32> {
+                    self.checked_ilog2()
+                }
+                fn checked_ilog10(self) -> Option<u32> {
+                    self.checked_ilog10()
+                }
+                fn checked_ilog(self, base: Self) -> Option<u32> {
+                    self.checked_ilog(base)
+                }
+            }
+        }
+    };
+}
+
+const_ilog_impl!(u8);
+const_ilog_impl!(u16);
+const_ilog_impl!(u32);
+const_ilog_impl!(u64);
+const_ilog_impl!(u128);
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
