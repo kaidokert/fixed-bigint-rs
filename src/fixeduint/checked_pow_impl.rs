@@ -30,11 +30,17 @@ c0nst::c0nst! {
             let mut e = exp;
             while e > 0 {
                 if (e & 1) == 1 {
-                    result = ConstCheckedMul::checked_mul(&result, &base)?;
+                    result = match ConstCheckedMul::checked_mul(&result, &base) {
+                        Some(v) => v,
+                        None => return None,
+                    };
                 }
                 e >>= 1;
                 if e > 0 {
-                    base = ConstCheckedMul::checked_mul(&base, &base)?;
+                    base = match ConstCheckedMul::checked_mul(&base, &base) {
+                        Some(v) => v,
+                        None => return None,
+                    };
                 }
             }
             Some(result)
