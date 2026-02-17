@@ -14,8 +14,8 @@
 
 //! Ceiling division for FixedUInt.
 
-use super::{FixedUInt, MachineWord};
-use crate::const_numtrait::{ConstDivCeil, ConstOne, ConstZero};
+use super::{const_div, const_is_zero, FixedUInt, MachineWord};
+use crate::const_numtrait::{ConstDivCeil, ConstOne};
 use crate::machineword::ConstMachineWord;
 
 c0nst::c0nst! {
@@ -28,15 +28,16 @@ c0nst::c0nst! {
         }
 
         fn checked_div_ceil(self, rhs: Self) -> Option<Self> {
-            if rhs.is_zero() {
+            if const_is_zero(&rhs.array) {
                 return None;
             }
-            let q = self / rhs;
-            let r = self % rhs;
-            if r.is_zero() {
-                Some(q)
+            // Use const_div which computes both quotient and remainder in one pass
+            let mut quotient = self.array;
+            let remainder = const_div(&mut quotient, &rhs.array);
+            if const_is_zero(&remainder) {
+                Some(Self { array: quotient })
             } else {
-                Some(q + Self::one())
+                Some(Self { array: quotient } + Self::one())
             }
         }
     }
