@@ -18,7 +18,7 @@ use core::convert::TryFrom;
 use core::fmt::Write;
 
 pub use crate::const_numtrait::{
-    ConstAbsDiff, ConstBounded, ConstCheckedPow, ConstIlog, ConstMultiple, ConstOne,
+    ConstAbsDiff, ConstBounded, ConstCheckedPow, ConstDivCeil, ConstIlog, ConstMultiple, ConstOne,
     ConstPowerOfTwo, ConstPrimInt, ConstZero,
 };
 use crate::machineword::{ConstMachineWord, MachineWord};
@@ -30,6 +30,7 @@ mod abs_diff_impl;
 mod add_sub_impl;
 mod bit_ops_impl;
 mod checked_pow_impl;
+mod div_ceil_impl;
 mod euclid;
 mod ilog_impl;
 mod iter_impl;

@@ -282,6 +282,23 @@ c0nst::c0nst! {
         fn checked_next_multiple_of(self, rhs: Self) -> Option<Self>;
     }
 
+    /// Const-compatible ceiling division.
+    ///
+    /// Returns the smallest integer greater than or equal to the exact quotient.
+    pub c0nst trait ConstDivCeil: Sized + [c0nst] ConstZero + [c0nst] ConstOne + [c0nst] ConstCheckedAdd {
+        /// Calculates the quotient of `self` and `rhs`, rounding up.
+        ///
+        /// # Panics
+        ///
+        /// Panics if `rhs` is zero.
+        fn div_ceil(self, rhs: Self) -> Self;
+
+        /// Calculates the quotient of `self` and `rhs`, rounding up.
+        ///
+        /// Returns `None` if `rhs` is zero.
+        fn checked_div_ceil(self, rhs: Self) -> Option<Self>;
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -964,7 +981,7 @@ macro_rules! const_multiple_impl {
         c0nst::c0nst! {
             impl c0nst ConstMultiple for $t {
                 fn is_multiple_of(&self, rhs: &Self) -> bool {
-                    if *rhs == 0 {
+                    if rhs.is_zero() {
                         false
                     } else {
                         *self % *rhs == 0
@@ -986,6 +1003,31 @@ const_multiple_impl!(u16);
 const_multiple_impl!(u32);
 const_multiple_impl!(u64);
 const_multiple_impl!(u128);
+
+macro_rules! const_div_ceil_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstDivCeil for $t {
+                fn div_ceil(self, rhs: Self) -> Self {
+                    <$t>::div_ceil(self, rhs)
+                }
+                fn checked_div_ceil(self, rhs: Self) -> Option<Self> {
+                    if rhs.is_zero() {
+                        None
+                    } else {
+                        Some(<$t>::div_ceil(self, rhs))
+                    }
+                }
+            }
+        }
+    };
+}
+
+const_div_ceil_impl!(u8);
+const_div_ceil_impl!(u16);
+const_div_ceil_impl!(u32);
+const_div_ceil_impl!(u64);
+const_div_ceil_impl!(u128);
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
