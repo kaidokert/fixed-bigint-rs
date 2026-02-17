@@ -256,6 +256,32 @@ c0nst::c0nst! {
         fn checked_ilog(self, base: Self) -> Option<u32>;
     }
 
+    /// Const-compatible multiple-of operations.
+    ///
+    /// # Unsigned types only
+    ///
+    /// This trait is designed for unsigned integer types.
+    pub c0nst trait ConstMultiple: Sized + [c0nst] ConstZero + [c0nst] core::ops::Rem<Output = Self> + [c0nst] core::ops::Add<Output = Self> + [c0nst] core::ops::Sub<Output = Self> + [c0nst] core::cmp::Eq {
+        /// Returns `true` if `self` is a multiple of `rhs`.
+        ///
+        /// Returns `false` if `rhs` is zero.
+        fn is_multiple_of(&self, rhs: &Self) -> bool;
+
+        /// Returns the smallest value greater than or equal to `self` that
+        /// is a multiple of `rhs`.
+        ///
+        /// # Panics
+        ///
+        /// Panics if `rhs` is zero, or if the result would overflow.
+        fn next_multiple_of(self, rhs: Self) -> Self;
+
+        /// Returns the smallest value greater than or equal to `self` that
+        /// is a multiple of `rhs`.
+        ///
+        /// Returns `None` if `rhs` is zero, or if the result would overflow.
+        fn checked_next_multiple_of(self, rhs: Self) -> Option<Self>;
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -932,6 +958,34 @@ const_ilog_impl!(u16);
 const_ilog_impl!(u32);
 const_ilog_impl!(u64);
 const_ilog_impl!(u128);
+
+macro_rules! const_multiple_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstMultiple for $t {
+                fn is_multiple_of(&self, rhs: &Self) -> bool {
+                    if *rhs == 0 {
+                        false
+                    } else {
+                        *self % *rhs == 0
+                    }
+                }
+                fn next_multiple_of(self, rhs: Self) -> Self {
+                    self.next_multiple_of(rhs)
+                }
+                fn checked_next_multiple_of(self, rhs: Self) -> Option<Self> {
+                    self.checked_next_multiple_of(rhs)
+                }
+            }
+        }
+    };
+}
+
+const_multiple_impl!(u8);
+const_multiple_impl!(u16);
+const_multiple_impl!(u32);
+const_multiple_impl!(u64);
+const_multiple_impl!(u128);
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
