@@ -1044,6 +1044,8 @@ const_div_ceil_impl!(u32);
 const_div_ceil_impl!(u64);
 const_div_ceil_impl!(u128);
 
+// Primitive isqrt requires Rust 1.84+, gate behind nightly
+#[cfg(feature = "nightly")]
 macro_rules! const_isqrt_impl {
     ($t:ty) => {
         c0nst::c0nst! {
@@ -1060,10 +1062,15 @@ macro_rules! const_isqrt_impl {
     };
 }
 
+#[cfg(feature = "nightly")]
 const_isqrt_impl!(u8);
+#[cfg(feature = "nightly")]
 const_isqrt_impl!(u16);
+#[cfg(feature = "nightly")]
 const_isqrt_impl!(u32);
+#[cfg(feature = "nightly")]
 const_isqrt_impl!(u64);
+#[cfg(feature = "nightly")]
 const_isqrt_impl!(u128);
 
 const_prim_int_impl!(u8);
