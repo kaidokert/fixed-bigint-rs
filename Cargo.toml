@@ -4,6 +4,7 @@ version = "0.1.17"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 documentation = "https://docs.rs/fixed-bigint"
 edition = "2018"
+rust-version = "1.84"
 description = """
 Fixed-size big integer implementation for Rust
 """
