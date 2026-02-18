@@ -299,18 +299,18 @@ c0nst::c0nst! {
         fn checked_div_ceil(self, rhs: Self) -> Option<Self>;
     }
 
-    /// Const-compatible integer square root.
+    /// Const-compatible integer square root for unsigned integers.
     ///
     /// Returns the largest integer `r` such that `r * r <= self`.
     pub c0nst trait ConstIsqrt: Sized + [c0nst] ConstZero {
         /// Returns the integer square root of `self`.
-        ///
-        /// # Panics
-        ///
-        /// Panics if `self` is negative (for signed types).
         fn isqrt(self) -> Self;
 
-        /// Returns the integer square root of `self`, or `None` if `self` is negative.
+        /// Returns the integer square root of `self`.
+        ///
+        /// For unsigned types, this always returns `Some`. The checked variant
+        /// exists for API consistency with signed types where negative values
+        /// would return `None`.
         fn checked_isqrt(self) -> Option<Self>;
     }
 

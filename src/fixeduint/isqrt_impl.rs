@@ -14,7 +14,7 @@
 
 //! Integer square root for FixedUInt.
 
-use super::{FixedUInt, MachineWord};
+use super::{const_set_bit, FixedUInt, MachineWord};
 use crate::const_numtrait::{ConstIsqrt, ConstPrimInt, ConstZero};
 use crate::machineword::ConstMachineWord;
 
@@ -49,13 +49,10 @@ c0nst::c0nst! {
 
                 // Try setting this bit in the result
                 let mut candidate = result;
-                candidate.array[bit_pos / Self::WORD_BITS] |=
-                    T::one().shl(bit_pos % Self::WORD_BITS);
+                const_set_bit(&mut candidate.array, bit_pos);
 
                 // Check if candidate * candidate <= self
-                // To avoid overflow, we check if candidate <= self / candidate
-                // But division is expensive, so we compute candidate * candidate directly
-                // and compare. Since candidate has at most half the bits of self,
+                // Since candidate has at most half the bits of self,
                 // candidate * candidate won't overflow.
                 let square = candidate * candidate;
                 if square <= self {
@@ -71,6 +68,7 @@ c0nst::c0nst! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use num_traits::{CheckedAdd, CheckedMul};
 
     #[test]
     fn test_isqrt() {
@@ -137,14 +135,59 @@ mod tests {
             // r^2 <= n
             assert!(r * r <= n_int, "Failed: {}^2 > {}", r, n);
 
-            // (r+1)^2 > n (unless r+1 would overflow, but won't happen for small n)
-            let r_plus_1 = r + U16::from(1u8);
-            assert!(
-                r_plus_1 * r_plus_1 > n_int,
-                "Failed: {}^2 <= {}",
-                r_plus_1,
-                n
-            );
+            // (r+1)^2 > n - use checked arithmetic to handle potential overflow
+            if let Some(r_plus_1) = r.checked_add(&U16::from(1u8)) {
+                // If (r+1)^2 overflows, it's definitely > n since n fits in U16
+                if let Some(square) = r_plus_1.checked_mul(&r_plus_1) {
+                    assert!(square > n_int, "Failed: {}^2 <= {}", r_plus_1, n);
+                }
+            }
+            // If r+1 overflows, r is MAX, so (r+1)^2 > n also holds
+        }
+    }
+
+    #[test]
+    fn test_isqrt_wider_types() {
+        // Test with wider word type to exercise cross-word bit-setting
+        type U32x2 = FixedUInt<u32, 2>;
+
+        // Perfect squares
+        assert_eq!(ConstIsqrt::isqrt(U32x2::from(0u8)), U32x2::from(0u8));
+        assert_eq!(ConstIsqrt::isqrt(U32x2::from(1u8)), U32x2::from(1u8));
+        assert_eq!(ConstIsqrt::isqrt(U32x2::from(16u8)), U32x2::from(4u8));
+
+        // Larger values that span multiple bits
+        assert_eq!(
+            ConstIsqrt::isqrt(U32x2::from(1000000u32)),
+            U32x2::from(1000u32)
+        );
+        assert_eq!(
+            ConstIsqrt::isqrt(U32x2::from(0xFFFFFFFFu32)),
+            U32x2::from(0xFFFFu32)
+        );
+
+        // Test with u8x4 for different word boundary behavior
+        type U8x4 = FixedUInt<u8, 4>;
+        assert_eq!(ConstIsqrt::isqrt(U8x4::from(65536u32)), U8x4::from(256u32));
+        assert_eq!(
+            ConstIsqrt::isqrt(U8x4::from(1000000u32)),
+            U8x4::from(1000u32)
+        );
+
+        // Verify correctness for a range
+        for n in (0..=10000u32).step_by(100) {
+            let n_int = U32x2::from(n);
+            let r = ConstIsqrt::isqrt(n_int);
+
+            // r^2 <= n
+            assert!(r * r <= n_int, "Failed: {}^2 > {} for U32x2", r, n);
+
+            // (r+1)^2 > n
+            if let Some(r_plus_1) = r.checked_add(&U32x2::from(1u8)) {
+                if let Some(square) = r_plus_1.checked_mul(&r_plus_1) {
+                    assert!(square > n_int, "Failed: {}^2 <= {} for U32x2", r_plus_1, n);
+                }
+            }
         }
     }
 
