@@ -2,13 +2,13 @@
 
 [![crate](https://img.shields.io/crates/v/fixed-bigint.svg)](https://crates.io/crates/fixed-bigint)
 [![documentation](https://docs.rs/fixed-bigint/badge.svg)](https://docs.rs/fixed-bigint/)
-[![minimum rustc 1.51](https://img.shields.io/badge/rustc-1.51+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.73](https://img.shields.io/badge/rustc-1.73+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![build status](https://github.com/kaidokert/fixed-bigint-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/kaidokert/fixed-bigint-rs/actions)
 [![Coverage Status](https://coveralls.io/repos/github/kaidokert/fixed-bigint-rs/badge.svg?branch=main)](https://coveralls.io/github/kaidokert/fixed-bigint-rs?branch=main)
 
 Unsigned BigInt implementation, backed by a fixed-size array.
 
-***Important***: Requires at least Rust 1.51 stable, as it uses `min_const_generics`
+***Important***: Requires at least Rust 1.73 stable
 
 `FixedUInt<u8,4>`,`FixedUInt<u16,2>` or `FixedUInt<u32,1>` all create a 32-bit unsigned integer, that behaves mostly the same as builtin `u32`.
 `FixedUInt<u32, 64>` creates a 2048-bit value, that uses native 32-bit math. If running on 8-bit CPU, `FixedUInt<u8, 2048>` would work the same, just very much slower.

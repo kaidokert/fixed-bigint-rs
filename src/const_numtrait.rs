@@ -299,6 +299,21 @@ c0nst::c0nst! {
         fn checked_div_ceil(self, rhs: Self) -> Option<Self>;
     }
 
+    /// Const-compatible integer square root for unsigned integers.
+    ///
+    /// Returns the largest integer `r` such that `r * r <= self`.
+    pub c0nst trait ConstIsqrt: Sized + [c0nst] ConstZero {
+        /// Returns the integer square root of `self`.
+        fn isqrt(self) -> Self;
+
+        /// Returns the integer square root of `self`.
+        ///
+        /// For unsigned types, this always returns `Some`. The checked variant
+        /// exists for API consistency with signed types where negative values
+        /// would return `None`.
+        fn checked_isqrt(self) -> Option<Self>;
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -1028,6 +1043,35 @@ const_div_ceil_impl!(u16);
 const_div_ceil_impl!(u32);
 const_div_ceil_impl!(u64);
 const_div_ceil_impl!(u128);
+
+// Primitive isqrt requires Rust 1.84+, gate behind nightly
+#[cfg(feature = "nightly")]
+macro_rules! const_isqrt_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstIsqrt for $t {
+                fn isqrt(self) -> Self {
+                    <$t>::isqrt(self)
+                }
+                fn checked_isqrt(self) -> Option<Self> {
+                    // For unsigned types, isqrt always succeeds
+                    Some(<$t>::isqrt(self))
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "nightly")]
+const_isqrt_impl!(u8);
+#[cfg(feature = "nightly")]
+const_isqrt_impl!(u16);
+#[cfg(feature = "nightly")]
+const_isqrt_impl!(u32);
+#[cfg(feature = "nightly")]
+const_isqrt_impl!(u64);
+#[cfg(feature = "nightly")]
+const_isqrt_impl!(u128);
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
