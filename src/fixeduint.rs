@@ -91,7 +91,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     }
 
     /// Returns the underlying array.
-    pub fn bytes(&self) -> &[T; N] {
+    pub fn words(&self) -> &[T; N] {
         &self.array
     }
 
