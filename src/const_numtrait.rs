@@ -1124,105 +1124,90 @@ const_isqrt_impl!(u64);
 #[cfg(feature = "nightly")]
 const_isqrt_impl!(u128);
 
-// Extended precision operations require unstable bigint_helper_methods, gate on nightly
-#[cfg(feature = "nightly")]
+// Extended precision primitive implementations
+// Use manual implementations that work on both stable and nightly
 macro_rules! const_carrying_add_impl {
     ($t:ty) => {
         c0nst::c0nst! {
             impl c0nst ConstCarryingAdd for $t {
                 fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
-                    <$t>::carrying_add(self, rhs, carry)
+                    let (sum1, c1) = self.overflowing_add(rhs);
+                    let (sum2, c2) = sum1.overflowing_add(if carry { 1 } else { 0 });
+                    (sum2, c1 || c2)
                 }
             }
         }
     };
 }
 
-#[cfg(feature = "nightly")]
 macro_rules! const_borrowing_sub_impl {
     ($t:ty) => {
         c0nst::c0nst! {
             impl c0nst ConstBorrowingSub for $t {
                 fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
-                    <$t>::borrowing_sub(self, rhs, borrow)
+                    let (diff1, b1) = self.overflowing_sub(rhs);
+                    let (diff2, b2) = diff1.overflowing_sub(if borrow { 1 } else { 0 });
+                    (diff2, b1 || b2)
                 }
             }
         }
     };
 }
 
-#[cfg(feature = "nightly")]
 macro_rules! const_widening_mul_impl {
-    ($t:ty) => {
+    ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
             impl c0nst ConstWideningMul for $t {
                 fn widening_mul(self, rhs: Self) -> (Self, Self) {
-                    <$t>::widening_mul(self, rhs)
+                    let product = (self as $double) * (rhs as $double);
+                    (product as $t, (product >> $bits) as $t)
                 }
             }
         }
     };
 }
 
-#[cfg(feature = "nightly")]
 macro_rules! const_carrying_mul_impl {
-    ($t:ty) => {
+    ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
             impl c0nst ConstCarryingMul for $t {
                 fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
-                    <$t>::carrying_mul(self, rhs, carry)
+                    let product = (self as $double) * (rhs as $double) + (carry as $double);
+                    (product as $t, (product >> $bits) as $t)
                 }
                 fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self) {
-                    // Note: carrying_mul_add not yet in std, implement manually
-                    let (lo, hi) = <$t>::carrying_mul(self, rhs, carry);
-                    let (lo2, c) = lo.overflowing_add(addend);
-                    (lo2, hi + if c { 1 } else { 0 })
+                    let product = (self as $double) * (rhs as $double)
+                        + (addend as $double)
+                        + (carry as $double);
+                    (product as $t, (product >> $bits) as $t)
                 }
             }
         }
     };
 }
 
-#[cfg(feature = "nightly")]
 const_carrying_add_impl!(u8);
-#[cfg(feature = "nightly")]
 const_carrying_add_impl!(u16);
-#[cfg(feature = "nightly")]
 const_carrying_add_impl!(u32);
-#[cfg(feature = "nightly")]
 const_carrying_add_impl!(u64);
-#[cfg(feature = "nightly")]
 const_carrying_add_impl!(u128);
 
-#[cfg(feature = "nightly")]
 const_borrowing_sub_impl!(u8);
-#[cfg(feature = "nightly")]
 const_borrowing_sub_impl!(u16);
-#[cfg(feature = "nightly")]
 const_borrowing_sub_impl!(u32);
-#[cfg(feature = "nightly")]
 const_borrowing_sub_impl!(u64);
-#[cfg(feature = "nightly")]
 const_borrowing_sub_impl!(u128);
 
-#[cfg(feature = "nightly")]
-const_widening_mul_impl!(u8);
-#[cfg(feature = "nightly")]
-const_widening_mul_impl!(u16);
-#[cfg(feature = "nightly")]
-const_widening_mul_impl!(u32);
-#[cfg(feature = "nightly")]
-const_widening_mul_impl!(u64);
+const_widening_mul_impl!(u8, u16, 8);
+const_widening_mul_impl!(u16, u32, 16);
+const_widening_mul_impl!(u32, u64, 32);
+const_widening_mul_impl!(u64, u128, 64);
 // Note: u128 doesn't have widening_mul (no u256 type)
 
-#[cfg(feature = "nightly")]
-const_carrying_mul_impl!(u8);
-#[cfg(feature = "nightly")]
-const_carrying_mul_impl!(u16);
-#[cfg(feature = "nightly")]
-const_carrying_mul_impl!(u32);
-#[cfg(feature = "nightly")]
-const_carrying_mul_impl!(u64);
+const_carrying_mul_impl!(u8, u16, 8);
+const_carrying_mul_impl!(u16, u32, 16);
+const_carrying_mul_impl!(u32, u64, 32);
+const_carrying_mul_impl!(u64, u128, 64);
 // Note: u128 doesn't have carrying_mul (no u256 type)
 
 const_prim_int_impl!(u8);
