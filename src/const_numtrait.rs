@@ -314,6 +314,57 @@ c0nst::c0nst! {
         fn checked_isqrt(self) -> Option<Self>;
     }
 
+    /// Const-compatible addition with carry for extended precision arithmetic.
+    ///
+    /// Performs `self + rhs + carry`, returning the sum and output carry.
+    /// This is a full adder operation useful for multi-word addition.
+    pub c0nst trait ConstCarryingAdd: Sized {
+        /// Calculates `self + rhs + carry`, returning `(sum, carry_out)`.
+        ///
+        /// The `carry` input should be `false` for normal addition or `true`
+        /// to add an additional 1 (carry from a previous addition).
+        fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool);
+    }
+
+    /// Const-compatible subtraction with borrow for extended precision arithmetic.
+    ///
+    /// Performs `self - rhs - borrow`, returning the difference and output borrow.
+    /// This is a full subtractor operation useful for multi-word subtraction.
+    pub c0nst trait ConstBorrowingSub: Sized {
+        /// Calculates `self - rhs - borrow`, returning `(difference, borrow_out)`.
+        ///
+        /// The `borrow` input should be `false` for normal subtraction or `true`
+        /// to subtract an additional 1 (borrow from a previous subtraction).
+        fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool);
+    }
+
+    /// Const-compatible widening multiplication for extended precision arithmetic.
+    ///
+    /// Multiplies two values and returns the full double-width result as (low, high).
+    pub c0nst trait ConstWideningMul: Sized {
+        /// Calculates the complete product `self * rhs` without overflow.
+        ///
+        /// Returns `(low, high)` where the full result is `high * 2^BITS + low`.
+        fn widening_mul(self, rhs: Self) -> (Self, Self);
+    }
+
+    /// Const-compatible carrying multiplication for extended precision arithmetic.
+    ///
+    /// Provides multiply-accumulate operations returning double-width results.
+    pub c0nst trait ConstCarryingMul: Sized {
+        /// Calculates `self * rhs + carry`, returning `(low, high)`.
+        ///
+        /// This performs a widening multiplication and adds a carry value,
+        /// which cannot overflow since `MAX * MAX + MAX < (MAX+1)^2`.
+        fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self);
+
+        /// Calculates `self * rhs + addend + carry`, returning `(low, high)`.
+        ///
+        /// This performs a widening multiply-add operation. Adding two values
+        /// cannot overflow since `MAX * MAX + MAX + MAX < (MAX+1)^2`.
+        fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self);
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -1072,6 +1123,107 @@ const_isqrt_impl!(u32);
 const_isqrt_impl!(u64);
 #[cfg(feature = "nightly")]
 const_isqrt_impl!(u128);
+
+// Extended precision operations require unstable bigint_helper_methods, gate on nightly
+#[cfg(feature = "nightly")]
+macro_rules! const_carrying_add_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCarryingAdd for $t {
+                fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
+                    <$t>::carrying_add(self, rhs, carry)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "nightly")]
+macro_rules! const_borrowing_sub_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstBorrowingSub for $t {
+                fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
+                    <$t>::borrowing_sub(self, rhs, borrow)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "nightly")]
+macro_rules! const_widening_mul_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstWideningMul for $t {
+                fn widening_mul(self, rhs: Self) -> (Self, Self) {
+                    <$t>::widening_mul(self, rhs)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "nightly")]
+macro_rules! const_carrying_mul_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCarryingMul for $t {
+                fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
+                    <$t>::carrying_mul(self, rhs, carry)
+                }
+                fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self) {
+                    // Note: carrying_mul_add not yet in std, implement manually
+                    let (lo, hi) = <$t>::carrying_mul(self, rhs, carry);
+                    let (lo2, c) = lo.overflowing_add(addend);
+                    (lo2, hi + if c { 1 } else { 0 })
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "nightly")]
+const_carrying_add_impl!(u8);
+#[cfg(feature = "nightly")]
+const_carrying_add_impl!(u16);
+#[cfg(feature = "nightly")]
+const_carrying_add_impl!(u32);
+#[cfg(feature = "nightly")]
+const_carrying_add_impl!(u64);
+#[cfg(feature = "nightly")]
+const_carrying_add_impl!(u128);
+
+#[cfg(feature = "nightly")]
+const_borrowing_sub_impl!(u8);
+#[cfg(feature = "nightly")]
+const_borrowing_sub_impl!(u16);
+#[cfg(feature = "nightly")]
+const_borrowing_sub_impl!(u32);
+#[cfg(feature = "nightly")]
+const_borrowing_sub_impl!(u64);
+#[cfg(feature = "nightly")]
+const_borrowing_sub_impl!(u128);
+
+#[cfg(feature = "nightly")]
+const_widening_mul_impl!(u8);
+#[cfg(feature = "nightly")]
+const_widening_mul_impl!(u16);
+#[cfg(feature = "nightly")]
+const_widening_mul_impl!(u32);
+#[cfg(feature = "nightly")]
+const_widening_mul_impl!(u64);
+// Note: u128 doesn't have widening_mul (no u256 type)
+
+#[cfg(feature = "nightly")]
+const_carrying_mul_impl!(u8);
+#[cfg(feature = "nightly")]
+const_carrying_mul_impl!(u16);
+#[cfg(feature = "nightly")]
+const_carrying_mul_impl!(u32);
+#[cfg(feature = "nightly")]
+const_carrying_mul_impl!(u64);
+// Note: u128 doesn't have carrying_mul (no u256 type)
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
