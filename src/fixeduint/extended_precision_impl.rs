@@ -19,113 +19,151 @@
 
 use super::{FixedUInt, MachineWord};
 use crate::const_numtrait::{
-    ConstBorrowingSub, ConstCarryingAdd, ConstCarryingMul, ConstWideningMul,
+    ConstBorrowingSub, ConstCarryingAdd, ConstCarryingMul, ConstWideningMul, ConstZero,
 };
 use crate::machineword::ConstMachineWord;
 
 c0nst::c0nst! {
     /// Add with carry input, returns sum and carry output.
-    c0nst fn add_with_carry<T: [c0nst] ConstMachineWord, const N: usize>(
+    /// Uses ConstCarryingAdd on limb types for consistency.
+    c0nst fn add_with_carry<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd, const N: usize>(
         a: &[T; N],
         b: &[T; N],
         carry_in: bool,
     ) -> ([T; N], bool) {
         let mut result = [T::zero(); N];
-        let mut carry = if carry_in { T::one() } else { T::zero() };
+        let mut carry = carry_in;
         let mut i = 0usize;
         while i < N {
-            let (sum1, c1) = a[i].overflowing_add(&b[i]);
-            let (sum2, c2) = sum1.overflowing_add(&carry);
-            result[i] = sum2;
-            carry = if c1 || c2 { T::one() } else { T::zero() };
+            let (sum, c) = ConstCarryingAdd::carrying_add(a[i], b[i], carry);
+            result[i] = sum;
+            carry = c;
             i += 1;
         }
-        (result, !carry.is_zero())
+        (result, carry)
     }
 
     /// Subtract with borrow input, returns difference and borrow output.
-    c0nst fn sub_with_borrow<T: [c0nst] ConstMachineWord, const N: usize>(
+    /// Uses ConstBorrowingSub on limb types for consistency.
+    c0nst fn sub_with_borrow<T: [c0nst] ConstMachineWord + [c0nst] ConstBorrowingSub, const N: usize>(
         a: &[T; N],
         b: &[T; N],
         borrow_in: bool,
     ) -> ([T; N], bool) {
         let mut result = [T::zero(); N];
-        let mut borrow = if borrow_in { T::one() } else { T::zero() };
+        let mut borrow = borrow_in;
         let mut i = 0usize;
         while i < N {
-            let (diff1, b1) = a[i].overflowing_sub(&b[i]);
-            let (diff2, b2) = diff1.overflowing_sub(&borrow);
-            result[i] = diff2;
-            borrow = if b1 || b2 { T::one() } else { T::zero() };
+            let (diff, b) = ConstBorrowingSub::borrowing_sub(a[i], b[i], borrow);
+            result[i] = diff;
+            borrow = b;
             i += 1;
         }
-        (result, !borrow.is_zero())
+        (result, borrow)
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCarryingAdd for FixedUInt<T, N> {
+    /// Add a single word to an array at a given position, propagating carry.
+    /// Returns the final carry out.
+    c0nst fn add_word_at<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd, const N: usize>(
+        arr: &mut [T; N],
+        word: T,
+        pos: usize,
+    ) -> bool {
+        if pos >= N || word.is_zero() {
+            return false;
+        }
+        let (sum, mut carry) = ConstCarryingAdd::carrying_add(arr[pos], word, false);
+        arr[pos] = sum;
+        let mut k = pos + 1;
+        while carry && k < N {
+            let (s, c) = ConstCarryingAdd::carrying_add(arr[k], T::zero(), true);
+            arr[k] = s;
+            carry = c;
+            k += 1;
+        }
+        carry
+    }
+
+    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstCarryingAdd for FixedUInt<T, N> {
         fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
             let (array, carry_out) = add_with_carry(&self.array, &rhs.array, carry);
             (Self { array }, carry_out)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstBorrowingSub for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstBorrowingSub for FixedUInt<T, N> {
         fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
             let (array, borrow_out) = sub_with_borrow(&self.array, &rhs.array, borrow);
             (Self { array }, borrow_out)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstWideningMul for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstWideningMul for FixedUInt<T, N> {
         fn widening_mul(self, rhs: Self) -> (Self, Self) {
-            // Perform full multiplication into a double-width buffer
-            // Result is 2*N words, split into low N words and high N words
+            // Use double-word accumulator approach like const_mul to achieve O(N²) complexity.
+            // Instead of propagating carries per partial product (O(N³)), we accumulate
+            // into ConstDoubleWord and extract single words once per position.
             let mut result_low = [T::zero(); N];
             let mut result_high = [T::zero(); N];
 
-            // Schoolbook multiplication: for each word pair, accumulate into result
+            let t_max = T::to_double(T::max_value());
+            let dw_zero = <<T as ConstMachineWord>::ConstDoubleWord as ConstZero>::zero();
+            let word_bits = core::mem::size_of::<T>() * 8;
+
             let mut i = 0usize;
             while i < N {
+                let mut carry = dw_zero;
                 let mut j = 0usize;
                 while j < N {
                     let pos = i + j;
-                    // Multiply words and get double-width result
-                    let (prod_lo, prod_hi) = self.array[i].widening_mul(&rhs.array[j]);
+                    let op1_dw = T::to_double(self.array[i]);
+                    let op2_dw = T::to_double(rhs.array[j]);
+                    let mul_res = op1_dw * op2_dw;
 
-                    // Add prod_lo to result at position pos
-                    let mut carry = prod_lo;
-                    let mut k = pos;
-                    while !carry.is_zero() && k < 2 * N {
-                        if k < N {
-                            let (sum, c) = result_low[k].overflowing_add(&carry);
-                            result_low[k] = sum;
-                            carry = if c { T::one() } else { T::zero() };
-                        } else {
-                            let (sum, c) = result_high[k - N].overflowing_add(&carry);
-                            result_high[k - N] = sum;
-                            carry = if c { T::one() } else { T::zero() };
-                        }
-                        k += 1;
+                    // Get current accumulator value from appropriate half
+                    let current = if pos < N {
+                        T::to_double(result_low[pos])
+                    } else if pos < 2 * N {
+                        T::to_double(result_high[pos - N])
+                    } else {
+                        dw_zero
+                    };
+
+                    let mut accumulator = current + mul_res + carry;
+
+                    // Extract carry for next position
+                    if accumulator > t_max {
+                        carry = accumulator >> word_bits;
+                        accumulator &= t_max;
+                    } else {
+                        carry = dw_zero;
                     }
 
-                    // Add prod_hi to result at position pos+1
-                    carry = prod_hi;
-                    k = pos + 1;
-                    while !carry.is_zero() && k < 2 * N {
-                        if k < N {
-                            let (sum, c) = result_low[k].overflowing_add(&carry);
-                            result_low[k] = sum;
-                            carry = if c { T::one() } else { T::zero() };
-                        } else {
-                            let (sum, c) = result_high[k - N].overflowing_add(&carry);
-                            result_high[k - N] = sum;
-                            carry = if c { T::one() } else { T::zero() };
-                        }
-                        k += 1;
+                    // Store back
+                    if pos < N {
+                        result_low[pos] = T::from_double(accumulator);
+                    } else if pos < 2 * N {
+                        result_high[pos - N] = T::from_double(accumulator);
                     }
 
                     j += 1;
                 }
+
+                // Propagate final carry from this row
+                let mut pos = i + N;
+                while carry != dw_zero && pos < 2 * N {
+                    let current = T::to_double(result_high[pos - N]);
+                    let mut accumulator = current + carry;
+                    if accumulator > t_max {
+                        carry = accumulator >> word_bits;
+                        accumulator &= t_max;
+                    } else {
+                        carry = dw_zero;
+                    }
+                    result_high[pos - N] = T::from_double(accumulator);
+                    pos += 1;
+                }
+
                 i += 1;
             }
 
@@ -133,21 +171,17 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCarryingMul for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstCarryingMul for FixedUInt<T, N> {
         fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
             // widening_mul + add carry to result
             let (lo, hi) = ConstWideningMul::widening_mul(self, rhs);
 
-            // Add carry to lo, propagate to hi
+            // Add carry to lo, propagate overflow to hi using carry bit directly
             let (lo2, c) = add_with_carry(&lo.array, &carry.array, false);
-            let carry_array = if c {
-                let mut arr = [T::zero(); N];
-                arr[0] = T::one();
-                arr
-            } else {
-                [T::zero(); N]
-            };
-            let (hi2, _) = add_with_carry(&hi.array, &carry_array, false);
+
+            // Pass the carry bit directly instead of constructing a temporary array
+            let zeros = [T::zero(); N];
+            let (hi2, _) = add_with_carry(&hi.array, &zeros, c);
 
             (Self { array: lo2 }, Self { array: hi2 })
         }
@@ -156,29 +190,16 @@ c0nst::c0nst! {
             // widening_mul + add addend + add carry
             let (lo, hi) = ConstWideningMul::widening_mul(self, rhs);
 
-            // Add carry to lo, propagate to hi
+            // Add carry to lo
             let (lo2, c1) = add_with_carry(&lo.array, &carry.array, false);
-            let carry_array1 = if c1 {
-                let mut arr = [T::zero(); N];
-                arr[0] = T::one();
-                arr
-            } else {
-                [T::zero(); N]
-            };
 
-            // Add addend to lo2, propagate to hi
+            // Add addend to lo2
             let (lo3, c2) = add_with_carry(&lo2, &addend.array, false);
-            let carry_array2 = if c2 {
-                let mut arr = [T::zero(); N];
-                arr[0] = T::one();
-                arr
-            } else {
-                [T::zero(); N]
-            };
 
-            // Add both carries to hi
-            let (hi2, _) = add_with_carry(&hi.array, &carry_array1, false);
-            let (hi3, _) = add_with_carry(&hi2, &carry_array2, false);
+            // Add both carry bits to hi (c1 and c2 can both be true)
+            let zeros = [T::zero(); N];
+            let (hi2, extra_carry) = add_with_carry(&hi.array, &zeros, c1);
+            let (hi3, _) = add_with_carry(&hi2, &zeros, c2 || extra_carry);
 
             (Self { array: lo3 }, Self { array: hi3 })
         }
@@ -193,7 +214,7 @@ mod tests {
     type U32 = FixedUInt<u8, 4>;
 
     c0nst::c0nst! {
-        pub c0nst fn const_carrying_add<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        pub c0nst fn const_carrying_add<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize>(
             a: FixedUInt<T, N>,
             b: FixedUInt<T, N>,
             carry: bool,
@@ -201,7 +222,7 @@ mod tests {
             ConstCarryingAdd::carrying_add(a, b, carry)
         }
 
-        pub c0nst fn const_borrowing_sub<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        pub c0nst fn const_borrowing_sub<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize>(
             a: FixedUInt<T, N>,
             b: FixedUInt<T, N>,
             borrow: bool,
@@ -209,14 +230,14 @@ mod tests {
             ConstBorrowingSub::borrowing_sub(a, b, borrow)
         }
 
-        pub c0nst fn const_widening_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        pub c0nst fn const_widening_mul<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize>(
             a: FixedUInt<T, N>,
             b: FixedUInt<T, N>,
         ) -> (FixedUInt<T, N>, FixedUInt<T, N>) {
             ConstWideningMul::widening_mul(a, b)
         }
 
-        pub c0nst fn const_carrying_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        pub c0nst fn const_carrying_mul<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize>(
             a: FixedUInt<T, N>,
             b: FixedUInt<T, N>,
             carry: FixedUInt<T, N>,
@@ -224,7 +245,7 @@ mod tests {
             ConstCarryingMul::carrying_mul(a, b, carry)
         }
 
-        pub c0nst fn const_carrying_mul_add<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        pub c0nst fn const_carrying_mul_add<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize>(
             a: FixedUInt<T, N>,
             b: FixedUInt<T, N>,
             addend: FixedUInt<T, N>,
@@ -372,6 +393,18 @@ mod tests {
         let (lo, hi) = const_carrying_mul_add(a, b, addend, carry);
         assert_eq!(lo, U16::from(10015u16));
         assert_eq!(hi, U16::from(0u8));
+    }
+
+    #[test]
+    fn test_carrying_mul_add_double_overflow() {
+        // Test case where both addend and carry cause overflow
+        let max = U16::from(0xFFFFu16);
+        let one = U16::from(1u8);
+
+        // 1 * 1 + 0xFFFF + 0xFFFF = 1 + 0x1FFFE = 0x1FFFF = (0xFFFF, 1)
+        let (lo, hi) = const_carrying_mul_add(one, one, max, max);
+        assert_eq!(lo, U16::from(0xFFFFu16));
+        assert_eq!(hi, U16::from(1u8));
     }
 
     #[test]
