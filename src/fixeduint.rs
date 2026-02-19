@@ -90,6 +90,11 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         }
     }
 
+    /// Returns the underlying array.
+    pub fn bytes(&self) -> &[T; N] {
+        &self.array
+    }
+
     /// Returns number of used bits.
     pub fn bit_length(&self) -> u32 {
         Self::BIT_SIZE as u32 - ConstPrimInt::leading_zeros(*self)
