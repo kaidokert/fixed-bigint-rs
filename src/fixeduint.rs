@@ -66,6 +66,15 @@ where
 #[cfg(feature = "zeroize")]
 impl<T: MachineWord, const N: usize> DefaultIsZeroes for FixedUInt<T, N> {}
 
+impl<T, const N: usize> From<[T; N]> for FixedUInt<T, N>
+where
+    T: MachineWord,
+{
+    fn from(array: [T; N]) -> Self {
+        Self { array }
+    }
+}
+
 const LONGEST_WORD_IN_BITS: usize = 128;
 
 impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
