@@ -19,7 +19,7 @@
 
 use super::{FixedUInt, MachineWord};
 use crate::const_numtrait::{
-    ConstBorrowingSub, ConstCarryingAdd, ConstCarryingMul, ConstWideningMul, ConstZero,
+    ConstBorrowingSub, ConstCarryingAdd, ConstCarryingMul, ConstWideningMul,
 };
 use crate::machineword::ConstMachineWord;
 
@@ -98,74 +98,58 @@ c0nst::c0nst! {
         }
     }
 
-    /// Helper to add a value at a position in the low/high result arrays with carry propagation.
-    /// Returns the final carry-out bit.
-    c0nst fn add_at_position<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd, const N: usize>(
-        result_low: &mut [T; N],
-        result_high: &mut [T; N],
-        pos: usize,
-        value: T,
-        carry_in: bool,
-    ) -> bool {
-        if pos < N {
-            let (sum, c) = ConstCarryingAdd::carrying_add(result_low[pos], value, carry_in);
-            result_low[pos] = sum;
-            c
-        } else if pos < 2 * N {
-            let (sum, c) = ConstCarryingAdd::carrying_add(result_high[pos - N], value, carry_in);
-            result_high[pos - N] = sum;
-            c
-        } else {
-            // Beyond 2*N, just track if there's carry
-            carry_in || !ConstZero::is_zero(&value)
-        }
+    /// Helper: get value at position in 2N-word result (split into low/high).
+    c0nst fn get_at<T: [c0nst] ConstMachineWord, const N: usize>(
+        lo: &[T; N], hi: &[T; N], pos: usize
+    ) -> T {
+        if pos < N { lo[pos] } else if pos < 2 * N { hi[pos - N] } else { T::zero() }
+    }
+
+    /// Helper: set value at position in 2N-word result (split into low/high).
+    c0nst fn set_at<T: [c0nst] ConstMachineWord, const N: usize>(
+        lo: &mut [T; N], hi: &mut [T; N], pos: usize, val: T
+    ) {
+        if pos < N { lo[pos] = val; } else if pos < 2 * N { hi[pos - N] = val; }
     }
 
     impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstWideningMul for FixedUInt<T, N> {
         fn widening_mul(self, rhs: Self) -> (Self, Self) {
-            // Use limb-level widening_mul to avoid double-word operator bounds.
-            // For each pair (a[i], b[j]), widening_mul gives (lo, hi) both of type T.
-            // We add lo at position i+j and hi at position i+j+1, with carry propagation.
+            // Schoolbook multiplication: for each (i,j), add the 2-word product a[i]*b[j]
+            // to result[i+j : i+j+2], propagating any carry upward.
             let mut result_low = [T::zero(); N];
             let mut result_high = [T::zero(); N];
 
             let mut i = 0usize;
             while i < N {
-                let mut carry: T = T::zero();
                 let mut j = 0usize;
                 while j < N {
                     let pos = i + j;
-                    // widening_mul: a[i] * b[j] -> (lo, hi)
                     let (mul_lo, mul_hi) = ConstMachineWord::widening_mul(&self.array[i], &rhs.array[j]);
 
-                    // Add mul_lo + carry to result[pos]
-                    // First add mul_lo
-                    let c1 = add_at_position(&mut result_low, &mut result_high, pos, mul_lo, false);
-                    // Then add the incoming carry
-                    let c2 = add_at_position(&mut result_low, &mut result_high, pos, carry, false);
+                    // Add the 2-word product (mul_hi, mul_lo) at position pos.
+                    // Step 1: add mul_lo at pos
+                    let cur0 = get_at(&result_low, &result_high, pos);
+                    let (sum0, c0) = ConstCarryingAdd::carrying_add(cur0, mul_lo, false);
+                    set_at(&mut result_low, &mut result_high, pos, sum0);
 
-                    // New carry = mul_hi + c1 + c2 (accumulated via carrying_add)
-                    let (carry1, d1) = ConstCarryingAdd::carrying_add(mul_hi, T::zero(), c1);
-                    let (carry2, d2) = ConstCarryingAdd::carrying_add(carry1, T::zero(), c2);
-                    // d1 and d2 can only be true if mul_hi was max, but even then:
-                    // mul_hi <= T::MAX-1 when one operand is 0, so d1 is always false
-                    // when we're just adding carry bits. But to be safe, we combine them:
-                    let (carry3, _) = ConstCarryingAdd::carrying_add(carry2, T::zero(), d1);
-                    let (carry4, _) = ConstCarryingAdd::carrying_add(carry3, T::zero(), d2);
-                    carry = carry4;
+                    // Step 2: add mul_hi + carry at pos+1
+                    let cur1 = get_at(&result_low, &result_high, pos + 1);
+                    let (sum1, c1) = ConstCarryingAdd::carrying_add(cur1, mul_hi, c0);
+                    set_at(&mut result_low, &mut result_high, pos + 1, sum1);
+
+                    // Step 3: propagate any remaining carry
+                    let mut carry = c1;
+                    let mut p = pos + 2;
+                    while carry && p < 2 * N {
+                        let cur = get_at(&result_low, &result_high, p);
+                        let (sum, c) = ConstCarryingAdd::carrying_add(cur, T::zero(), true);
+                        set_at(&mut result_low, &mut result_high, p, sum);
+                        carry = c;
+                        p += 1;
+                    }
 
                     j += 1;
                 }
-
-                // Add final carry for this row at position i + N
-                let mut prop_carry = add_at_position(&mut result_low, &mut result_high, i + N, carry, false);
-                // Propagate carry through remaining positions
-                let mut pos = i + N + 1;
-                while prop_carry && pos < 2 * N {
-                    prop_carry = add_at_position(&mut result_low, &mut result_high, pos, T::zero(), true);
-                    pos += 1;
-                }
-
                 i += 1;
             }
 
@@ -198,10 +182,10 @@ c0nst::c0nst! {
             // Add addend to lo2
             let (lo3, c2) = add_with_carry(&lo2, &addend.array, false);
 
-            // Add both carry bits to hi (c1 and c2 can both be true)
+            // Add carry bits to hi separately (both c1 and c2 can be true = need to add 2)
             let zeros = [T::zero(); N];
-            let (hi2, extra_carry) = add_with_carry(&hi.array, &zeros, c1);
-            let (hi3, _) = add_with_carry(&hi2, &zeros, c2 || extra_carry);
+            let (hi2, _) = add_with_carry(&hi.array, &zeros, c1);
+            let (hi3, _) = add_with_carry(&hi2, &zeros, c2);
 
             (Self { array: lo3 }, Self { array: hi3 })
         }
@@ -435,5 +419,97 @@ mod tests {
             assert_eq!(MUL_RESULT.0, U16::from(0u8)); // 256*256 = 65536, low = 0
             assert_eq!(MUL_RESULT.1, U16::from(1u8)); // high = 1
         }
+    }
+
+    /// Polymorphic test: verify widening_mul produces identical results across
+    /// different word layouts for the same values.
+    #[test]
+    fn test_widening_mul_polymorphic() {
+        // Generic test function following crate pattern
+        fn test_widening<T>(a: T, b: T, expected_lo: T, expected_hi: T)
+        where
+            T: ConstWideningMul
+                + ConstCarryingAdd
+                + ConstBorrowingSub
+                + Eq
+                + core::fmt::Debug
+                + Copy,
+        {
+            let (lo, hi) = ConstWideningMul::widening_mul(a, b);
+            assert_eq!(lo, expected_lo, "lo mismatch");
+            assert_eq!(hi, expected_hi, "hi mismatch");
+        }
+
+        // Test 1: 256 * 256 = 65536
+        // As u16 (FixedUInt<u8, 2>): 16-bit overflow, 256*256 = 0x10000 = (lo=0, hi=1)
+        test_widening(
+            U16::from(256u16),
+            U16::from(256u16),
+            U16::from(0u16),
+            U16::from(1u16),
+        );
+
+        // As u32 (FixedUInt<u8, 4>): fits in 32 bits, so lo=65536, hi=0
+        test_widening(
+            U32::from(256u32),
+            U32::from(256u32),
+            U32::from(65536u32),
+            U32::from(0u32),
+        );
+
+        // Test 2: 0xFFFF * 0xFFFF = 0xFFFE0001
+        test_widening(
+            U16::from(0xFFFFu16),
+            U16::from(0xFFFFu16),
+            U16::from(0x0001u16),
+            U16::from(0xFFFEu16),
+        );
+
+        // Test 3: 0xFFFFFFFF * 2 = 0x1_FFFFFFFE (tests carry across word boundary)
+        test_widening(
+            U32::from(0xFFFFFFFFu32),
+            U32::from(2u32),
+            U32::from(0xFFFFFFFEu32),
+            U32::from(1u32),
+        );
+    }
+
+    /// Polymorphic test for carrying_mul_add with edge cases.
+    #[test]
+    fn test_carrying_mul_add_polymorphic() {
+        fn test_cma<T>(a: T, b: T, addend: T, carry: T, expected_lo: T, expected_hi: T)
+        where
+            T: ConstCarryingMul + Eq + core::fmt::Debug + Copy,
+        {
+            let (lo, hi) = ConstCarryingMul::carrying_mul_add(a, b, addend, carry);
+            assert_eq!(lo, expected_lo, "lo mismatch");
+            assert_eq!(hi, expected_hi, "hi mismatch");
+        }
+
+        // Test: max * max + max + max = 0xFFFF * 0xFFFF + 0xFFFF + 0xFFFF
+        //     = 0xFFFE0001 + 0x1FFFE = 0xFFFFFFFF
+        // lo = 0xFFFF, hi = 0xFFFF
+        let max16 = U16::from(0xFFFFu16);
+        test_cma(
+            max16,
+            max16,
+            max16,
+            max16,
+            U16::from(0xFFFFu16),
+            U16::from(0xFFFFu16),
+        );
+
+        // Same test with different layout (U32 = FixedUInt<u8, 4>)
+        let max32 = U32::from(0xFFFFFFFFu32);
+        let zero32 = U32::from(0u32);
+        // max * 1 + 0 + max = max + max = 2*max = 0x1_FFFFFFFE
+        test_cma(
+            max32,
+            U32::from(1u32),
+            zero32,
+            max32,
+            U32::from(0xFFFFFFFEu32),
+            U32::from(1u32),
+        );
     }
 }
