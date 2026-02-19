@@ -98,69 +98,71 @@ c0nst::c0nst! {
         }
     }
 
+    /// Helper to add a value at a position in the low/high result arrays with carry propagation.
+    /// Returns the final carry-out bit.
+    c0nst fn add_at_position<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd, const N: usize>(
+        result_low: &mut [T; N],
+        result_high: &mut [T; N],
+        pos: usize,
+        value: T,
+        carry_in: bool,
+    ) -> bool {
+        if pos < N {
+            let (sum, c) = ConstCarryingAdd::carrying_add(result_low[pos], value, carry_in);
+            result_low[pos] = sum;
+            c
+        } else if pos < 2 * N {
+            let (sum, c) = ConstCarryingAdd::carrying_add(result_high[pos - N], value, carry_in);
+            result_high[pos - N] = sum;
+            c
+        } else {
+            // Beyond 2*N, just track if there's carry
+            carry_in || !ConstZero::is_zero(&value)
+        }
+    }
+
     impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstWideningMul for FixedUInt<T, N> {
         fn widening_mul(self, rhs: Self) -> (Self, Self) {
-            // Use double-word accumulator approach like const_mul to achieve O(N²) complexity.
-            // Instead of propagating carries per partial product (O(N³)), we accumulate
-            // into ConstDoubleWord and extract single words once per position.
+            // Use limb-level widening_mul to avoid double-word operator bounds.
+            // For each pair (a[i], b[j]), widening_mul gives (lo, hi) both of type T.
+            // We add lo at position i+j and hi at position i+j+1, with carry propagation.
             let mut result_low = [T::zero(); N];
             let mut result_high = [T::zero(); N];
 
-            let t_max = T::to_double(T::max_value());
-            let dw_zero = <<T as ConstMachineWord>::ConstDoubleWord as ConstZero>::zero();
-            let word_bits = core::mem::size_of::<T>() * 8;
-
             let mut i = 0usize;
             while i < N {
-                let mut carry = dw_zero;
+                let mut carry: T = T::zero();
                 let mut j = 0usize;
                 while j < N {
                     let pos = i + j;
-                    let op1_dw = T::to_double(self.array[i]);
-                    let op2_dw = T::to_double(rhs.array[j]);
-                    let mul_res = op1_dw * op2_dw;
+                    // widening_mul: a[i] * b[j] -> (lo, hi)
+                    let (mul_lo, mul_hi) = ConstMachineWord::widening_mul(&self.array[i], &rhs.array[j]);
 
-                    // Get current accumulator value from appropriate half
-                    let current = if pos < N {
-                        T::to_double(result_low[pos])
-                    } else if pos < 2 * N {
-                        T::to_double(result_high[pos - N])
-                    } else {
-                        dw_zero
-                    };
+                    // Add mul_lo + carry to result[pos]
+                    // First add mul_lo
+                    let c1 = add_at_position(&mut result_low, &mut result_high, pos, mul_lo, false);
+                    // Then add the incoming carry
+                    let c2 = add_at_position(&mut result_low, &mut result_high, pos, carry, false);
 
-                    let mut accumulator = current + mul_res + carry;
-
-                    // Extract carry for next position
-                    if accumulator > t_max {
-                        carry = accumulator >> word_bits;
-                        accumulator &= t_max;
-                    } else {
-                        carry = dw_zero;
-                    }
-
-                    // Store back
-                    if pos < N {
-                        result_low[pos] = T::from_double(accumulator);
-                    } else if pos < 2 * N {
-                        result_high[pos - N] = T::from_double(accumulator);
-                    }
+                    // New carry = mul_hi + c1 + c2 (accumulated via carrying_add)
+                    let (carry1, d1) = ConstCarryingAdd::carrying_add(mul_hi, T::zero(), c1);
+                    let (carry2, d2) = ConstCarryingAdd::carrying_add(carry1, T::zero(), c2);
+                    // d1 and d2 can only be true if mul_hi was max, but even then:
+                    // mul_hi <= T::MAX-1 when one operand is 0, so d1 is always false
+                    // when we're just adding carry bits. But to be safe, we combine them:
+                    let (carry3, _) = ConstCarryingAdd::carrying_add(carry2, T::zero(), d1);
+                    let (carry4, _) = ConstCarryingAdd::carrying_add(carry3, T::zero(), d2);
+                    carry = carry4;
 
                     j += 1;
                 }
 
-                // Propagate final carry from this row
-                let mut pos = i + N;
-                while carry != dw_zero && pos < 2 * N {
-                    let current = T::to_double(result_high[pos - N]);
-                    let mut accumulator = current + carry;
-                    if accumulator > t_max {
-                        carry = accumulator >> word_bits;
-                        accumulator &= t_max;
-                    } else {
-                        carry = dw_zero;
-                    }
-                    result_high[pos - N] = T::from_double(accumulator);
+                // Add final carry for this row at position i + N
+                let mut prop_carry = add_at_position(&mut result_low, &mut result_high, i + N, carry, false);
+                // Propagate carry through remaining positions
+                let mut pos = i + N + 1;
+                while prop_carry && pos < 2 * N {
+                    prop_carry = add_at_position(&mut result_low, &mut result_high, pos, T::zero(), true);
                     pos += 1;
                 }
 
