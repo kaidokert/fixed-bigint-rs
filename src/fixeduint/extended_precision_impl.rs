@@ -62,28 +62,6 @@ c0nst::c0nst! {
         (result, borrow)
     }
 
-    /// Add a single word to an array at a given position, propagating carry.
-    /// Returns the final carry out.
-    c0nst fn add_word_at<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd, const N: usize>(
-        arr: &mut [T; N],
-        word: T,
-        pos: usize,
-    ) -> bool {
-        if pos >= N || word.is_zero() {
-            return false;
-        }
-        let (sum, mut carry) = ConstCarryingAdd::carrying_add(arr[pos], word, false);
-        arr[pos] = sum;
-        let mut k = pos + 1;
-        while carry && k < N {
-            let (s, c) = ConstCarryingAdd::carrying_add(arr[k], T::zero(), true);
-            arr[k] = s;
-            carry = c;
-            k += 1;
-        }
-        carry
-    }
-
     impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstCarryingAdd for FixedUInt<T, N> {
         fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
             let (array, carry_out) = add_with_carry(&self.array, &rhs.array, carry);
@@ -124,7 +102,7 @@ c0nst::c0nst! {
                 let mut j = 0usize;
                 while j < N {
                     let pos = i + j;
-                    let (mul_lo, mul_hi) = ConstMachineWord::widening_mul(&self.array[i], &rhs.array[j]);
+                    let (mul_lo, mul_hi) = ConstWideningMul::widening_mul(self.array[i], rhs.array[j]);
 
                     // Add the 2-word product (mul_hi, mul_lo) at position pos.
                     // Step 1: add mul_lo at pos

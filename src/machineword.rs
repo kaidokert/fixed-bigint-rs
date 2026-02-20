@@ -16,59 +16,44 @@
 // turning this into a const trait
 
 pub use crate::const_numtrait::ConstPrimInt;
-use crate::const_numtrait::{ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes};
+use crate::const_numtrait::{
+    ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes, ConstWideningMul,
+};
 
 c0nst::c0nst! {
-    /// A const-friendly trait for MachineWord operations
+    /// A const-friendly trait for MachineWord operations.
+    /// Extends ConstWideningMul to provide widening multiplication.
     pub c0nst trait ConstMachineWord:
         [c0nst] ConstPrimInt +
         [c0nst] ConstOverflowingAdd +
         [c0nst] ConstOverflowingSub +
-        [c0nst] ConstToBytes
+        [c0nst] ConstToBytes +
+        [c0nst] ConstWideningMul
     {
         type ConstDoubleWord: [c0nst] ConstPrimInt;
         fn to_double(self) -> Self::ConstDoubleWord;
         fn from_double(word: Self::ConstDoubleWord) -> Self;
-
-        /// Widening multiplication: returns (low, high) parts of the double-width result.
-        fn widening_mul(&self, other: &Self) -> (Self, Self);
     }
 
     impl c0nst ConstMachineWord for u8 {
         type ConstDoubleWord = u16;
         fn to_double(self) -> u16 { self as u16 }
         fn from_double(word: u16) -> u8 { word as u8 }
-        fn widening_mul(&self, other: &Self) -> (Self, Self) {
-            let product = (*self as u16) * (*other as u16);
-            (product as u8, (product >> 8) as u8)
-        }
     }
     impl c0nst ConstMachineWord for u16 {
         type ConstDoubleWord = u32;
         fn to_double(self) -> u32 { self as u32 }
         fn from_double(word: u32) -> u16 { word as u16 }
-        fn widening_mul(&self, other: &Self) -> (Self, Self) {
-            let product = (*self as u32) * (*other as u32);
-            (product as u16, (product >> 16) as u16)
-        }
     }
     impl c0nst ConstMachineWord for u32 {
         type ConstDoubleWord = u64;
         fn to_double(self) -> u64 { self as u64 }
         fn from_double(word: u64) -> u32 { word as u32 }
-        fn widening_mul(&self, other: &Self) -> (Self, Self) {
-            let product = (*self as u64) * (*other as u64);
-            (product as u32, (product >> 32) as u32)
-        }
     }
     impl c0nst ConstMachineWord for u64 {
         type ConstDoubleWord = u128;
         fn to_double(self) -> u128 { self as u128 }
         fn from_double(word: u128) -> u64 { word as u64 }
-        fn widening_mul(&self, other: &Self) -> (Self, Self) {
-            let product = (*self as u128) * (*other as u128);
-            (product as u64, (product >> 64) as u64)
-        }
     }
 }
 
