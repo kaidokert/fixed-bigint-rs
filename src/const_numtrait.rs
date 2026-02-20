@@ -368,7 +368,7 @@ c0nst::c0nst! {
     /// Const-compatible midpoint calculation.
     ///
     /// Computes the average of two values, rounded down, without overflow.
-    /// Stable since Rust 1.85.0.
+    /// Stable since Rust 1.61.0.
     pub c0nst trait ConstMidpoint: Sized {
         /// Calculates the midpoint (average) of `self` and `rhs`, rounded down.
         ///
@@ -383,10 +383,10 @@ c0nst::c0nst! {
     /// - `unbounded_shl(n)` returns 0 when n >= BITS (all bits shifted out)
     /// - `unbounded_shr(n)` returns 0 when n >= BITS (all bits shifted out)
     pub c0nst trait ConstUnboundedShift: Sized {
-        /// Unbounded shift left. Returns 0 if `rhs >= Self::BITS`.
+        /// Unbounded shift left. Returns 0 if `rhs` is greater than or equal to the bit width of the type.
         fn unbounded_shl(self, rhs: u32) -> Self;
 
-        /// Unbounded shift right. Returns 0 if `rhs >= Self::BITS`.
+        /// Unbounded shift right. Returns 0 if `rhs` is greater than or equal to the bit width of the type.
         fn unbounded_shr(self, rhs: u32) -> Self;
     }
 
