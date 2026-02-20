@@ -62,14 +62,14 @@ c0nst::c0nst! {
         (result, borrow)
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstCarryingAdd for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + MachineWord, const N: usize> c0nst ConstCarryingAdd for FixedUInt<T, N> {
         fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
             let (array, carry_out) = add_with_carry(&self.array, &rhs.array, carry);
             (Self { array }, carry_out)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstBorrowingSub for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstBorrowingSub + MachineWord, const N: usize> c0nst ConstBorrowingSub for FixedUInt<T, N> {
         fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
             let (array, borrow_out) = sub_with_borrow(&self.array, &rhs.array, borrow);
             (Self { array }, borrow_out)
