@@ -314,6 +314,57 @@ c0nst::c0nst! {
         fn checked_isqrt(self) -> Option<Self>;
     }
 
+    /// Const-compatible addition with carry for extended precision arithmetic.
+    ///
+    /// Performs `self + rhs + carry`, returning the sum and output carry.
+    /// This is a full adder operation useful for multi-word addition.
+    pub c0nst trait ConstCarryingAdd: Sized {
+        /// Calculates `self + rhs + carry`, returning `(sum, carry_out)`.
+        ///
+        /// The `carry` input should be `false` for normal addition or `true`
+        /// to add an additional 1 (carry from a previous addition).
+        fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool);
+    }
+
+    /// Const-compatible subtraction with borrow for extended precision arithmetic.
+    ///
+    /// Performs `self - rhs - borrow`, returning the difference and output borrow.
+    /// This is a full subtractor operation useful for multi-word subtraction.
+    pub c0nst trait ConstBorrowingSub: Sized {
+        /// Calculates `self - rhs - borrow`, returning `(difference, borrow_out)`.
+        ///
+        /// The `borrow` input should be `false` for normal subtraction or `true`
+        /// to subtract an additional 1 (borrow from a previous subtraction).
+        fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool);
+    }
+
+    /// Const-compatible widening multiplication for extended precision arithmetic.
+    ///
+    /// Multiplies two values and returns the full double-width result as (low, high).
+    pub c0nst trait ConstWideningMul: Sized {
+        /// Calculates the complete product `self * rhs` without overflow.
+        ///
+        /// Returns `(low, high)` where the full result is `high * 2^BITS + low`.
+        fn widening_mul(self, rhs: Self) -> (Self, Self);
+    }
+
+    /// Const-compatible carrying multiplication for extended precision arithmetic.
+    ///
+    /// Provides multiply-accumulate operations returning double-width results.
+    pub c0nst trait ConstCarryingMul: Sized {
+        /// Calculates `self * rhs + carry`, returning `(low, high)`.
+        ///
+        /// The result fits in double-width (2 * BITS) since
+        /// `MAX * MAX + MAX < (MAX+1)^2 = 2^(2*BITS)`.
+        fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self);
+
+        /// Calculates `self * rhs + addend + carry`, returning `(low, high)`.
+        ///
+        /// The result fits in double-width (2 * BITS) since
+        /// `MAX * MAX + MAX + MAX < (MAX+1)^2 = 2^(2*BITS)`.
+        fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self);
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -1073,6 +1124,92 @@ const_isqrt_impl!(u64);
 #[cfg(feature = "nightly")]
 const_isqrt_impl!(u128);
 
+// Extended precision primitive implementations
+// Use manual implementations that work on both stable and nightly
+macro_rules! const_carrying_add_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCarryingAdd for $t {
+                fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
+                    let (sum1, c1) = self.overflowing_add(rhs);
+                    let (sum2, c2) = sum1.overflowing_add(carry as $t);
+                    (sum2, c1 || c2)
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_borrowing_sub_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstBorrowingSub for $t {
+                fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
+                    let (diff1, b1) = self.overflowing_sub(rhs);
+                    let (diff2, b2) = diff1.overflowing_sub(borrow as $t);
+                    (diff2, b1 || b2)
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_widening_mul_impl {
+    ($t:ty, $double:ty, $bits:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstWideningMul for $t {
+                fn widening_mul(self, rhs: Self) -> (Self, Self) {
+                    let product = (self as $double) * (rhs as $double);
+                    (product as $t, (product >> $bits) as $t)
+                }
+            }
+        }
+    };
+}
+
+macro_rules! const_carrying_mul_impl {
+    ($t:ty, $double:ty, $bits:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCarryingMul for $t {
+                fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
+                    let product = (self as $double) * (rhs as $double) + (carry as $double);
+                    (product as $t, (product >> $bits) as $t)
+                }
+                fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self) {
+                    let product = (self as $double) * (rhs as $double)
+                        + (addend as $double)
+                        + (carry as $double);
+                    (product as $t, (product >> $bits) as $t)
+                }
+            }
+        }
+    };
+}
+
+const_carrying_add_impl!(u8);
+const_carrying_add_impl!(u16);
+const_carrying_add_impl!(u32);
+const_carrying_add_impl!(u64);
+const_carrying_add_impl!(u128);
+
+const_borrowing_sub_impl!(u8);
+const_borrowing_sub_impl!(u16);
+const_borrowing_sub_impl!(u32);
+const_borrowing_sub_impl!(u64);
+const_borrowing_sub_impl!(u128);
+
+const_widening_mul_impl!(u8, u16, 8);
+const_widening_mul_impl!(u16, u32, 16);
+const_widening_mul_impl!(u32, u64, 32);
+const_widening_mul_impl!(u64, u128, 64);
+// TODO: u128 widening_mul requires u256 type (not available in Rust)
+
+const_carrying_mul_impl!(u8, u16, 8);
+const_carrying_mul_impl!(u16, u32, 16);
+const_carrying_mul_impl!(u32, u64, 32);
+const_carrying_mul_impl!(u64, u128, 64);
+// TODO: u128 carrying_mul requires u256 type (not available in Rust)
+
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
 const_prim_int_impl!(u32);
@@ -1166,6 +1303,22 @@ mod tests {
 
         pub c0nst fn saturating_sub_word<T: [c0nst] ConstSaturatingSub>(a: &T, b: &T) -> T {
             a.saturating_sub(b)
+        }
+
+        pub c0nst fn carrying_add_word<T: [c0nst] ConstCarryingAdd>(a: T, b: T, carry: bool) -> (T, bool) {
+            a.carrying_add(b, carry)
+        }
+
+        pub c0nst fn borrowing_sub_word<T: [c0nst] ConstBorrowingSub>(a: T, b: T, borrow: bool) -> (T, bool) {
+            a.borrowing_sub(b, borrow)
+        }
+
+        pub c0nst fn widening_mul_word<T: [c0nst] ConstWideningMul>(a: T, b: T) -> (T, T) {
+            a.widening_mul(b)
+        }
+
+        pub c0nst fn carrying_mul_word<T: [c0nst] ConstCarryingMul>(a: T, b: T, carry: T) -> (T, T) {
+            a.carrying_mul(b, carry)
         }
     }
 
@@ -1402,6 +1555,188 @@ mod tests {
             assert_eq!(SAT_ADD_OVERFLOW, 255u8);
             assert_eq!(SAT_SUB_NO_OVERFLOW, 50u8);
             assert_eq!(SAT_SUB_OVERFLOW, 0u8);
+        }
+    }
+
+    #[test]
+    fn test_const_carrying_add() {
+        // No carry in, no carry out
+        let (sum, carry) = carrying_add_word(100u8, 50u8, false);
+        assert_eq!(sum, 150u8);
+        assert!(!carry);
+
+        // No carry in, carry out
+        let (sum, carry) = carrying_add_word(200u8, 100u8, false);
+        assert_eq!(sum, 44u8); // 300 wraps to 44
+        assert!(carry);
+
+        // Carry in, no carry out
+        let (sum, carry) = carrying_add_word(100u8, 50u8, true);
+        assert_eq!(sum, 151u8);
+        assert!(!carry);
+
+        // Carry in, carry out
+        let (sum, carry) = carrying_add_word(200u8, 55u8, true);
+        assert_eq!(sum, 0u8); // 256 wraps to 0
+        assert!(carry);
+
+        // Edge case: max + 0 + 1 = carry
+        let (sum, carry) = carrying_add_word(u8::MAX, 0u8, true);
+        assert_eq!(sum, 0u8);
+        assert!(carry);
+
+        // Test with larger types
+        let (sum, carry) = carrying_add_word(u64::MAX, 0u64, true);
+        assert_eq!(sum, 0u64);
+        assert!(carry);
+
+        #[cfg(feature = "nightly")]
+        {
+            const CA_NO_CARRY: (u8, bool) = carrying_add_word(100u8, 50u8, false);
+            const CA_CARRY_OUT: (u8, bool) = carrying_add_word(200u8, 100u8, false);
+            const CA_CARRY_IN: (u8, bool) = carrying_add_word(100u8, 50u8, true);
+            const CA_BOTH_CARRY: (u8, bool) = carrying_add_word(200u8, 55u8, true);
+
+            assert_eq!(CA_NO_CARRY, (150u8, false));
+            assert_eq!(CA_CARRY_OUT, (44u8, true));
+            assert_eq!(CA_CARRY_IN, (151u8, false));
+            assert_eq!(CA_BOTH_CARRY, (0u8, true));
+        }
+    }
+
+    #[test]
+    fn test_const_borrowing_sub() {
+        // No borrow in, no borrow out
+        let (diff, borrow) = borrowing_sub_word(100u8, 50u8, false);
+        assert_eq!(diff, 50u8);
+        assert!(!borrow);
+
+        // No borrow in, borrow out
+        let (diff, borrow) = borrowing_sub_word(50u8, 100u8, false);
+        assert_eq!(diff, 206u8); // wraps around
+        assert!(borrow);
+
+        // Borrow in, no borrow out
+        let (diff, borrow) = borrowing_sub_word(100u8, 50u8, true);
+        assert_eq!(diff, 49u8);
+        assert!(!borrow);
+
+        // Borrow in, borrow out
+        let (diff, borrow) = borrowing_sub_word(50u8, 50u8, true);
+        assert_eq!(diff, 255u8); // 0 - 1 wraps to 255
+        assert!(borrow);
+
+        // Edge case: 0 - 0 - 1 = borrow
+        let (diff, borrow) = borrowing_sub_word(0u8, 0u8, true);
+        assert_eq!(diff, 255u8);
+        assert!(borrow);
+
+        // Test with larger types
+        let (diff, borrow) = borrowing_sub_word(0u64, 0u64, true);
+        assert_eq!(diff, u64::MAX);
+        assert!(borrow);
+
+        #[cfg(feature = "nightly")]
+        {
+            const BS_NO_BORROW: (u8, bool) = borrowing_sub_word(100u8, 50u8, false);
+            const BS_BORROW_OUT: (u8, bool) = borrowing_sub_word(50u8, 100u8, false);
+            const BS_BORROW_IN: (u8, bool) = borrowing_sub_word(100u8, 50u8, true);
+            const BS_BOTH_BORROW: (u8, bool) = borrowing_sub_word(50u8, 50u8, true);
+
+            assert_eq!(BS_NO_BORROW, (50u8, false));
+            assert_eq!(BS_BORROW_OUT, (206u8, true));
+            assert_eq!(BS_BORROW_IN, (49u8, false));
+            assert_eq!(BS_BOTH_BORROW, (255u8, true));
+        }
+    }
+
+    #[test]
+    fn test_const_widening_mul() {
+        // Simple multiplication, no high part
+        let (lo, hi) = widening_mul_word(10u8, 5u8);
+        assert_eq!(lo, 50u8);
+        assert_eq!(hi, 0u8);
+
+        // Multiplication with high part
+        let (lo, hi) = widening_mul_word(200u8, 3u8);
+        assert_eq!(lo, 88u8); // 600 & 0xFF = 88
+        assert_eq!(hi, 2u8); // 600 >> 8 = 2
+
+        // Max * max
+        let (lo, hi) = widening_mul_word(u8::MAX, u8::MAX);
+        // 255 * 255 = 65025 = 0xFE01
+        assert_eq!(lo, 0x01u8);
+        assert_eq!(hi, 0xFEu8);
+
+        // Test with u16
+        let (lo, hi) = widening_mul_word(1000u16, 1000u16);
+        // 1000 * 1000 = 1000000 = 0x000F4240
+        assert_eq!(lo, 0x4240u16);
+        assert_eq!(hi, 0x000Fu16);
+
+        // Test with u64
+        let (lo, hi) = widening_mul_word(u64::MAX, 2u64);
+        // MAX * 2 = 2 * (2^64 - 1) = 2^65 - 2 = (1, MAX-1)
+        assert_eq!(lo, u64::MAX - 1);
+        assert_eq!(hi, 1u64);
+
+        #[cfg(feature = "nightly")]
+        {
+            const WM_SIMPLE: (u8, u8) = widening_mul_word(10u8, 5u8);
+            const WM_HIGH: (u8, u8) = widening_mul_word(200u8, 3u8);
+            const WM_MAX: (u8, u8) = widening_mul_word(u8::MAX, u8::MAX);
+
+            assert_eq!(WM_SIMPLE, (50u8, 0u8));
+            assert_eq!(WM_HIGH, (88u8, 2u8));
+            assert_eq!(WM_MAX, (0x01u8, 0xFEu8));
+        }
+    }
+
+    #[test]
+    fn test_const_carrying_mul() {
+        // Simple multiplication with no carry
+        let (lo, hi) = carrying_mul_word(10u8, 5u8, 0u8);
+        assert_eq!(lo, 50u8);
+        assert_eq!(hi, 0u8);
+
+        // Multiplication with carry added
+        let (lo, hi) = carrying_mul_word(10u8, 5u8, 10u8);
+        // 10 * 5 + 10 = 60
+        assert_eq!(lo, 60u8);
+        assert_eq!(hi, 0u8);
+
+        // Multiplication with high part
+        let (lo, hi) = carrying_mul_word(200u8, 3u8, 0u8);
+        assert_eq!(lo, 88u8); // 600 & 0xFF
+        assert_eq!(hi, 2u8); // 600 >> 8
+
+        // Multiplication with carry causing high part
+        let (lo, hi) = carrying_mul_word(200u8, 3u8, 200u8);
+        // 200 * 3 + 200 = 800 = 0x0320
+        assert_eq!(lo, 0x20u8);
+        assert_eq!(hi, 3u8);
+
+        // Max values
+        let (lo, hi) = carrying_mul_word(u8::MAX, u8::MAX, u8::MAX);
+        // 255 * 255 + 255 = 65280 = 0xFF00
+        assert_eq!(lo, 0x00u8);
+        assert_eq!(hi, 0xFFu8);
+
+        // Test with u16
+        let (lo, hi) = carrying_mul_word(1000u16, 1000u16, 1000u16);
+        // 1000 * 1000 + 1000 = 1001000 = 0x000F4628
+        assert_eq!(lo, 0x4628u16);
+        assert_eq!(hi, 0x000Fu16);
+
+        #[cfg(feature = "nightly")]
+        {
+            const CM_SIMPLE: (u8, u8) = carrying_mul_word(10u8, 5u8, 0u8);
+            const CM_WITH_CARRY: (u8, u8) = carrying_mul_word(10u8, 5u8, 10u8);
+            const CM_MAX: (u8, u8) = carrying_mul_word(u8::MAX, u8::MAX, u8::MAX);
+
+            assert_eq!(CM_SIMPLE, (50u8, 0u8));
+            assert_eq!(CM_WITH_CARRY, (60u8, 0u8));
+            assert_eq!(CM_MAX, (0x00u8, 0xFFu8));
         }
     }
 }

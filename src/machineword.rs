@@ -16,15 +16,19 @@
 // turning this into a const trait
 
 pub use crate::const_numtrait::ConstPrimInt;
-use crate::const_numtrait::{ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes};
+use crate::const_numtrait::{
+    ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes, ConstWideningMul,
+};
 
 c0nst::c0nst! {
-    /// A const-friendly trait for MachineWord operations
+    /// A const-friendly trait for MachineWord operations.
+    /// Extends ConstWideningMul to provide widening multiplication.
     pub c0nst trait ConstMachineWord:
         [c0nst] ConstPrimInt +
         [c0nst] ConstOverflowingAdd +
         [c0nst] ConstOverflowingSub +
-        [c0nst] ConstToBytes
+        [c0nst] ConstToBytes +
+        [c0nst] ConstWideningMul
     {
         type ConstDoubleWord: [c0nst] ConstPrimInt;
         fn to_double(self) -> Self::ConstDoubleWord;
