@@ -354,14 +354,14 @@ c0nst::c0nst! {
     pub c0nst trait ConstCarryingMul: Sized {
         /// Calculates `self * rhs + carry`, returning `(low, high)`.
         ///
-        /// This performs a widening multiplication and adds a carry value,
-        /// which cannot overflow since `MAX * MAX + MAX < (MAX+1)^2`.
+        /// The result fits in double-width (2 * BITS) since
+        /// `MAX * MAX + MAX < (MAX+1)^2 = 2^(2*BITS)`.
         fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self);
 
         /// Calculates `self * rhs + addend + carry`, returning `(low, high)`.
         ///
-        /// This performs a widening multiply-add operation. Adding two values
-        /// cannot overflow since `MAX * MAX + MAX + MAX < (MAX+1)^2`.
+        /// The result fits in double-width (2 * BITS) since
+        /// `MAX * MAX + MAX + MAX < (MAX+1)^2 = 2^(2*BITS)`.
         fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self);
     }
 
@@ -1202,13 +1202,13 @@ const_widening_mul_impl!(u8, u16, 8);
 const_widening_mul_impl!(u16, u32, 16);
 const_widening_mul_impl!(u32, u64, 32);
 const_widening_mul_impl!(u64, u128, 64);
-// Note: u128 doesn't have widening_mul (no u256 type)
+// TODO: u128 widening_mul requires u256 type (not available in Rust)
 
 const_carrying_mul_impl!(u8, u16, 8);
 const_carrying_mul_impl!(u16, u32, 16);
 const_carrying_mul_impl!(u32, u64, 32);
 const_carrying_mul_impl!(u64, u128, 64);
-// Note: u128 doesn't have carrying_mul (no u256 type)
+// TODO: u128 carrying_mul requires u256 type (not available in Rust)
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
