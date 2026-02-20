@@ -37,6 +37,7 @@ mod extended_precision_impl;
 mod ilog_impl;
 mod isqrt_impl;
 mod iter_impl;
+mod midpoint_impl;
 mod mul_div_impl;
 mod multiple_impl;
 mod num_integer_impl;
