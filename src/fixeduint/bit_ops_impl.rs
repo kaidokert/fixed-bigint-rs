@@ -359,20 +359,20 @@ c0nst::c0nst! {
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstUnboundedShift for FixedUInt<T, N> {
         fn unbounded_shl(self, rhs: u32) -> Self {
-            let rhs_usize = rhs as usize;
-            if rhs_usize >= Self::BIT_SIZE {
+            let (shift, overflow) = normalize_shift_amount(rhs, Self::BIT_SIZE);
+            if overflow {
                 Self::zero()
             } else {
-                self << rhs_usize
+                self << shift
             }
         }
 
         fn unbounded_shr(self, rhs: u32) -> Self {
-            let rhs_usize = rhs as usize;
-            if rhs_usize >= Self::BIT_SIZE {
+            let (shift, overflow) = normalize_shift_amount(rhs, Self::BIT_SIZE);
+            if overflow {
                 Self::zero()
             } else {
-                self >> rhs_usize
+                self >> shift
             }
         }
     }

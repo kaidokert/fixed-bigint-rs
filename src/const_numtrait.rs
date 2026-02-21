@@ -368,7 +368,7 @@ c0nst::c0nst! {
     /// Const-compatible midpoint calculation.
     ///
     /// Computes the average of two values, rounded down, without overflow.
-    /// Stable since Rust 1.61.0.
+    /// Stable since Rust 1.85.0.
     pub c0nst trait ConstMidpoint: Sized {
         /// Calculates the midpoint (average) of `self` and `rhs`, rounded down.
         ///
