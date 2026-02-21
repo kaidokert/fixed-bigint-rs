@@ -12,6 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # Const-friendly num_traits
+//!
+//! This module is essentially a fork of [num_traits](https://crates.io/crates/num_traits) with
+//! nightly const traits support.
+//!
+//! # Features
+//!
+//! - `nightly`: Enables const traits support on nightly Rust.
+//!
+//! # Examples
+
 c0nst::c0nst! {
     // TODO: num_traits already has ConstZero and ConstOne,
     // Consider if we should use those as a base here

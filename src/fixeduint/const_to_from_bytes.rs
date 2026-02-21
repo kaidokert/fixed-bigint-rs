@@ -18,7 +18,7 @@
 //! to compute byte array sizes at compile time without unsafe code.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtrait::ConstToBytes;
+use crate::const_numtraits::ConstToBytes;
 use crate::machineword::ConstMachineWord;
 use core::mem::size_of;
 

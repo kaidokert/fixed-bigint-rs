@@ -1,5 +1,5 @@
 use super::{const_div_rem, const_mul, maybe_panic, FixedUInt, MachineWord, PanicReason};
-use crate::const_numtrait::{
+use crate::const_numtraits::{
     ConstBounded, ConstCheckedDiv, ConstCheckedMul, ConstCheckedRem, ConstOverflowingMul,
     ConstSaturatingMul, ConstWrappingMul, ConstZero,
 };

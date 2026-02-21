@@ -19,11 +19,14 @@ The arithmetic operands ( +, -, .add() ) panic on overflow, just like native int
 
 In addition to basic arithmetic, two main traits are implemented: [num_traits::PrimInt](https://docs.rs/num-traits/latest/num_traits/int/trait.PrimInt.html) and [num_integer::Integer](https://docs.rs/num/latest/num/integer/trait.Integer.html).
 
+## Const Support
+
+Most arithmetic operations are const-compatible via the [c0nst](https://crates.io/crates/c0nst) crate. On nightly Rust with `--features nightly`, operations can be used in `const` contexts. On stable Rust, the same code compiles but without const evaluation.
+
 _TODO list_:
  * Implement experimental `unchecked_math` operands, unchecked_mul, unchecked_div etc.
  * Probably needs its own error structs instead of reusing core::fmt::Error and core::num::ParseIntError
  * Maybe implement signed version as well.
- * Adopt `const_trait` from nightly and constify everything
 
 _Note:_ This crate is mostly written as an exercise for learning the Rust type system and understanding how well it works on microcontrollers, its fitness for any particular purpose or quality has precisely zero guarantees.
 

@@ -15,7 +15,7 @@
 //! Integer square root for FixedUInt.
 
 use super::{const_set_bit, FixedUInt, MachineWord};
-use crate::const_numtrait::{ConstIsqrt, ConstPrimInt, ConstZero};
+use crate::const_numtraits::{ConstIsqrt, ConstPrimInt, ConstZero};
 use crate::machineword::ConstMachineWord;
 
 c0nst::c0nst! {

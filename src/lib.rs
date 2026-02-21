@@ -66,7 +66,7 @@ pub mod fixeduint;
 pub mod patch_num_traits;
 
 /// Constant versions of num_traits
-pub mod const_numtrait;
+pub mod const_numtraits;
 
 /// Machine word and doubleword
 mod machineword;

@@ -1,7 +1,7 @@
 use num_traits::{CheckedEuclid, Euclid};
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtrait::{ConstCheckedEuclid, ConstEuclid, ConstZero};
+use crate::const_numtraits::{ConstCheckedEuclid, ConstEuclid, ConstZero};
 use crate::machineword::ConstMachineWord;
 
 c0nst::c0nst! {

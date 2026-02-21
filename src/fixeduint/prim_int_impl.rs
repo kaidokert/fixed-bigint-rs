@@ -1,5 +1,5 @@
 use super::{const_leading_zeros, const_trailing_zeros, FixedUInt, MachineWord};
-use crate::const_numtrait::ConstPrimInt;
+use crate::const_numtraits::ConstPrimInt;
 use crate::machineword::ConstMachineWord;
 
 use num_traits::One;
@@ -31,7 +31,7 @@ c0nst::c0nst! {
             const_trailing_zeros(&self.array)
         }
         fn swap_bytes(self) -> Self {
-            let mut ret = <Self as crate::const_numtrait::ConstZero>::zero();
+            let mut ret = <Self as crate::const_numtraits::ConstZero>::zero();
             let mut i = 0;
             while i < N {
                 ret.array[i] = self.array[N - 1 - i].swap_bytes();
@@ -66,7 +66,7 @@ c0nst::c0nst! {
             core::ops::Shr::<u32>::shr(self, n)
         }
         fn reverse_bits(self) -> Self {
-            let mut ret = <Self as crate::const_numtrait::ConstZero>::zero();
+            let mut ret = <Self as crate::const_numtraits::ConstZero>::zero();
             let mut i = 0;
             while i < N {
                 ret.array[N - 1 - i] = self.array[i].reverse_bits();
@@ -89,10 +89,10 @@ c0nst::c0nst! {
         }
         fn pow(self, exp: u32) -> Self {
             if exp == 0 {
-                return <Self as crate::const_numtrait::ConstOne>::one();
+                return <Self as crate::const_numtraits::ConstOne>::one();
             }
             // Exponentiation by squaring: O(log exp) instead of O(exp)
-            let mut result = <Self as crate::const_numtrait::ConstOne>::one();
+            let mut result = <Self as crate::const_numtraits::ConstOne>::one();
             let mut base = self;
             let mut e = exp;
             while e > 0 {

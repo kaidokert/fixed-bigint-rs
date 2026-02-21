@@ -18,7 +18,7 @@
 //! multiplication, useful for implementing arbitrary-precision arithmetic.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtrait::{
+use crate::const_numtraits::{
     ConstBorrowingSub, ConstCarryingAdd, ConstCarryingMul, ConstWideningMul,
 };
 use crate::machineword::ConstMachineWord;

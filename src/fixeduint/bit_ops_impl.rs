@@ -1,6 +1,6 @@
 use super::{const_shl_impl, const_shr_impl, FixedUInt, MachineWord};
 
-use crate::const_numtrait::{
+use crate::const_numtraits::{
     ConstCheckedShl, ConstCheckedShr, ConstOverflowingShl, ConstOverflowingShr,
     ConstUnboundedShift, ConstWrappingShl, ConstWrappingShr, ConstZero,
 };

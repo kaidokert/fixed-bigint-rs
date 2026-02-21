@@ -17,7 +17,7 @@ use num_traits::{ToPrimitive, Zero};
 use core::convert::TryFrom;
 use core::fmt::Write;
 
-pub use crate::const_numtrait::{
+pub use crate::const_numtraits::{
     ConstAbsDiff, ConstBorrowingSub, ConstBounded, ConstCarryingAdd, ConstCarryingMul,
     ConstCheckedPow, ConstDivCeil, ConstIlog, ConstIsqrt, ConstMultiple, ConstOne, ConstPowerOfTwo,
     ConstPrimInt, ConstWideningMul, ConstZero,
