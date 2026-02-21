@@ -1537,6 +1537,14 @@ mod tests {
             v.to_be_bytes()
         }
 
+        pub c0nst fn from_le_bytes_word<T: [c0nst] ConstFromBytes>(bytes: &T::Bytes) -> T {
+            T::from_le_bytes(bytes)
+        }
+
+        pub c0nst fn from_be_bytes_word<T: [c0nst] ConstFromBytes>(bytes: &T::Bytes) -> T {
+            T::from_be_bytes(bytes)
+        }
+
         pub c0nst fn wrapping_add_word<T: [c0nst] ConstWrappingAdd>(a: &T, b: &T) -> T {
             a.wrapping_add(b)
         }
@@ -1747,6 +1755,39 @@ mod tests {
             const BE_BYTES: [u8; 4] = to_be_bytes_word(&0x12345678u32);
             assert_eq!(LE_BYTES, [0x78, 0x56, 0x34, 0x12]);
             assert_eq!(BE_BYTES, [0x12, 0x34, 0x56, 0x78]);
+        }
+    }
+
+    #[test]
+    fn test_const_from_bytes() {
+        // Test from_le_bytes with u32
+        let val: u32 = from_le_bytes_word(&[0x78, 0x56, 0x34, 0x12]);
+        assert_eq!(val, 0x12345678u32);
+
+        // Test from_be_bytes with u32
+        let val: u32 = from_be_bytes_word(&[0x12, 0x34, 0x56, 0x78]);
+        assert_eq!(val, 0x12345678u32);
+
+        // Test with u8
+        let val: u8 = from_le_bytes_word(&[0xAB]);
+        assert_eq!(val, 0xABu8);
+
+        // Test with u64
+        let val: u64 = from_le_bytes_word(&[0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01]);
+        assert_eq!(val, 0x0102030405060708u64);
+
+        // Test roundtrip
+        let original = 0xDEADBEEFu32;
+        let bytes = to_le_bytes_word(&original);
+        let roundtrip: u32 = from_le_bytes_word(&bytes);
+        assert_eq!(roundtrip, original);
+
+        #[cfg(feature = "nightly")]
+        {
+            const FROM_LE: u32 = from_le_bytes_word(&[0x78, 0x56, 0x34, 0x12]);
+            const FROM_BE: u32 = from_be_bytes_word(&[0x12, 0x34, 0x56, 0x78]);
+            assert_eq!(FROM_LE, 0x12345678u32);
+            assert_eq!(FROM_BE, 0x12345678u32);
         }
     }
 

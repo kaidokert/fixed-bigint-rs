@@ -113,11 +113,12 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
 // Const-compatible from_bytes helper functions
 c0nst::c0nst! {
-    /// Const-compatible from_le_bytes implementation for slices
+    /// Const-compatible from_le_bytes implementation for slices.
+    /// Derives word_size internally from size_of::<T>().
     pub(crate) c0nst fn impl_from_le_bytes_slice<T: [c0nst] ConstMachineWord, const N: usize>(
         bytes: &[u8],
-        word_size: usize,
     ) -> [T; N] {
+        let word_size = core::mem::size_of::<T>();
         let mut ret: [T; N] = [T::zero(); N];
         let capacity = N * word_size;
         let total_bytes = if bytes.len() < capacity { bytes.len() } else { capacity };
@@ -135,11 +136,12 @@ c0nst::c0nst! {
         ret
     }
 
-    /// Const-compatible from_be_bytes implementation for slices
+    /// Const-compatible from_be_bytes implementation for slices.
+    /// Derives word_size internally from size_of::<T>().
     pub(crate) c0nst fn impl_from_be_bytes_slice<T: [c0nst] ConstMachineWord, const N: usize>(
         bytes: &[u8],
-        word_size: usize,
     ) -> [T; N] {
+        let word_size = core::mem::size_of::<T>();
         let mut ret: [T; N] = [T::zero(); N];
         let capacity_bytes = N * word_size;
         let total_bytes = if bytes.len() < capacity_bytes { bytes.len() } else { capacity_bytes };
@@ -173,14 +175,14 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     /// Create a little-endian integer value from its representation as a byte array in little endian.
     pub fn from_le_bytes(bytes: &[u8]) -> Self {
         Self {
-            array: impl_from_le_bytes_slice::<T, N>(bytes, Self::WORD_SIZE),
+            array: impl_from_le_bytes_slice::<T, N>(bytes),
         }
     }
 
     /// Create a big-endian integer value from its representation as a byte array in big endian.
     pub fn from_be_bytes(bytes: &[u8]) -> Self {
         Self {
-            array: impl_from_be_bytes_slice::<T, N>(bytes, Self::WORD_SIZE),
+            array: impl_from_be_bytes_slice::<T, N>(bytes),
         }
     }
 }
@@ -932,22 +934,12 @@ c0nst::c0nst! {
 // #region core::convert::From<primitive>
 
 c0nst::c0nst! {
-    /// Const-compatible conversion from little-endian bytes to array of words
+    /// Const-compatible conversion from little-endian bytes to array of words.
+    /// Delegates to impl_from_le_bytes_slice to avoid code duplication.
     c0nst fn const_from_le_bytes<T: [c0nst] ConstMachineWord, const N: usize, const B: usize>(
         bytes: [u8; B],
     ) -> [T; N] {
-        let mut result: [T; N] = [T::zero(); N];
-        let word_size = core::mem::size_of::<T>();
-        let mut byte_idx = 0;
-        while byte_idx < B && byte_idx < N * word_size {
-            let word_idx = byte_idx / word_size;
-            let byte_in_word = byte_idx % word_size;
-            let byte_value: T = T::from(bytes[byte_idx]);
-            let shifted: T = byte_value.shl(byte_in_word * 8);
-            result[word_idx] = result[word_idx].bitor(shifted);
-            byte_idx += 1;
-        }
-        result
+        impl_from_le_bytes_slice::<T, N>(&bytes)
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::convert::From<u8> for FixedUInt<T, N> {

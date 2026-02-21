@@ -127,13 +127,11 @@ c0nst::c0nst! {
         type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
 
         fn from_le_bytes(bytes: &Self::Bytes) -> Self {
-            let word_size = size_of::<T>();
-            Self { array: impl_from_le_bytes_slice::<T, N>(bytes.as_ref(), word_size) }
+            Self { array: impl_from_le_bytes_slice::<T, N>(bytes.as_ref()) }
         }
 
         fn from_be_bytes(bytes: &Self::Bytes) -> Self {
-            let word_size = size_of::<T>();
-            Self { array: impl_from_be_bytes_slice::<T, N>(bytes.as_ref(), word_size) }
+            Self { array: impl_from_be_bytes_slice::<T, N>(bytes.as_ref()) }
         }
     }
 }
