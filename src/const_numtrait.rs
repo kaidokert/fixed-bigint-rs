@@ -15,94 +15,123 @@
 c0nst::c0nst! {
     // TODO: num_traits already has ConstZero and ConstOne,
     // Consider if we should use those as a base here
+
+    /// Const-compatible zero value operations.
     pub c0nst trait ConstZero {
+        /// Returns the additive identity (zero).
         fn zero() -> Self;
+        /// Returns `true` if `self` is zero.
         fn is_zero(&self) -> bool;
+        /// Sets `self` to zero.
         fn set_zero(&mut self);
     }
+
+    /// Const-compatible one value operations.
     pub c0nst trait ConstOne {
+        /// Returns the multiplicative identity (one).
         fn one() -> Self;
+        /// Returns `true` if `self` is one.
         fn is_one(&self) -> bool;
+        /// Sets `self` to one.
         fn set_one(&mut self);
     }
+
+    /// Const-compatible bounded value operations.
     pub c0nst trait ConstBounded {
+        /// Returns the smallest value of this type.
         fn min_value() -> Self;
+        /// Returns the largest value of this type.
         fn max_value() -> Self;
     }
 
+    /// Const-compatible overflowing addition.
     pub c0nst trait ConstOverflowingAdd: Sized + [c0nst] core::ops::Add<Output = Self> {
         /// Returns a tuple of the sum along with a boolean indicating whether an arithmetic overflow would occur.
         /// If an overflow would have occurred then the wrapped value is returned.
         fn overflowing_add(&self, v: &Self) -> (Self, bool);
     }
 
+    /// Const-compatible overflowing subtraction.
     pub c0nst trait ConstOverflowingSub: Sized + [c0nst] core::ops::Sub<Output = Self> {
         /// Returns a tuple of the difference along with a boolean indicating whether an arithmetic overflow would occur.
         /// If an overflow would have occurred then the wrapped value is returned.
         fn overflowing_sub(&self, v: &Self) -> (Self, bool);
     }
 
+    /// Const-compatible wrapping addition.
     pub c0nst trait ConstWrappingAdd: Sized + [c0nst] ConstOverflowingAdd {
-        /// Wrapping (modular) addition. Computes `self + other`, wrapping around at the boundary of the type.
+        /// Wrapping (modular) addition. Computes `self + v`, wrapping around at the boundary of the type.
         fn wrapping_add(&self, v: &Self) -> Self;
     }
 
+    /// Const-compatible wrapping subtraction.
     pub c0nst trait ConstWrappingSub: Sized + [c0nst] ConstOverflowingSub {
-        /// Wrapping (modular) subtraction. Computes `self - other`, wrapping around at the boundary of the type.
+        /// Wrapping (modular) subtraction. Computes `self - v`, wrapping around at the boundary of the type.
         fn wrapping_sub(&self, v: &Self) -> Self;
     }
 
+    /// Const-compatible checked addition.
     pub c0nst trait ConstCheckedAdd: Sized + [c0nst] ConstOverflowingAdd {
         /// Checked addition. Returns `None` if overflow occurred.
         fn checked_add(&self, v: &Self) -> Option<Self>;
     }
 
+    /// Const-compatible checked subtraction.
     pub c0nst trait ConstCheckedSub: Sized + [c0nst] ConstOverflowingSub {
         /// Checked subtraction. Returns `None` if overflow occurred.
         fn checked_sub(&self, v: &Self) -> Option<Self>;
     }
 
+    /// Const-compatible saturating addition.
     pub c0nst trait ConstSaturatingAdd: Sized + [c0nst] ConstOverflowingAdd + [c0nst] ConstBounded {
-        /// Saturating addition. Computes `self + other`, saturating at max_value().
+        /// Saturating addition. Computes `self + v`, saturating at max_value().
         fn saturating_add(&self, v: &Self) -> Self;
     }
 
+    /// Const-compatible saturating subtraction.
     pub c0nst trait ConstSaturatingSub: Sized + [c0nst] ConstOverflowingSub + [c0nst] ConstZero {
-        /// Saturating subtraction. Computes `self - other`, saturating at zero.
+        /// Saturating subtraction. Computes `self - v`, saturating at zero.
         fn saturating_sub(&self, v: &Self) -> Self;
     }
 
+    /// Const-compatible overflowing multiplication.
     pub c0nst trait ConstOverflowingMul: Sized + [c0nst] core::ops::Mul<Output = Self> {
         /// Returns a tuple of the product along with a boolean indicating whether an arithmetic overflow would occur.
         /// If an overflow would have occurred then the wrapped value is returned.
         fn overflowing_mul(&self, v: &Self) -> (Self, bool);
     }
 
+    /// Const-compatible wrapping multiplication.
     pub c0nst trait ConstWrappingMul: Sized + [c0nst] ConstOverflowingMul {
-        /// Wrapping (modular) multiplication. Computes `self * other`, wrapping around at the boundary of the type.
+        /// Wrapping (modular) multiplication. Computes `self * v`, wrapping around at the boundary of the type.
         fn wrapping_mul(&self, v: &Self) -> Self;
     }
 
+    /// Const-compatible checked multiplication.
     pub c0nst trait ConstCheckedMul: Sized + [c0nst] ConstOverflowingMul {
         /// Checked multiplication. Returns `None` if overflow occurred.
         fn checked_mul(&self, v: &Self) -> Option<Self>;
     }
 
+    /// Const-compatible saturating multiplication.
     pub c0nst trait ConstSaturatingMul: Sized + [c0nst] ConstOverflowingMul + [c0nst] ConstBounded {
-        /// Saturating multiplication. Computes `self * other`, saturating at max_value().
+        /// Saturating multiplication. Computes `self * v`, saturating at max_value().
         fn saturating_mul(&self, v: &Self) -> Self;
     }
 
+    /// Const-compatible checked division.
     pub c0nst trait ConstCheckedDiv: Sized + [c0nst] core::ops::Div<Output = Self> + [c0nst] ConstZero {
         /// Checked division. Returns `None` if the divisor is zero.
         fn checked_div(&self, v: &Self) -> Option<Self>;
     }
 
+    /// Const-compatible checked remainder.
     pub c0nst trait ConstCheckedRem: Sized + [c0nst] core::ops::Rem<Output = Self> + [c0nst] ConstZero {
         /// Checked remainder. Returns `None` if the divisor is zero.
         fn checked_rem(&self, v: &Self) -> Option<Self>;
     }
 
+    /// Const-compatible Euclidean division and remainder.
     pub c0nst trait ConstEuclid: Sized + [c0nst] core::ops::Div<Output = Self> + [c0nst] core::ops::Rem<Output = Self> {
         /// Euclidean division. For unsigned integers, same as regular division.
         fn div_euclid(&self, v: &Self) -> Self;
@@ -110,6 +139,7 @@ c0nst::c0nst! {
         fn rem_euclid(&self, v: &Self) -> Self;
     }
 
+    /// Const-compatible checked Euclidean division and remainder.
     pub c0nst trait ConstCheckedEuclid: Sized + [c0nst] ConstEuclid + [c0nst] ConstZero {
         /// Checked Euclidean division. Returns `None` if the divisor is zero.
         fn checked_div_euclid(&self, v: &Self) -> Option<Self>;
@@ -117,41 +147,51 @@ c0nst::c0nst! {
         fn checked_rem_euclid(&self, v: &Self) -> Option<Self>;
     }
 
+    /// Const-compatible overflowing left shift.
     pub c0nst trait ConstOverflowingShl: Sized + [c0nst] core::ops::Shl<u32, Output = Self> {
         /// Shift left with overflow detection.
         /// Returns the shifted value and whether the shift amount exceeded the bit width.
         fn overflowing_shl(&self, rhs: u32) -> (Self, bool);
     }
 
+    /// Const-compatible overflowing right shift.
     pub c0nst trait ConstOverflowingShr: Sized + [c0nst] core::ops::Shr<u32, Output = Self> {
         /// Shift right with overflow detection.
         /// Returns the shifted value and whether the shift amount exceeded the bit width.
         fn overflowing_shr(&self, rhs: u32) -> (Self, bool);
     }
 
+    /// Const-compatible wrapping left shift.
     pub c0nst trait ConstWrappingShl: Sized + [c0nst] ConstOverflowingShl {
         /// Wrapping shift left. Shifts, masking the shift amount to the bit width.
         fn wrapping_shl(&self, rhs: u32) -> Self;
     }
 
+    /// Const-compatible wrapping right shift.
     pub c0nst trait ConstWrappingShr: Sized + [c0nst] ConstOverflowingShr {
         /// Wrapping shift right. Shifts, masking the shift amount to the bit width.
         fn wrapping_shr(&self, rhs: u32) -> Self;
     }
 
+    /// Const-compatible checked left shift.
     pub c0nst trait ConstCheckedShl: Sized + [c0nst] ConstOverflowingShl {
         /// Checked shift left. Returns `None` if the shift amount exceeds bit width.
         fn checked_shl(&self, rhs: u32) -> Option<Self>;
     }
 
+    /// Const-compatible checked right shift.
     pub c0nst trait ConstCheckedShr: Sized + [c0nst] ConstOverflowingShr {
         /// Checked shift right. Returns `None` if the shift amount exceeds bit width.
         fn checked_shr(&self, rhs: u32) -> Option<Self>;
     }
 
+    /// Const-compatible byte conversion.
     pub c0nst trait ConstToBytes {
+        /// The byte array type for this integer.
         type Bytes: Copy + [c0nst] AsRef<[u8]> + [c0nst] AsMut<[u8]>;
+        /// Returns the little-endian byte representation.
         fn to_le_bytes(&self) -> Self::Bytes;
+        /// Returns the big-endian byte representation.
         fn to_be_bytes(&self) -> Self::Bytes;
     }
 
