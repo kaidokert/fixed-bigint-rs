@@ -999,11 +999,7 @@ macro_rules! const_abs_diff_impl {
         c0nst::c0nst! {
             impl c0nst ConstAbsDiff for $t {
                 fn abs_diff(self, other: Self) -> Self {
-                    if self >= other {
-                        self - other
-                    } else {
-                        other - self
-                    }
+                    <$t>::abs_diff(self, other)
                 }
             }
         }
@@ -1067,6 +1063,8 @@ const_ilog_impl!(u32);
 const_ilog_impl!(u64);
 const_ilog_impl!(u128);
 
+// Native is_multiple_of() requires Rust 1.87+, gate behind 1_87 feature
+#[cfg(not(feature = "1_87"))]
 macro_rules! const_multiple_impl {
     ($t:ty) => {
         c0nst::c0nst! {
@@ -1077,6 +1075,25 @@ macro_rules! const_multiple_impl {
                     } else {
                         *self % *rhs == 0
                     }
+                }
+                fn next_multiple_of(self, rhs: Self) -> Self {
+                    self.next_multiple_of(rhs)
+                }
+                fn checked_next_multiple_of(self, rhs: Self) -> Option<Self> {
+                    self.checked_next_multiple_of(rhs)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "1_87")]
+macro_rules! const_multiple_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstMultiple for $t {
+                fn is_multiple_of(&self, rhs: &Self) -> bool {
+                    <$t>::is_multiple_of(*self, *rhs)
                 }
                 fn next_multiple_of(self, rhs: Self) -> Self {
                     self.next_multiple_of(rhs)
@@ -1235,6 +1252,8 @@ const_carrying_mul_impl!(u32, u64, 32);
 const_carrying_mul_impl!(u64, u128, 64);
 // TODO: u128 carrying_mul requires u256 type (not available in Rust)
 
+// Native midpoint() requires Rust 1.85+, gate behind 1_87 feature
+#[cfg(not(feature = "1_87"))]
 macro_rules! const_midpoint_impl {
     ($t:ty) => {
         c0nst::c0nst! {
@@ -1248,12 +1267,27 @@ macro_rules! const_midpoint_impl {
     };
 }
 
+#[cfg(feature = "1_87")]
+macro_rules! const_midpoint_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstMidpoint for $t {
+                fn midpoint(self, rhs: Self) -> Self {
+                    <$t>::midpoint(self, rhs)
+                }
+            }
+        }
+    };
+}
+
 const_midpoint_impl!(u8);
 const_midpoint_impl!(u16);
 const_midpoint_impl!(u32);
 const_midpoint_impl!(u64);
 const_midpoint_impl!(u128);
 
+// Native unbounded_shl/shr() requires Rust 1.85+, gate behind 1_87 feature
+#[cfg(not(feature = "1_87"))]
 macro_rules! const_unbounded_shift_impl {
     ($t:ty, $bits:expr) => {
         c0nst::c0nst! {
@@ -1263,6 +1297,22 @@ macro_rules! const_unbounded_shift_impl {
                 }
                 fn unbounded_shr(self, rhs: u32) -> Self {
                     if rhs >= $bits { 0 } else { self >> rhs }
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "1_87")]
+macro_rules! const_unbounded_shift_impl {
+    ($t:ty, $bits:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstUnboundedShift for $t {
+                fn unbounded_shl(self, rhs: u32) -> Self {
+                    <$t>::unbounded_shl(self, rhs)
+                }
+                fn unbounded_shr(self, rhs: u32) -> Self {
+                    <$t>::unbounded_shr(self, rhs)
                 }
             }
         }
