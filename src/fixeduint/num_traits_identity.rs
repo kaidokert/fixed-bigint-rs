@@ -1,5 +1,5 @@
 use super::{const_is_zero, FixedUInt, MachineWord};
-use crate::const_numtrait::{ConstBounded, ConstOne, ConstZero};
+use crate::const_numtraits::{ConstBounded, ConstOne, ConstZero};
 use crate::machineword::ConstMachineWord;
 
 c0nst::c0nst! {

@@ -15,7 +15,7 @@
 //! Absolute difference implementation for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtrait::ConstAbsDiff;
+use crate::const_numtraits::ConstAbsDiff;
 use crate::machineword::ConstMachineWord;
 
 c0nst::c0nst! {

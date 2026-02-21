@@ -15,8 +15,8 @@
 // Note: in the future, #![feature(const_trait_impl)] should allow
 // turning this into a const trait
 
-pub use crate::const_numtrait::ConstPrimInt;
-use crate::const_numtrait::{
+pub use crate::const_numtraits::ConstPrimInt;
+use crate::const_numtraits::{
     ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes, ConstWideningMul,
 };
 
