@@ -977,7 +977,7 @@ fn to_slice_hex<T: AsRef<[u8]>>(
     Ok(())
 }
 
-enum PanicReason {
+pub(super) enum PanicReason {
     Add,
     Sub,
     Mul,
