@@ -19,7 +19,9 @@ impl<T: MachineWord, const N: usize> FixedInt<T, N> {
 
     /// Returns zero.
     pub fn new() -> Self {
-        Self { bits: FixedUInt::new() }
+        Self {
+            bits: FixedUInt::new(),
+        }
     }
 
     /// Build from a raw two's-complement bit pattern.
@@ -52,7 +54,11 @@ impl<T: MachineWord, const N: usize> FixedInt<T, N> {
     /// This is intentionally test-only during the prototype phase.
     #[cfg(test)]
     fn to_i128(self) -> i128 {
-        let mut out = if self.is_negative() { [0xFFu8; 16] } else { [0u8; 16] };
+        let mut out = if self.is_negative() {
+            [0xFFu8; 16]
+        } else {
+            [0u8; 16]
+        };
         for (word_idx, word) in self.bits.words().iter().enumerate() {
             let bytes = word.to_le_bytes();
             let start = word_idx * core::mem::size_of::<T>();
@@ -90,7 +96,9 @@ impl<T: MachineWord, const N: usize> Neg for FixedInt<T, N> {
 
     fn neg(self) -> Self::Output {
         let one: FixedUInt<T, N> = 1u8.into();
-        Self { bits: (!self.bits) + one }
+        Self {
+            bits: (!self.bits) + one,
+        }
     }
 }
 
@@ -113,7 +121,6 @@ impl<T: MachineWord, const N: usize> Sub for FixedInt<T, N> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
