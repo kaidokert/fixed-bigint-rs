@@ -105,12 +105,8 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
 
     /// Performs a division, returning both the quotient and remainder in a tuple.
     pub fn div_rem(&self, divisor: &Self) -> (Self, Self) {
-        if const_is_zero(&divisor.array) {
-            maybe_panic(PanicReason::DivByZero)
-        }
-        let mut dividend = *self;
-        let remainder = Self::div_assign_impl(&mut dividend, divisor);
-        (dividend, remainder)
+        let (quotient, remainder) = const_div_rem(&self.array, &divisor.array);
+        (Self { array: quotient }, Self { array: remainder })
     }
 
     /// Create a little-endian integer value from its representation as a byte array in little endian.
@@ -378,16 +374,6 @@ c0nst::c0nst! {
             i += 1;
         }
         !borrow.is_zero()
-    }
-}
-
-impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
-    /// In-place division: dividend becomes quotient, returns remainder
-    fn div_assign_impl(dividend: &mut Self, divisor: &Self) -> Self {
-        let remainder_array = const_div(&mut dividend.array, &divisor.array);
-        Self {
-            array: remainder_array,
-        }
     }
 }
 
@@ -778,7 +764,7 @@ c0nst::c0nst! {
 
     /// In-place division: dividend becomes quotient, returns remainder.
     ///
-    /// This is the const-compatible version of div_assign_impl.
+    /// Low-level const-compatible division on arrays.
     pub(crate) c0nst fn const_div<T: [c0nst] ConstMachineWord, const N: usize>(
         dividend: &mut [T; N],
         divisor: &[T; N],
@@ -849,6 +835,21 @@ c0nst::c0nst! {
         let remainder = *dividend;
         *dividend = quotient;
         remainder
+    }
+
+    /// Const-compatible div_rem: returns (quotient, remainder).
+    ///
+    /// Panics on divide by zero.
+    pub(crate) c0nst fn const_div_rem<T: [c0nst] ConstMachineWord, const N: usize>(
+        dividend: &[T; N],
+        divisor: &[T; N],
+    ) -> ([T; N], [T; N]) {
+        if const_is_zero(divisor) {
+            maybe_panic(PanicReason::DivByZero)
+        }
+        let mut quotient = *dividend;
+        let remainder = const_div(&mut quotient, divisor);
+        (quotient, remainder)
     }
 }
 
@@ -981,7 +982,6 @@ enum PanicReason {
     Sub,
     Mul,
     DivByZero,
-    RemByZero,
 }
 
 c0nst::c0nst! {
@@ -991,9 +991,6 @@ c0nst::c0nst! {
             PanicReason::Sub => panic!("attempt to subtract with overflow"),
             PanicReason::Mul => panic!("attempt to multiply with overflow"),
             PanicReason::DivByZero => panic!("attempt to divide by zero"),
-            PanicReason::RemByZero => {
-                panic!("attempt to calculate the remainder with a divisor of zero")
-            }
         }
     }
 }
@@ -2058,13 +2055,13 @@ mod tests {
                 expected_quotient
             );
 
-            // Test div_assign_impl directly and verify it returns remainder
-            let mut dividend2 = TestInt::from(dividend_val);
-            let remainder = TestInt::div_assign_impl(&mut dividend2, &divisor);
+            // Test div_rem directly
+            let dividend2 = TestInt::from(dividend_val);
+            let (quotient, remainder) = dividend2.div_rem(&divisor);
             assert_eq!(
-                dividend2,
+                quotient,
                 TestInt::from(expected_quotient),
-                "div_assign_impl quotient: {} / {} should be {}",
+                "div_rem quotient: {} / {} should be {}",
                 dividend_val,
                 divisor_val,
                 expected_quotient
@@ -2072,7 +2069,7 @@ mod tests {
             assert_eq!(
                 remainder,
                 TestInt::from(expected_remainder),
-                "div_assign_impl remainder: {} % {} should be {}",
+                "div_rem remainder: {} % {} should be {}",
                 dividend_val,
                 divisor_val,
                 expected_remainder
@@ -2080,7 +2077,7 @@ mod tests {
 
             // Verify: quotient * divisor + remainder == original dividend
             assert_eq!(
-                dividend2 * divisor + remainder,
+                quotient * divisor + remainder,
                 TestInt::from(dividend_val),
                 "Property check failed for {}",
                 dividend_val
@@ -2192,8 +2189,8 @@ mod tests {
         let mut a = TestInt::from(17u32);
         let b = TestInt::from(5u32);
 
-        // Before fix: div_assign_impl would modify a to quotient (3), then assign remainder (2)
-        // After fix: div_rem properly computes remainder without corrupting intermediate state
+        // Historical note: an old bug caused quotient corruption during remainder calculation
+        // Now const_div_rem properly computes both without corrupting intermediate state
         a %= b;
         assert_eq!(a, TestInt::from(2u32), "17 % 5 should be 2");
 
