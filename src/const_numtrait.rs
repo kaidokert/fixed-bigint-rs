@@ -60,13 +60,13 @@ c0nst::c0nst! {
 
     /// Const-compatible wrapping addition.
     pub c0nst trait ConstWrappingAdd: Sized + [c0nst] ConstOverflowingAdd {
-        /// Wrapping (modular) addition. Computes `self + other`, wrapping around at the boundary of the type.
+        /// Wrapping (modular) addition. Computes `self + v`, wrapping around at the boundary of the type.
         fn wrapping_add(&self, v: &Self) -> Self;
     }
 
     /// Const-compatible wrapping subtraction.
     pub c0nst trait ConstWrappingSub: Sized + [c0nst] ConstOverflowingSub {
-        /// Wrapping (modular) subtraction. Computes `self - other`, wrapping around at the boundary of the type.
+        /// Wrapping (modular) subtraction. Computes `self - v`, wrapping around at the boundary of the type.
         fn wrapping_sub(&self, v: &Self) -> Self;
     }
 
@@ -84,13 +84,13 @@ c0nst::c0nst! {
 
     /// Const-compatible saturating addition.
     pub c0nst trait ConstSaturatingAdd: Sized + [c0nst] ConstOverflowingAdd + [c0nst] ConstBounded {
-        /// Saturating addition. Computes `self + other`, saturating at max_value().
+        /// Saturating addition. Computes `self + v`, saturating at max_value().
         fn saturating_add(&self, v: &Self) -> Self;
     }
 
     /// Const-compatible saturating subtraction.
     pub c0nst trait ConstSaturatingSub: Sized + [c0nst] ConstOverflowingSub + [c0nst] ConstZero {
-        /// Saturating subtraction. Computes `self - other`, saturating at zero.
+        /// Saturating subtraction. Computes `self - v`, saturating at zero.
         fn saturating_sub(&self, v: &Self) -> Self;
     }
 
@@ -103,7 +103,7 @@ c0nst::c0nst! {
 
     /// Const-compatible wrapping multiplication.
     pub c0nst trait ConstWrappingMul: Sized + [c0nst] ConstOverflowingMul {
-        /// Wrapping (modular) multiplication. Computes `self * other`, wrapping around at the boundary of the type.
+        /// Wrapping (modular) multiplication. Computes `self * v`, wrapping around at the boundary of the type.
         fn wrapping_mul(&self, v: &Self) -> Self;
     }
 
@@ -115,7 +115,7 @@ c0nst::c0nst! {
 
     /// Const-compatible saturating multiplication.
     pub c0nst trait ConstSaturatingMul: Sized + [c0nst] ConstOverflowingMul + [c0nst] ConstBounded {
-        /// Saturating multiplication. Computes `self * other`, saturating at max_value().
+        /// Saturating multiplication. Computes `self * v`, saturating at max_value().
         fn saturating_mul(&self, v: &Self) -> Self;
     }
 
