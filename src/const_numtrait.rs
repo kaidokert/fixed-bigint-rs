@@ -1167,7 +1167,8 @@ const_isqrt_impl!(u64);
 const_isqrt_impl!(u128);
 
 // Extended precision primitive implementations
-// Use manual implementations that work on both stable and nightly
+// Native bigint_helper_methods stable since Rust 1.91.0
+#[cfg(not(feature = "nightly"))]
 macro_rules! const_carrying_add_impl {
     ($t:ty) => {
         c0nst::c0nst! {
@@ -1182,6 +1183,20 @@ macro_rules! const_carrying_add_impl {
     };
 }
 
+#[cfg(feature = "nightly")]
+macro_rules! const_carrying_add_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCarryingAdd for $t {
+                fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
+                    <$t>::carrying_add(self, rhs, carry)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
 macro_rules! const_borrowing_sub_impl {
     ($t:ty) => {
         c0nst::c0nst! {
@@ -1196,6 +1211,20 @@ macro_rules! const_borrowing_sub_impl {
     };
 }
 
+#[cfg(feature = "nightly")]
+macro_rules! const_borrowing_sub_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstBorrowingSub for $t {
+                fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
+                    <$t>::borrowing_sub(self, rhs, borrow)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
 macro_rules! const_widening_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
@@ -1209,6 +1238,20 @@ macro_rules! const_widening_mul_impl {
     };
 }
 
+#[cfg(feature = "nightly")]
+macro_rules! const_widening_mul_impl {
+    ($t:ty, $double:ty, $bits:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstWideningMul for $t {
+                fn widening_mul(self, rhs: Self) -> (Self, Self) {
+                    <$t>::widening_mul(self, rhs)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
 macro_rules! const_carrying_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
@@ -1222,6 +1265,25 @@ macro_rules! const_carrying_mul_impl {
                         + (addend as $double)
                         + (carry as $double);
                     (product as $t, (product >> $bits) as $t)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "nightly")]
+macro_rules! const_carrying_mul_impl {
+    ($t:ty, $double:ty, $bits:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCarryingMul for $t {
+                fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
+                    <$t>::carrying_mul(self, rhs, carry)
+                }
+                fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self) {
+                    // No native carrying_mul_add, use carrying_mul + carrying_add
+                    let (lo, hi) = <$t>::carrying_mul(self, rhs, carry);
+                    let (lo2, c) = lo.overflowing_add(addend);
+                    (lo2, hi + c as $t)
                 }
             }
         }
