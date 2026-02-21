@@ -17,8 +17,8 @@
 //! This module requires the `nightly` feature and uses `generic_const_exprs`
 //! to compute byte array sizes at compile time without unsafe code.
 
-use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::ConstToBytes;
+use super::{impl_from_be_bytes_slice, impl_from_le_bytes_slice, FixedUInt, MachineWord};
+use crate::const_numtraits::{ConstFromBytes, ConstToBytes};
 use crate::machineword::ConstMachineWord;
 use core::mem::size_of;
 
@@ -119,41 +119,25 @@ c0nst::c0nst! {
             result
         }
     }
-}
 
-// num_traits::ToBytes implementation - delegates to ConstToBytes
-impl<T: MachineWord, const N: usize> num_traits::ToBytes for FixedUInt<T, N>
-where
-    [(); byte_len::<T, N>()]:,
-{
-    type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstFromBytes for FixedUInt<T, N>
+    where
+        [(); byte_len::<T, N>()]:,
+    {
+        type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
 
-    fn to_be_bytes(&self) -> Self::Bytes {
-        ConstToBytes::to_be_bytes(self)
-    }
+        fn from_le_bytes(bytes: &Self::Bytes) -> Self {
+            Self { array: impl_from_le_bytes_slice::<T, N>(bytes.as_ref()) }
+        }
 
-    fn to_le_bytes(&self) -> Self::Bytes {
-        ConstToBytes::to_le_bytes(self)
-    }
-}
-
-// num_traits::FromBytes implementation - delegates to inherent FixedUInt methods
-impl<T: MachineWord, const N: usize> num_traits::FromBytes for FixedUInt<T, N>
-where
-    [(); byte_len::<T, N>()]:,
-{
-    type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
-
-    fn from_be_bytes(bytes: &Self::Bytes) -> Self {
-        // Use UFCS to call the inherent method, not this trait method
-        FixedUInt::<T, N>::from_be_bytes(&bytes.bytes)
-    }
-
-    fn from_le_bytes(bytes: &Self::Bytes) -> Self {
-        // Use UFCS to call the inherent method, not this trait method
-        FixedUInt::<T, N>::from_le_bytes(&bytes.bytes)
+        fn from_be_bytes(bytes: &Self::Bytes) -> Self {
+            Self { array: impl_from_be_bytes_slice::<T, N>(bytes.as_ref()) }
+        }
     }
 }
+
+// Note: num_traits::ToBytes/FromBytes impls are in to_from_bytes.rs
+// to avoid viral generic_const_exprs bounds on downstream users.
 
 #[cfg(test)]
 mod tests {
@@ -203,5 +187,67 @@ mod tests {
     #[test]
     fn test_const_context() {
         assert_eq!(CONST_LE_BYTES, [0x01, 0x02, 0x03, 0x04]);
+    }
+
+    #[test]
+    fn test_const_from_le_bytes() {
+        let bytes = ConstBytesHolder {
+            bytes: [0x01, 0x02, 0x03, 0x04],
+        };
+        let val: FixedUInt<u8, 4> = ConstFromBytes::from_le_bytes(&bytes);
+        assert_eq!(val.array, [0x01, 0x02, 0x03, 0x04]);
+    }
+
+    #[test]
+    fn test_const_from_be_bytes() {
+        let bytes = ConstBytesHolder {
+            bytes: [0x04, 0x03, 0x02, 0x01],
+        };
+        let val: FixedUInt<u8, 4> = ConstFromBytes::from_be_bytes(&bytes);
+        assert_eq!(val.array, [0x01, 0x02, 0x03, 0x04]);
+    }
+
+    #[test]
+    fn test_const_from_bytes_u32_words() {
+        let bytes = ConstBytesHolder {
+            bytes: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
+        };
+        let le_val: FixedUInt<u32, 2> = ConstFromBytes::from_le_bytes(&bytes);
+        assert_eq!(le_val.array, [0x04030201, 0x08070605]);
+
+        let be_bytes = ConstBytesHolder {
+            bytes: [0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01],
+        };
+        let be_val: FixedUInt<u32, 2> = ConstFromBytes::from_be_bytes(&be_bytes);
+        assert_eq!(be_val.array, [0x04030201, 0x08070605]);
+    }
+
+    // Test that ConstFromBytes works in const context
+    const CONST_FROM_LE: FixedUInt<u8, 4> = {
+        let bytes = ConstBytesHolder {
+            bytes: [0x01, 0x02, 0x03, 0x04],
+        };
+        ConstFromBytes::from_le_bytes(&bytes)
+    };
+
+    #[test]
+    fn test_const_from_bytes_context() {
+        assert_eq!(CONST_FROM_LE.array, [0x01, 0x02, 0x03, 0x04]);
+    }
+
+    // Test roundtrip: to_bytes -> from_bytes
+    #[test]
+    fn test_const_bytes_roundtrip() {
+        let original: FixedUInt<u32, 2> = FixedUInt {
+            array: [0x12345678, 0xDEADBEEF],
+        };
+
+        let le_bytes = ConstToBytes::to_le_bytes(&original);
+        let from_le: FixedUInt<u32, 2> = ConstFromBytes::from_le_bytes(&le_bytes);
+        assert_eq!(from_le.array, original.array);
+
+        let be_bytes = ConstToBytes::to_be_bytes(&original);
+        let from_be: FixedUInt<u32, 2> = ConstFromBytes::from_be_bytes(&be_bytes);
+        assert_eq!(from_be.array, original.array);
     }
 }

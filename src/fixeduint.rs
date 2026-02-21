@@ -47,10 +47,11 @@ mod power_of_two_impl;
 mod prim_int_impl;
 mod roots_impl;
 mod string_conversion;
-// Prefer nightly (safe const impl) over use-unsafe when both are enabled
+// ConstToBytes trait (nightly only, uses generic_const_exprs)
 #[cfg(feature = "nightly")]
 mod const_to_from_bytes;
-#[cfg(all(feature = "use-unsafe", not(feature = "nightly")))]
+// num_traits::ToBytes/FromBytes (stable impl, no generic_const_exprs viral bounds)
+#[cfg(any(feature = "nightly", feature = "use-unsafe"))]
 mod to_from_bytes;
 
 #[cfg(feature = "zeroize")]
@@ -108,28 +109,42 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         let (quotient, remainder) = const_div_rem(&self.array, &divisor.array);
         (Self { array: quotient }, Self { array: remainder })
     }
+}
 
-    /// Create a little-endian integer value from its representation as a byte array in little endian.
-    pub fn from_le_bytes(bytes: &[u8]) -> Self {
-        let mut ret = Self::new();
-        let total_bytes = core::cmp::min(bytes.len(), N * Self::WORD_SIZE);
+// Const-compatible from_bytes helper functions
+c0nst::c0nst! {
+    /// Const-compatible from_le_bytes implementation for slices.
+    /// Derives word_size internally from size_of::<T>().
+    pub(crate) c0nst fn impl_from_le_bytes_slice<T: [c0nst] ConstMachineWord, const N: usize>(
+        bytes: &[u8],
+    ) -> [T; N] {
+        let word_size = core::mem::size_of::<T>();
+        let mut ret: [T; N] = [T::zero(); N];
+        let capacity = N * word_size;
+        let total_bytes = if bytes.len() < capacity { bytes.len() } else { capacity };
 
-        for (byte_index, &byte) in bytes.iter().enumerate().take(total_bytes) {
-            let word_index = byte_index / Self::WORD_SIZE;
-            let byte_in_word = byte_index % Self::WORD_SIZE;
+        let mut byte_index = 0;
+        while byte_index < total_bytes {
+            let word_index = byte_index / word_size;
+            let byte_in_word = byte_index % word_size;
 
-            let byte_value: T = byte.into();
+            let byte_value: T = T::from(bytes[byte_index]);
             let shifted_value = byte_value.shl(byte_in_word * 8);
-            ret.array[word_index] |= shifted_value;
+            ret[word_index] = ret[word_index].bitor(shifted_value);
+            byte_index += 1;
         }
         ret
     }
 
-    /// Create a big-endian integer value from its representation as a byte array in big endian.
-    pub fn from_be_bytes(bytes: &[u8]) -> Self {
-        let mut ret = Self::new();
-        let capacity_bytes = N * Self::WORD_SIZE;
-        let total_bytes = core::cmp::min(bytes.len(), capacity_bytes);
+    /// Const-compatible from_be_bytes implementation for slices.
+    /// Derives word_size internally from size_of::<T>().
+    pub(crate) c0nst fn impl_from_be_bytes_slice<T: [c0nst] ConstMachineWord, const N: usize>(
+        bytes: &[u8],
+    ) -> [T; N] {
+        let word_size = core::mem::size_of::<T>();
+        let mut ret: [T; N] = [T::zero(); N];
+        let capacity_bytes = N * word_size;
+        let total_bytes = if bytes.len() < capacity_bytes { bytes.len() } else { capacity_bytes };
 
         // For consistent truncation semantics with from_le_bytes, always take the
         // least significant bytes (rightmost bytes in big-endian representation)
@@ -139,19 +154,40 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
             0
         };
 
-        for (byte_index, _) in (0..total_bytes).enumerate() {
+        let mut byte_index = 0;
+        while byte_index < total_bytes {
             // Take bytes from the end of the input (least significant in BE)
             let be_byte_index = start_offset + total_bytes - 1 - byte_index;
-            let word_index = byte_index / Self::WORD_SIZE;
-            let byte_in_word = byte_index % Self::WORD_SIZE;
+            let word_index = byte_index / word_size;
+            let byte_in_word = byte_index % word_size;
 
-            let byte_value: T = bytes[be_byte_index].into();
+            let byte_value: T = T::from(bytes[be_byte_index]);
             let shifted_value = byte_value.shl(byte_in_word * 8);
-            ret.array[word_index] |= shifted_value;
+            ret[word_index] = ret[word_index].bitor(shifted_value);
+            byte_index += 1;
         }
         ret
     }
+}
 
+// Inherent from_bytes methods (not const - use ConstFromBytes trait for const access)
+impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
+    /// Create a little-endian integer value from its representation as a byte array in little endian.
+    pub fn from_le_bytes(bytes: &[u8]) -> Self {
+        Self {
+            array: impl_from_le_bytes_slice::<T, N>(bytes),
+        }
+    }
+
+    /// Create a big-endian integer value from its representation as a byte array in big endian.
+    pub fn from_be_bytes(bytes: &[u8]) -> Self {
+        Self {
+            array: impl_from_be_bytes_slice::<T, N>(bytes),
+        }
+    }
+}
+
+impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
     /// Converts the FixedUInt into a little-endian byte array.
     pub fn to_le_bytes<'a>(&self, output_buffer: &'a mut [u8]) -> Result<&'a [u8], bool> {
         let total_bytes = N * Self::WORD_SIZE;
@@ -898,22 +934,12 @@ c0nst::c0nst! {
 // #region core::convert::From<primitive>
 
 c0nst::c0nst! {
-    /// Const-compatible conversion from little-endian bytes to array of words
+    /// Const-compatible conversion from little-endian bytes to array of words.
+    /// Delegates to impl_from_le_bytes_slice to avoid code duplication.
     c0nst fn const_from_le_bytes<T: [c0nst] ConstMachineWord, const N: usize, const B: usize>(
         bytes: [u8; B],
     ) -> [T; N] {
-        let mut result: [T; N] = [T::zero(); N];
-        let word_size = core::mem::size_of::<T>();
-        let mut byte_idx = 0;
-        while byte_idx < B && byte_idx < N * word_size {
-            let word_idx = byte_idx / word_size;
-            let byte_in_word = byte_idx % word_size;
-            let byte_value: T = T::from(bytes[byte_idx]);
-            let shifted: T = byte_value.shl(byte_in_word * 8);
-            result[word_idx] = result[word_idx].bitor(shifted);
-            byte_idx += 1;
-        }
-        result
+        impl_from_le_bytes_slice::<T, N>(&bytes)
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::convert::From<u8> for FixedUInt<T, N> {
