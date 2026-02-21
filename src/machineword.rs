@@ -61,8 +61,7 @@ c0nst::c0nst! {
 /// double-word to hold multiplication/division products.
 ///
 /// This trait is intentionally sealed via the `ConstMachineWord` supertrait,
-/// as custom implementations are not supported. The const traits are intended
-/// to be upstreamed to `num_traits` in the future.
+/// as custom implementations are not supported.
 pub trait MachineWord:
     ConstMachineWord<ConstDoubleWord = Self::DoubleWord> + core::hash::Hash + num_traits::ToPrimitive
 {
