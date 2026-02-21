@@ -196,7 +196,7 @@ c0nst::c0nst! {
         fn checked_shr(&self, rhs: u32) -> Option<Self>;
     }
 
-    /// Const-compatible byte conversion.
+    /// Const-compatible byte serialization.
     pub c0nst trait ConstToBytes {
         /// The byte array type for this integer.
         type Bytes: Copy + [c0nst] AsRef<[u8]> + [c0nst] AsMut<[u8]>;
@@ -204,6 +204,16 @@ c0nst::c0nst! {
         fn to_le_bytes(&self) -> Self::Bytes;
         /// Returns the big-endian byte representation.
         fn to_be_bytes(&self) -> Self::Bytes;
+    }
+
+    /// Const-compatible byte deserialization.
+    pub c0nst trait ConstFromBytes: Sized {
+        /// The byte array type for this integer.
+        type Bytes: Copy + [c0nst] AsRef<[u8]> + [c0nst] AsMut<[u8]>;
+        /// Creates a value from its little-endian byte representation.
+        fn from_le_bytes(bytes: &Self::Bytes) -> Self;
+        /// Creates a value from its big-endian byte representation.
+        fn from_be_bytes(bytes: &Self::Bytes) -> Self;
     }
 
     /// Const-compatible power-of-two operations.
@@ -1020,6 +1030,24 @@ const_to_bytes_impl!(u16, 2);
 const_to_bytes_impl!(u32, 4);
 const_to_bytes_impl!(u64, 8);
 const_to_bytes_impl!(u128, 16);
+
+macro_rules! const_from_bytes_impl {
+    ($t:ty, $n:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstFromBytes for $t {
+                type Bytes = [u8; $n];
+                fn from_le_bytes(bytes: &[u8; $n]) -> Self { <$t>::from_le_bytes(*bytes) }
+                fn from_be_bytes(bytes: &[u8; $n]) -> Self { <$t>::from_be_bytes(*bytes) }
+            }
+        }
+    };
+}
+
+const_from_bytes_impl!(u8, 1);
+const_from_bytes_impl!(u16, 2);
+const_from_bytes_impl!(u32, 4);
+const_from_bytes_impl!(u64, 8);
+const_from_bytes_impl!(u128, 16);
 
 macro_rules! const_power_of_two_impl {
     ($t:ty) => {
