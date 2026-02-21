@@ -1,8 +1,8 @@
 use super::{const_shl_impl, const_shr_impl, FixedUInt, MachineWord};
 
 use crate::const_numtrait::{
-    ConstCheckedShl, ConstCheckedShr, ConstOverflowingShl, ConstOverflowingShr, ConstWrappingShl,
-    ConstWrappingShr, ConstZero,
+    ConstCheckedShl, ConstCheckedShr, ConstOverflowingShl, ConstOverflowingShr,
+    ConstUnboundedShift, ConstWrappingShl, ConstWrappingShr, ConstZero,
 };
 use crate::machineword::ConstMachineWord;
 use crate::patch_num_traits::{OverflowingShl, OverflowingShr};
@@ -356,6 +356,26 @@ c0nst::c0nst! {
             if overflow { None } else { Some(res) }
         }
     }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstUnboundedShift for FixedUInt<T, N> {
+        fn unbounded_shl(self, rhs: u32) -> Self {
+            let (shift, overflow) = normalize_shift_amount(rhs, Self::BIT_SIZE);
+            if overflow {
+                Self::zero()
+            } else {
+                self << shift
+            }
+        }
+
+        fn unbounded_shr(self, rhs: u32) -> Self {
+            let (shift, overflow) = normalize_shift_amount(rhs, Self::BIT_SIZE);
+            if overflow {
+                Self::zero()
+            } else {
+                self >> shift
+            }
+        }
+    }
 }
 
 // OverflowingShl/Shr from patch_num_traits - delegate to const impls
@@ -654,5 +674,101 @@ mod tests {
         // num_traits::CheckedShr
         assert_eq!(CheckedShr::checked_shr(&b, 4), Some(TestInt::from(1u8)));
         assert_eq!(CheckedShr::checked_shr(&b, 16), None);
+    }
+
+    #[test]
+    fn test_unbounded_shift() {
+        type U16 = FixedUInt<u8, 2>;
+
+        let one = U16::from(1u8);
+
+        // Normal shifts (within bounds)
+        assert_eq!(ConstUnboundedShift::unbounded_shl(one, 0), one);
+        assert_eq!(ConstUnboundedShift::unbounded_shl(one, 4), U16::from(16u8));
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shl(one, 15),
+            U16::from(0x8000u16)
+        );
+
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shr(U16::from(0x8000u16), 15),
+            one
+        );
+        assert_eq!(ConstUnboundedShift::unbounded_shr(U16::from(16u8), 4), one);
+
+        // At boundary (shift by bit width) - returns 0
+        assert_eq!(ConstUnboundedShift::unbounded_shl(one, 16), U16::from(0u8));
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shr(U16::from(0xFFFFu16), 16),
+            U16::from(0u8)
+        );
+
+        // Beyond boundary - returns 0
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shl(U16::from(0xFFFFu16), 17),
+            U16::from(0u8)
+        );
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shl(U16::from(0xFFFFu16), 100),
+            U16::from(0u8)
+        );
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shr(U16::from(0xFFFFu16), 17),
+            U16::from(0u8)
+        );
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shr(U16::from(0xFFFFu16), 100),
+            U16::from(0u8)
+        );
+
+        // Test with different word sizes
+        type U32 = FixedUInt<u8, 4>;
+        let one32 = U32::from(1u8);
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shl(one32, 31),
+            U32::from(0x80000000u32)
+        );
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shl(one32, 32),
+            U32::from(0u8)
+        );
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shr(U32::from(0x80000000u32), 31),
+            one32
+        );
+        assert_eq!(
+            ConstUnboundedShift::unbounded_shr(U32::from(0x80000000u32), 32),
+            U32::from(0u8)
+        );
+    }
+
+    #[test]
+    fn test_unbounded_shift_polymorphic() {
+        fn test_unbounded<T>(val: T, shift: u32, expected_shl: T, expected_shr: T)
+        where
+            T: ConstUnboundedShift + Eq + core::fmt::Debug + Copy,
+        {
+            assert_eq!(ConstUnboundedShift::unbounded_shl(val, shift), expected_shl);
+            assert_eq!(ConstUnboundedShift::unbounded_shr(val, shift), expected_shr);
+        }
+
+        // Test with FixedUInt layouts
+        type U8x2 = FixedUInt<u8, 2>;
+        type U8x4 = FixedUInt<u8, 4>;
+        type U16x2 = FixedUInt<u16, 2>;
+
+        // Same logical shift, different layouts
+        test_unbounded(U8x2::from(1u8), 4, U8x2::from(16u8), U8x2::from(0u8));
+        test_unbounded(U8x4::from(1u8), 4, U8x4::from(16u8), U8x4::from(0u8));
+        test_unbounded(U16x2::from(1u8), 4, U16x2::from(16u8), U16x2::from(0u8));
+
+        // Test with primitives
+        test_unbounded(1u8, 4, 16u8, 0u8);
+        test_unbounded(1u16, 4, 16u16, 0u16);
+        test_unbounded(1u32, 4, 16u32, 0u32);
+
+        // Boundary tests
+        test_unbounded(1u8, 8, 0u8, 0u8);
+        test_unbounded(U8x2::from(1u8), 16, U8x2::from(0u8), U8x2::from(0u8));
     }
 }

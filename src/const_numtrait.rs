@@ -365,6 +365,31 @@ c0nst::c0nst! {
         fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self);
     }
 
+    /// Const-compatible midpoint calculation.
+    ///
+    /// Computes the average of two values, rounded down, without overflow.
+    /// Stable since Rust 1.85.0.
+    pub c0nst trait ConstMidpoint: Sized {
+        /// Calculates the midpoint (average) of `self` and `rhs`, rounded down.
+        ///
+        /// This never overflows, even for values close to the maximum.
+        fn midpoint(self, rhs: Self) -> Self;
+    }
+
+    /// Const-compatible unbounded shift operations.
+    ///
+    /// Unlike regular shifts, unbounded shifts don't panic when the shift
+    /// amount exceeds the bit width. Instead:
+    /// - `unbounded_shl(n)` returns 0 when n >= BITS (all bits shifted out)
+    /// - `unbounded_shr(n)` returns 0 when n >= BITS (all bits shifted out)
+    pub c0nst trait ConstUnboundedShift: Sized {
+        /// Unbounded shift left. Returns 0 if `rhs` is greater than or equal to the bit width of the type.
+        fn unbounded_shl(self, rhs: u32) -> Self;
+
+        /// Unbounded shift right. Returns 0 if `rhs` is greater than or equal to the bit width of the type.
+        fn unbounded_shr(self, rhs: u32) -> Self;
+    }
+
     /// Base arithmetic traits for constant primitive integers.
     ///
     /// # Implementor requirements for default methods
@@ -974,11 +999,7 @@ macro_rules! const_abs_diff_impl {
         c0nst::c0nst! {
             impl c0nst ConstAbsDiff for $t {
                 fn abs_diff(self, other: Self) -> Self {
-                    if self >= other {
-                        self - other
-                    } else {
-                        other - self
-                    }
+                    <$t>::abs_diff(self, other)
                 }
             }
         }
@@ -1042,6 +1063,8 @@ const_ilog_impl!(u32);
 const_ilog_impl!(u64);
 const_ilog_impl!(u128);
 
+// Native is_multiple_of() requires Rust 1.87+, gate behind 1_87 feature
+#[cfg(not(feature = "1_87"))]
 macro_rules! const_multiple_impl {
     ($t:ty) => {
         c0nst::c0nst! {
@@ -1052,6 +1075,25 @@ macro_rules! const_multiple_impl {
                     } else {
                         *self % *rhs == 0
                     }
+                }
+                fn next_multiple_of(self, rhs: Self) -> Self {
+                    self.next_multiple_of(rhs)
+                }
+                fn checked_next_multiple_of(self, rhs: Self) -> Option<Self> {
+                    self.checked_next_multiple_of(rhs)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "1_87")]
+macro_rules! const_multiple_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstMultiple for $t {
+                fn is_multiple_of(&self, rhs: &Self) -> bool {
+                    <$t>::is_multiple_of(*self, *rhs)
                 }
                 fn next_multiple_of(self, rhs: Self) -> Self {
                     self.next_multiple_of(rhs)
@@ -1210,6 +1252,79 @@ const_carrying_mul_impl!(u32, u64, 32);
 const_carrying_mul_impl!(u64, u128, 64);
 // TODO: u128 carrying_mul requires u256 type (not available in Rust)
 
+// Native midpoint() requires Rust 1.85+, gate behind 1_87 feature
+#[cfg(not(feature = "1_87"))]
+macro_rules! const_midpoint_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstMidpoint for $t {
+                fn midpoint(self, rhs: Self) -> Self {
+                    // (a & b) + ((a ^ b) >> 1) avoids overflow
+                    (self & rhs) + ((self ^ rhs) >> 1)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "1_87")]
+macro_rules! const_midpoint_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstMidpoint for $t {
+                fn midpoint(self, rhs: Self) -> Self {
+                    <$t>::midpoint(self, rhs)
+                }
+            }
+        }
+    };
+}
+
+const_midpoint_impl!(u8);
+const_midpoint_impl!(u16);
+const_midpoint_impl!(u32);
+const_midpoint_impl!(u64);
+const_midpoint_impl!(u128);
+
+// Native unbounded_shl/shr() requires Rust 1.85+, gate behind 1_87 feature
+#[cfg(not(feature = "1_87"))]
+macro_rules! const_unbounded_shift_impl {
+    ($t:ty, $bits:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstUnboundedShift for $t {
+                fn unbounded_shl(self, rhs: u32) -> Self {
+                    if rhs >= $bits { 0 } else { self << rhs }
+                }
+                fn unbounded_shr(self, rhs: u32) -> Self {
+                    if rhs >= $bits { 0 } else { self >> rhs }
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "1_87")]
+macro_rules! const_unbounded_shift_impl {
+    ($t:ty, $bits:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstUnboundedShift for $t {
+                fn unbounded_shl(self, rhs: u32) -> Self {
+                    <$t>::unbounded_shl(self, rhs)
+                }
+                fn unbounded_shr(self, rhs: u32) -> Self {
+                    <$t>::unbounded_shr(self, rhs)
+                }
+            }
+        }
+    };
+}
+
+const_unbounded_shift_impl!(u8, 8);
+const_unbounded_shift_impl!(u16, 16);
+const_unbounded_shift_impl!(u32, 32);
+const_unbounded_shift_impl!(u64, 64);
+const_unbounded_shift_impl!(u128, 128);
+
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);
 const_prim_int_impl!(u32);
@@ -1319,6 +1434,18 @@ mod tests {
 
         pub c0nst fn carrying_mul_word<T: [c0nst] ConstCarryingMul>(a: T, b: T, carry: T) -> (T, T) {
             a.carrying_mul(b, carry)
+        }
+
+        pub c0nst fn midpoint_word<T: [c0nst] ConstMidpoint>(a: T, b: T) -> T {
+            a.midpoint(b)
+        }
+
+        pub c0nst fn unbounded_shl_word<T: [c0nst] ConstUnboundedShift>(a: T, n: u32) -> T {
+            a.unbounded_shl(n)
+        }
+
+        pub c0nst fn unbounded_shr_word<T: [c0nst] ConstUnboundedShift>(a: T, n: u32) -> T {
+            a.unbounded_shr(n)
         }
     }
 
@@ -1737,6 +1864,93 @@ mod tests {
             assert_eq!(CM_SIMPLE, (50u8, 0u8));
             assert_eq!(CM_WITH_CARRY, (60u8, 0u8));
             assert_eq!(CM_MAX, (0x00u8, 0xFFu8));
+        }
+    }
+
+    #[test]
+    fn test_const_midpoint() {
+        // Simple midpoint
+        assert_eq!(midpoint_word(0u8, 10u8), 5u8);
+        assert_eq!(midpoint_word(10u8, 0u8), 5u8); // order doesn't matter
+
+        // Midpoint rounds down
+        assert_eq!(midpoint_word(0u8, 9u8), 4u8); // (0+9)/2 = 4.5 -> 4
+        assert_eq!(midpoint_word(1u8, 10u8), 5u8); // (1+10)/2 = 5.5 -> 5
+
+        // Same values
+        assert_eq!(midpoint_word(42u8, 42u8), 42u8);
+
+        // Edge cases with max values (no overflow!)
+        assert_eq!(midpoint_word(u8::MAX, u8::MAX), u8::MAX);
+        assert_eq!(midpoint_word(u8::MAX, u8::MAX - 1), u8::MAX - 1); // rounds down
+        assert_eq!(midpoint_word(0u8, u8::MAX), 127u8); // (0+255)/2 = 127.5 -> 127
+
+        // Test with larger types
+        assert_eq!(midpoint_word(0u64, 100u64), 50u64);
+        assert_eq!(midpoint_word(u64::MAX, u64::MAX), u64::MAX);
+        assert_eq!(midpoint_word(u64::MAX - 1, u64::MAX), u64::MAX - 1); // rounds down
+
+        // u128
+        assert_eq!(midpoint_word(0u128, u128::MAX), u128::MAX / 2);
+
+        #[cfg(feature = "nightly")]
+        {
+            const MID_SIMPLE: u8 = midpoint_word(0u8, 10u8);
+            const MID_ROUND: u8 = midpoint_word(0u8, 9u8);
+            const MID_MAX: u8 = midpoint_word(u8::MAX, u8::MAX);
+            const MID_EDGE: u8 = midpoint_word(0u8, u8::MAX);
+
+            assert_eq!(MID_SIMPLE, 5u8);
+            assert_eq!(MID_ROUND, 4u8);
+            assert_eq!(MID_MAX, u8::MAX);
+            assert_eq!(MID_EDGE, 127u8);
+        }
+    }
+
+    #[test]
+    fn test_const_unbounded_shift() {
+        // Normal shifts (within bounds)
+        assert_eq!(unbounded_shl_word(1u8, 0), 1u8);
+        assert_eq!(unbounded_shl_word(1u8, 1), 2u8);
+        assert_eq!(unbounded_shl_word(1u8, 7), 128u8);
+        assert_eq!(unbounded_shr_word(128u8, 7), 1u8);
+        assert_eq!(unbounded_shr_word(255u8, 4), 15u8);
+
+        // At boundary (shift by bit width)
+        assert_eq!(unbounded_shl_word(1u8, 8), 0u8);
+        assert_eq!(unbounded_shr_word(255u8, 8), 0u8);
+
+        // Beyond boundary
+        assert_eq!(unbounded_shl_word(255u8, 9), 0u8);
+        assert_eq!(unbounded_shl_word(255u8, 100), 0u8);
+        assert_eq!(unbounded_shr_word(255u8, 9), 0u8);
+        assert_eq!(unbounded_shr_word(255u8, 100), 0u8);
+
+        // Test with larger types
+        assert_eq!(unbounded_shl_word(1u64, 63), 1u64 << 63);
+        assert_eq!(unbounded_shl_word(1u64, 64), 0u64);
+        assert_eq!(unbounded_shr_word(u64::MAX, 64), 0u64);
+
+        // u128
+        assert_eq!(unbounded_shl_word(1u128, 127), 1u128 << 127);
+        assert_eq!(unbounded_shl_word(1u128, 128), 0u128);
+        assert_eq!(unbounded_shr_word(u128::MAX, 128), 0u128);
+
+        #[cfg(feature = "nightly")]
+        {
+            const SHL_NORMAL: u8 = unbounded_shl_word(1u8, 4);
+            const SHL_BOUNDARY: u8 = unbounded_shl_word(1u8, 8);
+            const SHL_BEYOND: u8 = unbounded_shl_word(1u8, 100);
+            const SHR_NORMAL: u8 = unbounded_shr_word(128u8, 4);
+            const SHR_BOUNDARY: u8 = unbounded_shr_word(255u8, 8);
+            const SHR_BEYOND: u8 = unbounded_shr_word(255u8, 100);
+
+            assert_eq!(SHL_NORMAL, 16u8);
+            assert_eq!(SHL_BOUNDARY, 0u8);
+            assert_eq!(SHL_BEYOND, 0u8);
+            assert_eq!(SHR_NORMAL, 8u8);
+            assert_eq!(SHR_BOUNDARY, 0u8);
+            assert_eq!(SHR_BEYOND, 0u8);
         }
     }
 }
