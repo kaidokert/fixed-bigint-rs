@@ -1167,7 +1167,8 @@ const_isqrt_impl!(u64);
 const_isqrt_impl!(u128);
 
 // Extended precision primitive implementations
-// Use manual implementations that work on both stable and nightly
+// Native bigint_helper_methods stable since Rust 1.91.0
+#[cfg(not(feature = "nightly"))]
 macro_rules! const_carrying_add_impl {
     ($t:ty) => {
         c0nst::c0nst! {
@@ -1182,6 +1183,20 @@ macro_rules! const_carrying_add_impl {
     };
 }
 
+#[cfg(feature = "nightly")]
+macro_rules! const_carrying_add_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCarryingAdd for $t {
+                fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
+                    <$t>::carrying_add(self, rhs, carry)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
 macro_rules! const_borrowing_sub_impl {
     ($t:ty) => {
         c0nst::c0nst! {
@@ -1196,6 +1211,20 @@ macro_rules! const_borrowing_sub_impl {
     };
 }
 
+#[cfg(feature = "nightly")]
+macro_rules! const_borrowing_sub_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstBorrowingSub for $t {
+                fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
+                    <$t>::borrowing_sub(self, rhs, borrow)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
 macro_rules! const_widening_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
@@ -1209,6 +1238,20 @@ macro_rules! const_widening_mul_impl {
     };
 }
 
+#[cfg(feature = "nightly")]
+macro_rules! const_widening_mul_impl {
+    ($t:ty, $double:ty, $bits:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstWideningMul for $t {
+                fn widening_mul(self, rhs: Self) -> (Self, Self) {
+                    <$t>::widening_mul(self, rhs)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
 macro_rules! const_carrying_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
@@ -1222,6 +1265,25 @@ macro_rules! const_carrying_mul_impl {
                         + (addend as $double)
                         + (carry as $double);
                     (product as $t, (product >> $bits) as $t)
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "nightly")]
+macro_rules! const_carrying_mul_impl {
+    ($t:ty, $double:ty, $bits:expr) => {
+        c0nst::c0nst! {
+            impl c0nst ConstCarryingMul for $t {
+                fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
+                    <$t>::carrying_mul(self, rhs, carry)
+                }
+                fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self) {
+                    // No native carrying_mul_add, use carrying_mul + overflowing_add
+                    let (lo, hi) = <$t>::carrying_mul(self, rhs, carry);
+                    let (lo2, c) = lo.overflowing_add(addend);
+                    (lo2, hi.wrapping_add(c as $t))
                 }
             }
         }
@@ -1434,6 +1496,10 @@ mod tests {
 
         pub c0nst fn carrying_mul_word<T: [c0nst] ConstCarryingMul>(a: T, b: T, carry: T) -> (T, T) {
             a.carrying_mul(b, carry)
+        }
+
+        pub c0nst fn carrying_mul_add_word<T: [c0nst] ConstCarryingMul>(a: T, b: T, addend: T, carry: T) -> (T, T) {
+            a.carrying_mul_add(b, addend, carry)
         }
 
         pub c0nst fn midpoint_word<T: [c0nst] ConstMidpoint>(a: T, b: T) -> T {
@@ -1864,6 +1930,49 @@ mod tests {
             assert_eq!(CM_SIMPLE, (50u8, 0u8));
             assert_eq!(CM_WITH_CARRY, (60u8, 0u8));
             assert_eq!(CM_MAX, (0x00u8, 0xFFu8));
+        }
+    }
+
+    #[test]
+    fn test_const_carrying_mul_add() {
+        // Simple: 10 * 5 + 7 + 0 = 57
+        let (lo, hi) = carrying_mul_add_word(10u8, 5u8, 7u8, 0u8);
+        assert_eq!(lo, 57u8);
+        assert_eq!(hi, 0u8);
+
+        // With all params: 10 * 5 + 10 + 10 = 70
+        let (lo, hi) = carrying_mul_add_word(10u8, 5u8, 10u8, 10u8);
+        assert_eq!(lo, 70u8);
+        assert_eq!(hi, 0u8);
+
+        // Addend causes lo overflow: 200 * 3 + 200 + 0 = 800 = 0x0320
+        // Then we add extra addend to test lo overflow path
+        // 16 * 16 + 0 + 0 = 256 = 0x0100
+        let (lo, hi) = carrying_mul_add_word(16u8, 16u8, 0u8, 0u8);
+        assert_eq!(lo, 0x00u8);
+        assert_eq!(hi, 1u8);
+
+        // Max case: 255 * 255 + 255 + 255 = 65535 = 0xFFFF
+        // This exercises hi = 0xFF with addend causing no overflow
+        // (since carrying_mul gives lo=0 when hi=0xFF)
+        let (lo, hi) = carrying_mul_add_word(u8::MAX, u8::MAX, u8::MAX, u8::MAX);
+        // 255 * 255 + 255 = 65280 = 0xFF00, then + 255 = 65535 = 0xFFFF
+        assert_eq!(lo, 0xFFu8);
+        assert_eq!(hi, 0xFFu8);
+
+        // Test case that would trigger wrapping_add:
+        // We need hi to be MAX and carry from lo addition
+        // For u8: 255 * 255 + 255 gives (0, 255), then adding 255 gives (255, 255)
+        // Since lo=0, adding any addend won't overflow, so hi stays 255
+        // The wrapping_add is for safety even though u8 can't trigger it
+
+        #[cfg(feature = "nightly")]
+        {
+            const CMA_SIMPLE: (u8, u8) = carrying_mul_add_word(10u8, 5u8, 7u8, 0u8);
+            const CMA_MAX: (u8, u8) = carrying_mul_add_word(u8::MAX, u8::MAX, u8::MAX, u8::MAX);
+
+            assert_eq!(CMA_SIMPLE, (57u8, 0u8));
+            assert_eq!(CMA_MAX, (0xFFu8, 0xFFu8));
         }
     }
 

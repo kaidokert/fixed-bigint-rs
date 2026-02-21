@@ -22,7 +22,9 @@
         const_convert,
         const_default,
         const_clone,
-        generic_const_exprs
+        generic_const_exprs,
+        const_unsigned_bigint_helpers,
+        widening_mul
     )
 )]
 #![cfg_attr(feature = "nightly", allow(incomplete_features))]
