@@ -982,7 +982,6 @@ enum PanicReason {
     Sub,
     Mul,
     DivByZero,
-    RemByZero,
 }
 
 c0nst::c0nst! {
@@ -992,9 +991,6 @@ c0nst::c0nst! {
             PanicReason::Sub => panic!("attempt to subtract with overflow"),
             PanicReason::Mul => panic!("attempt to multiply with overflow"),
             PanicReason::DivByZero => panic!("attempt to divide by zero"),
-            PanicReason::RemByZero => {
-                panic!("attempt to calculate the remainder with a divisor of zero")
-            }
         }
     }
 }
