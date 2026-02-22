@@ -175,9 +175,19 @@ c0nst::c0nst! {
 impl<T: ConstMachineWord + ConstCarryingAdd + ConstBorrowingSub + MachineWord, const N: usize>
     WideningMul for FixedUInt<T, N>
 {
-    #[inline]
+    type Output = Self;
     fn widening_mul(self, rhs: Self) -> (Self, Self) {
         <Self as ConstWideningMul>::widening_mul(self, rhs)
+    }
+}
+
+/// Ref-based widening multiplication — avoids copying large FixedUInt on stack.
+impl<T: ConstMachineWord + ConstCarryingAdd + ConstBorrowingSub + MachineWord, const N: usize>
+    WideningMul for &FixedUInt<T, N>
+{
+    type Output = FixedUInt<T, N>;
+    fn widening_mul(self, rhs: Self) -> (FixedUInt<T, N>, FixedUInt<T, N>) {
+        <FixedUInt<T, N> as ConstWideningMul>::widening_mul(*self, *rhs)
     }
 }
 
@@ -185,14 +195,32 @@ impl<T: ConstMachineWord + ConstCarryingAdd + ConstBorrowingSub + MachineWord, c
 impl<T: ConstMachineWord + ConstCarryingAdd + ConstBorrowingSub + MachineWord, const N: usize>
     CarryingMul for FixedUInt<T, N>
 {
-    #[inline]
+    type Output = Self;
     fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
         <Self as ConstCarryingMul>::carrying_mul(self, rhs, carry)
     }
 
-    #[inline]
     fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self) {
         <Self as ConstCarryingMul>::carrying_mul_add(self, rhs, addend, carry)
+    }
+}
+
+/// Ref-based carrying multiplication — avoids copying large FixedUInt on stack.
+impl<T: ConstMachineWord + ConstCarryingAdd + ConstBorrowingSub + MachineWord, const N: usize>
+    CarryingMul for &FixedUInt<T, N>
+{
+    type Output = FixedUInt<T, N>;
+    fn carrying_mul(self, rhs: Self, carry: Self) -> (FixedUInt<T, N>, FixedUInt<T, N>) {
+        <FixedUInt<T, N> as ConstCarryingMul>::carrying_mul(*self, *rhs, *carry)
+    }
+
+    fn carrying_mul_add(
+        self,
+        rhs: Self,
+        addend: Self,
+        carry: Self,
+    ) -> (FixedUInt<T, N>, FixedUInt<T, N>) {
+        <FixedUInt<T, N> as ConstCarryingMul>::carrying_mul_add(*self, *rhs, *addend, *carry)
     }
 }
 
@@ -593,5 +621,43 @@ mod tests {
         let (lo_const, hi_const) = ConstCarryingMul::carrying_mul_add(x, y, addend, c);
         assert_eq!(lo_trait, lo_const);
         assert_eq!(hi_trait, hi_const);
+    }
+
+    /// Test ref-based WideningMul and CarryingMul impls.
+    #[test]
+    fn test_ref_based_mul_traits() {
+        // Primitives: ref should match value
+        assert_eq!(
+            WideningMul::widening_mul(&0xFFFFu16, &0xFFFFu16),
+            WideningMul::widening_mul(0xFFFFu16, 0xFFFFu16),
+        );
+        assert_eq!(
+            CarryingMul::carrying_mul(&255u8, &255u8, &255u8),
+            CarryingMul::carrying_mul(255u8, 255u8, 255u8),
+        );
+        assert_eq!(
+            CarryingMul::carrying_mul_add(&10u8, &10u8, &3u8, &2u8),
+            CarryingMul::carrying_mul_add(10u8, 10u8, 3u8, 2u8),
+        );
+
+        // FixedUInt: ref should match value
+        let a = U32::from(0x1234_5678u32);
+        let b = U32::from(0x9ABC_DEF0u32);
+        assert_eq!(
+            WideningMul::widening_mul(&a, &b),
+            WideningMul::widening_mul(a, b),
+        );
+
+        let carry = U16::from(5u8);
+        let x = U16::from(100u8);
+        assert_eq!(
+            CarryingMul::carrying_mul(&x, &x, &carry),
+            CarryingMul::carrying_mul(x, x, carry),
+        );
+        let addend = U16::from(10u8);
+        assert_eq!(
+            CarryingMul::carrying_mul_add(&x, &x, &addend, &carry),
+            CarryingMul::carrying_mul_add(x, x, addend, carry),
+        );
     }
 }

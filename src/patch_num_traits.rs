@@ -48,19 +48,26 @@ overflowing_shift_impl!(OverflowingShr, overflowing_shr, u64);
 ///
 /// [`ConstWideningMul`]: crate::const_numtraits::ConstWideningMul
 pub trait WideningMul: Sized {
+    type Output;
     /// Calculates the complete product `self * rhs` without overflow.
     ///
     /// Returns `(low, high)` where the full result is `high * 2^BITS + low`.
-    fn widening_mul(self, rhs: Self) -> (Self, Self);
+    fn widening_mul(self, rhs: Self) -> (Self::Output, Self::Output);
 }
 
 macro_rules! widening_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         impl WideningMul for $t {
-            #[inline]
+            type Output = Self;
             fn widening_mul(self, rhs: Self) -> (Self, Self) {
                 let product = (self as $double) * (rhs as $double);
                 (product as $t, (product >> $bits) as $t)
+            }
+        }
+        impl WideningMul for &$t {
+            type Output = $t;
+            fn widening_mul(self, rhs: Self) -> ($t, $t) {
+                WideningMul::widening_mul(*self, *rhs)
             }
         }
     };
@@ -78,33 +85,43 @@ widening_mul_impl!(u64, u128, 64);
 ///
 /// [`ConstCarryingMul`]: crate::const_numtraits::ConstCarryingMul
 pub trait CarryingMul: Sized {
+    type Output;
     /// Calculates `self * rhs + carry`, returning `(low, high)`.
     ///
     /// The result fits in double-width (2 * BITS) since
     /// `MAX * MAX + MAX < (MAX+1)^2 = 2^(2*BITS)`.
-    fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self);
+    fn carrying_mul(self, rhs: Self, carry: Self) -> (Self::Output, Self::Output);
 
     /// Calculates `self * rhs + addend + carry`, returning `(low, high)`.
     ///
     /// The result fits in double-width (2 * BITS) since
     /// `MAX * MAX + MAX + MAX < (MAX+1)^2 = 2^(2*BITS)`.
-    fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self);
+    fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self)
+        -> (Self::Output, Self::Output);
 }
 
 macro_rules! carrying_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         impl CarryingMul for $t {
-            #[inline]
+            type Output = Self;
             fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
                 let product = (self as $double) * (rhs as $double) + (carry as $double);
                 (product as $t, (product >> $bits) as $t)
             }
 
-            #[inline]
             fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (Self, Self) {
                 let product =
                     (self as $double) * (rhs as $double) + (addend as $double) + (carry as $double);
                 (product as $t, (product >> $bits) as $t)
+            }
+        }
+        impl CarryingMul for &$t {
+            type Output = $t;
+            fn carrying_mul(self, rhs: Self, carry: Self) -> ($t, $t) {
+                CarryingMul::carrying_mul(*self, *rhs, *carry)
+            }
+            fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> ($t, $t) {
+                CarryingMul::carrying_mul_add(*self, *rhs, *addend, *carry)
             }
         }
     };
