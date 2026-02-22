@@ -17,8 +17,14 @@ where
 impl<T: MachineWord, const N: usize> FixedInt<T, N> {
     const WORD_BITS: usize = core::mem::size_of::<T>() * 8;
 
+    #[inline]
+    fn assert_non_zero_words() {
+        assert!(N > 0, "FixedInt requires N > 0");
+    }
+
     /// Returns zero.
     pub fn new() -> Self {
+        Self::assert_non_zero_words();
         Self {
             bits: FixedUInt::new(),
         }
@@ -26,6 +32,7 @@ impl<T: MachineWord, const N: usize> FixedInt<T, N> {
 
     /// Build from a raw two's-complement bit pattern.
     pub fn from_bits(bits: FixedUInt<T, N>) -> Self {
+        Self::assert_non_zero_words();
         Self { bits }
     }
 
@@ -36,8 +43,13 @@ impl<T: MachineWord, const N: usize> FixedInt<T, N> {
 
     /// Returns `true` when the sign bit is set.
     pub fn is_negative(&self) -> bool {
-        let highest = self.bits.words()[N - 1];
-        ((highest >> (Self::WORD_BITS - 1)) & T::one()) == T::one()
+        let highest = self
+            .bits
+            .words()
+            .split_last()
+            .expect("FixedInt requires N > 0")
+            .0;
+        ((*highest >> (Self::WORD_BITS - 1)) & T::one()) == T::one()
     }
 
     /// Wrapping absolute value.
@@ -85,8 +97,20 @@ impl<T: MachineWord, const N: usize> Default for FixedInt<T, N> {
 #[cfg(test)]
 impl<T: MachineWord, const N: usize> From<i128> for FixedInt<T, N> {
     fn from(value: i128) -> Self {
+        FixedInt::<T, N>::assert_non_zero_words();
+
+        let mut words = *FixedUInt::<T, N>::from_le_bytes(&value.to_le_bytes()).words();
+
+        if value < 0 {
+            let word_size = core::mem::size_of::<T>();
+            let i128_words = 16 / word_size;
+            for word in words.iter_mut().skip(i128_words.min(N)) {
+                *word = T::max_value();
+            }
+        }
+
         Self {
-            bits: FixedUInt::from_le_bytes(&value.to_le_bytes()),
+            bits: FixedUInt::from(words),
         }
     }
 }
@@ -116,9 +140,7 @@ impl<T: MachineWord, const N: usize> Sub for FixedInt<T, N> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            bits: self.bits - rhs.bits,
-        }
+        self + (-rhs)
     }
 }
 
@@ -138,5 +160,11 @@ mod tests {
         let a: FixedInt<u8, 1> = 120i128.into();
         let b: FixedInt<u8, 1> = 120i128.into();
         assert_eq!((a + b).to_i128(), -16);
+    }
+
+    #[test]
+    #[should_panic(expected = "FixedInt requires N > 0")]
+    fn zero_words_disallowed() {
+        let _ = FixedInt::<u8, 0>::new();
     }
 }
