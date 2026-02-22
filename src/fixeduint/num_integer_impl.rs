@@ -56,7 +56,7 @@ impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N> {
         self.array[0] & T::one() == T::zero()
     }
     fn is_odd(&self) -> bool {
-        self.array[0] & T::one() != T::zero()
+        !self.is_even()
     }
     fn div_rem(&self, other: &Self) -> (Self, Self) {
         self.div_rem(other)
