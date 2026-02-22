@@ -1,6 +1,6 @@
 use super::{FixedUInt, MachineWord};
 
-use num_traits::{One, PrimInt, Zero};
+use num_traits::{PrimInt, Zero};
 
 // Most code here from num_integer crate, unsigned implementation
 
@@ -52,7 +52,8 @@ impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N> {
         (*self) % other == Self::zero()
     }
     fn is_even(&self) -> bool {
-        (*self) & Self::one() == Self::zero()
+        // O(1): only check LSB of first word, not full-width AND + compare
+        N == 0 || self.array[0] & T::one() == T::zero()
     }
     fn is_odd(&self) -> bool {
         !self.is_even()
