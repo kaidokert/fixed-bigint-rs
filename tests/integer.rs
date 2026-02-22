@@ -30,6 +30,10 @@ fn test_evenodd() {
     even_odd::<FixedUInt<u8, 1>>();
     even_odd::<FixedUInt<u8, 2>>();
     even_odd::<FixedUInt<u16, 1>>();
+
+    let zero = FixedUInt::<u8, 0>::from(0u8);
+    assert!(zero.is_even());
+    assert!(!zero.is_odd());
 }
 
 #[test]

@@ -53,7 +53,7 @@ impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N> {
     }
     fn is_even(&self) -> bool {
         // O(1): only check LSB of first word, not full-width AND + compare
-        self.array[0] & T::one() == T::zero()
+        N == 0 || self.array[0] & T::one() == T::zero()
     }
     fn is_odd(&self) -> bool {
         !self.is_even()
