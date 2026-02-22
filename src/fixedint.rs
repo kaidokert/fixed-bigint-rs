@@ -17,9 +17,12 @@ where
 impl<T: MachineWord, const N: usize> FixedInt<T, N> {
     const WORD_BITS: usize = core::mem::size_of::<T>() * 8;
 
+    const ASSERT_NON_ZERO_WORDS: () = assert!(N > 0, "FixedInt requires N > 0");
+
     #[inline]
+    #[allow(path_statements)]
     fn assert_non_zero_words() {
-        assert!(N > 0, "FixedInt requires N > 0");
+        Self::ASSERT_NON_ZERO_WORDS;
     }
 
     /// Returns zero.
@@ -160,11 +163,5 @@ mod tests {
         let a: FixedInt<u8, 1> = 120i128.into();
         let b: FixedInt<u8, 1> = 120i128.into();
         assert_eq!((a + b).to_i128(), -16);
-    }
-
-    #[test]
-    #[should_panic(expected = "FixedInt requires N > 0")]
-    fn zero_words_disallowed() {
-        let _ = FixedInt::<u8, 0>::new();
     }
 }
