@@ -67,7 +67,7 @@ macro_rules! widening_mul_impl {
         impl WideningMul for &$t {
             type Output = $t;
             fn widening_mul(self, rhs: Self) -> ($t, $t) {
-                WideningMul::widening_mul(*self, *rhs)
+                <$t as WideningMul>::widening_mul(*self, *rhs)
             }
         }
     };
@@ -118,10 +118,10 @@ macro_rules! carrying_mul_impl {
         impl CarryingMul for &$t {
             type Output = $t;
             fn carrying_mul(self, rhs: Self, carry: Self) -> ($t, $t) {
-                CarryingMul::carrying_mul(*self, *rhs, *carry)
+                <$t as CarryingMul>::carrying_mul(*self, *rhs, *carry)
             }
             fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> ($t, $t) {
-                CarryingMul::carrying_mul_add(*self, *rhs, *addend, *carry)
+                <$t as CarryingMul>::carrying_mul_add(*self, *rhs, *addend, *carry)
             }
         }
     };

@@ -181,7 +181,7 @@ impl<T: ConstMachineWord + ConstCarryingAdd + ConstBorrowingSub + MachineWord, c
     }
 }
 
-/// Ref-based widening multiplication — avoids copying large FixedUInt on stack.
+/// Ref-based widening multiplication — allows calling with references.
 impl<T: ConstMachineWord + ConstCarryingAdd + ConstBorrowingSub + MachineWord, const N: usize>
     WideningMul for &FixedUInt<T, N>
 {
@@ -205,7 +205,7 @@ impl<T: ConstMachineWord + ConstCarryingAdd + ConstBorrowingSub + MachineWord, c
     }
 }
 
-/// Ref-based carrying multiplication — avoids copying large FixedUInt on stack.
+/// Ref-based carrying multiplication — allows calling with references.
 impl<T: ConstMachineWord + ConstCarryingAdd + ConstBorrowingSub + MachineWord, const N: usize>
     CarryingMul for &FixedUInt<T, N>
 {
