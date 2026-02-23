@@ -322,7 +322,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         Ok(radix_str)
     }
 
-    /// Construct a new values with a different size.
+    /// Construct a new value with a different size.
     ///
     /// - If `N2 < N`, the most-significant (upper) words are truncated.
     /// - If `N2 > N`, the additional most-significant words are filled with zeros.
