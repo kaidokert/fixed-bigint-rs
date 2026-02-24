@@ -322,6 +322,18 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N> {
         Ok(radix_str)
     }
 
+    /// Construct a new value with a different size.
+    ///
+    /// - If `N2 < N`, the most-significant (upper) words are truncated.
+    /// - If `N2 > N`, the additional most-significant words are filled with zeros.
+    #[must_use]
+    pub fn resize<const N2: usize>(&self) -> FixedUInt<T, N2> {
+        let mut array = [T::zero(); N2];
+        let min_size = N.min(N2);
+        array[..min_size].copy_from_slice(&self.array[..min_size]);
+        FixedUInt { array }
+    }
+
     fn hex_fmt(
         &self,
         formatter: &mut core::fmt::Formatter<'_>,
@@ -1669,6 +1681,20 @@ mod tests {
         );
         let ac = Bn::<u16, 5>::from_str_radix("baaf81906f5e4d3c2c01", 16).unwrap();
         assert_eq!(ac.array, [0x2c01, 0x4d3c, 0x6f5e, 0x8190, 0xbaaf]);
+    }
+
+    #[test]
+    fn test_resize() {
+        type TestInt1 = FixedUInt<u32, 1>;
+        type TestInt2 = FixedUInt<u32, 2>;
+
+        let a = TestInt1::from(u32::MAX);
+        let b: TestInt2 = a.resize();
+        assert_eq!(b, TestInt2::from([u32::MAX, 0]));
+
+        let a = TestInt2::from([u32::MAX, u32::MAX]);
+        let b: TestInt1 = a.resize();
+        assert_eq!(b, TestInt1::from(u32::MAX));
     }
 
     #[test]
