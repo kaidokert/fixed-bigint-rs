@@ -1037,8 +1037,6 @@ c0nst::c0nst! {
 
 #[cfg(test)]
 mod tests {
-    use core::u32;
-
     use super::FixedUInt as Bn;
     use super::*;
     use num_traits::One;
