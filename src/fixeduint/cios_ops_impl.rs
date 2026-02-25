@@ -15,28 +15,12 @@ where
 {
     type Word = T;
 
-    #[inline]
     fn word_count() -> usize {
         N
     }
 
-    #[inline]
-    fn word(&self, i: usize) -> T {
-        debug_assert!(i < Self::word_count());
-        self.array[i]
-    }
-
-    #[inline]
-    fn lowest_word(&self) -> T {
-        debug_assert!(N > 0, "CiosOps requires at least one word");
-        self.array[0]
-    }
-
-    #[inline]
-    fn zero_value() -> Self {
-        Self {
-            array: [<T as ConstZero>::zero(); N],
-        }
+    fn get_word(&self, i: usize) -> Option<T> {
+        self.array.get(i).copied()
     }
 
     fn mul_acc_row(scalar: T, multiplicand: &Self, acc: &mut Self, carry_in: T) -> T {
@@ -105,14 +89,14 @@ mod tests {
     fn test_word_access() {
         let val = U16::from(0x1234u16);
         assert_eq!(U16::word_count(), 2);
-        assert_eq!(val.lowest_word(), 0x34u8);
-        assert_eq!(val.word(0), 0x34u8);
-        assert_eq!(val.word(1), 0x12u8);
+        assert_eq!(val.get_word(0), Some(0x34u8));
+        assert_eq!(val.get_word(1), Some(0x12u8));
+        assert_eq!(val.get_word(2), None);
     }
 
     #[test]
-    fn test_zero_value() {
-        let z = U32::zero_value();
+    fn test_default_is_zero() {
+        let z = U32::default();
         assert_eq!(z, U32::from(0u8));
     }
 
@@ -132,7 +116,7 @@ mod tests {
         // Compute acc += 200 * 200 with acc starting at 0
         // 200 * 200 = 40000, which overflows U16 (max 65535 fits, but carry may propagate)
         let multiplicand = U16::from(200u16);
-        let mut acc = U16::zero_value();
+        let mut acc = U16::default();
         let carry = U16::mul_acc_row(200u8, &multiplicand, &mut acc, 0u8);
         // 200 * 200 = 40000 = 0x9C40
         // The row operation is word-by-word, so:

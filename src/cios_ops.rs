@@ -10,7 +10,7 @@
 /// Implementors provide fused scalar × bigint accumulate/shift primitives.
 /// A higher-level crate (e.g. modmath) orchestrates the CIOS outer loop
 /// using only these methods, without knowledge of the internal representation.
-pub trait CiosOps: Sized + Copy {
+pub trait CiosOps: Sized + Copy + Default {
     /// The machine-word type used as a scalar in row operations.
     type Word: Copy
         + crate::const_numtraits::ConstZero
@@ -21,17 +21,8 @@ pub trait CiosOps: Sized + Copy {
     fn word_count() -> usize;
 
     /// Access the `i`-th word (little-endian, `i = 0` is least significant).
-    ///
-    /// # Panics
-    ///
-    /// Panics if `i >= Self::word_count()`.
-    fn word(&self, i: usize) -> Self::Word;
-
-    /// Shorthand for `self.word(0)`.
-    fn lowest_word(&self) -> Self::Word;
-
-    /// Construct a zero-initialized value (accumulator init).
-    fn zero_value() -> Self;
+    /// Returns `None` if `i >= Self::word_count()`.
+    fn get_word(&self, i: usize) -> Option<Self::Word>;
 
     /// **Phase 1 row**: `acc += scalar * multiplicand`
     ///
