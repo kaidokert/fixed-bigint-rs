@@ -47,6 +47,7 @@ mod power_of_two_impl;
 mod prim_int_impl;
 mod roots_impl;
 mod string_conversion;
+mod cios_ops_impl;
 // ConstToBytes trait (nightly only, uses generic_const_exprs)
 #[cfg(feature = "nightly")]
 mod const_to_from_bytes;
