@@ -13,17 +13,18 @@
 pub trait CiosOps: Sized + Copy {
     /// The machine-word type used as a scalar in row operations.
     type Word: Copy
-        + num_traits::Zero
-        + num_traits::One
-        + num_traits::WrappingMul
-        + num_traits::ops::overflowing::OverflowingAdd
-        + PartialOrd
-        + core::ops::Add<Output = Self::Word>;
+        + crate::const_numtraits::ConstZero
+        + crate::const_numtraits::ConstOne
+        + PartialOrd;
 
     /// Number of words in this type.
     fn word_count() -> usize;
 
     /// Access the `i`-th word (little-endian, `i = 0` is least significant).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `i >= Self::word_count()`.
     fn word(&self, i: usize) -> Self::Word;
 
     /// Shorthand for `self.word(0)`.
