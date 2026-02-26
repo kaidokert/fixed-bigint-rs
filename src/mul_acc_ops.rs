@@ -1,16 +1,17 @@
-//! CIOS (Coarsely Integrated Operand Scanning) support trait.
+//! Fused multiply-accumulate row operations.
 //!
 //! Provides row-level fused multiply-accumulate operations for
-//! implementing CIOS Montgomery multiplication in higher-level crates.
-//! The trait abstracts over the internal limb layout so callers
-//! never touch raw word arrays.
+//! implementing Montgomery multiplication (CIOS, SOS, or other variants)
+//! in higher-level crates. The trait abstracts over the internal limb
+//! layout so callers never touch raw word arrays.
 
-/// Row-level operations for CIOS Montgomery multiplication.
+/// Row-level fused multiply-accumulate operations for big-integer types.
 ///
-/// Implementors provide fused scalar × bigint accumulate/shift primitives.
-/// A higher-level crate (e.g. modmath) orchestrates the CIOS outer loop
-/// using only these methods, without knowledge of the internal representation.
-pub trait CiosOps: Sized + Copy + Default {
+/// Implementors provide scalar × bigint accumulate/shift primitives.
+/// A higher-level crate (e.g. modmath) orchestrates the outer loop of
+/// a Montgomery multiplication variant using only these methods, without
+/// knowledge of the internal representation.
+pub trait MulAccOps: Sized + Copy + Default + crate::const_numtraits::ConstZero {
     /// The machine-word type used as a scalar in row operations.
     type Word: Copy
         + crate::const_numtraits::ConstZero
@@ -48,8 +49,4 @@ pub trait CiosOps: Sized + Copy + Default {
         acc: &mut Self,
         acc_hi: Self::Word,
     ) -> Self::Word;
-
-    /// Conditional subtraction: if `overflow > 0 || acc >= modulus`,
-    /// replace `acc` with `acc − modulus`.
-    fn conditional_sub(acc: &mut Self, modulus: &Self, overflow: Self::Word);
 }

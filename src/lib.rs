@@ -68,12 +68,12 @@ pub mod patch_num_traits;
 /// Constant versions of num_traits
 pub mod const_numtraits;
 
-/// CIOS Montgomery multiplication support trait
-pub mod cios_ops;
+/// Fused multiply-accumulate row operations
+pub mod mul_acc_ops;
 
 /// Machine word and doubleword
 mod machineword;
 
-pub use crate::cios_ops::CiosOps;
+pub use crate::mul_acc_ops::MulAccOps;
 pub use crate::fixeduint::FixedUInt;
 pub use crate::machineword::MachineWord;

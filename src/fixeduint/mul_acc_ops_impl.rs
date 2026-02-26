@@ -1,17 +1,17 @@
-//! CiosOps implementation for FixedUInt.
+//! MulAccOps implementation for FixedUInt.
 //!
 //! Provides row-level fused multiply-accumulate operations used by
-//! CIOS Montgomery multiplication. All limb access is internal to
+//! Montgomery multiplication variants. All limb access is internal to
 //! this module; the public trait surface never exposes raw arrays.
 
 use super::{FixedUInt, MachineWord};
-use crate::cios_ops::CiosOps;
-use crate::const_numtraits::{ConstBorrowingSub, ConstCarryingAdd, ConstOne, ConstZero};
+use crate::const_numtraits::{ConstCarryingAdd, ConstZero};
+use crate::mul_acc_ops::MulAccOps;
 use crate::patch_num_traits::CarryingMul;
 
-impl<T, const N: usize> CiosOps for FixedUInt<T, N>
+impl<T, const N: usize> MulAccOps for FixedUInt<T, N>
 where
-    T: MachineWord + CarryingMul<Output = T> + ConstCarryingAdd + ConstBorrowingSub,
+    T: MachineWord + CarryingMul<Output = T> + ConstCarryingAdd,
 {
     type Word = T;
 
@@ -37,8 +37,8 @@ where
     }
 
     fn mul_acc_shift_row(scalar: T, multiplicand: &Self, acc: &mut Self, acc_hi: T) -> T {
-        debug_assert!(N > 0, "CiosOps requires at least one word");
-        // First word: discarded (zero by CIOS construction)
+        debug_assert!(N > 0, "MulAccOps requires at least one word");
+        // First word: discarded (zero by construction)
         let (_, mut carry) = CarryingMul::carrying_mul_add(
             scalar,
             multiplicand.array[0],
@@ -60,19 +60,13 @@ where
         let (sum, overflow) = <T as ConstCarryingAdd>::carrying_add(acc_hi, carry, false);
         acc.array[N - 1] = sum;
 
-        // Return overflow as word (0 or 1)
-        if overflow {
-            <T as ConstOne>::one()
-        } else {
-            <T as ConstZero>::zero()
-        }
-    }
-
-    fn conditional_sub(acc: &mut Self, modulus: &Self, overflow: T) {
-        if overflow > <T as ConstZero>::zero() || *acc >= *modulus {
-            let (result, _) = <Self as ConstBorrowingSub>::borrowing_sub(*acc, *modulus, false);
-            *acc = result;
-        }
+        // Branchless: convert overflow bool to word via carrying_add(0, 0, overflow)
+        let (overflow_word, _) = <T as ConstCarryingAdd>::carrying_add(
+            <T as ConstZero>::zero(),
+            <T as ConstZero>::zero(),
+            overflow,
+        );
+        overflow_word
     }
 }
 
@@ -95,8 +89,9 @@ mod tests {
     }
 
     #[test]
-    fn test_default_is_zero() {
-        let z = U32::default();
+    fn test_zero_init() {
+        use crate::const_numtraits::ConstZero;
+        let z = <U32 as ConstZero>::zero();
         assert_eq!(z, U32::from(0u8));
     }
 
@@ -114,43 +109,13 @@ mod tests {
     #[test]
     fn test_mul_acc_row_with_overflow() {
         // Compute acc += 200 * 200 with acc starting at 0
-        // 200 * 200 = 40000, which overflows U16 (max 65535 fits, but carry may propagate)
-        let multiplicand = U16::from(200u16);
-        let mut acc = U16::default();
-        let carry = U16::mul_acc_row(200u8, &multiplicand, &mut acc, 0u8);
         // 200 * 200 = 40000 = 0x9C40
-        // The row operation is word-by-word, so:
-        // j=0: 200 * (200 & 0xFF) + 0 + 0 = 200 * 200 = 40000 = (0x40, 0x9C) -> acc[0]=0x40, carry=0x9C
-        // j=1: 200 * 0 + 0 + 0x9C = 0x9C -> acc[1]=0x9C, carry=0
+        use crate::const_numtraits::ConstZero;
+        let multiplicand = U16::from(200u16);
+        let mut acc = <U16 as ConstZero>::zero();
+        let carry = U16::mul_acc_row(200u8, &multiplicand, &mut acc, 0u8);
         assert_eq!(acc, U16::from(40000u16));
         assert_eq!(carry, 0u8);
-    }
-
-    #[test]
-    fn test_conditional_sub() {
-        let modulus = U16::from(13u16);
-
-        // acc < modulus: no change
-        let mut acc = U16::from(5u16);
-        U16::conditional_sub(&mut acc, &modulus, 0u8);
-        assert_eq!(acc, U16::from(5u16));
-
-        // acc == modulus: subtract
-        let mut acc = U16::from(13u16);
-        U16::conditional_sub(&mut acc, &modulus, 0u8);
-        assert_eq!(acc, U16::from(0u16));
-
-        // acc > modulus: subtract
-        let mut acc = U16::from(15u16);
-        U16::conditional_sub(&mut acc, &modulus, 0u8);
-        assert_eq!(acc, U16::from(2u16));
-
-        // overflow > 0: always subtract
-        let mut acc = U16::from(5u16);
-        U16::conditional_sub(&mut acc, &modulus, 1u8);
-        // 0x10005 - 13 = 65528 (wrapping), but since we just subtract modulus from acc:
-        // 5 - 13 wraps to 65528 (0xFFF8)
-        assert_eq!(acc, U16::from(0xFFF8u16));
     }
 
     #[test]

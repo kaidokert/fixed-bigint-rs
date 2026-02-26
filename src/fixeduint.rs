@@ -31,7 +31,6 @@ mod abs_diff_impl;
 mod add_sub_impl;
 mod bit_ops_impl;
 mod checked_pow_impl;
-mod cios_ops_impl;
 mod div_ceil_impl;
 mod euclid;
 mod extended_precision_impl;
@@ -48,6 +47,7 @@ mod power_of_two_impl;
 mod prim_int_impl;
 mod roots_impl;
 mod string_conversion;
+mod mul_acc_ops_impl;
 // ConstToBytes trait (nightly only, uses generic_const_exprs)
 #[cfg(feature = "nightly")]
 mod const_to_from_bytes;
