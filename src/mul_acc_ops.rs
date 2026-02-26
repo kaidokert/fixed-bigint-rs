@@ -11,12 +11,9 @@
 /// A higher-level crate (e.g. modmath) orchestrates the outer loop of
 /// a Montgomery multiplication variant using only these methods, without
 /// knowledge of the internal representation.
-pub trait MulAccOps: Sized + Copy + Default + crate::const_numtraits::ConstZero {
+pub trait MulAccOps: Sized + Copy + Default {
     /// The machine-word type used as a scalar in row operations.
-    type Word: Copy
-        + crate::const_numtraits::ConstZero
-        + crate::const_numtraits::ConstOne
-        + PartialOrd;
+    type Word: Copy + PartialOrd;
 
     /// Number of words in this type.
     fn word_count() -> usize;
