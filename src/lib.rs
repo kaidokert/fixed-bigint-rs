@@ -74,6 +74,6 @@ pub mod mul_acc_ops;
 /// Machine word and doubleword
 mod machineword;
 
-pub use crate::mul_acc_ops::MulAccOps;
 pub use crate::fixeduint::FixedUInt;
 pub use crate::machineword::MachineWord;
+pub use crate::mul_acc_ops::MulAccOps;

@@ -38,6 +38,7 @@ mod ilog_impl;
 mod isqrt_impl;
 mod iter_impl;
 mod midpoint_impl;
+mod mul_acc_ops_impl;
 mod mul_div_impl;
 mod multiple_impl;
 mod num_integer_impl;
@@ -47,7 +48,6 @@ mod power_of_two_impl;
 mod prim_int_impl;
 mod roots_impl;
 mod string_conversion;
-mod mul_acc_ops_impl;
 // ConstToBytes trait (nightly only, uses generic_const_exprs)
 #[cfg(feature = "nightly")]
 mod const_to_from_bytes;
