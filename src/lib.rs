@@ -62,6 +62,9 @@ pub use num_integer;
 /// Fixed-size big integer implementation
 pub mod fixeduint;
 
+/// Fixed-size signed big integer sketch
+pub mod fixedint;
+
 /// Bits that should be in num_traits
 pub mod patch_num_traits;
 
@@ -74,6 +77,7 @@ pub mod mul_acc_ops;
 /// Machine word and doubleword
 mod machineword;
 
+pub use crate::fixedint::FixedInt;
 pub use crate::fixeduint::FixedUInt;
 pub use crate::machineword::MachineWord;
 pub use crate::mul_acc_ops::MulAccOps;
