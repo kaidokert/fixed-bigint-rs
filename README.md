@@ -5,10 +5,9 @@
 [![minimum rustc 1.73](https://img.shields.io/badge/rustc-1.73+-red.svg)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 [![build status](https://github.com/kaidokert/fixed-bigint-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/kaidokert/fixed-bigint-rs/actions)
 [![Coverage Status](https://coveralls.io/repos/github/kaidokert/fixed-bigint-rs/badge.svg?branch=main)](https://coveralls.io/github/kaidokert/fixed-bigint-rs?branch=main)
+![Crates.io MSRV](https://img.shields.io/crates/msrv/fixed-bigint)
 
 Unsigned BigInt implementation, backed by a fixed-size array.
-
-***Important***: Requires at least Rust 1.73 stable
 
 `FixedUInt<u8,4>`,`FixedUInt<u16,2>` or `FixedUInt<u32,1>` all create a 32-bit unsigned integer, that behaves mostly the same as builtin `u32`.
 `FixedUInt<u32, 64>` creates a 2048-bit value, that uses native 32-bit math. If running on 8-bit CPU, `FixedUInt<u8, 2048>` would work the same, just very much slower.
@@ -22,6 +21,10 @@ In addition to basic arithmetic, two main traits are implemented: [num_traits::P
 ## Const Support
 
 Most arithmetic operations are const-compatible via the [c0nst](https://crates.io/crates/c0nst) crate. On nightly Rust with `--features nightly`, operations can be used in `const` contexts. On stable Rust, the same code compiles but without const evaluation.
+
+## Constant time
+
+Constant-time execution is implemented for a subset of core operations. Ct mode is selected by a type parameter, allowing individual calling contexts to use either mode. This is purely experimental, not audited or throughly verified.
 
 _TODO list_:
  * Implement experimental `unchecked_math` operands, unchecked_mul, unchecked_div etc.
@@ -39,9 +42,3 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for details.
 ## License
 
 Apache 2.0; see [`LICENSE`](LICENSE) for details.
-
-## Disclaimer
-
-This project is not an official Google project. It is not supported by
-Google and Google specifically disclaims all warranties as to its quality,
-merchantability, or fitness for a particular purpose.
