@@ -804,6 +804,8 @@ c0nst::c0nst! {
         if N == 0 {
             return;
         }
+        // `layers == usize::BITS`, so `k < layers` guarantees `1usize << k`
+        // stays in range. Do not raise this bound without revisiting the shift.
         let layers = core::mem::size_of::<usize>() * 8;
         let mut k = 0;
         while k < layers {
@@ -841,6 +843,8 @@ c0nst::c0nst! {
         if N == 0 {
             return;
         }
+        // See `const_shl_ct`: `layers == usize::BITS` keeps `1usize << k`
+        // in range.
         let layers = core::mem::size_of::<usize>() * 8;
         let mut k = 0;
         while k < layers {

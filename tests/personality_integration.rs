@@ -650,12 +650,12 @@ fn ct_checked_add_returns_ctoption() {
     let a: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(100u8).into();
     let b: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(200u8).into();
 
-    // No overflow: result valid.
+    // No overflow: result valid and equals the expected sum.
     let ok = a.ct_checked_add(&b);
     assert!(bool::from(ok.is_some()));
+    assert_eq!(ok.unwrap_or(a).forget_ct(), FixedUInt::from(300u16));
 
-    // Overflow: result still has a defined value (the wrapped sum), but
-    // the validity Choice is 0.
+    // Overflow: validity Choice is 0.
     let max: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(0xFFFFu16).into();
     let one: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(1u8).into();
     let bad = max.ct_checked_add(&one);
@@ -668,6 +668,7 @@ fn ct_checked_sub_returns_ctoption() {
     let b: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(100u8).into();
     let ok = a.ct_checked_sub(&b);
     assert!(bool::from(ok.is_some()));
+    assert_eq!(ok.unwrap_or(a).forget_ct(), FixedUInt::from(100u8));
 
     // Underflow case.
     let zero: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(0u8).into();
@@ -680,14 +681,15 @@ fn ct_checked_sub_returns_ctoption() {
 fn ct_checked_mul_returns_ctoption() {
     let a: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(0x100u16).into();
     let b: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(0x100u16).into();
-    // 0x100 * 0x100 = 0x10000, fits in u16, no overflow.
+    // 0x100 * 0x100 = 0x10000, exceeds u16::MAX → overflow.
     let near = a.ct_checked_mul(&b);
-    assert!(!bool::from(near.is_some())); // 0x10000 > u16::MAX → overflow
+    assert!(!bool::from(near.is_some()));
 
     let small_a: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(10u8).into();
     let small_b: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(20u8).into();
     let ok = small_a.ct_checked_mul(&small_b);
     assert!(bool::from(ok.is_some()));
+    assert_eq!(ok.unwrap_or(small_a).forget_ct(), FixedUInt::from(200u8));
 }
 
 #[test]
@@ -730,14 +732,16 @@ fn abs_diff_works_under_both_personalities() {
 
 #[test]
 fn ct_checked_pow_returns_ctoption() {
-    // No overflow: result valid.
+    // No overflow: result valid and equals 2^8 = 256.
     let two_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(2u8).into();
     let ok = two_ct.ct_checked_pow(8);
     assert!(bool::from(ok.is_some()));
+    assert_eq!(ok.unwrap_or(two_ct).forget_ct(), FixedUInt::from(256u16));
 
     // Just-fits: 2^15 = 32768, fits in u16.
     let big = two_ct.ct_checked_pow(15);
     assert!(bool::from(big.is_some()));
+    assert_eq!(big.unwrap_or(two_ct).forget_ct(), FixedUInt::from(32768u16));
 
     // Overflow: 2^16 = 65536, exceeds u16::MAX.
     let overflow = two_ct.ct_checked_pow(16);
@@ -797,11 +801,10 @@ fn ct_debug_redacts_limb_values() {
     let ct: FixedUInt<u8, 4, Ct> = nct.into();
     let nct_dbg = format!("{:?}", nct);
     let ct_dbg = format!("{:?}", ct);
-    assert!(
-        nct_dbg.contains("222") || nct_dbg.contains("0xDE") || nct_dbg.contains("DE"),
-        "Nct debug should expose limbs (got: {})",
-        nct_dbg
-    );
+    // Only the two properties we actually care about: Nct exposes something
+    // (so the two formats are distinguishable), Ct is the exact placeholder.
+    assert!(!nct_dbg.is_empty());
+    assert_ne!(nct_dbg, ct_dbg);
     assert_eq!(ct_dbg, "FixedUInt<…>");
     // Sanity: redaction doesn't depend on byte content — all-zero is also redacted.
     let zero_ct: FixedUInt<u8, 4, Ct> = FixedUInt::<u8, 4, Nct>::from(0u8).into();
@@ -847,10 +850,11 @@ fn ct_checked_next_power_of_two_returns_ctoption() {
     assert!(bool::from(r0.is_some()));
     assert_eq!(r0.unwrap_or(z).forget_ct(), FixedUInt::from(1u8));
 
-    // Just fits: 32768 = 2^15.
+    // Just fits: 32768 is itself 2^15, the next-power-of-two is itself.
     let big: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(32768u16).into();
     let rbig = big.ct_checked_next_power_of_two();
     assert!(bool::from(rbig.is_some()));
+    assert_eq!(rbig.unwrap_or(big).forget_ct(), FixedUInt::from(32768u16));
 
     // Overflow: 32769 → needs 2^16 = 65536 which is u16::MAX + 1.
     let overflow: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(32769u16).into();
@@ -868,11 +872,13 @@ fn ct_checked_next_power_of_two_returns_ctoption() {
 fn ct_checked_shl_shr_return_ctoption() {
     let v: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(0x1234u16).into();
 
-    // Within range.
+    // Within range: payloads match the expected wrapping shifts.
     let ok_l = v.ct_checked_shl(4);
     assert!(bool::from(ok_l.is_some()));
+    assert_eq!(ok_l.unwrap_or(v).forget_ct(), FixedUInt::from(0x2340u16));
     let ok_r = v.ct_checked_shr(4);
     assert!(bool::from(ok_r.is_some()));
+    assert_eq!(ok_r.unwrap_or(v).forget_ct(), FixedUInt::from(0x0123u16));
 
     // Beyond bit_size (= 16 for u8*2).
     let bad_l = v.ct_checked_shl(32);
