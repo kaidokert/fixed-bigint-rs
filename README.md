@@ -24,7 +24,7 @@ Most arithmetic operations are const-compatible via the [c0nst](https://crates.i
 
 ## Constant time
 
-Constant-time execution is implemented for a subset of core operations. Ct mode is selected by a type parameter, allowing individual calling contexts to use either mode. This is purely experimental, not audited or throughly verified.
+Constant-time execution is implemented for a subset of core operations. Ct mode is selected by a type parameter, allowing individual calling contexts to use either mode. This is purely experimental, not audited or thoroughly verified.
 
 _TODO list_:
  * Implement experimental `unchecked_math` operands, unchecked_mul, unchecked_div etc.
