@@ -1340,7 +1340,8 @@ macro_rules! const_widening_mul_impl {
         c0nst::c0nst! {
             impl c0nst ConstWideningMul for $t {
                 fn widening_mul(self, rhs: Self) -> (Self, Self) {
-                    <$t>::widening_mul(self, rhs)
+                    let product: $double = <$t>::widening_mul(self, rhs);
+                    (product as $t, (product >> $bits) as $t)
                 }
             }
         }

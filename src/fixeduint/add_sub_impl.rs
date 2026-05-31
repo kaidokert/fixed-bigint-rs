@@ -145,29 +145,37 @@ c0nst::c0nst! {
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::AddAssign<Self> for FixedUInt<T, N, P> {
         fn add_assign(&mut self, other: Self) {
-            let overflow = add_impl(&mut self.array, &other.array);
+            let mut array = self.array;
+            let overflow = add_impl(&mut array, &other.array);
             maybe_panic_if::<P>(overflow, PanicReason::Add);
+            self.array = array;
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::AddAssign<&'_ Self> for FixedUInt<T, N, P> {
         fn add_assign(&mut self, other: &Self) {
-            let overflow = add_impl(&mut self.array, &other.array);
+            let mut array = self.array;
+            let overflow = add_impl(&mut array, &other.array);
             maybe_panic_if::<P>(overflow, PanicReason::Add);
+            self.array = array;
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::SubAssign<Self> for FixedUInt<T, N, P> {
         fn sub_assign(&mut self, other: Self) {
-            let overflow = sub_impl(&mut self.array, &other.array);
+            let mut array = self.array;
+            let overflow = sub_impl(&mut array, &other.array);
             maybe_panic_if::<P>(overflow, PanicReason::Sub);
+            self.array = array;
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::SubAssign<&'_ Self> for FixedUInt<T, N, P> {
         fn sub_assign(&mut self, other: &Self) {
-            let overflow = sub_impl(&mut self.array, &other.array);
+            let mut array = self.array;
+            let overflow = sub_impl(&mut array, &other.array);
             maybe_panic_if::<P>(overflow, PanicReason::Sub);
+            self.array = array;
         }
     }
 }

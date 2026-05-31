@@ -185,14 +185,19 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shl(self, bits: u32) -> Self::Output {
-            self.shl(bits as usize)
+            // `bits as usize` would truncate on 16-bit-usize targets; route
+            // through the u32-aware normalizer that the Overflowing*/Unbounded
+            // paths already use.
+            let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
+            if overflow { <Self as ConstZero>::zero() } else { self.shl(shift) }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shr(self, bits: u32) -> Self::Output {
-            self.shr(bits as usize)
+            let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
+            if overflow { <Self as ConstZero>::zero() } else { self.shr(shift) }
         }
     }
 
@@ -213,14 +218,14 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<&u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shl(self, bits: &u32) -> Self::Output {
-            self.shl(*bits as usize)
+            self.shl(*bits)
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<&u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shr(self, bits: &u32) -> Self::Output {
-            self.shr(*bits as usize)
+            self.shr(*bits)
         }
     }
 
@@ -242,14 +247,14 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: u32) -> Self::Output {
-            (*self).shl(bits as usize)
+            (*self).shl(bits)
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: u32) -> Self::Output {
-            (*self).shr(bits as usize)
+            (*self).shr(bits)
         }
     }
 
@@ -270,14 +275,14 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<&u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: &u32) -> Self::Output {
-            (*self).shl(*bits as usize)
+            (*self).shl(*bits)
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<&u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: &u32) -> Self::Output {
-            (*self).shr(*bits as usize)
+            (*self).shr(*bits)
         }
     }
 

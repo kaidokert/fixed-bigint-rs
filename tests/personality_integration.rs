@@ -435,6 +435,38 @@ fn shl_works_under_both_personalities() {
 }
 
 #[test]
+fn shl_shr_u32_overflow_returns_zero() {
+    // Shl<u32>/Shr<u32> previously did `bits as usize`, truncating on
+    // 16-bit-usize targets. The fix routes through normalize_shift_amount.
+    // Regression-check the semantics: any u32 shift >= BIT_SIZE produces 0.
+    let v: FixedUInt<u8, 4, Nct> = FixedUInt::from([0x12u8, 0x34, 0x56, 0x78]);
+    let vc: FixedUInt<u8, 4, Ct> = v.into();
+    for shift in [32u32, 33, 100, 1024, u32::MAX] {
+        assert!(num_traits::Zero::is_zero(&(v << shift)));
+        assert!(num_traits::Zero::is_zero(&(v >> shift)));
+        assert!(num_traits::Zero::is_zero(&((vc << shift).forget_ct())));
+        assert!(num_traits::Zero::is_zero(&((vc >> shift).forget_ct())));
+    }
+}
+
+#[test]
+fn resize_preserves_personality() {
+    // Regression: resize() used to return FixedUInt<T, N2> (defaulted to Nct),
+    // silently stripping Ct. Now it preserves P. The CT-typed bindings below
+    // would not type-check if resize defaulted back to Nct.
+    let c: FixedUInt<u8, 4, Ct> = FixedUInt::<u8, 4, Nct>::from([1u8, 2, 3, 4]).into();
+    let grown: FixedUInt<u8, 6, Ct> = c.resize();
+    let shrunk: FixedUInt<u8, 2, Ct> = c.resize();
+    assert_eq!(grown.forget_ct(), FixedUInt::from([1u8, 2, 3, 4, 0, 0]));
+    assert_eq!(shrunk.forget_ct(), FixedUInt::from([1u8, 2]));
+
+    // Nct path still resolves to Nct without needing a turbofish.
+    let n: FixedUInt<u8, 4, Nct> = FixedUInt::from([9u8, 8, 7, 6]);
+    let n2: FixedUInt<u8, 3, Nct> = n.resize();
+    assert_eq!(n2, FixedUInt::from([9u8, 8, 7]));
+}
+
+#[test]
 fn shr_works_under_both_personalities() {
     for shift in [0usize, 1, 3, 7, 8, 15, 16, 23, 24, 31] {
         let nct: FixedUInt<u8, 4, Nct> = FixedUInt::from([0x12u8, 0x34, 0x56, 0x78]);

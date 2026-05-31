@@ -334,11 +334,64 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
     pub fn bit_length(&self) -> u32 {
         Self::BIT_SIZE as u32 - ConstBitPrimInt::leading_zeros(*self)
     }
+}
 
+impl<T: MachineWord, const N: usize> FixedUInt<T, N, Nct> {
     /// Performs a division, returning both the quotient and remainder in a tuple.
     pub fn div_rem(&self, divisor: &Self) -> (Self, Self) {
         let (quotient, remainder) = const_div_rem(&self.array, &divisor.array);
         (Self::from_array(quotient), Self::from_array(remainder))
+    }
+
+    /// Converts to decimal string, given a buffer. CAVEAT: This method removes any leading zeroes
+    pub fn to_radix_str<'a>(
+        &self,
+        result: &'a mut [u8],
+        radix: u8,
+    ) -> Result<&'a str, core::fmt::Error> {
+        type Error = core::fmt::Error;
+
+        if !(2..=16).contains(&radix) {
+            return Err(Error {}); // Radix out of supported range
+        }
+        for byte in result.iter_mut() {
+            *byte = b'0';
+        }
+        if Zero::is_zero(self) {
+            if !result.is_empty() {
+                result[0] = b'0';
+                return core::str::from_utf8(&result[0..1]).map_err(|_| Error {});
+            } else {
+                return Err(Error {});
+            }
+        }
+
+        let mut number = *self;
+        let mut idx = result.len();
+
+        let radix_t = Self::from(radix);
+
+        while !Zero::is_zero(&number) {
+            if idx == 0 {
+                return Err(Error {}); // not enough space in result...
+            }
+
+            idx -= 1;
+            let (quotient, remainder) = number.div_rem(&radix_t);
+
+            let digit = remainder.to_u8().unwrap();
+            result[idx] = match digit {
+                0..=9 => b'0' + digit,          // digits
+                10..=16 => b'a' + (digit - 10), // alphabetic digits for bases > 10
+                _ => return Err(Error {}),
+            };
+
+            number = quotient;
+        }
+
+        let start = result[idx..].iter().position(|&c| c != b'0').unwrap_or(0);
+        let radix_str = core::str::from_utf8(&result[idx + start..]).map_err(|_| Error {})?;
+        Ok(radix_str)
     }
 }
 
@@ -498,67 +551,16 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
         }
     }
 
-    /// Converts to decimal string, given a buffer. CAVEAT: This method removes any leading zeroes
-    pub fn to_radix_str<'a>(
-        &self,
-        result: &'a mut [u8],
-        radix: u8,
-    ) -> Result<&'a str, core::fmt::Error> {
-        type Error = core::fmt::Error;
-
-        if !(2..=16).contains(&radix) {
-            return Err(Error {}); // Radix out of supported range
-        }
-        for byte in result.iter_mut() {
-            *byte = b'0';
-        }
-        if Zero::is_zero(self) {
-            if !result.is_empty() {
-                result[0] = b'0';
-                return core::str::from_utf8(&result[0..1]).map_err(|_| Error {});
-            } else {
-                return Err(Error {});
-            }
-        }
-
-        let mut number = *self;
-        let mut idx = result.len();
-
-        let radix_t = Self::from(radix);
-
-        while !Zero::is_zero(&number) {
-            if idx == 0 {
-                return Err(Error {}); // not enough space in result...
-            }
-
-            idx -= 1;
-            let (quotient, remainder) = number.div_rem(&radix_t);
-
-            let digit = remainder.to_u8().unwrap();
-            result[idx] = match digit {
-                0..=9 => b'0' + digit,          // digits
-                10..=16 => b'a' + (digit - 10), // alphabetic digits for bases > 10
-                _ => return Err(Error {}),
-            };
-
-            number = quotient;
-        }
-
-        let start = result[idx..].iter().position(|&c| c != b'0').unwrap_or(0);
-        let radix_str = core::str::from_utf8(&result[idx + start..]).map_err(|_| Error {})?;
-        Ok(radix_str)
-    }
-
     /// Construct a new value with a different size.
     ///
     /// - If `N2 < N`, the most-significant (upper) words are truncated.
     /// - If `N2 > N`, the additional most-significant words are filled with zeros.
     #[must_use]
-    pub fn resize<const N2: usize>(&self) -> FixedUInt<T, N2> {
+    pub fn resize<const N2: usize>(&self) -> FixedUInt<T, N2, P> {
         let mut array = [T::zero(); N2];
         let min_size = N.min(N2);
         array[..min_size].copy_from_slice(&self.array[..min_size]);
-        FixedUInt::from_array(array)
+        FixedUInt::<T, N2, P>::from_array(array)
     }
 
     fn hex_fmt(
