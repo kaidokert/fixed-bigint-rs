@@ -17,9 +17,10 @@
 use super::{const_div, const_is_zero, FixedUInt, MachineWord};
 use crate::const_numtraits::{ConstCheckedAdd, ConstDivCeil, ConstOne};
 use crate::machineword::ConstMachineWord;
+use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstDivCeil for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstDivCeil for FixedUInt<T, N, Nct> {
         fn div_ceil(self, rhs: Self) -> Self {
             match self.checked_div_ceil(rhs) {
                 Some(v) => v,
@@ -35,10 +36,10 @@ c0nst::c0nst! {
             let mut quotient = self.array;
             let remainder = const_div(&mut quotient, &rhs.array);
             if const_is_zero(&remainder) {
-                Some(Self { array: quotient })
+                Some(Self::from_array(quotient))
             } else {
                 // Use checked_add to return None on overflow
-                ConstCheckedAdd::checked_add(&Self { array: quotient }, &Self::one())
+                ConstCheckedAdd::checked_add(&Self::from_array(quotient), &Self::one())
             }
         }
     }
@@ -121,9 +122,9 @@ mod tests {
 
     c0nst::c0nst! {
         pub c0nst fn const_div_ceil<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            a: FixedUInt<T, N>,
-            b: FixedUInt<T, N>,
-        ) -> FixedUInt<T, N> {
+            a: FixedUInt<T, N, Nct>,
+            b: FixedUInt<T, N, Nct>,
+        ) -> FixedUInt<T, N, Nct> {
             ConstDivCeil::div_ceil(a, b)
         }
     }
@@ -139,10 +140,10 @@ mod tests {
 
         #[cfg(feature = "nightly")]
         {
-            const TEN: U16 = FixedUInt { array: [10, 0] };
-            const THREE: U16 = FixedUInt { array: [3, 0] };
+            const TEN: U16 = FixedUInt::from_array([10, 0]);
+            const THREE: U16 = FixedUInt::from_array([3, 0]);
             const RESULT: U16 = const_div_ceil(TEN, THREE);
-            assert_eq!(RESULT, FixedUInt { array: [4, 0] });
+            assert_eq!(RESULT, FixedUInt::from_array([4, 0]));
         }
     }
 }

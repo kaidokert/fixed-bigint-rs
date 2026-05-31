@@ -15,11 +15,12 @@
 //! Integer logarithm implementations for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstIlog, ConstPrimInt, ConstZero};
+use crate::const_numtraits::{ConstBitPrimInt, ConstIlog, ConstZero};
 use crate::machineword::ConstMachineWord;
+use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstIlog for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstIlog for FixedUInt<T, N, Nct> {
         fn ilog2(self) -> u32 {
             match self.checked_ilog2() {
                 Some(v) => v,
@@ -46,7 +47,7 @@ c0nst::c0nst! {
                 return None;
             }
             // ilog2 = position of highest set bit = BIT_SIZE - 1 - leading_zeros
-            let leading = ConstPrimInt::leading_zeros(self);
+            let leading = ConstBitPrimInt::leading_zeros(self);
             Some(Self::BIT_SIZE as u32 - 1 - leading)
         }
 
@@ -184,13 +185,13 @@ mod tests {
 
     c0nst::c0nst! {
         pub c0nst fn const_ilog2<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            v: FixedUInt<T, N>,
+            v: FixedUInt<T, N, Nct>,
         ) -> u32 {
             ConstIlog::ilog2(v)
         }
 
         pub c0nst fn const_ilog10<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            v: FixedUInt<T, N>,
+            v: FixedUInt<T, N, Nct>,
         ) -> u32 {
             ConstIlog::ilog10(v)
         }
@@ -205,8 +206,8 @@ mod tests {
 
         #[cfg(feature = "nightly")]
         {
-            const EIGHT: U16 = FixedUInt { array: [8, 0] };
-            const HUNDRED: U16 = FixedUInt { array: [100, 0] };
+            const EIGHT: U16 = FixedUInt::from_array([8, 0]);
+            const HUNDRED: U16 = FixedUInt::from_array([100, 0]);
             const LOG2_RESULT: u32 = const_ilog2(EIGHT);
             const LOG10_RESULT: u32 = const_ilog10(HUNDRED);
             assert_eq!(LOG2_RESULT, 3);

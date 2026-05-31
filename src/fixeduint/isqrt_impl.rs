@@ -15,11 +15,12 @@
 //! Integer square root for FixedUInt.
 
 use super::{const_set_bit, FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstIsqrt, ConstPrimInt, ConstZero};
+use crate::const_numtraits::{ConstBitPrimInt, ConstIsqrt, ConstZero};
 use crate::machineword::ConstMachineWord;
+use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstIsqrt for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstIsqrt for FixedUInt<T, N, Nct> {
         fn isqrt(self) -> Self {
             // For unsigned types, isqrt always succeeds
             match ConstIsqrt::checked_isqrt(self) {
@@ -40,7 +41,7 @@ c0nst::c0nst! {
             let mut result = Self::zero();
 
             // Find starting bit position: half of the bit length of self
-            let bit_len = Self::BIT_SIZE - ConstPrimInt::leading_zeros(self) as usize;
+            let bit_len = Self::BIT_SIZE - ConstBitPrimInt::leading_zeros(self) as usize;
             let start_bit = bit_len.div_ceil(2);
 
             let mut bit_pos = start_bit;
@@ -193,8 +194,8 @@ mod tests {
 
     c0nst::c0nst! {
         pub c0nst fn const_isqrt<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            v: FixedUInt<T, N>,
-        ) -> FixedUInt<T, N> {
+            v: FixedUInt<T, N, Nct>,
+        ) -> FixedUInt<T, N, Nct> {
             ConstIsqrt::isqrt(v)
         }
     }
@@ -208,9 +209,9 @@ mod tests {
 
         #[cfg(feature = "nightly")]
         {
-            const SIXTEEN: U16 = FixedUInt { array: [16, 0] };
+            const SIXTEEN: U16 = FixedUInt::from_array([16, 0]);
             const RESULT: U16 = const_isqrt(SIXTEEN);
-            assert_eq!(RESULT, FixedUInt { array: [4, 0] });
+            assert_eq!(RESULT, FixedUInt::from_array([4, 0]));
         }
     }
 }

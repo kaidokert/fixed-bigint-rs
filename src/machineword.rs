@@ -17,7 +17,8 @@
 
 pub use crate::const_numtraits::ConstPrimInt;
 use crate::const_numtraits::{
-    ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes, ConstWideningMul,
+    ConstBorrowingSub, ConstCarryingAdd, ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes,
+    ConstWideningMul,
 };
 
 c0nst::c0nst! {
@@ -27,6 +28,8 @@ c0nst::c0nst! {
         [c0nst] ConstPrimInt +
         [c0nst] ConstOverflowingAdd +
         [c0nst] ConstOverflowingSub +
+        [c0nst] ConstCarryingAdd +
+        [c0nst] ConstBorrowingSub +
         [c0nst] ConstToBytes +
         [c0nst] ConstWideningMul
     {

@@ -1,8 +1,8 @@
 use super::{FixedUInt, MachineWord};
-
+use crate::personality::Personality;
 use num_traits::{Bounded, FromPrimitive, ToPrimitive};
 
-impl<T: MachineWord, const N: usize> num_traits::NumCast for FixedUInt<T, N> {
+impl<T: MachineWord, const N: usize, P: Personality> num_traits::NumCast for FixedUInt<T, N, P> {
     fn from<X>(arg: X) -> Option<Self>
     where
         X: ToPrimitive,
@@ -11,7 +11,9 @@ impl<T: MachineWord, const N: usize> num_traits::NumCast for FixedUInt<T, N> {
     }
 }
 
-impl<T: MachineWord, const N: usize> num_traits::ToPrimitive for FixedUInt<T, N> {
+impl<T: MachineWord, const N: usize, P: Personality> num_traits::ToPrimitive
+    for FixedUInt<T, N, P>
+{
     fn to_i64(&self) -> Option<i64> {
         None
     }
@@ -48,7 +50,9 @@ impl<T: MachineWord, const N: usize> num_traits::ToPrimitive for FixedUInt<T, N>
     }
 }
 
-impl<T: MachineWord, const N: usize> num_traits::FromPrimitive for FixedUInt<T, N> {
+impl<T: MachineWord, const N: usize, P: Personality> num_traits::FromPrimitive
+    for FixedUInt<T, N, P>
+{
     fn from_i64(_: i64) -> Option<Self> {
         None
     }

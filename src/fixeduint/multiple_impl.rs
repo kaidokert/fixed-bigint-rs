@@ -17,9 +17,10 @@
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::{ConstCheckedAdd, ConstMultiple, ConstZero};
 use crate::machineword::ConstMachineWord;
+use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstMultiple for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstMultiple for FixedUInt<T, N, Nct> {
         fn is_multiple_of(&self, rhs: &Self) -> bool {
             if rhs.is_zero() {
                 false
@@ -159,16 +160,16 @@ mod tests {
 
     c0nst::c0nst! {
         pub c0nst fn const_is_multiple_of<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            a: &FixedUInt<T, N>,
-            b: &FixedUInt<T, N>,
+            a: &FixedUInt<T, N, Nct>,
+            b: &FixedUInt<T, N, Nct>,
         ) -> bool {
             ConstMultiple::is_multiple_of(a, b)
         }
 
         pub c0nst fn const_next_multiple_of<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            a: FixedUInt<T, N>,
-            b: FixedUInt<T, N>,
-        ) -> FixedUInt<T, N> {
+            a: FixedUInt<T, N, Nct>,
+            b: FixedUInt<T, N, Nct>,
+        ) -> FixedUInt<T, N, Nct> {
             ConstMultiple::next_multiple_of(a, b)
         }
     }
@@ -185,14 +186,14 @@ mod tests {
 
         #[cfg(feature = "nightly")]
         {
-            const TEN: U16 = FixedUInt { array: [10, 0] };
-            const FIVE: U16 = FixedUInt { array: [5, 0] };
+            const TEN: U16 = FixedUInt::from_array([10, 0]);
+            const FIVE: U16 = FixedUInt::from_array([5, 0]);
             const IS_MULT: bool = const_is_multiple_of(&TEN, &FIVE);
             assert!(IS_MULT);
 
-            const ELEVEN: U16 = FixedUInt { array: [11, 0] };
+            const ELEVEN: U16 = FixedUInt::from_array([11, 0]);
             const NEXT: U16 = const_next_multiple_of(ELEVEN, FIVE);
-            assert_eq!(NEXT, FixedUInt { array: [15, 0] });
+            assert_eq!(NEXT, FixedUInt::from_array([15, 0]));
         }
     }
 }

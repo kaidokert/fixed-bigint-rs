@@ -461,33 +461,20 @@ c0nst::c0nst! {
     /// representation. This is correct for all fixed-width unsigned integers
     /// (primitives and `FixedUInt`), but implementors of custom types should
     /// verify these assumptions hold or override the defaults.
-    pub c0nst trait ConstPrimInt:
-        [c0nst] core::ops::Add<Output = Self> +
-        [c0nst] core::ops::Sub<Output = Self> +
-        [c0nst] core::ops::Mul<Output = Self> +
-        [c0nst] core::ops::Div<Output = Self> +
+    pub c0nst trait ConstBitPrimInt:
         [c0nst] core::ops::BitAnd<Output = Self> +
         [c0nst] core::ops::BitOr<Output = Self> +
         [c0nst] core::ops::BitXor<Output = Self> +
         [c0nst] core::ops::Not<Output = Self> +
         [c0nst] core::ops::Shl<usize, Output = Self> +
         [c0nst] core::ops::Shr<usize, Output = Self> +
-        [c0nst] core::ops::AddAssign +
-        [c0nst] core::ops::SubAssign +
         [c0nst] core::ops::BitAndAssign +
         [c0nst] core::ops::BitOrAssign +
         [c0nst] core::ops::BitXorAssign +
         [c0nst] core::ops::ShlAssign<usize> +
         [c0nst] core::ops::ShrAssign<usize> +
-        [c0nst] core::cmp::PartialEq +
-        [c0nst] core::cmp::Eq +
-        [c0nst] core::cmp::PartialOrd +
-        [c0nst] core::cmp::Ord +
-        [c0nst] core::convert::From<u8> +
-        [c0nst] core::default::Default +
         [c0nst] ConstOne +
         [c0nst] ConstZero +
-        [c0nst] ConstBounded +
         Sized + Copy {
 
             fn swap_bytes(self) -> Self;
@@ -495,8 +482,6 @@ c0nst::c0nst! {
             fn trailing_zeros(self) -> u32;
             fn count_zeros(self) -> u32;
             fn count_ones(self) -> u32;
-
-            // PR 1: Shifts, rotations, and trivial derivations
             fn leading_ones(self) -> u32 {
                 (!self).leading_zeros()
             }
@@ -513,13 +498,36 @@ c0nst::c0nst! {
             fn signed_shr(self, n: u32) -> Self {
                 self.unsigned_shr(n)
             }
-
-            // PR 2: Endianness conversions, reverse_bits, pow
             fn reverse_bits(self) -> Self;
             fn from_be(x: Self) -> Self;
             fn from_le(x: Self) -> Self;
             fn to_be(self) -> Self;
             fn to_le(self) -> Self;
+    }
+
+    /// Base arithmetic traits for constant primitive integers.
+    ///
+    /// Extends [`ConstBitPrimInt`] with the arithmetic + ordering operations
+    /// that aren't generally available on CT-restricted types. Implementors
+    /// like `FixedUInt<_, _, Ct>` will get `ConstBitPrimInt` but not the
+    /// full `ConstPrimInt` because they don't expose `Div` (long division
+    /// is the leaky algorithmic core for unsigned big integers).
+    pub c0nst trait ConstPrimInt:
+        [c0nst] ConstBitPrimInt +
+        [c0nst] core::ops::Add<Output = Self> +
+        [c0nst] core::ops::Sub<Output = Self> +
+        [c0nst] core::ops::Mul<Output = Self> +
+        [c0nst] core::ops::Div<Output = Self> +
+        [c0nst] core::ops::AddAssign +
+        [c0nst] core::ops::SubAssign +
+        [c0nst] core::cmp::PartialEq +
+        [c0nst] core::cmp::Eq +
+        [c0nst] core::cmp::PartialOrd +
+        [c0nst] core::cmp::Ord +
+        [c0nst] core::convert::From<u8> +
+        [c0nst] core::default::Default +
+        [c0nst] ConstBounded {
+
             fn pow(self, exp: u32) -> Self;
     }
 }
@@ -559,10 +567,10 @@ macro_rules! const_bounded_impl {
     };
 }
 
-macro_rules! const_prim_int_impl {
+macro_rules! const_bit_prim_int_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstPrimInt for $t {
+            impl c0nst ConstBitPrimInt for $t {
                 fn leading_zeros(self) -> u32 { self.leading_zeros() }
                 fn trailing_zeros(self) -> u32 { self.trailing_zeros() }
                 fn count_zeros(self) -> u32 { self.count_zeros() }
@@ -577,6 +585,15 @@ macro_rules! const_prim_int_impl {
                 fn from_le(x: Self) -> Self { <$t>::from_le(x) }
                 fn to_be(self) -> Self { self.to_be() }
                 fn to_le(self) -> Self { self.to_le() }
+            }
+        }
+    };
+}
+
+macro_rules! const_prim_int_impl {
+    ($t:ty) => {
+        c0nst::c0nst! {
+            impl c0nst ConstPrimInt for $t {
                 fn pow(self, exp: u32) -> Self { self.pow(exp) }
             }
         }
@@ -1255,7 +1272,9 @@ macro_rules! const_carrying_add_impl {
                 fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
                     let (sum1, c1) = self.overflowing_add(rhs);
                     let (sum2, c2) = sum1.overflowing_add(carry as $t);
-                    (sum2, c1 || c2)
+                    // Non-short-circuiting `|` to keep the body branch-free at
+                    // the source level (CT discipline).
+                    (sum2, c1 | c2)
                 }
             }
         }
@@ -1283,7 +1302,7 @@ macro_rules! const_borrowing_sub_impl {
                 fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
                     let (diff1, b1) = self.overflowing_sub(rhs);
                     let (diff2, b2) = diff1.overflowing_sub(borrow as $t);
-                    (diff2, b1 || b2)
+                    (diff2, b1 | b2)
                 }
             }
         }
@@ -1323,7 +1342,8 @@ macro_rules! const_widening_mul_impl {
         c0nst::c0nst! {
             impl c0nst ConstWideningMul for $t {
                 fn widening_mul(self, rhs: Self) -> (Self, Self) {
-                    <$t>::widening_mul(self, rhs)
+                    let product: $double = <$t>::widening_mul(self, rhs);
+                    (product as $t, (product >> $bits) as $t)
                 }
             }
         }
@@ -1465,6 +1485,12 @@ const_unbounded_shift_impl!(u16, 16);
 const_unbounded_shift_impl!(u32, 32);
 const_unbounded_shift_impl!(u64, 64);
 const_unbounded_shift_impl!(u128, 128);
+
+const_bit_prim_int_impl!(u8);
+const_bit_prim_int_impl!(u16);
+const_bit_prim_int_impl!(u32);
+const_bit_prim_int_impl!(u64);
+const_bit_prim_int_impl!(u128);
 
 const_prim_int_impl!(u8);
 const_prim_int_impl!(u16);

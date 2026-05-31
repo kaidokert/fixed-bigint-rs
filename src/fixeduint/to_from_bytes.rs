@@ -5,6 +5,7 @@ use core::borrow::{Borrow, BorrowMut};
 use core::hash::Hash;
 
 use super::FixedUInt;
+use crate::personality::Personality;
 
 // Helper, holds an owned copy of returned bytes
 #[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Debug)]
@@ -14,13 +15,14 @@ pub struct BytesHolder<T: MachineWord, const N: usize> {
 
 impl<T: MachineWord, const N: usize> Default for BytesHolder<T, N> {
     fn default() -> Self {
-        Self {
-            array: core::array::from_fn(|_| T::default()),
-        }
+        Self::from_array(core::array::from_fn(|_| T::default()))
     }
 }
 
 impl<T: MachineWord, const N: usize> BytesHolder<T, N> {
+    pub(crate) fn from_array(array: [T; N]) -> Self {
+        Self { array }
+    }
     // Converts internal storage to a mutable byte slice
     fn as_byte_slice_mut(&mut self) -> &mut [u8] {
         // SAFETY: This is safe because the size of the array is the same as the size of the slice
@@ -68,26 +70,26 @@ impl<T: MachineWord, const N: usize> Hash for BytesHolder<T, N> {
     }
 }
 
-impl<T: MachineWord, const N: usize> num_traits::ToBytes for FixedUInt<T, N>
+impl<T: MachineWord, const N: usize, P: Personality> num_traits::ToBytes for FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {
     type Bytes = BytesHolder<T, N>;
 
     fn to_be_bytes(&self) -> Self::Bytes {
-        let mut ret = Self::Bytes { array: self.array };
+        let mut ret = Self::Bytes::from_array(self.array);
         let _ = self.to_be_bytes(ret.as_byte_slice_mut());
         ret
     }
 
     fn to_le_bytes(&self) -> Self::Bytes {
-        let mut ret = Self::Bytes { array: self.array };
+        let mut ret = Self::Bytes::from_array(self.array);
         let _ = self.to_le_bytes(ret.as_byte_slice_mut());
         ret
     }
 }
 
-impl<T: MachineWord, const N: usize> num_traits::FromBytes for FixedUInt<T, N>
+impl<T: MachineWord, const N: usize, P: Personality> num_traits::FromBytes for FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {

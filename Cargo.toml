@@ -1,6 +1,6 @@
 [package]
 name = "fixed-bigint"
-version = "0.2.5"
+version = "0.3.0"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 documentation = "https://docs.rs/fixed-bigint"
 edition = "2018"
@@ -32,6 +32,13 @@ version = "0.2"
 version = "1.8.1"
 optional = true
 default-features = false
+
+[dependencies.subtle]
+version = "2.6"
+default-features = false
+
+[dev-dependencies.static_assertions]
+version = "1.1"
 
 [profile.dev]
 opt-level = 0

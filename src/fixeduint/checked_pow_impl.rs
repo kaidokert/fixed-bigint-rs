@@ -17,9 +17,10 @@
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::{ConstCheckedMul, ConstCheckedPow, ConstOne};
 use crate::machineword::ConstMachineWord;
+use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedPow for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedPow for FixedUInt<T, N, Nct> {
         fn checked_pow(self, exp: u32) -> Option<Self> {
             if exp == 0 {
                 return Some(Self::one());
@@ -105,9 +106,9 @@ mod tests {
 
     c0nst::c0nst! {
         pub c0nst fn const_checked_pow<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            base: FixedUInt<T, N>,
+            base: FixedUInt<T, N, Nct>,
             exp: u32,
-        ) -> Option<FixedUInt<T, N>> {
+        ) -> Option<FixedUInt<T, N, Nct>> {
             ConstCheckedPow::checked_pow(base, exp)
         }
     }
@@ -123,9 +124,9 @@ mod tests {
 
         #[cfg(feature = "nightly")]
         {
-            const BASE: U16 = FixedUInt { array: [2, 0] };
+            const BASE: U16 = FixedUInt::from_array([2, 0]);
             const POW_RESULT: Option<U16> = const_checked_pow(BASE, 8);
-            assert_eq!(POW_RESULT, Some(FixedUInt { array: [0, 1] })); // 256 = [0, 1] in little-endian
+            assert_eq!(POW_RESULT, Some(FixedUInt::from_array([0, 1]))); // 256 = [0, 1] in little-endian
         }
     }
 }

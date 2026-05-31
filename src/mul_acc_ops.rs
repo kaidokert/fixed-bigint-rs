@@ -15,12 +15,23 @@ pub trait MulAccOps: Sized + Copy + Default {
     /// The machine-word type used as a scalar in row operations.
     type Word: Copy + PartialOrd;
 
+    /// Return type of [`get_word`]: `Option<Word>` for `Nct` implementations,
+    /// `subtle::CtOption<Word>` for `Ct` implementations. The discriminant
+    /// shape encodes the call site's CT contract — `Option` matches via
+    /// `Some`/`None` (NCT-callable), `CtOption` exposes only `subtle`-backed
+    /// methods (CT-callable).
+    ///
+    /// [`get_word`]: MulAccOps::get_word
+    type GetWordOutput;
+
     /// Number of words in this type.
     fn word_count() -> usize;
 
     /// Access the `i`-th word (little-endian, `i = 0` is least significant).
-    /// Returns `None` if `i >= Self::word_count()`.
-    fn get_word(&self, i: usize) -> Option<Self::Word>;
+    /// Returns the personality-appropriate "maybe-a-word" type:
+    /// `Option<Self::Word>` for NCT impls (O(1) fast path),
+    /// `subtle::CtOption<Self::Word>` for CT impls (O(N) constant-time scan).
+    fn get_word(&self, i: usize) -> Self::GetWordOutput;
 
     /// **Phase 1 row**: `acc += scalar * multiplicand`
     ///
