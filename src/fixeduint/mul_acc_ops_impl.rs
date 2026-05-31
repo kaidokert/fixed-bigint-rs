@@ -8,66 +8,108 @@ use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::{ConstCarryingAdd, ConstZero};
 use crate::mul_acc_ops::MulAccOps;
 use crate::patch_num_traits::CarryingMul;
+use crate::personality::{Ct, Nct};
 
-impl<T, const N: usize> MulAccOps for FixedUInt<T, N>
+macro_rules! mul_acc_ops_common {
+    () => {
+        type Word = T;
+
+        fn word_count() -> usize {
+            N
+        }
+
+        fn mul_acc_row(scalar: T, multiplicand: &Self, acc: &mut Self, carry_in: T) -> T {
+            let mut carry = carry_in;
+            let mut j = 0;
+            while j < N {
+                let (lo, hi) = CarryingMul::carrying_mul_add(
+                    scalar,
+                    multiplicand.array[j],
+                    acc.array[j],
+                    carry,
+                );
+                acc.array[j] = lo;
+                carry = hi;
+                j += 1;
+            }
+            carry
+        }
+
+        fn mul_acc_shift_row(scalar: T, multiplicand: &Self, acc: &mut Self, acc_hi: T) -> T {
+            debug_assert!(N > 0, "MulAccOps requires at least one word");
+            // First word: discarded (zero by construction)
+            let (_, mut carry) = CarryingMul::carrying_mul_add(
+                scalar,
+                multiplicand.array[0],
+                acc.array[0],
+                <T as ConstZero>::zero(),
+            );
+
+            // Remaining words: shift down by one position
+            let mut j = 1;
+            while j < N {
+                let (lo, hi) = CarryingMul::carrying_mul_add(
+                    scalar,
+                    multiplicand.array[j],
+                    acc.array[j],
+                    carry,
+                );
+                acc.array[j - 1] = lo;
+                carry = hi;
+                j += 1;
+            }
+
+            // Fold acc_hi + carry into acc[N-1]
+            let (sum, overflow) = <T as ConstCarryingAdd>::carrying_add(acc_hi, carry, false);
+            acc.array[N - 1] = sum;
+
+            // Branchless: convert overflow bool to word via carrying_add(0, 0, overflow)
+            let (overflow_word, _) = <T as ConstCarryingAdd>::carrying_add(
+                <T as ConstZero>::zero(),
+                <T as ConstZero>::zero(),
+                overflow,
+            );
+            overflow_word
+        }
+    };
+}
+
+impl<T, const N: usize> MulAccOps for FixedUInt<T, N, Nct>
 where
     T: MachineWord + CarryingMul<Output = T> + ConstCarryingAdd,
 {
-    type Word = T;
-
-    fn word_count() -> usize {
-        N
-    }
+    type GetWordOutput = Option<T>;
 
     fn get_word(&self, i: usize) -> Option<T> {
         self.array.get(i).copied()
     }
 
-    fn mul_acc_row(scalar: T, multiplicand: &Self, acc: &mut Self, carry_in: T) -> T {
-        let mut carry = carry_in;
+    mul_acc_ops_common!();
+}
+
+impl<T, const N: usize> MulAccOps for FixedUInt<T, N, Ct>
+where
+    T: MachineWord + CarryingMul<Output = T> + ConstCarryingAdd + subtle::ConditionallySelectable,
+{
+    type GetWordOutput = subtle::CtOption<T>;
+
+    fn get_word(&self, i: usize) -> subtle::CtOption<T> {
+        use subtle::{Choice, CtOption};
+        let mut selected = <T as ConstZero>::zero();
         let mut j = 0;
         while j < N {
-            let (lo, hi) =
-                CarryingMul::carrying_mul_add(scalar, multiplicand.array[j], acc.array[j], carry);
-            acc.array[j] = lo;
-            carry = hi;
+            let is_target = Choice::from((j == i) as u8);
+            selected = <T as subtle::ConditionallySelectable>::conditional_select(
+                &selected,
+                &self.array[j],
+                is_target,
+            );
             j += 1;
         }
-        carry
+        CtOption::new(selected, Choice::from((i < N) as u8))
     }
 
-    fn mul_acc_shift_row(scalar: T, multiplicand: &Self, acc: &mut Self, acc_hi: T) -> T {
-        debug_assert!(N > 0, "MulAccOps requires at least one word");
-        // First word: discarded (zero by construction)
-        let (_, mut carry) = CarryingMul::carrying_mul_add(
-            scalar,
-            multiplicand.array[0],
-            acc.array[0],
-            <T as ConstZero>::zero(),
-        );
-
-        // Remaining words: shift down by one position
-        let mut j = 1;
-        while j < N {
-            let (lo, hi) =
-                CarryingMul::carrying_mul_add(scalar, multiplicand.array[j], acc.array[j], carry);
-            acc.array[j - 1] = lo;
-            carry = hi;
-            j += 1;
-        }
-
-        // Fold acc_hi + carry into acc[N-1]
-        let (sum, overflow) = <T as ConstCarryingAdd>::carrying_add(acc_hi, carry, false);
-        acc.array[N - 1] = sum;
-
-        // Branchless: convert overflow bool to word via carrying_add(0, 0, overflow)
-        let (overflow_word, _) = <T as ConstCarryingAdd>::carrying_add(
-            <T as ConstZero>::zero(),
-            <T as ConstZero>::zero(),
-            overflow,
-        );
-        overflow_word
-    }
+    mul_acc_ops_common!();
 }
 
 #[cfg(test)]

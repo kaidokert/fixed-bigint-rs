@@ -70,10 +70,13 @@ pub mod const_numtraits;
 
 /// Fused multiply-accumulate row operations
 pub mod mul_acc_ops;
+pub mod personality;
 
 /// Machine word and doubleword
 mod machineword;
 
+pub use crate::const_numtraits::{ConstBitPrimInt, ConstPrimInt};
 pub use crate::fixeduint::FixedUInt;
 pub use crate::machineword::MachineWord;
 pub use crate::mul_acc_ops::MulAccOps;
+pub use crate::personality::{Ct, Nct, Personality, PersonalityTag};

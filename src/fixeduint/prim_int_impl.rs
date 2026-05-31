@@ -1,11 +1,15 @@
-use super::{const_leading_zeros, const_trailing_zeros, FixedUInt, MachineWord};
-use crate::const_numtraits::ConstPrimInt;
+use super::{
+    const_leading_zeros, const_leading_zeros_ct, const_trailing_zeros, const_trailing_zeros_ct,
+    FixedUInt, MachineWord,
+};
+use crate::const_numtraits::{ConstBitPrimInt, ConstPrimInt};
 use crate::machineword::ConstMachineWord;
 
+use crate::personality::{Nct, Personality, PersonalityTag};
 use num_traits::One;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstPrimInt for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstBitPrimInt for FixedUInt<T, N, P> {
         fn count_ones(self) -> u32 {
             let mut count = 0u32;
             let mut i = 0;
@@ -25,10 +29,16 @@ c0nst::c0nst! {
             count
         }
         fn leading_zeros(self) -> u32 {
-            const_leading_zeros(&self.array)
+            match P::TAG {
+                PersonalityTag::Nct => const_leading_zeros(&self.array),
+                PersonalityTag::Ct => const_leading_zeros_ct(&self.array),
+            }
         }
         fn trailing_zeros(self) -> u32 {
-            const_trailing_zeros(&self.array)
+            match P::TAG {
+                PersonalityTag::Nct => const_trailing_zeros(&self.array),
+                PersonalityTag::Ct => const_trailing_zeros_ct(&self.array),
+            }
         }
         fn swap_bytes(self) -> Self {
             let mut ret = <Self as crate::const_numtraits::ConstZero>::zero();
@@ -87,6 +97,8 @@ c0nst::c0nst! {
         fn to_le(self) -> Self {
             self
         }
+    }
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstPrimInt for FixedUInt<T, N, Nct> {
         fn pow(self, exp: u32) -> Self {
             if exp == 0 {
                 return <Self as crate::const_numtraits::ConstOne>::one();
@@ -109,7 +121,7 @@ c0nst::c0nst! {
     }
 }
 
-impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N> {
+impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N, Nct> {
     fn count_ones(self) -> u32 {
         self.array.iter().map(|&val| val.count_ones()).sum()
     }

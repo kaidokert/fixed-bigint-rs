@@ -1,9 +1,10 @@
 use crate::fixeduint::FixedUInt;
 use crate::machineword::MachineWord;
+use crate::personality::Nct;
 use num_integer::Roots;
 use num_traits::{FromPrimitive, One, PrimInt, Zero};
 
-impl<T: MachineWord, const N: usize> Roots for FixedUInt<T, N> {
+impl<T: MachineWord, const N: usize> Roots for FixedUInt<T, N, Nct> {
     fn nth_root(&self, n: u32) -> Self {
         if n == 0 {
             panic!("nth_root: n must be non-zero");

@@ -3,9 +3,10 @@ use num_traits::{CheckedEuclid, Euclid};
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::{ConstCheckedEuclid, ConstEuclid, ConstZero};
 use crate::machineword::ConstMachineWord;
+use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstEuclid for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstEuclid for FixedUInt<T, N, Nct> {
         fn div_euclid(&self, v: &Self) -> Self {
             // For unsigned integers, Euclidean division is the same as regular division
             *self / *v
@@ -17,7 +18,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedEuclid for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedEuclid for FixedUInt<T, N, Nct> {
         fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
             if v.is_zero() {
                 None
@@ -36,8 +37,8 @@ c0nst::c0nst! {
     }
 }
 
-// num_traits::Euclid - uses direct operators (no const bounds needed)
-impl<T: MachineWord, const N: usize> Euclid for FixedUInt<T, N> {
+// num_traits::Euclid — Nct only.
+impl<T: MachineWord, const N: usize> Euclid for FixedUInt<T, N, Nct> {
     fn div_euclid(&self, v: &Self) -> Self {
         self / v
     }
@@ -47,8 +48,8 @@ impl<T: MachineWord, const N: usize> Euclid for FixedUInt<T, N> {
     }
 }
 
-// num_traits::CheckedEuclid - uses direct checked calls (no const bounds needed)
-impl<T: MachineWord, const N: usize> CheckedEuclid for FixedUInt<T, N> {
+// num_traits::CheckedEuclid — Nct only.
+impl<T: MachineWord, const N: usize> CheckedEuclid for FixedUInt<T, N, Nct> {
     fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
         num_traits::CheckedDiv::checked_div(self, v)
     }
@@ -88,30 +89,30 @@ mod tests {
 
     c0nst::c0nst! {
         pub c0nst fn const_div_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            a: &FixedUInt<T, N>,
-            b: &FixedUInt<T, N>,
-        ) -> FixedUInt<T, N> {
+            a: &FixedUInt<T, N, Nct>,
+            b: &FixedUInt<T, N, Nct>,
+        ) -> FixedUInt<T, N, Nct> {
             ConstEuclid::div_euclid(a, b)
         }
 
         pub c0nst fn const_rem_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            a: &FixedUInt<T, N>,
-            b: &FixedUInt<T, N>,
-        ) -> FixedUInt<T, N> {
+            a: &FixedUInt<T, N, Nct>,
+            b: &FixedUInt<T, N, Nct>,
+        ) -> FixedUInt<T, N, Nct> {
             ConstEuclid::rem_euclid(a, b)
         }
 
         pub c0nst fn const_checked_div_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            a: &FixedUInt<T, N>,
-            b: &FixedUInt<T, N>,
-        ) -> Option<FixedUInt<T, N>> {
+            a: &FixedUInt<T, N, Nct>,
+            b: &FixedUInt<T, N, Nct>,
+        ) -> Option<FixedUInt<T, N, Nct>> {
             ConstCheckedEuclid::checked_div_euclid(a, b)
         }
 
         pub c0nst fn const_checked_rem_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            a: &FixedUInt<T, N>,
-            b: &FixedUInt<T, N>,
-        ) -> Option<FixedUInt<T, N>> {
+            a: &FixedUInt<T, N, Nct>,
+            b: &FixedUInt<T, N, Nct>,
+        ) -> Option<FixedUInt<T, N, Nct>> {
             ConstCheckedEuclid::checked_rem_euclid(a, b)
         }
     }
@@ -127,16 +128,16 @@ mod tests {
 
         #[cfg(feature = "nightly")]
         {
-            const A: FixedUInt<u8, 2> = FixedUInt { array: [100, 0] };
-            const B: FixedUInt<u8, 2> = FixedUInt { array: [30, 0] };
+            const A: FixedUInt<u8, 2> = FixedUInt::from_array([100, 0]);
+            const B: FixedUInt<u8, 2> = FixedUInt::from_array([30, 0]);
             const DIV_RESULT: FixedUInt<u8, 2> = const_div_euclid(&A, &B);
             const REM_RESULT: FixedUInt<u8, 2> = const_rem_euclid(&A, &B);
             const CHECKED_DIV: Option<FixedUInt<u8, 2>> = const_checked_div_euclid(&A, &B);
             const CHECKED_REM: Option<FixedUInt<u8, 2>> = const_checked_rem_euclid(&A, &B);
-            assert_eq!(DIV_RESULT, FixedUInt { array: [3, 0] });
-            assert_eq!(REM_RESULT, FixedUInt { array: [10, 0] });
-            assert_eq!(CHECKED_DIV, Some(FixedUInt { array: [3, 0] }));
-            assert_eq!(CHECKED_REM, Some(FixedUInt { array: [10, 0] }));
+            assert_eq!(DIV_RESULT, FixedUInt::from_array([3, 0]));
+            assert_eq!(REM_RESULT, FixedUInt::from_array([10, 0]));
+            assert_eq!(CHECKED_DIV, Some(FixedUInt::from_array([3, 0])));
+            assert_eq!(CHECKED_REM, Some(FixedUInt::from_array([10, 0])));
         }
     }
 }

@@ -2,8 +2,9 @@ use core::fmt::Write;
 use num_traits::{Num, ToPrimitive, Zero};
 
 use super::{make_empty_error, make_overflow_err, make_parse_int_err, FixedUInt, MachineWord};
+use crate::personality::Nct;
 
-impl<T: MachineWord, const N: usize> num_traits::Num for FixedUInt<T, N> {
+impl<T: MachineWord, const N: usize> num_traits::Num for FixedUInt<T, N, Nct> {
     type FromStrRadixErr = core::num::ParseIntError;
     fn from_str_radix(
         input: &str,
@@ -39,7 +40,7 @@ impl<T: MachineWord, const N: usize> num_traits::Num for FixedUInt<T, N> {
     }
 }
 
-impl<T: MachineWord, const N: usize> core::fmt::UpperHex for FixedUInt<T, N>
+impl<T: MachineWord, const N: usize> core::fmt::UpperHex for FixedUInt<T, N, Nct>
 where
     u8: core::convert::TryFrom<T>,
 {
@@ -48,7 +49,7 @@ where
     }
 }
 
-impl<T: MachineWord, const N: usize> core::fmt::LowerHex for FixedUInt<T, N>
+impl<T: MachineWord, const N: usize> core::fmt::LowerHex for FixedUInt<T, N, Nct>
 where
     u8: core::convert::TryFrom<T>,
 {
@@ -57,7 +58,7 @@ where
     }
 }
 
-impl<T: MachineWord, const N: usize> core::fmt::Display for FixedUInt<T, N> {
+impl<T: MachineWord, const N: usize> core::fmt::Display for FixedUInt<T, N, Nct> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         const MAX_DIGITS: usize = 20;
 
@@ -95,7 +96,7 @@ impl<T: MachineWord, const N: usize> core::fmt::Display for FixedUInt<T, N> {
     }
 }
 
-impl<T: MachineWord, const N: usize> core::str::FromStr for FixedUInt<T, N> {
+impl<T: MachineWord, const N: usize> core::str::FromStr for FixedUInt<T, N, Nct> {
     type Err = core::num::ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

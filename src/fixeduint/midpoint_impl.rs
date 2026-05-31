@@ -17,9 +17,10 @@
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::ConstMidpoint;
 use crate::machineword::ConstMachineWord;
+use crate::personality::Personality;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstMidpoint for FixedUInt<T, N> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstMidpoint for FixedUInt<T, N, P> {
         fn midpoint(self, rhs: Self) -> Self {
             // (a & b) + ((a ^ b) >> 1) avoids overflow
             (self & rhs) + ((self ^ rhs) >> 1usize)
@@ -71,10 +72,10 @@ mod tests {
     }
 
     c0nst::c0nst! {
-        pub c0nst fn const_midpoint<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
-            a: FixedUInt<T, N>,
-            b: FixedUInt<T, N>,
-        ) -> FixedUInt<T, N> {
+        pub c0nst fn const_midpoint<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(
+            a: FixedUInt<T, N, P>,
+            b: FixedUInt<T, N, P>,
+        ) -> FixedUInt<T, N, P> {
             ConstMidpoint::midpoint(a, b)
         }
     }
@@ -90,15 +91,13 @@ mod tests {
 
         #[cfg(feature = "nightly")]
         {
-            const A: U16 = FixedUInt { array: [0, 0] };
-            const B: U16 = FixedUInt { array: [10, 0] };
+            const A: U16 = FixedUInt::from_array([0, 0]);
+            const B: U16 = FixedUInt::from_array([10, 0]);
             const MID: U16 = const_midpoint(A, B);
-            assert_eq!(MID, FixedUInt { array: [5, 0] });
+            assert_eq!(MID, FixedUInt::from_array([5, 0]));
 
             // Test with max values
-            const MAX: U16 = FixedUInt {
-                array: [0xFF, 0xFF],
-            };
+            const MAX: U16 = FixedUInt::from_array([0xFF, 0xFF]);
             const MID_MAX: U16 = const_midpoint(MAX, MAX);
             assert_eq!(MID_MAX, MAX);
         }

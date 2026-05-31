@@ -1,10 +1,11 @@
 use super::{FixedUInt, MachineWord};
 
+use crate::personality::Nct;
 use num_traits::{PrimInt, Zero};
 
 // Most code here from num_integer crate, unsigned implementation
 
-impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N> {
+impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N, Nct> {
     fn div_floor(&self, other: &Self) -> Self {
         *self / *other
     }
