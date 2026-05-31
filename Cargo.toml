@@ -1,3 +1,18 @@
+[workspace]
+members = [".", "ct-verify/ct-fixtures", "ct-verify/ct-driver"]
+resolver = "2"
+
+# Pinned release profile: deterministic codegen so a passing PR locks
+# the inspection output.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = "z"
+panic = "abort"
+debug = false
+overflow-checks = false
+incremental = false
+
 [package]
 name = "fixed-bigint"
 version = "0.3.0"
