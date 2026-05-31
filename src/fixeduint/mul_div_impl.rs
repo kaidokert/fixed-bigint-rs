@@ -19,14 +19,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowin
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstOverflowingMul for FixedUInt<T, N, P> {
         fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
-            let (array, overflow) = const_mul::<T, N, true>(&self.array, &other.array, Self::WORD_BITS);
+            let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             (Self::from_array(array), overflow)
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstWrappingMul for FixedUInt<T, N, P> {
         fn wrapping_mul(&self, other: &Self) -> Self {
-            let (array, _) = const_mul::<T, N, false>(&self.array, &other.array, Self::WORD_BITS);
+            let (array, _) = const_mul::<T, N, false, P>(&self.array, &other.array, Self::WORD_BITS);
             Self::from_array(array)
         }
     }
@@ -53,7 +53,7 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul for FixedUInt<T, N, P> {
         type Output = Self;
         fn mul(self, other: Self) -> Self::Output {
-            let (array, overflow) = const_mul::<T, N, true>(&self.array, &other.array, Self::WORD_BITS);
+            let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             maybe_panic_if::<P>(overflow, PanicReason::Mul);
             Self::from_array(array)
         }
@@ -62,7 +62,7 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
         type Output = Self;
         fn mul(self, other: &FixedUInt<T, N, P>) -> Self::Output {
-            let (array, overflow) = const_mul::<T, N, true>(&self.array, &other.array, Self::WORD_BITS);
+            let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             maybe_panic_if::<P>(overflow, PanicReason::Mul);
             Self::from_array(array)
         }
@@ -71,7 +71,7 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn mul(self, other: FixedUInt<T, N, P>) -> Self::Output {
-            let (array, overflow) = const_mul::<T, N, true>(&self.array, &other.array, Self::Output::WORD_BITS);
+            let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::Output::WORD_BITS);
             maybe_panic_if::<P>(overflow, PanicReason::Mul);
             FixedUInt::from_array(array)
         }
@@ -80,7 +80,7 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn mul(self, other: &FixedUInt<T, N, P>) -> Self::Output {
-            let (array, overflow) = const_mul::<T, N, true>(&self.array, &other.array, Self::Output::WORD_BITS);
+            let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::Output::WORD_BITS);
             maybe_panic_if::<P>(overflow, PanicReason::Mul);
             FixedUInt::from_array(array)
         }
@@ -89,7 +89,7 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul<&&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn mul(self, other: &&FixedUInt<T, N, P>) -> Self::Output {
-            let (array, overflow) = const_mul::<T, N, true>(&self.array, &other.array, Self::Output::WORD_BITS);
+            let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::Output::WORD_BITS);
             maybe_panic_if::<P>(overflow, PanicReason::Mul);
             FixedUInt::from_array(array)
         }
@@ -97,7 +97,7 @@ c0nst::c0nst! {
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::MulAssign for FixedUInt<T, N, P> {
         fn mul_assign(&mut self, other: Self) {
-            let (array, overflow) = const_mul::<T, N, true>(&self.array, &other.array, Self::WORD_BITS);
+            let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             maybe_panic_if::<P>(overflow, PanicReason::Mul);
             *self = Self::from_array(array);
         }
@@ -105,7 +105,7 @@ c0nst::c0nst! {
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::MulAssign<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
         fn mul_assign(&mut self, other: &FixedUInt<T, N, P>) {
-            let (array, overflow) = const_mul::<T, N, true>(&self.array, &other.array, Self::WORD_BITS);
+            let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             maybe_panic_if::<P>(overflow, PanicReason::Mul);
             *self = Self::from_array(array);
         }

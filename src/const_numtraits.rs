@@ -1272,7 +1272,9 @@ macro_rules! const_carrying_add_impl {
                 fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
                     let (sum1, c1) = self.overflowing_add(rhs);
                     let (sum2, c2) = sum1.overflowing_add(carry as $t);
-                    (sum2, c1 || c2)
+                    // Non-short-circuiting `|` to keep the body branch-free at
+                    // the source level (CT discipline).
+                    (sum2, c1 | c2)
                 }
             }
         }
@@ -1300,7 +1302,7 @@ macro_rules! const_borrowing_sub_impl {
                 fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
                     let (diff1, b1) = self.overflowing_sub(rhs);
                     let (diff2, b2) = diff1.overflowing_sub(borrow as $t);
-                    (diff2, b1 || b2)
+                    (diff2, b1 | b2)
                 }
             }
         }

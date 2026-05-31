@@ -17,53 +17,15 @@
 //! These operations expose carry/borrow inputs and outputs, and widening
 //! multiplication, useful for implementing arbitrary-precision arithmetic.
 
-use super::{FixedUInt, MachineWord};
+use super::{add_with_carry, sub_with_borrow, FixedUInt, MachineWord};
 use crate::const_numtraits::{
     ConstBorrowingSub, ConstCarryingAdd, ConstCarryingMul, ConstWideningMul,
 };
 use crate::machineword::ConstMachineWord;
 use crate::patch_num_traits::{CarryingMul, WideningMul};
-use crate::personality::Personality;
+use crate::personality::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    /// Add with carry input, returns sum and carry output.
-    /// Uses ConstCarryingAdd on limb types for consistency.
-    c0nst fn add_with_carry<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd, const N: usize>(
-        a: &[T; N],
-        b: &[T; N],
-        carry_in: bool,
-    ) -> ([T; N], bool) {
-        let mut result = [T::zero(); N];
-        let mut carry = carry_in;
-        let mut i = 0usize;
-        while i < N {
-            let (sum, c) = ConstCarryingAdd::carrying_add(a[i], b[i], carry);
-            result[i] = sum;
-            carry = c;
-            i += 1;
-        }
-        (result, carry)
-    }
-
-    /// Subtract with borrow input, returns difference and borrow output.
-    /// Uses ConstBorrowingSub on limb types for consistency.
-    c0nst fn sub_with_borrow<T: [c0nst] ConstMachineWord + [c0nst] ConstBorrowingSub, const N: usize>(
-        a: &[T; N],
-        b: &[T; N],
-        borrow_in: bool,
-    ) -> ([T; N], bool) {
-        let mut result = [T::zero(); N];
-        let mut borrow = borrow_in;
-        let mut i = 0usize;
-        while i < N {
-            let (diff, b) = ConstBorrowingSub::borrowing_sub(a[i], b[i], borrow);
-            result[i] = diff;
-            borrow = b;
-            i += 1;
-        }
-        (result, borrow)
-    }
-
     impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + MachineWord, const N: usize, P: Personality> c0nst ConstCarryingAdd for FixedUInt<T, N, P> {
         fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
             let (array, carry_out) = add_with_carry(&self.array, &rhs.array, carry);
@@ -117,15 +79,34 @@ c0nst::c0nst! {
                     let (sum1, c1) = ConstCarryingAdd::carrying_add(cur1, mul_hi, c0);
                     set_at(&mut result_low, &mut result_high, pos + 1, sum1);
 
-                    // Step 3: propagate any remaining carry
+                    // Step 3: propagate any remaining carry. Dispatched on
+                    // personality so Nct keeps the original fast early-exit
+                    // (the tail is the inner-inner loop of Montgomery
+                    // multiplication and matters a lot for verify-side
+                    // throughput). Ct iterates the full tail unconditionally
+                    // so the loop length depends only on the public outer
+                    // counters i, j.
                     let mut carry = c1;
                     let mut p = pos + 2;
-                    while carry && p < 2 * N {
-                        let cur = get_at(&result_low, &result_high, p);
-                        let (sum, c) = ConstCarryingAdd::carrying_add(cur, T::zero(), true);
-                        set_at(&mut result_low, &mut result_high, p, sum);
-                        carry = c;
-                        p += 1;
+                    match P::TAG {
+                        PersonalityTag::Nct => {
+                            while carry && p < 2 * N {
+                                let cur = get_at(&result_low, &result_high, p);
+                                let (sum, c) = ConstCarryingAdd::carrying_add(cur, T::zero(), true);
+                                set_at(&mut result_low, &mut result_high, p, sum);
+                                carry = c;
+                                p += 1;
+                            }
+                        }
+                        PersonalityTag::Ct => {
+                            while p < 2 * N {
+                                let cur = get_at(&result_low, &result_high, p);
+                                let (sum, c) = ConstCarryingAdd::carrying_add(cur, T::zero(), carry);
+                                set_at(&mut result_low, &mut result_high, p, sum);
+                                carry = c;
+                                p += 1;
+                            }
+                        }
                     }
 
                     j += 1;

@@ -609,48 +609,78 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
 }
 
 c0nst::c0nst! {
-    /// Const-compatible add implementation operating on raw arrays
+    /// Single canonical limb-wise add-with-carry over a fixed-width array.
+    /// CT under `Ct`-personality callers: iteration count is `N`, the inner
+    /// `ConstCarryingAdd::carrying_add` lowers to a hardware ADC, and no
+    /// step branches on the data.
+    pub(crate) c0nst fn add_with_carry<T: [c0nst] ConstMachineWord, const N: usize>(
+        a: &[T; N],
+        b: &[T; N],
+        carry_in: bool,
+    ) -> ([T; N], bool) {
+        let mut result = [T::zero(); N];
+        let mut carry = carry_in;
+        let mut i = 0usize;
+        while i < N {
+            let (sum, c) = ConstCarryingAdd::carrying_add(a[i], b[i], carry);
+            result[i] = sum;
+            carry = c;
+            i += 1;
+        }
+        (result, carry)
+    }
+
+    /// Mirror of `add_with_carry` for subtraction.
+    pub(crate) c0nst fn sub_with_borrow<T: [c0nst] ConstMachineWord, const N: usize>(
+        a: &[T; N],
+        b: &[T; N],
+        borrow_in: bool,
+    ) -> ([T; N], bool) {
+        let mut result = [T::zero(); N];
+        let mut borrow = borrow_in;
+        let mut i = 0usize;
+        while i < N {
+            let (diff, br) = ConstBorrowingSub::borrowing_sub(a[i], b[i], borrow);
+            result[i] = diff;
+            borrow = br;
+            i += 1;
+        }
+        (result, borrow)
+    }
+
+    /// In-place limb-wise add, no carry-in. Same per-limb primitive
+    /// (`ConstCarryingAdd::carrying_add`) as `add_with_carry`, just writing
+    /// directly to `target` to avoid a stack-allocated temp array that
+    /// LLVM might not always elide on embedded builds.
     pub(crate) c0nst fn add_impl<T: [c0nst] ConstMachineWord, const N: usize>(
         target: &mut [T; N],
         other: &[T; N]
     ) -> bool {
-        let mut carry = T::zero();
+        let mut carry = false;
         let mut i = 0usize;
         while i < N {
-            let (res, carry1) = target[i].overflowing_add(&other[i]);
-            let (res, carry2) = res.overflowing_add(&carry);
-            carry = if carry1 || carry2 {
-                T::one()
-            } else {
-                T::zero()
-            };
-            target[i] = res;
+            let (sum, c) = ConstCarryingAdd::carrying_add(target[i], other[i], carry);
+            target[i] = sum;
+            carry = c;
             i += 1;
         }
-        !carry.is_zero()
+        carry
     }
-}
 
-c0nst::c0nst! {
-    /// Const-compatible sub implementation operating on raw arrays
+    /// In-place limb-wise sub, no borrow-in. Mirror of `add_impl`.
     pub(crate) c0nst fn sub_impl<T: [c0nst] ConstMachineWord, const N: usize>(
         target: &mut [T; N],
         other: &[T; N]
     ) -> bool {
-        let mut borrow = T::zero();
+        let mut borrow = false;
         let mut i = 0usize;
         while i < N {
-            let (res, borrow1) = target[i].overflowing_sub(&other[i]);
-            let (res, borrow2) = res.overflowing_sub(&borrow);
-            borrow = if borrow1 || borrow2 {
-                T::one()
-            } else {
-                T::zero()
-            };
-            target[i] = res;
+            let (diff, br) = ConstBorrowingSub::borrowing_sub(target[i], other[i], borrow);
+            target[i] = diff;
+            borrow = br;
             i += 1;
         }
-        !borrow.is_zero()
+        borrow
     }
 }
 
@@ -832,9 +862,16 @@ c0nst::c0nst! {
         }
     }
 
-    /// Standalone const-compatible array multiplication (no FixedUInt dependency)
-    /// Returns (result_array, overflowed)
-    pub(crate) c0nst fn const_mul<T: [c0nst] ConstMachineWord, const N: usize, const CHECK_OVERFLOW: bool>(
+    /// Standalone const-compatible array multiplication (no FixedUInt dependency).
+    /// Returns (result_array, overflowed).
+    ///
+    /// The carry split (`accumulator > t_max ? ... : 0`) dispatches on
+    /// personality. Nct keeps the original predictable branch (the fast
+    /// path skips the shift+mask when the sum already fits in one word);
+    /// Ct does the shift+mask unconditionally so the body has no
+    /// value-dependent branch. Overflow accumulation is branchless (`|` on
+    /// bools) under both personalities since the per-step cost is tiny.
+    pub(crate) c0nst fn const_mul<T: [c0nst] ConstMachineWord, const N: usize, const CHECK_OVERFLOW: bool, P: Personality>(
         op1: &[T; N],
         op2: &[T; N],
         word_bits: usize,
@@ -842,7 +879,6 @@ c0nst::c0nst! {
         let mut result: [T; N] = [<T as ConstZero>::zero(); N];
         let mut overflowed = false;
         let t_max = <T as ConstMachineWord>::to_double(<T as ConstBounded>::max_value());
-        // Zero for double word type
         let dw_zero = <<T as ConstMachineWord>::ConstDoubleWord as ConstZero>::zero();
 
         let mut i = 0;
@@ -859,23 +895,31 @@ c0nst::c0nst! {
                 } else {
                     dw_zero
                 };
-                accumulator = accumulator + mul_res + carry;
+                accumulator += mul_res + carry;
 
-                if accumulator > t_max {
-                    carry = accumulator >> word_bits;
-                    accumulator &= t_max;
-                } else {
-                    carry = dw_zero;
+                match P::TAG {
+                    PersonalityTag::Nct => {
+                        if accumulator > t_max {
+                            carry = accumulator >> word_bits;
+                            accumulator &= t_max;
+                        } else {
+                            carry = dw_zero;
+                        }
+                    }
+                    PersonalityTag::Ct => {
+                        carry = accumulator >> word_bits;
+                        accumulator &= t_max;
+                    }
                 }
                 if round < N {
                     result[round] = <T as ConstMachineWord>::from_double(accumulator);
                 } else if CHECK_OVERFLOW {
-                    overflowed = overflowed || accumulator != dw_zero;
+                    overflowed |= accumulator != dw_zero;
                 }
                 j += 1;
             }
-            if carry != dw_zero && CHECK_OVERFLOW {
-                overflowed = true;
+            if CHECK_OVERFLOW {
+                overflowed |= carry != dw_zero;
             }
             i += 1;
         }
@@ -1566,7 +1610,7 @@ mod tests {
             b: &[T; N],
             word_bits: usize,
         ) -> ([T; N], bool) {
-            const_mul::<T, N, true>(a, b, word_bits)
+            const_mul::<T, N, true, crate::personality::Nct>(a, b, word_bits)
         }
 
         pub c0nst fn arr_leading_zeros<T: [c0nst] ConstMachineWord, const N: usize>(
