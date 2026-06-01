@@ -13,6 +13,13 @@ description = "Inspection fixtures for the fixed-bigint CT-verify harness."
 # Rust dependency.
 crate-type = ["staticlib", "rlib"]
 
+[features]
+default = ["panic-handler"]
+# Define a `#[panic_handler]` in this crate. Required for no_std staticlib
+# builds (every asm-grep target). Disabled by host-side consumers (ct-ctgrind)
+# that link ct-fixtures as rlib alongside std, which supplies its own.
+panic-handler = []
+
 [dependencies]
 fixed-bigint = { path = "../.." }
 subtle = { version = "2.6", default-features = false }

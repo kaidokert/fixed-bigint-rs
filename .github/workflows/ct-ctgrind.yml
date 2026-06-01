@@ -1,0 +1,36 @@
+name: CT Ctgrind
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ctgrind:
+    name: x86_64-linux ctgrind
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.86"
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Install Valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ct-ctgrind
+
+      - name: Build ct-ctgrind
+        run: cargo build --release -p ct-ctgrind
+
+      - name: Run under Valgrind
+        # --error-exitcode=0 hands exit control back to the binary, which
+        # decides pass/fail from per-fixture error-counter deltas. -q hides
+        # Valgrind's own preamble; per-error reports still print.
+        run: valgrind --tool=memcheck --error-exitcode=0 -q target/release/ct-ctgrind
