@@ -38,8 +38,17 @@ pub const THUMB_ALLOWED: &[&str] = &[
 // RISC-V has no conditional move or predicate execution. Every branch
 // changes PC. CT code must be xor/and/mask-based; any conditional
 // branch in a Ct primitive is a violation.
+//
+// The gt/le/gtu/leu alternatives cover LLVM-printed pseudo-mnemonic
+// aliases (bgt, ble, bgtu, bleu, bgtz, blez) — `llvm-objdump` prints
+// these by default rather than the canonical bge/blt operand-swapped
+// forms, so a Ct regression that lowered to one of them would
+// otherwise slip past the gate.
 
-pub const RISCV_FORBIDDEN: &[&str] = &[r"^b(eq|ne|lt|ge|ltu|geu)z?$", r"^c\.b(eqz|nez)$"];
+pub const RISCV_FORBIDDEN: &[&str] = &[
+    r"^b(eq|ne|lt|ge|gt|le|ltu|geu|gtu|leu)z?$",
+    r"^c\.b(eqz|nez)$",
+];
 
 // =============================================================================
 // AVR (atmega328p)

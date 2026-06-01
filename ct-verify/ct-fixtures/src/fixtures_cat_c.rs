@@ -170,7 +170,7 @@ emit_midpoint!(ct_fix__C__midpoint__u32__N16, u32, 16);
 emit_midpoint!(ct_fix__C__midpoint__u64__N4, u64, 4);
 
 // =============================================================================
-// Bit counts: count_ones / count_zeros / swap_bytes / reverse_bits
+// Bit counts: count_ones / swap_bytes / reverse_bits
 // =============================================================================
 
 macro_rules! emit_count_ones {

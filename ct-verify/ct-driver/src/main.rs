@@ -199,6 +199,17 @@ fn main() -> ExitCode {
         }
     }
 
+    // Empty fixture sets mean the harness lost contact with the
+    // archive — silent self-test failure. Treat as hard fail.
+    if ct_fixture_count == 0 {
+        eprintln!("error: no ct_fix__* fixtures found in archive — harness self-test failed");
+        return ExitCode::FAILURE;
+    }
+    if neg_fixture_count == 0 {
+        eprintln!("error: no nct_fix__neg__* negative controls found in archive — harness self-test failed");
+        return ExitCode::FAILURE;
+    }
+
     if report.exit_code() == 0 {
         ExitCode::SUCCESS
     } else {

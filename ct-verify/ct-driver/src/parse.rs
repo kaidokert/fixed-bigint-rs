@@ -7,10 +7,24 @@
 //! direction classifier.
 
 use std::collections::VecDeque;
+use std::sync::LazyLock;
 
 use regex::Regex;
 
 use crate::target::TargetSpec;
+
+// Symbol header regex: `<symbol_name>:`. llvm-objdump emits two shapes,
+//   `0000000000000020 <_symbol_name>:`        (without --no-leading-addr)
+//   `<_symbol_name>:`                         (with --no-leading-addr)
+// — both end with `<sym>:`.
+static HEADER_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<([^>]+)>:\s*$").unwrap());
+
+// Instruction line: leading whitespace, then optional `address:`, then the
+// mnemonic, then operands. With --no-leading-addr the address is still
+// emitted (relative). Be permissive: strip the leading `address:` if
+// present, take the first whitespace-delimited token as the mnemonic.
+static INSN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*(?:([0-9a-fA-F]+):)?\s+(\S+)(?:\s+(.*))?$").unwrap());
 
 /// One disassembled function block.
 #[derive(Debug)]
@@ -29,33 +43,6 @@ pub struct Insn {
 
 /// Parse the entire objdump output into function blocks.
 pub fn split_blocks(objdump_out: &str) -> Vec<FunctionBlock> {
-    // A new function starts when we see a line that ends with `:` and
-    // looks like a symbol header. llvm-objdump emits two shapes:
-    //
-    //   `0000000000000020 <_symbol_name>:`        (with --no-leading-addr off)
-    //   `<_symbol_name>:`                          (with --no-leading-addr on)
-    //
-    // We accept both by looking for `<sym>:` at end of line.
-    //
-    // Each subsequent indented line is an instruction. Indented lines
-    // with `:` in them are jump targets within the function.
-
-    // Symbol header regex: `<symbol_name>:`
-    let header_re = Regex::new(r"<([^>]+)>:\s*$").unwrap();
-
-    // Instruction line: leading whitespace, then `address:` then the
-    // mnemonic, then operands. With --no-leading-addr the address is
-    // still emitted (it's just relative).
-    //
-    // After `--no-show-raw-insn --no-leading-addr` llvm-objdump emits:
-    //   `<TAB>mnemonic<TAB>operands`
-    //
-    // But often we get the form `<addr>: <TAB>mnemonic ...` even with
-    // --no-leading-addr depending on tool version. Be permissive:
-    //   - strip the leading address+colon if present
-    //   - take the first whitespace-delimited token as the mnemonic
-    let insn_re = Regex::new(r"^\s*(?:([0-9a-fA-F]+):)?\s+(\S+)(?:\s+(.*))?$").unwrap();
-
     let mut blocks: Vec<FunctionBlock> = Vec::new();
     let mut current: Option<FunctionBlock> = None;
     let mut implicit_offset: u64 = 0;
@@ -70,7 +57,7 @@ pub fn split_blocks(objdump_out: &str) -> Vec<FunctionBlock> {
             continue;
         }
 
-        if let Some(caps) = header_re.captures(line) {
+        if let Some(caps) = HEADER_RE.captures(line) {
             // Flush previous block.
             if let Some(b) = current.take() {
                 blocks.push(b);
@@ -88,15 +75,20 @@ pub fn split_blocks(objdump_out: &str) -> Vec<FunctionBlock> {
             continue;
         };
 
-        if let Some(caps) = insn_re.captures(line) {
-            let offset = caps
+        if let Some(caps) = INSN_RE.captures(line) {
+            let offset = if let Some(parsed) = caps
                 .get(1)
                 .and_then(|m| u64::from_str_radix(m.as_str(), 16).ok())
-                .unwrap_or_else(|| {
-                    let o = implicit_offset;
-                    implicit_offset += 4; // arbitrary default; only used when address column is missing
-                    o
-                });
+            {
+                // Keep implicit_offset in sync so a subsequent
+                // address-less line continues from the right place.
+                implicit_offset = parsed + 4;
+                parsed
+            } else {
+                let o = implicit_offset;
+                implicit_offset += 4; // arbitrary default; only used when address column is missing
+                o
+            };
             let mnemonic = caps
                 .get(2)
                 .map(|m| m.as_str().to_ascii_lowercase())
@@ -220,10 +212,6 @@ pub fn scan_block(block: &FunctionBlock, spec: &TargetSpec, pat: &Patterns) -> V
                 line: insn.full_line.clone(),
                 context: recent.iter().cloned().collect(),
             });
-
-            if it_remaining > 0 {
-                it_remaining -= 1;
-            }
             continue;
         }
 
