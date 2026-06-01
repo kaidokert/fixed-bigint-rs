@@ -13,23 +13,23 @@ jobs:
         include:
           # Priority 1: Cortex-M3/M4
           - triple: thumbv7em-none-eabi
-            toolchain: "1.85"
+            toolchain: "1.86"
           - triple: thumbv7m-none-eabi
-            toolchain: "1.85"
+            toolchain: "1.86"
           # Priority 2: Cortex-M0
           - triple: thumbv6m-none-eabi
-            toolchain: "1.85"
+            toolchain: "1.86"
           # Priority 3: 32-bit RISC-V
           - triple: riscv32imc-unknown-none-elf
-            toolchain: "1.85"
+            toolchain: "1.86"
           - triple: riscv32imac-unknown-none-elf
-            toolchain: "1.85"
+            toolchain: "1.86"
           # Priority 5: aarch64
           - triple: aarch64-unknown-linux-gnu
-            toolchain: "1.85"
+            toolchain: "1.86"
           # Priority 6: x86_64
           - triple: x86_64-unknown-linux-gnu
-            toolchain: "1.85"
+            toolchain: "1.86"
           # Priority 4: AVR (nightly-only, needs build-std + target-cpu).
           # Bare `nightly` because rust-std for avr-none isn't published
           # on every nightly date — a pinned date risks the AVR job

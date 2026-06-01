@@ -814,7 +814,9 @@ c0nst::c0nst! {
             let mut shifted = *target;
             const_shl_impl(&mut shifted, amount);
             // Spread bit k of `bits` to a full-T mask: 0 if cleared, T::MAX if set.
-            let bit_k = ((bits >> k) & 1) as u8;
+            // `black_box` is load-bearing — see `const_ct_select` for the
+            // address-select rewrite it defeats.
+            let bit_k = core::hint::black_box(((bits >> k) & 1) as u8);
             let bit_k_t = <T as core::convert::From<u8>>::from(bit_k);
             let mask = <T as core::ops::Mul>::mul(bit_k_t, <T as ConstBounded>::max_value());
             // CT-select per limb: target[i] ^= mask & (target[i] ^ shifted[i])
@@ -851,7 +853,8 @@ c0nst::c0nst! {
             let amount = 1usize << k;
             let mut shifted = *target;
             const_shr_impl(&mut shifted, amount);
-            let bit_k = ((bits >> k) & 1) as u8;
+            // See `const_shl_ct` / `const_ct_select` for why `black_box` is here.
+            let bit_k = core::hint::black_box(((bits >> k) & 1) as u8);
             let bit_k_t = <T as core::convert::From<u8>>::from(bit_k);
             let mask = <T as core::ops::Mul>::mul(bit_k_t, <T as ConstBounded>::max_value());
             let mut i = 0;
@@ -1542,6 +1545,16 @@ c0nst::c0nst! {
 
     /// Branchless per-limb select: returns `if_zero` when `choice == 0`,
     /// `if_one` when `choice == 1`.
+    ///
+    /// The `black_box` on `choice` is load-bearing. Without it, LLVM
+    /// recognizes the algebraic identity `a ^ (mask & (a ^ b))` ==
+    /// `if mask == 0 { a } else { b }` and rewrites the loop into a
+    /// `csel` of the source ADDRESS followed by a load — a secret-
+    /// dependent memory access that the asm-grep gate can't see but
+    /// that the ctgrind taint pass catches. Opacifying the choice
+    /// before it flows into `mask` keeps LLVM from proving the
+    /// equivalence in the first place. This mirrors what `subtle`'s
+    /// `Choice::from(u8)` does internally.
     pub(crate) c0nst fn const_ct_select<
         T: [c0nst] ConstMachineWord + MachineWord,
         const N: usize,
@@ -1551,6 +1564,7 @@ c0nst::c0nst! {
         if_one: FixedUInt<T, N, P>,
         choice: u8,
     ) -> FixedUInt<T, N, P> {
+        let choice = core::hint::black_box(choice);
         let bit_t = <T as core::convert::From<u8>>::from(choice);
         let mask = <T as core::ops::Mul>::mul(bit_t, <T as ConstBounded>::max_value());
         let mut result = if_zero;

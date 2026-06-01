@@ -10,7 +10,7 @@ use crate::mnemonics;
 pub struct TargetSpec {
     pub triple: &'static str,
     pub priority: u8,
-    /// "stable" | "1.85" | "nightly-YYYY-MM-DD". The driver doesn't
+    /// "stable" | "1.86" | "nightly-YYYY-MM-DD". The driver doesn't
     /// switch toolchains itself — CI sets up the right one and the
     /// triple drives `cargo build --target=<triple>`. The pin is here
     /// for documentation and so the driver can warn if the active
@@ -36,7 +36,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "thumbv7em-none-eabi",
         priority: 1,
-        toolchain: "1.85",
+        toolchain: "1.86",
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: true,
@@ -45,7 +45,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "thumbv7m-none-eabi",
         priority: 1,
-        toolchain: "1.85",
+        toolchain: "1.86",
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: true,
@@ -55,7 +55,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "thumbv6m-none-eabi",
         priority: 2,
-        toolchain: "1.85",
+        toolchain: "1.86",
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: false, // armv6m has no IT; no allowlist needed
@@ -65,7 +65,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "riscv32imc-unknown-none-elf",
         priority: 3,
-        toolchain: "1.85",
+        toolchain: "1.86",
         forbidden: mnemonics::RISCV_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
@@ -74,7 +74,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "riscv32imac-unknown-none-elf",
         priority: 3,
-        toolchain: "1.85",
+        toolchain: "1.86",
         forbidden: mnemonics::RISCV_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
@@ -97,7 +97,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "aarch64-unknown-linux-gnu",
         priority: 5,
-        toolchain: "1.85",
+        toolchain: "1.86",
         forbidden: mnemonics::AARCH64_FORBIDDEN,
         allowed_cmov: mnemonics::AARCH64_ALLOWED,
         thumb_it_blocks: false,
@@ -107,7 +107,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "x86_64-unknown-linux-gnu",
         priority: 6,
-        toolchain: "1.85",
+        toolchain: "1.86",
         forbidden: mnemonics::X86_64_FORBIDDEN,
         allowed_cmov: mnemonics::X86_64_ALLOWED,
         thumb_it_blocks: false,
