@@ -48,7 +48,11 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-          targets: ${{ matrix.triple }}
+          # AVR is tier 3 — rust-std isn't published as a downloadable
+          # component, so `rustup target add avr-none` fails. We build
+          # core from source via -Z build-std=core (see rust-src below)
+          # so the precompiled std isn't needed.
+          targets: ${{ matrix.triple == 'avr-none' && '' || matrix.triple }}
           components: llvm-tools-preview${{ matrix.extra_components && ', ' || '' }}${{ matrix.extra_components }}
 
       - name: Cargo cache
