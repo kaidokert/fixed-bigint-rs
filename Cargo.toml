@@ -19,7 +19,7 @@ version = "0.3.0"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 documentation = "https://docs.rs/fixed-bigint"
 edition = "2018"
-rust-version = "1.73"
+rust-version = "1.86"
 description = """
 Fixed-size big integer implementation for Rust
 """

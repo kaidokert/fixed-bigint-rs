@@ -2,7 +2,7 @@
 name = "ct-fixtures"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.73"
+rust-version = "1.86"
 publish = false
 description = "Inspection fixtures for the fixed-bigint CT-verify harness."
 
