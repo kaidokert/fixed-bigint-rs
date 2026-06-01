@@ -13,26 +13,26 @@ jobs:
         include:
           # Priority 1: Cortex-M3/M4
           - triple: thumbv7em-none-eabi
-            toolchain: "1.83"
+            toolchain: "1.85"
           - triple: thumbv7m-none-eabi
-            toolchain: "1.83"
+            toolchain: "1.85"
           # Priority 2: Cortex-M0
           - triple: thumbv6m-none-eabi
-            toolchain: "1.83"
+            toolchain: "1.85"
           # Priority 3: 32-bit RISC-V
           - triple: riscv32imc-unknown-none-elf
-            toolchain: "1.83"
+            toolchain: "1.85"
           - triple: riscv32imac-unknown-none-elf
-            toolchain: "1.83"
+            toolchain: "1.85"
           # Priority 5: aarch64
           - triple: aarch64-unknown-linux-gnu
-            toolchain: "1.83"
+            toolchain: "1.85"
           # Priority 6: x86_64
           - triple: x86_64-unknown-linux-gnu
-            toolchain: "1.83"
+            toolchain: "1.85"
           # Priority 4: AVR (nightly-only, needs build-std + target-cpu).
           - triple: avr-none
-            toolchain: nightly
+            toolchain: nightly-2026-05-30
             extra_components: rust-src
             extra_rustflags: "-C target-cpu=atmega328p"
             extra_cargo_args: "-Z build-std=core"
@@ -55,7 +55,9 @@ jobs:
 
       - name: Run ct-driver
         env:
-          RUSTFLAGS: ${{ matrix.extra_rustflags }}
+          # Scope target-specific rustflags to the cross-target build
+          # only — leaks into the host ct-driver compile otherwise.
+          CARGO_TARGET_AVR_NONE_RUSTFLAGS: ${{ matrix.extra_rustflags }}
         run: cargo run --release -p ct-driver -- --target ${{ matrix.triple }} --json-out target/ct-report/${{ matrix.triple }}.json
 
       - name: Upload report

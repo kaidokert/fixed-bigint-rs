@@ -2,7 +2,7 @@
 name = "ct-driver"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.73"
+rust-version = "1.85"
 publish = false
 description = "Cross-target disassembly + branch-grep driver for fixed-bigint CT verify."
 

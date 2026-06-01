@@ -4,14 +4,13 @@
 use crate::mnemonics;
 
 #[allow(dead_code)]
-// `priority`, `toolchain`, and `allow_unconditional_back_edge`
-// are documentation-only fields used by `--list-targets` and
-// the README cross-reference.
+// `priority` and `toolchain` are documentation-only fields used by
+// `--list-targets`.
 #[derive(Debug, Clone, Copy)]
 pub struct TargetSpec {
     pub triple: &'static str,
     pub priority: u8,
-    /// "stable" | "1.83" | "nightly-YYYY-MM-DD". The driver doesn't
+    /// "stable" | "1.85" | "nightly-YYYY-MM-DD". The driver doesn't
     /// switch toolchains itself — CI sets up the right one and the
     /// triple drives `cargo build --target=<triple>`. The pin is here
     /// for documentation and so the driver can warn if the active
@@ -26,12 +25,6 @@ pub struct TargetSpec {
     pub allowed_cmov: &'static [&'static str],
     /// Engage the thumb IT-state machine.
     pub thumb_it_blocks: bool,
-    /// Loop back-edges look like unconditional jumps. The Ct primitives
-    /// only iterate compile-time bounds (`N`, `usize::BITS`); back-
-    /// edges to earlier addresses in the same function are CT-safe and
-    /// the parser allows them. Set false to flag all unconditional `b`
-    /// (rarely needed).
-    pub allow_unconditional_back_edge: bool,
     /// Extra cargo args needed for this target (e.g., `-Z build-std=core`
     /// for AVR).
     pub extra_cargo_args: &'static [&'static str],
@@ -43,102 +36,86 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "thumbv7em-none-eabi",
         priority: 1,
-        toolchain: "1.83",
+        toolchain: "1.85",
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: true,
-        allow_unconditional_back_edge: true,
         extra_cargo_args: &[],
     },
     TargetSpec {
         triple: "thumbv7m-none-eabi",
         priority: 1,
-        toolchain: "1.83",
+        toolchain: "1.85",
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: true,
-        allow_unconditional_back_edge: true,
         extra_cargo_args: &[],
     },
     // Priority 2: Cortex-M0
     TargetSpec {
         triple: "thumbv6m-none-eabi",
         priority: 2,
-        toolchain: "1.83",
+        toolchain: "1.85",
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: false, // armv6m has no IT; no allowlist needed
-        allow_unconditional_back_edge: true,
         extra_cargo_args: &[],
     },
     // Priority 3: 32-bit RISC-V
     TargetSpec {
         triple: "riscv32imc-unknown-none-elf",
         priority: 3,
-        toolchain: "1.83",
+        toolchain: "1.85",
         forbidden: mnemonics::RISCV_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
-        allow_unconditional_back_edge: true,
         extra_cargo_args: &[],
     },
     TargetSpec {
         triple: "riscv32imac-unknown-none-elf",
         priority: 3,
-        toolchain: "1.83",
+        toolchain: "1.85",
         forbidden: mnemonics::RISCV_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
-        allow_unconditional_back_edge: true,
         extra_cargo_args: &[],
     },
     // Priority 4: 8-bit AVR (nightly-only, needs build-std + target-cpu).
-    //
     // Modern rustc uses the `avr-none` triple and requires an explicit
     // `-C target-cpu=<mcu>`. The CI workflow sets RUSTFLAGS accordingly
     // and passes -Z build-std=core via extra_cargo_args.
-    //
-    // Known limitation: AVR has no conditional-select instruction so any
-    // Ct primitive that uses an `if cond { a } else { b }` pattern at the
-    // source level emits a real `brne` branch. `ConstCarryingAdd::carrying_add`
-    // is the one such primitive shipped today; its fixtures are
-    // cfg-gated off on AVR (see fixtures_cat_c.rs).
     TargetSpec {
         triple: "avr-none",
         priority: 4,
-        toolchain: "nightly",
+        toolchain: "nightly-2026-05-30",
         forbidden: mnemonics::AVR_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
-        allow_unconditional_back_edge: true,
         extra_cargo_args: &["-Z", "build-std=core"],
     },
     // Priority 5: aarch64
     TargetSpec {
         triple: "aarch64-unknown-linux-gnu",
         priority: 5,
-        toolchain: "1.83",
+        toolchain: "1.85",
         forbidden: mnemonics::AARCH64_FORBIDDEN,
         allowed_cmov: mnemonics::AARCH64_ALLOWED,
         thumb_it_blocks: false,
-        allow_unconditional_back_edge: true,
         extra_cargo_args: &[],
     },
     // Priority 6: x86_64
     TargetSpec {
         triple: "x86_64-unknown-linux-gnu",
         priority: 6,
-        toolchain: "1.83",
+        toolchain: "1.85",
         forbidden: mnemonics::X86_64_FORBIDDEN,
         allowed_cmov: mnemonics::X86_64_ALLOWED,
         thumb_it_blocks: false,
-        allow_unconditional_back_edge: true,
         extra_cargo_args: &[],
     },
-    // Host fallback: aarch64-apple-darwin. Same
-    // mnemonic tables as aarch64-linux. The CI matrix doesn't run this;
-    // it's here so `cargo run -p ct-driver` works on macOS dev boxes
-    // without --target.
+    // Host fallback: aarch64-apple-darwin. Same mnemonic tables as
+    // aarch64-linux. The CI matrix doesn't run this; it's here so
+    // `cargo run -p ct-driver` works on macOS dev boxes without --target.
     TargetSpec {
         triple: "aarch64-apple-darwin",
         priority: 99,
@@ -146,7 +123,6 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::AARCH64_FORBIDDEN,
         allowed_cmov: mnemonics::AARCH64_ALLOWED,
         thumb_it_blocks: false,
-        allow_unconditional_back_edge: true,
         extra_cargo_args: &[],
     },
 ];
