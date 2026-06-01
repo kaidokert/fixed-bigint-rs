@@ -1,0 +1,80 @@
+name: CT Verify
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ct:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Priority 1: Cortex-M3/M4
+          - triple: thumbv7em-none-eabi
+            toolchain: "1.85"
+          - triple: thumbv7m-none-eabi
+            toolchain: "1.85"
+          # Priority 2: Cortex-M0
+          - triple: thumbv6m-none-eabi
+            toolchain: "1.85"
+          # Priority 3: 32-bit RISC-V
+          - triple: riscv32imc-unknown-none-elf
+            toolchain: "1.85"
+          - triple: riscv32imac-unknown-none-elf
+            toolchain: "1.85"
+          # Priority 5: aarch64
+          - triple: aarch64-unknown-linux-gnu
+            toolchain: "1.85"
+          # Priority 6: x86_64
+          - triple: x86_64-unknown-linux-gnu
+            toolchain: "1.85"
+          # Priority 4: AVR (nightly-only, needs build-std + target-cpu).
+          # Bare `nightly` because rust-std for avr-none isn't published
+          # on every nightly date — a pinned date risks the AVR job
+          # failing at component install rather than at verification.
+          - triple: avr-none
+            toolchain: nightly
+            extra_components: rust-src
+            extra_rustflags: "-C target-cpu=atmega328p"
+    runs-on: ubuntu-latest
+    name: ${{ matrix.triple }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          # AVR is tier 3 — rust-std isn't published as a downloadable
+          # component, so `rustup target add avr-none` fails. We build
+          # core from source via -Z build-std=core (see rust-src below)
+          # so the precompiled std isn't needed.
+          #
+          # NB: GitHub Actions ternary needs polarity-flip here. The
+          # natural `X == 'avr-none' && '' || X` short-circuits to X
+          # because `''` is falsy in `||`. The form below resolves to
+          # `''` on AVR and `X` everywhere else.
+          targets: ${{ matrix.triple != 'avr-none' && matrix.triple || '' }}
+          components: llvm-tools-preview${{ matrix.extra_components && ', ' || '' }}${{ matrix.extra_components }}
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ct-verify-${{ matrix.triple }}
+
+      - name: Run ct-driver
+        env:
+          # Scope target-specific rustflags to the cross-target build
+          # only — leaks into the host ct-driver compile otherwise.
+          CARGO_TARGET_AVR_NONE_RUSTFLAGS: ${{ matrix.extra_rustflags }}
+        run: cargo run --release -p ct-driver -- --target ${{ matrix.triple }} --json-out target/ct-report/${{ matrix.triple }}.json
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ct-report-${{ matrix.triple }}
+          path: target/ct-report/
+          retention-days: 30

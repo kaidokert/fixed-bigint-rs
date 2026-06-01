@@ -1,0 +1,18 @@
+[package]
+name = "ct-driver"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+description = "Cross-target disassembly + branch-grep driver for fixed-bigint CT verify."
+
+[[bin]]
+name = "ct-driver"
+path = "src/main.rs"
+
+[dependencies]
+regex = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
