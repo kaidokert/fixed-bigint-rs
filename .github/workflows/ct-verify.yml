@@ -52,7 +52,12 @@ jobs:
           # component, so `rustup target add avr-none` fails. We build
           # core from source via -Z build-std=core (see rust-src below)
           # so the precompiled std isn't needed.
-          targets: ${{ matrix.triple == 'avr-none' && '' || matrix.triple }}
+          #
+          # NB: GitHub Actions ternary needs polarity-flip here. The
+          # natural `X == 'avr-none' && '' || X` short-circuits to X
+          # because `''` is falsy in `||`. The form below resolves to
+          # `''` on AVR and `X` everywhere else.
+          targets: ${{ matrix.triple != 'avr-none' && matrix.triple || '' }}
           components: llvm-tools-preview${{ matrix.extra_components && ', ' || '' }}${{ matrix.extra_components }}
 
       - name: Cargo cache
