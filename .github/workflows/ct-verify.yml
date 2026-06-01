@@ -38,7 +38,6 @@ jobs:
             toolchain: nightly
             extra_components: rust-src
             extra_rustflags: "-C target-cpu=atmega328p"
-            extra_cargo_args: "-Z build-std=core"
     runs-on: ubuntu-latest
     name: ${{ matrix.triple }}
     steps:
