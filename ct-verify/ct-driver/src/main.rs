@@ -304,8 +304,7 @@ fn find_archive(spec: &TargetSpec) -> Result<PathBuf, String> {
 }
 
 fn llvm_objdump_path() -> Result<PathBuf, String> {
-    // Try `rust-objdump` (from llvm-tools-preview component) first, then
-    // fall back to bare `llvm-objdump`.
+    // Prefer the llvm-tools-preview component (matches the toolchain).
     if let Ok(out) = Command::new("rustc").arg("--print").arg("sysroot").output() {
         if out.status.success() {
             let sysroot = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -323,17 +322,9 @@ fn llvm_objdump_path() -> Result<PathBuf, String> {
             }
         }
     }
-
-    if which::which("llvm-objdump").is_ok() {
-        return Ok(PathBuf::from("llvm-objdump"));
-    }
-    if which::which("rust-objdump").is_ok() {
-        return Ok(PathBuf::from("rust-objdump"));
-    }
-    Err(
-        "llvm-objdump not found. Install llvm-tools-preview rustup component or cargo-binutils."
-            .to_string(),
-    )
+    // Fall back to PATH lookup at exec time. If neither name resolves
+    // run_objdump will surface a clear "No such file" error.
+    Ok(PathBuf::from("llvm-objdump"))
 }
 
 fn run_objdump(spec: &TargetSpec, archive: &Path) -> Result<String, String> {

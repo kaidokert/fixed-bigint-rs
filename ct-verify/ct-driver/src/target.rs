@@ -87,7 +87,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "avr-none",
         priority: 4,
-        toolchain: "nightly-2026-05-30",
+        toolchain: "nightly",
         forbidden: mnemonics::AVR_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
