@@ -27,7 +27,7 @@ RUN apt-get update -qq && \
     rm -rf /var/lib/apt/lists/*
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-        sh -s -- -y --default-toolchain 1.85 --profile minimal --no-modify-path && \
+        sh -s -- -y --default-toolchain 1.86 --profile minimal --no-modify-path && \
     rustup --version && cargo --version
 
 WORKDIR /work

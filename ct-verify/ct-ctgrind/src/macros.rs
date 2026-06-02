@@ -161,7 +161,11 @@ macro_rules! ctgrind_shift {
             #[allow(non_snake_case)]
             fn [<run_ $name>]() {
                 let a: [$T; $N] = [0; $N];
-                let n: $NT = 0;
+                // `black_box(0)` opacifies the literal — without it, release-
+                // LTO constant-propagates the 0 past `taint_val(&n)` (which
+                // only sets Valgrind metadata, not memory contents) and the
+                // taint never reaches the called primitive.
+                let n: $NT = ::core::hint::black_box(0);
                 let mut out: [$T; $N] = [0; $N];
                 $crate::macros::taint(&a);
                 $crate::macros::taint_val(&n);
@@ -225,7 +229,8 @@ macro_rules! ctgrind_checked_scalar {
             #[allow(non_snake_case)]
             fn [<run_ $name>]() {
                 let a: [$T; $N] = [0; $N];
-                let s: $ST = 0;
+                // See `ctgrind_shift` for the `black_box(0)` rationale.
+                let s: $ST = ::core::hint::black_box(0);
                 let mut out: [$T; $N] = [0; $N];
                 $crate::macros::taint(&a);
                 $crate::macros::taint_val(&s);
@@ -291,7 +296,8 @@ macro_rules! ctgrind_cond_select {
             fn [<run_ $name>]() {
                 let a: [$T; $N] = [0; $N];
                 let b: [$T; $N] = [0; $N];
-                let choice: u8 = 0;
+                // See `ctgrind_shift` for the `black_box(0)` rationale.
+                let choice: u8 = ::core::hint::black_box(0);
                 let mut out: [$T; $N] = [0; $N];
                 $crate::macros::taint(&a);
                 $crate::macros::taint(&b);
@@ -327,7 +333,8 @@ macro_rules! ctgrind_carrying_add {
             fn [<run_ $name>]() {
                 let a: [$T; $N] = [0; $N];
                 let b: [$T; $N] = [0; $N];
-                let carry: bool = false;
+                // See `ctgrind_shift` for the `black_box(false)` rationale.
+                let carry: bool = ::core::hint::black_box(false);
                 let mut out: [$T; $N] = [0; $N];
                 $crate::macros::taint(&a);
                 $crate::macros::taint(&b);

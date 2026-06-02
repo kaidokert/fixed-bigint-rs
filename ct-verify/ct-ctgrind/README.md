@@ -1,6 +1,6 @@
 # ct-ctgrind
 
-A second layer of CT verification for the same fixtures `ct-driver`
+A second layer of CT verification for the same fixtures that `ct-driver`
 inspects: instead of grepping disassembly for branches, this driver
 runs each fixture under Valgrind with its input buffers tagged
 `MAKE_MEM_UNDEFINED` via crabgrind. Valgrind then flags any

@@ -53,6 +53,7 @@ fn main() -> ExitCode {
     let mut pos_fail: Vec<&'static str> = Vec::new();
     let mut neg_seen: usize = 0;
     let mut neg_no_trip: Vec<&'static str> = Vec::new();
+    let mut unclassified: Vec<&'static str> = Vec::new();
 
     for fixture in inventory::iter::<Fixture>() {
         let before = valgrind::count_errors();
@@ -71,6 +72,11 @@ fn main() -> ExitCode {
             if !tripped {
                 neg_no_trip.push(fixture.name);
             }
+        } else {
+            // Fail closed — a fixture whose name matches neither prefix is
+            // almost certainly a rename/typo that would otherwise vanish
+            // from coverage silently.
+            unclassified.push(fixture.name);
         }
     }
 
@@ -91,6 +97,9 @@ fn main() -> ExitCode {
     for f in &neg_no_trip {
         println!("    FAIL (negative didn't trip): {}", f);
     }
+    for f in &unclassified {
+        println!("    FAIL (unclassified fixture name): {}", f);
+    }
 
     if pos_pass + pos_fail.len() == 0 {
         eprintln!("error: no positive fixtures registered — registry empty?");
@@ -100,7 +109,7 @@ fn main() -> ExitCode {
         eprintln!("error: no negative controls registered — registry empty?");
         return ExitCode::FAILURE;
     }
-    if !pos_fail.is_empty() || !neg_no_trip.is_empty() {
+    if !pos_fail.is_empty() || !neg_no_trip.is_empty() || !unclassified.is_empty() {
         return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS
