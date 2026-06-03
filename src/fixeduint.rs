@@ -234,13 +234,18 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
         let mut e = exp;
         let mut any_overflow: u8 = 0;
         for _ in 0..u32::BITS {
-            let bit = (e & 1) as u8;
+            // `black_box` opacifies the per-iteration bit so LLVM can't
+            // recognize the XOR-select as a cmov-on-secret-flag — see
+            // `const_ct_select` for the load-bearing explanation.
+            let bit = core::hint::black_box((e & 1) as u8);
             let (candidate, mul_ov) = OverflowingMul::overflowing_mul(&result, &base);
             // Multiply overflow matters iff bit_k is set.
             any_overflow |= (mul_ov as u8) & bit;
             // Per-limb CT-select of result vs candidate.
             let bit_t = <T as core::convert::From<u8>>::from(bit);
-            let mask = bit_t * <T as crate::const_numtraits::ConstBounded>::max_value();
+            let mask = core::hint::black_box(
+                bit_t * <T as crate::const_numtraits::ConstBounded>::max_value(),
+            );
             for i in 0..N {
                 let diff = result.array[i] ^ candidate.array[i];
                 result.array[i] ^= mask & diff;
@@ -248,7 +253,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
             e >>= 1;
             let (new_base, base_ov) = OverflowingMul::overflowing_mul(&base, &base);
             // Square overflow matters iff there are remaining set bits in e.
-            let any_remaining: u8 = (e != 0) as u8;
+            let any_remaining: u8 = core::hint::black_box((e != 0) as u8);
             any_overflow |= (base_ov as u8) & any_remaining;
             base = new_base;
         }
@@ -984,10 +989,13 @@ c0nst::c0nst! {
             let v = array[index];
             let v_lz = <T as ConstBitPrimInt>::leading_zeros(v);
             // Add this limb's lz contribution iff we haven't decided yet.
-            total += (!decided) & v_lz;
+            // `black_box` defeats the LLVM XOR/AND-select → cmov rewrite —
+            // see `const_ct_select` for the load-bearing explanation.
+            let undecided = core::hint::black_box(!decided);
+            total += undecided & v_lz;
             // Lock the decision the moment we see a non-zero limb.
             let v_nz_bit = (!<T as ConstZero>::is_zero(&v)) as u32;
-            let v_nz_mask = v_nz_bit.wrapping_neg();
+            let v_nz_mask = core::hint::black_box(v_nz_bit.wrapping_neg());
             decided |= v_nz_mask;
         }
         total
@@ -1024,9 +1032,12 @@ c0nst::c0nst! {
         while index < N {
             let v = array[index];
             let v_tz = <T as ConstBitPrimInt>::trailing_zeros(v);
-            total += (!decided) & v_tz;
+            // See `const_leading_zeros_ct` / `const_ct_select` for why
+            // `black_box` is here.
+            let undecided = core::hint::black_box(!decided);
+            total += undecided & v_tz;
             let v_nz_bit = (!<T as ConstZero>::is_zero(&v)) as u32;
-            let v_nz_mask = v_nz_bit.wrapping_neg();
+            let v_nz_mask = core::hint::black_box(v_nz_bit.wrapping_neg());
             decided |= v_nz_mask;
             index += 1;
         }
@@ -1166,10 +1177,11 @@ c0nst::c0nst! {
             let lt = (a[index] < b[index]) as u8;
             // here ∈ {0, 1, 2}: 2 for Greater, 1 for Less, 0 for Equal.
             let here = (gt << 1) | lt;
-            let undecided_mask = !decided;
+            // See `const_ct_select` for why `black_box` is here.
+            let undecided_mask = core::hint::black_box(!decided);
             result |= undecided_mask & here;
             // Lock the decision the moment a non-zero `here` is observed.
-            let here_nz_mask = ((here != 0) as u8).wrapping_neg();
+            let here_nz_mask = core::hint::black_box(((here != 0) as u8).wrapping_neg());
             decided |= here_nz_mask;
         }
         match result {
