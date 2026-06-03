@@ -16,11 +16,11 @@
 //! the gate; they use the `nct_fix__neg__*` prefix so the driver can
 //! distinguish them and assert each one produces ≥ 1 violation.
 
-#![no_std]
+// `no_std` is gated on the `panic-handler` feature so host-side consumers
+// (ct-ctgrind) can link this crate as an rlib alongside std, which supplies
+// the panic handler and eh personality that bare-metal builds lack.
+#![cfg_attr(feature = "panic-handler", no_std)]
 #![allow(non_snake_case)]
-// Tier-2 / no_std targets ship without panic-strategy unwind libs; we
-// hardcode `panic = "abort"` in the release profile, so the lang-item is
-// satisfied at codegen time. The `#[panic_handler]` below covers debug.
 #![cfg_attr(not(test), allow(unused_imports))]
 
 mod fixtures_cat_a;
@@ -28,6 +28,17 @@ mod fixtures_cat_b;
 mod fixtures_cat_c;
 mod fixtures_neg;
 
+/// No-op Rust-visible anchor. Host-side consumers (ct-ctgrind) call this
+/// once so rustc actually links the rlib at all — without a Rust-side
+/// reference it would be dropped from the link line and the
+/// `#[no_mangle] extern "C"` fixture symbols would resolve as undefined.
+pub fn link_anchor() {}
+
+// Only define a panic_handler under the `panic-handler` feature (default on).
+// When this crate is linked as an rlib into a host binary (ct-ctgrind etc.),
+// std supplies its own and the two would otherwise collide; that consumer
+// disables the default features.
+#[cfg(feature = "panic-handler")]
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {}
