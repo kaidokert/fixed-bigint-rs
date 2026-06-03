@@ -11,12 +11,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # x86_64 needs +lzcnt (BMI1) so that `u32::leading_zeros()`
+          # lowers to `lzcnt` instead of `test/je/bsr`. The `je` handling
+          # `bsr`-undefined-on-zero is a real data-dependent branch in
+          # the baseline-x86_64 std intrinsic lowering, not in our select
+          # code. BMI1 is available on Haswell+ (2013) and equivalent AMD
+          # CPUs — true for every GitHub Actions x86_64 runner.
+          # aarch64 has unconditional CLZ from the base ISA, no flags needed.
           - runner: ubuntu-latest
             arch: x86_64-linux
             target: x86_64-unknown-linux-gnu
+            rustflags: "-C target-feature=+lzcnt,+bmi1"
           - runner: ubuntu-24.04-arm
             arch: aarch64-linux
             target: aarch64-unknown-linux-gnu
+            rustflags: ""
     name: ${{ matrix.arch }} ctgrind
     runs-on: ${{ matrix.runner }}
     steps:
@@ -39,6 +48,8 @@ jobs:
           key: ct-ctgrind-${{ matrix.arch }}
 
       - name: Build ct-ctgrind
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
         run: cargo build --release -p ct-ctgrind
 
       - name: Run under Valgrind
