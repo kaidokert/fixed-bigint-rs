@@ -99,7 +99,7 @@ pub fn split_blocks(objdump_out: &str) -> Vec<FunctionBlock> {
         if let Some(caps) = RELOC_RE.captures(line) {
             if let Some(last) = block.insns.last_mut() {
                 if last.call_target.is_none() {
-                    last.call_target = caps.get(1).map(|m| m.as_str().to_string());
+                    last.call_target = caps.get(1).map(|m| normalize_call_target(m.as_str()));
                 }
             }
             continue;
@@ -327,11 +327,32 @@ pub fn compute_reachable_symbols(
 /// indirect calls (e.g. `blr x0`) and unresolved targets don't get a
 /// `<...>` suffix and return `None`.
 fn extract_call_target(full_line: &str) -> Option<String> {
-    static TARGET_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<([^>]+)>\s*$").unwrap());
+    // Match `<symbol>` near the end of the line, tolerating a trailing
+    // `@ imm = #0x…` annotation that thumb objdump appends.
+    static TARGET_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"<([^>]+)>(?:\s+@\s+imm[^<]*)?\s*$").unwrap());
     TARGET_RE
         .captures(full_line.trim_end())
         .and_then(|c| c.get(1))
-        .map(|m| m.as_str().to_string())
+        .map(|m| normalize_call_target(m.as_str()))
+}
+
+/// Strip addend / PLT / GOT decorations that objdump appends to call
+/// targets, so the result matches the bare-name keys in
+/// `blocks_by_sym`. Examples that need normalising:
+///
+/// - `_ZN…count_ones…E-0x4`       (ELF `R_X86_64_GOTPCREL` addend)
+/// - `<some_helper+0x10>`         (inline `<>` tag with non-zero offset)
+/// - `memcpy@plt`                 (PLT decoration)
+/// - `__some_sym@GOTPCREL`        (GOT / reloc-type decoration)
+///
+/// Truncate at the first `+`, `-`, `@`, or whitespace and return the
+/// prefix.
+fn normalize_call_target(raw: &str) -> String {
+    let cutoff = raw
+        .find(|c: char| c == '+' || c == '-' || c == '@' || c.is_whitespace())
+        .unwrap_or(raw.len());
+    raw[..cutoff].to_string()
 }
 
 /// Check whether a symbol matches any of the per-target helper

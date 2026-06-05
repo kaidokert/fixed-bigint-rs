@@ -216,6 +216,16 @@ const HELPER_ALLOWLIST: &[&str] = &[
     r"fixed_bigint\.\.fixeduint\.\.FixedUInt.*subtle\.\.ConstantTimeGreater",
     // subtle's primitive u32 ct_gt: loop bound is u32::BITS = 32.
     r"\$LT\$u32\$u20\$as\$u20\$subtle\.\.ConstantTimeGreater\$GT\$5ct_gt",
+    // Compiler-builtin and libc-class byte-copy / byte-zero helpers
+    // reached transitively from array initialisation. All branchful
+    // on size (public parameter), not on data — same shape as our own
+    // per-limb loops.
+    //
+    // ARM EABI variants on thumb targets:
+    r"^_?__aeabi_(?:memcpy|memset|memclr|memmove)\d*$",
+    // Bare libc-style names (Linux/Mach-O) and their `__` variants
+    // emitted by compiler-builtins:
+    r"^_?_?(?:mem(?:cpy|set|clr|move|cmp)|bcmp)$",
 ];
 
 pub fn lookup(triple: &str) -> Option<&'static TargetSpec> {
