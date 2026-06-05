@@ -6,7 +6,7 @@
 //! check + the thumb IT-state machine + the unconditional-branch
 //! direction classifier.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -26,6 +26,19 @@ static HEADER_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<([^>]+)>:\s*$
 static INSN_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\s*(?:([0-9a-fA-F]+):)?\s+(\S+)(?:\s+(.*))?$").unwrap());
 
+// Relocation line emitted by `objdump -r`, interleaved with disassembly.
+// Format varies by file format:
+//   Mach-O: `\t\t<addr>:  ARM64_RELOC_BRANCH26\t<symbol>`
+//   ELF:    `\t\t<addr>: R_AARCH64_CALL26\t<symbol>` (and other R_*)
+// Common shape: indented line, optional `addr:`, a relocation type
+// (token containing `RELOC` or starting with `R_`), then a symbol.
+static RELOC_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"^\s+(?:[0-9a-fA-F]+:)?\s*(?:[A-Z][A-Z0-9_]*_RELOC_[A-Z0-9_]+|R_[A-Z0-9_]+)\s+(\S+)\s*$",
+    )
+    .unwrap()
+});
+
 /// One disassembled function block.
 #[derive(Debug)]
 pub struct FunctionBlock {
@@ -39,6 +52,11 @@ pub struct Insn {
     pub offset: u64,
     pub mnemonic: String,
     pub full_line: String,
+    /// When the instruction has a relocation entry resolving its
+    /// operand (a `bl`/`call`/`jal` target, typically), the relocation
+    /// symbol name. `None` for non-call instructions and for indirect
+    /// or fully-resolved operands.
+    pub call_target: Option<String>,
 }
 
 /// Parse the entire objdump output into function blocks.
@@ -75,6 +93,18 @@ pub fn split_blocks(objdump_out: &str) -> Vec<FunctionBlock> {
             continue;
         };
 
+        // Relocation lines look superficially like instruction lines
+        // (they have an `address:` prefix), so match them first and
+        // attach the symbol to the previous instruction.
+        if let Some(caps) = RELOC_RE.captures(line) {
+            if let Some(last) = block.insns.last_mut() {
+                if last.call_target.is_none() {
+                    last.call_target = caps.get(1).map(|m| m.as_str().to_string());
+                }
+            }
+            continue;
+        }
+
         if let Some(caps) = INSN_RE.captures(line) {
             let offset = if let Some(parsed) = caps
                 .get(1)
@@ -102,6 +132,7 @@ pub fn split_blocks(objdump_out: &str) -> Vec<FunctionBlock> {
                 offset,
                 mnemonic,
                 full_line: line.trim_end().to_string(),
+                call_target: None,
             });
         }
     }
@@ -128,6 +159,8 @@ pub struct Violation {
 pub struct Patterns {
     pub forbidden: Vec<Regex>,
     pub allowed: Vec<Regex>,
+    pub call: Vec<Regex>,
+    pub allowed_helpers: Vec<Regex>,
 }
 
 impl Patterns {
@@ -142,6 +175,16 @@ impl Patterns {
                 .allowed_cmov
                 .iter()
                 .map(|p| Regex::new(p).expect("bad allowed regex"))
+                .collect(),
+            call: spec
+                .call_mnemonics
+                .iter()
+                .map(|p| Regex::new(p).expect("bad call regex"))
+                .collect(),
+            allowed_helpers: spec
+                .allowed_helpers
+                .iter()
+                .map(|p| Regex::new(p).expect("bad allowed_helpers regex"))
                 .collect(),
         }
     }
@@ -225,35 +268,77 @@ pub fn scan_block(block: &FunctionBlock, spec: &TargetSpec, pat: &Patterns) -> V
     violations
 }
 
-/// Decide which symbols the driver inspects.
+/// Compute the transitive call-reachability closure starting from each
+/// Ct fixture symbol (`ct_fix__*`). Negative-control fixtures are
+/// deliberately excluded — their bodies invoke Nct helpers that have
+/// branchful behaviour by design, and we don't want those helpers
+/// flagged. The returned set is `{ct_fixtures} ∪ {helpers reached from
+/// any ct_fixture via call edges}`.
 ///
-/// **v1 scope**: only the fixture wrappers themselves
-/// (`ct_fix__*` and `nct_fix__*`). Helper symbols compiled into the
-/// staticlib are NOT inspected here, for two reasons:
-///
-/// 1. **No call-graph reachability**: a helper like
-///    `<FixedUInt as Integer>::gcd` exists in the archive because the
-///    crate compiled it, not because any Ct fixture calls it. We can't
-///    tell, from one symbol's mangled name, whether it's actually on a
-///    Ct call path.
-/// 2. **Public-parameter loop bounds**: helpers like
-///    `<FixedUInt as ConditionallySelectable>::conditional_select`
-///    contain a `for i in 0..N` loop that compiles to
-///    `cmp i, #N; b.lt`. That's a forbidden mnemonic by raw regex but
-///    perfectly CT-safe in context (N is a compile-time constant). A
-///    static-pattern check can't distinguish that from a real
-///    data-dependent branch without taint analysis.
-///
-/// The trade-off: we don't catch branch-injection regressions in a
-/// helper that's never called from a fixture.
-pub fn is_in_scope_symbol(sym: &str) -> bool {
-    if sym.starts_with("ct_fix__") || sym.starts_with("_ct_fix__") {
-        return true;
+/// External targets (symbols not present as `FunctionBlock`s in
+/// `blocks`) and indirect calls (no resolved relocation or `<sym>`
+/// operand) are silently dropped — those are outside our scope.
+pub fn compute_reachable_symbols(
+    blocks: &[FunctionBlock],
+    call_patterns: &[Regex],
+) -> HashSet<String> {
+    let blocks_by_sym: HashMap<&str, &FunctionBlock> =
+        blocks.iter().map(|b| (b.symbol.as_str(), b)).collect();
+
+    let mut visited: HashSet<String> = HashSet::new();
+    let mut queue: VecDeque<String> = blocks
+        .iter()
+        .filter(|b| is_positive_fixture(&b.symbol))
+        .map(|b| b.symbol.clone())
+        .collect();
+
+    while let Some(sym) = queue.pop_front() {
+        if !visited.insert(sym.clone()) {
+            continue;
+        }
+        let Some(block) = blocks_by_sym.get(sym.as_str()) else {
+            // External symbol or stripped target — outside our scope.
+            continue;
+        };
+        for insn in &block.insns {
+            if !call_patterns.iter().any(|re| re.is_match(&insn.mnemonic)) {
+                continue;
+            }
+            // Prefer the relocation-resolved target (covers unresolved
+            // calls in the staticlib); fall back to the inline
+            // `<symbol>` annotation for already-linked binaries.
+            let target = insn
+                .call_target
+                .clone()
+                .or_else(|| extract_call_target(&insn.full_line));
+            if let Some(target) = target {
+                if !visited.contains(&target) {
+                    queue.push_back(target);
+                }
+            }
+        }
     }
-    if sym.starts_with("nct_fix__") || sym.starts_with("_nct_fix__") {
-        return true;
-    }
-    false
+    visited
+}
+
+/// Pull a resolved call target out of an objdump line. Objdump prints
+/// the resolved symbol as `<symbol_name>` after the instruction operands
+/// when the call has a known target in the same disassembly unit;
+/// indirect calls (e.g. `blr x0`) and unresolved targets don't get a
+/// `<...>` suffix and return `None`.
+fn extract_call_target(full_line: &str) -> Option<String> {
+    static TARGET_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<([^>]+)>\s*$").unwrap());
+    TARGET_RE
+        .captures(full_line.trim_end())
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_string())
+}
+
+/// Check whether a symbol matches any of the per-target helper
+/// allowlist patterns (public-parameter loops we've classified as
+/// CT-safe by inspection).
+pub fn is_allowed_helper(sym: &str, allowed_helpers: &[Regex]) -> bool {
+    allowed_helpers.iter().any(|re| re.is_match(sym))
 }
 
 /// True if a `nct_fix__neg__*` symbol — the negative controls.

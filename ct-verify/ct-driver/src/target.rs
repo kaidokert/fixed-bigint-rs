@@ -25,6 +25,17 @@ pub struct TargetSpec {
     pub allowed_cmov: &'static [&'static str],
     /// Engage the thumb IT-state machine.
     pub thumb_it_blocks: bool,
+    /// Call-instruction mnemonics for this arch (regex). Used by the
+    /// reachability walker to follow edges from fixtures into helpers;
+    /// these aren't flagged as violations themselves.
+    pub call_mnemonics: &'static [&'static str],
+    /// Helper symbol patterns whose forbidden mnemonics should be
+    /// suppressed — typically because the body is a public-parameter
+    /// loop (`for i in 0..N` where `N` is a compile-time constant),
+    /// which compiles to a branchful but CT-safe `cmp/b.lt`. Static
+    /// pattern matching can't distinguish those from secret-dependent
+    /// branches, so this list is a small per-target escape hatch.
+    pub allowed_helpers: &'static [&'static str],
     /// Extra cargo args needed for this target (e.g., `-Z build-std=core`
     /// for AVR).
     pub extra_cargo_args: &'static [&'static str],
@@ -40,6 +51,8 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: true,
+        call_mnemonics: mnemonics::THUMB_CALL,
+        allowed_helpers: HELPER_ALLOWLIST,
         extra_cargo_args: &[],
     },
     TargetSpec {
@@ -49,6 +62,8 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: true,
+        call_mnemonics: mnemonics::THUMB_CALL,
+        allowed_helpers: HELPER_ALLOWLIST,
         extra_cargo_args: &[],
     },
     // Priority 2: Cortex-M0
@@ -59,6 +74,8 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: false, // armv6m has no IT; no allowlist needed
+        call_mnemonics: mnemonics::THUMB_CALL,
+        allowed_helpers: HELPER_ALLOWLIST,
         extra_cargo_args: &[],
     },
     // Priority 3: 32-bit RISC-V
@@ -69,6 +86,8 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::RISCV_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
+        call_mnemonics: mnemonics::RISCV_CALL,
+        allowed_helpers: HELPER_ALLOWLIST,
         extra_cargo_args: &[],
     },
     TargetSpec {
@@ -78,6 +97,8 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::RISCV_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
+        call_mnemonics: mnemonics::RISCV_CALL,
+        allowed_helpers: HELPER_ALLOWLIST,
         extra_cargo_args: &[],
     },
     // Priority 4: 8-bit AVR (nightly-only, needs build-std + target-cpu).
@@ -91,6 +112,8 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::AVR_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
+        call_mnemonics: mnemonics::AVR_CALL,
+        allowed_helpers: HELPER_ALLOWLIST,
         extra_cargo_args: &["-Z", "build-std=core"],
     },
     // Priority 5: aarch64
@@ -101,6 +124,8 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::AARCH64_FORBIDDEN,
         allowed_cmov: mnemonics::AARCH64_ALLOWED,
         thumb_it_blocks: false,
+        call_mnemonics: mnemonics::AARCH64_CALL,
+        allowed_helpers: HELPER_ALLOWLIST,
         extra_cargo_args: &[],
     },
     // Priority 6: x86_64
@@ -111,6 +136,8 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::X86_64_FORBIDDEN,
         allowed_cmov: mnemonics::X86_64_ALLOWED,
         thumb_it_blocks: false,
+        call_mnemonics: mnemonics::X86_64_CALL,
+        allowed_helpers: HELPER_ALLOWLIST,
         extra_cargo_args: &[],
     },
     // Host fallback: aarch64-apple-darwin. Same mnemonic tables as
@@ -123,8 +150,72 @@ pub const TARGETS: &[TargetSpec] = &[
         forbidden: mnemonics::AARCH64_FORBIDDEN,
         allowed_cmov: mnemonics::AARCH64_ALLOWED,
         thumb_it_blocks: false,
+        call_mnemonics: mnemonics::AARCH64_CALL,
+        allowed_helpers: HELPER_ALLOWLIST,
         extra_cargo_args: &[],
     },
+];
+
+/// Shared per-helper allowlist. Helpers whose bodies match any of these
+/// regexes are skipped during the reachability scan, because their
+/// `cmp/b.lt` branches are public-parameter loops (loop counter compared
+/// to compile-time `N`) rather than secret-dependent branches.
+///
+/// Keep entries narrow — match on demangled-ish substrings of the rust
+/// symbol mangling so a typo or rename surfaces as a hard scope miss
+/// rather than a silent skip. Add an entry only when the smoke run
+/// confirms the helper's body is a public-bounded loop; document the
+/// reason inline.
+///
+/// Each helper here was inspected during the asm-grep helper-scope
+/// expansion (smoke run on aarch64-apple-darwin) — the flagged branches
+/// are public-parameter loops (`for i in 0..N` or
+/// `while k < usize::BITS`) rather than secret-dependent control flow.
+/// The corresponding CT property is also exercised by the existing
+/// ctgrind harness, which catches it directly through taint.
+const HELPER_ALLOWLIST: &[&str] = &[
+    // Bit-shift helpers. const_shl_ct / shr_ct iterate usize::BITS times
+    // with a per-iteration mask-AND-XOR select; const_shl_impl / shr_impl
+    // are reached from them with a non-tainted `amount = 1 << k`.
+    r"fixed_bigint9fixeduint12const_shl_ct",
+    r"fixed_bigint9fixeduint12const_shr_ct",
+    r"fixed_bigint9fixeduint14const_shl_impl",
+    r"fixed_bigint9fixeduint14const_shr_impl",
+    // Shift-amount normaliser. Reached from Nct paths only after PR #121
+    // moved the Ct arm off it; the branches are on `bits >= bit_size`
+    // (Nct caller's concern).
+    r"fixed_bigint9fixeduint12bit_ops_impl22normalize_shift_amount",
+    // Per-limb CT select. Branches are loop counter < N (compile-time).
+    r"fixed_bigint9fixeduint15const_ct_select",
+    // Per-limb scanners — leading/trailing zero counts, is_zero / is_one.
+    // Loop bound is N (compile-time constant).
+    r"fixed_bigint9fixeduint16const_is_zero_ct",
+    r"fixed_bigint9fixeduint15const_is_one_ct",
+    r"fixed_bigint9fixeduint22const_leading_zeros_ct",
+    r"fixed_bigint9fixeduint23const_trailing_zeros_ct",
+    // Per-limb arithmetic — N-bounded loops.
+    r"fixed_bigint9fixeduint14add_with_carry",
+    r"fixed_bigint9fixeduint9const_mul",
+    r"fixed_bigint9fixeduint8add_impl",
+    r"fixed_bigint9fixeduint8sub_impl",
+    // ct_checked_pow's square-and-multiply ladder iterates u32::BITS
+    // times.
+    r"fixed_bigint9fixeduint.*ct_checked_pow",
+    // Trait impls on FixedUInt: bitwise ops, prim-int family, num_traits
+    // identity, subtle's ConditionallySelectable / ConstantTime*. All
+    // per-limb N-bounded loops.
+    r"core\.\.ops\.\.bit\.\.(?:Not|BitOr|BitAnd|BitXor).*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    r"fixed_bigint\.\.const_numtraits\.\.ConstBitPrimInt.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    r"fixed_bigint\.\.const_numtraits\.\.ConstZero.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    r"fixed_bigint\.\.const_numtraits\.\.ConstBounded.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    // Subtle impls use `<Self as Trait>` mangling (Self first, then
+    // `as`, then trait) rather than the `<impl Trait for Self>`
+    // mangling the bitwise / num_traits impls above use.
+    r"fixed_bigint\.\.fixeduint\.\.FixedUInt.*subtle\.\.ConditionallySelectable",
+    r"fixed_bigint\.\.fixeduint\.\.FixedUInt.*subtle\.\.ConstantTimeEq",
+    r"fixed_bigint\.\.fixeduint\.\.FixedUInt.*subtle\.\.ConstantTimeGreater",
+    // subtle's primitive u32 ct_gt: loop bound is u32::BITS = 32.
+    r"\$LT\$u32\$u20\$as\$u20\$subtle\.\.ConstantTimeGreater\$GT\$5ct_gt",
 ];
 
 pub fn lookup(triple: &str) -> Option<&'static TargetSpec> {
