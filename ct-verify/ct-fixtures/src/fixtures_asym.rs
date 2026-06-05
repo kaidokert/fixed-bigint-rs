@@ -1,9 +1,9 @@
 //! Category ASYM: asymmetric-taint regression fixtures.
 //!
-//! Each fixture here exercises a single load-bearing `core::hint::black_box`
-//! site in `fixed_bigint::fixeduint` under the *asymmetric* taint pattern
-//! that originally surfaced the bug each `black_box` defends against (see
-//! PR #118, PR #120 for the address-select / cmov-on-tainted-flag class).
+//! Each fixture here exercises a load-bearing `core::hint::black_box`
+//! protection under the *asymmetric* taint pattern that originally
+//! surfaced the bugs the `black_box` calls defend against (see PR #118,
+//! PR #120 for the address-select / cmov-on-tainted-flag class).
 //!
 //! Why these are necessary on top of the symmetric Cat A/B/C fixtures: when
 //! both operands of the LLVM-rewritten select are tainted, Valgrind sees
@@ -15,9 +15,27 @@
 //! the source operands carry different taint metadata, which is exactly the
 //! "use of uninitialised value in conditional move" pattern Memcheck flags.
 //!
+//! What each family exercises:
+//!
+//! - `one_shl` — `Self::one() << tainted_amount`. Dispatches through
+//!   `Shl<u32>` → `Shl<usize>` → `const_shl_ct`, exercising the
+//!   `black_box(bit_k)` in that helper.
+//! - `subtle_cond_select` — `subtle::ConditionallySelectable::conditional_select`
+//!   on a Ct `FixedUInt` with two non-tainted constant operands. This goes
+//!   through subtle's per-limb primitive `T::conditional_select`, NOT our
+//!   `const_ct_select` helper — the test target here is subtle's own
+//!   `Choice::from(u8)` opacification. Our `const_ct_select`'s `black_box`
+//!   protection is already exercised by existing fixtures like
+//!   `ct_fix__A__next_pow2__*` and the saturating arithmetic family, which
+//!   call `const_ct_select` internally with one tainted operand and one
+//!   constant (e.g. `const_ct_select(shifted, max_value, overflow)`).
+//! - `pow_const_base` — `const_base.ct_checked_pow(tainted_exp)` with the
+//!   base hardcoded to 2. Exercises the per-iteration `black_box(bit)` in
+//!   the square-and-multiply inner loop of `ct_checked_pow`.
+//!
 //! If a future refactor removes one of the protected `black_box` calls,
-//! these fixtures trip immediately. They are otherwise expected to pass
-//! cleanly on every ctgrind-covered architecture.
+//! the corresponding fixture trips on the next ctgrind run. They are
+//! otherwise expected to pass cleanly on every ctgrind-covered architecture.
 
 use fixed_bigint::{Ct, FixedUInt};
 use subtle::ConditionallySelectable;
@@ -25,9 +43,10 @@ use subtle::ConditionallySelectable;
 // =============================================================================
 // `Self::one() << tainted_amount`
 //
-// Exercises `const_shl_ct`'s `black_box(bit_k)`. Mirrors the configuration
-// that surfaced the original `next_pow2` bug: non-tainted LHS, tainted shift
-// amount derived from secret state.
+// Routes through `Shl<u32>` (which normalises the amount and recurses into
+// `Shl<usize>` → `const_shl_ct`), exercising the `black_box(bit_k)` in the
+// barrel-shifter inner loop. Non-tainted LHS, tainted shift amount —
+// mirrors the configuration that surfaced the original `next_pow2` bug.
 // =============================================================================
 
 macro_rules! emit_asym_one_shl {
@@ -38,7 +57,7 @@ macro_rules! emit_asym_one_shl {
             let mut one_arr: [$T; $N] = [0; $N];
             one_arr[0] = 1;
             let one = FixedUInt::<$T, $N, Ct>::from(one_arr);
-            let shifted = one << (amount as usize);
+            let shifted = one << amount;
             let result = core::hint::black_box(*shifted.words());
             unsafe {
                 *out_ptr = result;
@@ -54,13 +73,18 @@ emit_asym_one_shl!(ct_fix__ASYM__one_shl__u32__N16, u32, 16);
 emit_asym_one_shl!(ct_fix__ASYM__one_shl__u64__N4, u64, 4);
 
 // =============================================================================
-// `conditional_select(zero, one, tainted_choice)`
+// `subtle::ConditionallySelectable::conditional_select(zero, one, tainted_choice)`
 //
-// Exercises `const_ct_select`'s `black_box(choice)`. Both operands of the
-// select are non-tainted constants; the choice is the only tainted input.
+// Exercises subtle's per-limb primitive `T::conditional_select` and the
+// `Choice::from(u8)` opacification it relies on. Note: this does NOT
+// reach our internal `const_ct_select` helper — that path runs through
+// `next_power_of_two`, `sat_add`/`sat_sub`/`sat_mul`, `abs_diff`,
+// `ct_checked_*` shifts, etc., and is exercised by their existing
+// fixtures via internal asymmetric flow (e.g. `const_ct_select(shifted,
+// max_value, overflow)` where `max_value` is a non-tainted constant).
 // =============================================================================
 
-macro_rules! emit_asym_cond_select_consts {
+macro_rules! emit_asym_subtle_cond_select {
     ($name:ident, $T:ty, $N:literal) => {
         #[no_mangle]
         pub extern "C" fn $name(choice_ptr: *const u8, out_ptr: *mut [$T; $N]) {
@@ -82,11 +106,11 @@ macro_rules! emit_asym_cond_select_consts {
     };
 }
 
-emit_asym_cond_select_consts!(ct_fix__ASYM__cond_select_consts__u8__N16, u8, 16);
-emit_asym_cond_select_consts!(ct_fix__ASYM__cond_select_consts__u16__N16, u16, 16);
-emit_asym_cond_select_consts!(ct_fix__ASYM__cond_select_consts__u32__N4, u32, 4);
-emit_asym_cond_select_consts!(ct_fix__ASYM__cond_select_consts__u32__N16, u32, 16);
-emit_asym_cond_select_consts!(ct_fix__ASYM__cond_select_consts__u64__N4, u64, 4);
+emit_asym_subtle_cond_select!(ct_fix__ASYM__subtle_cond_select__u8__N16, u8, 16);
+emit_asym_subtle_cond_select!(ct_fix__ASYM__subtle_cond_select__u16__N16, u16, 16);
+emit_asym_subtle_cond_select!(ct_fix__ASYM__subtle_cond_select__u32__N4, u32, 4);
+emit_asym_subtle_cond_select!(ct_fix__ASYM__subtle_cond_select__u32__N16, u32, 16);
+emit_asym_subtle_cond_select!(ct_fix__ASYM__subtle_cond_select__u64__N4, u64, 4);
 
 // =============================================================================
 // `const_base.ct_checked_pow(tainted_exp)` with non-tainted base (= 2).

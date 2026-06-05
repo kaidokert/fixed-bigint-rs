@@ -6,9 +6,12 @@
 //! invokes the corresponding `ct_fix__ASYM__*` symbol from ct-fixtures.
 //!
 //! These exist as a regression test for the load-bearing `black_box`
-//! calls in `const_shl_ct`, `const_ct_select`, and `ct_checked_pow` —
-//! see the matching `fixtures_asym.rs` in ct-fixtures for the
-//! per-fixture rationale.
+//! calls in `const_shl_ct`, `ct_checked_pow`, and (for `subtle_cond_select`)
+//! subtle's own `Choice::from(u8)` opacification. See the matching
+//! `fixtures_asym.rs` in ct-fixtures for the per-fixture rationale —
+//! `const_ct_select` itself is exercised by existing fixtures via the
+//! `next_pow2` / saturating-arithmetic internal-asymmetric flow, not by
+//! a direct fixture here.
 
 // =============================================================================
 // Asymmetric shift: tainted u32 amount → output array.
@@ -74,11 +77,11 @@ macro_rules! ctgrind_asym_select_u8 {
     };
 }
 
-ctgrind_asym_select_u8!(ct_fix__ASYM__cond_select_consts__u8__N16, u8, 16);
-ctgrind_asym_select_u8!(ct_fix__ASYM__cond_select_consts__u16__N16, u16, 16);
-ctgrind_asym_select_u8!(ct_fix__ASYM__cond_select_consts__u32__N4, u32, 4);
-ctgrind_asym_select_u8!(ct_fix__ASYM__cond_select_consts__u32__N16, u32, 16);
-ctgrind_asym_select_u8!(ct_fix__ASYM__cond_select_consts__u64__N4, u64, 4);
+ctgrind_asym_select_u8!(ct_fix__ASYM__subtle_cond_select__u8__N16, u8, 16);
+ctgrind_asym_select_u8!(ct_fix__ASYM__subtle_cond_select__u16__N16, u16, 16);
+ctgrind_asym_select_u8!(ct_fix__ASYM__subtle_cond_select__u32__N4, u32, 4);
+ctgrind_asym_select_u8!(ct_fix__ASYM__subtle_cond_select__u32__N16, u32, 16);
+ctgrind_asym_select_u8!(ct_fix__ASYM__subtle_cond_select__u64__N4, u64, 4);
 
 // =============================================================================
 // Asymmetric pow: tainted u32 exponent → output array + validity u8.
