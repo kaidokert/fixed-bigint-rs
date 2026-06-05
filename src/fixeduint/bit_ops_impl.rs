@@ -1,7 +1,4 @@
-use super::{
-    const_ct_select, const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl, FixedUInt,
-    MachineWord,
-};
+use super::{const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl, FixedUInt, MachineWord};
 
 use crate::const_numtraits::{
     ConstCheckedShl, ConstCheckedShr, ConstOverflowingShl, ConstOverflowingShr,
@@ -332,10 +329,10 @@ c0nst::c0nst! {
         target: FixedUInt<T, N, P>,
         bits: u32,
     ) -> FixedUInt<T, N, P> {
-        let (shift, overflow) =
-            normalize_shift_amount(bits, FixedUInt::<T, N, P>::BIT_SIZE);
         match P::TAG {
             PersonalityTag::Nct => {
+                let (shift, overflow) =
+                    normalize_shift_amount(bits, FixedUInt::<T, N, P>::BIT_SIZE);
                 if overflow {
                     <FixedUInt<T, N, P> as ConstZero>::zero()
                 } else {
@@ -343,14 +340,15 @@ c0nst::c0nst! {
                 }
             }
             PersonalityTag::Ct => {
-                // Branchless: always compute the shift, ct-select between
-                // the shifted result and zero on the overflow flag.
-                let shifted = target << shift;
-                const_ct_select(
-                    shifted,
-                    <FixedUInt<T, N, P> as ConstZero>::zero(),
-                    overflow as u8,
-                )
+                // Skip `normalize_shift_amount` entirely. Its `if bits >=
+                // bit_size_u32` is a tainted-flag branch and `bits %
+                // bit_size_u32` is a variable-time modulo when bits is a
+                // secret — both leaks even though current LLVM may pattern-
+                // match them on power-of-2 BIT_SIZE. `const_shl_ct`'s
+                // barrel shifter already collapses out-of-range shifts to
+                // zero (via `const_shl_impl`'s `nwords >= N` zero-out), so
+                // the overflow detection is redundant for the Ct path.
+                target << (bits as usize)
             }
         }
     }
@@ -364,10 +362,10 @@ c0nst::c0nst! {
         target: FixedUInt<T, N, P>,
         bits: u32,
     ) -> FixedUInt<T, N, P> {
-        let (shift, overflow) =
-            normalize_shift_amount(bits, FixedUInt::<T, N, P>::BIT_SIZE);
         match P::TAG {
             PersonalityTag::Nct => {
+                let (shift, overflow) =
+                    normalize_shift_amount(bits, FixedUInt::<T, N, P>::BIT_SIZE);
                 if overflow {
                     <FixedUInt<T, N, P> as ConstZero>::zero()
                 } else {
@@ -375,12 +373,10 @@ c0nst::c0nst! {
                 }
             }
             PersonalityTag::Ct => {
-                let shifted = target >> shift;
-                const_ct_select(
-                    shifted,
-                    <FixedUInt<T, N, P> as ConstZero>::zero(),
-                    overflow as u8,
-                )
+                // See `const_unbounded_shl_u32` for why this skips
+                // `normalize_shift_amount`. `const_shr_ct` collapses
+                // out-of-range shifts to zero the same way.
+                target >> (bits as usize)
             }
         }
     }
