@@ -36,6 +36,13 @@ pub struct TargetSpec {
     /// pattern matching can't distinguish those from secret-dependent
     /// branches, so this list is a small per-target escape hatch.
     pub allowed_helpers: &'static [&'static str],
+    /// Per-target extras layered on top of `allowed_helpers`. Reserved
+    /// for branches whose root cause is architecture-specific (e.g.,
+    /// armv6m lacks the `clz` instruction, so `u32::leading_zeros()`
+    /// lowers to a branchful software polynomial in `core` itself).
+    /// These don't belong in the shared list because every other arch
+    /// should keep grepping for them.
+    pub extra_allowed_helpers: &'static [&'static str],
     /// Extra cargo args needed for this target (e.g., `-Z build-std=core`
     /// for AVR).
     pub extra_cargo_args: &'static [&'static str],
@@ -53,6 +60,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: true,
         call_mnemonics: mnemonics::THUMB_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
+        extra_allowed_helpers: &[],
         extra_cargo_args: &[],
     },
     TargetSpec {
@@ -64,6 +72,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: true,
         call_mnemonics: mnemonics::THUMB_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
+        extra_allowed_helpers: &[],
         extra_cargo_args: &[],
     },
     // Priority 2: Cortex-M0
@@ -76,6 +85,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: false, // armv6m has no IT; no allowlist needed
         call_mnemonics: mnemonics::THUMB_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
+        extra_allowed_helpers: THUMBV6M_EXTRA_HELPERS,
         extra_cargo_args: &[],
     },
     // Priority 3: 32-bit RISC-V
@@ -88,6 +98,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: false,
         call_mnemonics: mnemonics::RISCV_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
+        extra_allowed_helpers: &[],
         extra_cargo_args: &[],
     },
     TargetSpec {
@@ -99,6 +110,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: false,
         call_mnemonics: mnemonics::RISCV_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
+        extra_allowed_helpers: &[],
         extra_cargo_args: &[],
     },
     // Priority 4: 8-bit AVR (nightly-only, needs build-std + target-cpu).
@@ -114,6 +126,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: false,
         call_mnemonics: mnemonics::AVR_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
+        extra_allowed_helpers: &[],
         extra_cargo_args: &["-Z", "build-std=core"],
     },
     // Priority 5: aarch64
@@ -126,6 +139,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: false,
         call_mnemonics: mnemonics::AARCH64_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
+        extra_allowed_helpers: &[],
         extra_cargo_args: &[],
     },
     // Priority 6: x86_64
@@ -138,6 +152,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: false,
         call_mnemonics: mnemonics::X86_64_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
+        extra_allowed_helpers: &[],
         extra_cargo_args: &[],
     },
     // Host fallback: aarch64-apple-darwin. Same mnemonic tables as
@@ -152,6 +167,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: false,
         call_mnemonics: mnemonics::AARCH64_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
+        extra_allowed_helpers: &[],
         extra_cargo_args: &[],
     },
 ];
@@ -216,6 +232,10 @@ const HELPER_ALLOWLIST: &[&str] = &[
     r"fixed_bigint\.\.fixeduint\.\.FixedUInt.*subtle\.\.ConstantTimeGreater",
     // subtle's primitive u32 ct_gt: loop bound is u32::BITS = 32.
     r"\$LT\$u32\$u20\$as\$u20\$subtle\.\.ConstantTimeGreater\$GT\$5ct_gt",
+    // subtle's slice `<[T] as ConstantTimeEq>::ct_eq`: iterates the
+    // slice element-by-element, length is the slice length (public).
+    // Same shape as our per-limb N-bounded loops.
+    r"\$LT\$\$u5b\$T\$u5d\$.*subtle\.\.ConstantTimeEq.*5ct_eq",
     // Compiler-builtin and libc-class byte-copy / byte-zero helpers
     // reached transitively from array initialisation. All branchful
     // on size (public parameter), not on data — same shape as our own
@@ -226,6 +246,44 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // Bare libc-style names (Linux/Mach-O) and their `__` variants
     // emitted by compiler-builtins:
     r"^_?_?(?:mem(?:cpy|set|clr|move|cmp)|bcmp)$",
+];
+
+/// Thumbv6m-specific extras layered onto `HELPER_ALLOWLIST`.
+///
+/// Cortex-M0 (armv6m) is the only target in our matrix without a CLZ
+/// instruction, so std's `u{8,16,32,64}::leading_zeros` /
+/// `trailing_zeros` intrinsics lower to a branchful software
+/// polynomial inside `core` itself. Any function that inlines one of
+/// them inherits those branches — and on armv6m without IT-block
+/// predication, conditional sub-with-borrow on primitives and subtle's
+/// own primitive `ct_eq` also expand to short `b<cc>` sequences rather
+/// than the conditional moves used on armv7m+/aarch64/x86_64.
+///
+/// These are upstream concerns the asm-grep gate can't fix here. The
+/// taint-based ctgrind harness still catches them on its supported
+/// targets. Removing entries from this list is a tracked follow-up:
+/// once `fixed-bigint` ships branchless replacements for the affected
+/// intrinsics, the corresponding row drops out.
+const THUMBV6M_EXTRA_HELPERS: &[&str] = &[
+    // `<u8/u16/u32/u64 as ConstBitPrimInt>::leading_zeros` /
+    // `trailing_zeros`: forward to `core`'s intrinsic. Branchful on
+    // armv6m (no CLZ).
+    r"\$LT\$u(?:8|16|32|64)\$.*fixed_bigint\.\.const_numtraits\.\.ConstBitPrimInt.*(?:leading|trailing)_zeros",
+    // `<u8/u16/u32/u64 as ConstBorrowingSub>::borrowing_sub`: the
+    // `||` over two overflow flags compiles to a short conditional
+    // branch on armv6m. CT-safe everywhere with IT or cmov.
+    r"\$LT\$u(?:8|16|32|64)\$.*fixed_bigint\.\.const_numtraits\.\.ConstBorrowingSub.*13borrowing_sub",
+    // subtle's primitive `<u{8,16,32,64} as ConstantTimeEq>::ct_eq` —
+    // upstream impl, branchful on armv6m for the same IT/cmov reason.
+    r"\$LT\$u(?:8|16|32|64)\$.*subtle\.\.ConstantTimeEq.*5ct_eq",
+    // ConstPowerOfTwo for FixedUInt: `next_power_of_two` and
+    // `ct_checked_next_power_of_two` inline the primitive
+    // `leading_zeros` above and inherit its branches on armv6m.
+    r"fixed_bigint9fixeduint17power_of_two_impl.*next_power_of_two",
+    r"fixed_bigint9fixeduint.*FixedUInt.*ct_checked_next_power_of_two",
+    // compiler_builtins' software division — pulled in transitively
+    // by the armv6m `leading_zeros` polynomial. Branchful on size.
+    r"compiler_builtins3int.*specialized_div_rem",
 ];
 
 pub fn lookup(triple: &str) -> Option<&'static TargetSpec> {

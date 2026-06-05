@@ -184,6 +184,7 @@ impl Patterns {
             allowed_helpers: spec
                 .allowed_helpers
                 .iter()
+                .chain(spec.extra_allowed_helpers.iter())
                 .map(|p| Regex::new(p).expect("bad allowed_helpers regex"))
                 .collect(),
         }
