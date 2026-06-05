@@ -347,8 +347,15 @@ c0nst::c0nst! {
                 // match them on power-of-2 BIT_SIZE. `const_shl_ct`'s
                 // barrel shifter already collapses out-of-range shifts to
                 // zero (via `const_shl_impl`'s `nwords >= N` zero-out), so
-                // the overflow detection is redundant for the Ct path.
-                target << (bits as usize)
+                // the overflow detection is redundant for the Ct path —
+                // EXCEPT for the cast to usize on 16-bit-usize targets,
+                // where `bits as usize` truncates and could undo the
+                // saturation. Cap branchlessly to `BIT_SIZE` first; for
+                // every priority diagonal BIT_SIZE fits in u16, so the
+                // capped value casts losslessly even on AVR.
+                let bit_size_u32 = FixedUInt::<T, N, P>::BIT_SIZE as u32;
+                let capped = const_ct_min_u32(bits, bit_size_u32);
+                target << (capped as usize)
             }
         }
     }
@@ -374,11 +381,28 @@ c0nst::c0nst! {
             }
             PersonalityTag::Ct => {
                 // See `const_unbounded_shl_u32` for why this skips
-                // `normalize_shift_amount`. `const_shr_ct` collapses
-                // out-of-range shifts to zero the same way.
-                target >> (bits as usize)
+                // `normalize_shift_amount` and caps before casting.
+                let bit_size_u32 = FixedUInt::<T, N, P>::BIT_SIZE as u32;
+                let capped = const_ct_min_u32(bits, bit_size_u32);
+                target >> (capped as usize)
             }
         }
+    }
+
+    /// Branchless CT-safe `min(bits, cap)` for u32, used to clamp Ct
+    /// shift amounts to `BIT_SIZE` before casting to usize. The
+    /// `black_box` on the mask is load-bearing — without it, LLVM
+    /// recognises the XOR-AND-XOR select idiom and rewrites it into a
+    /// `cmov` whose flag depends on the secret `bits`. Same defence as
+    /// `const_ct_select` (PR #118).
+    c0nst fn const_ct_min_u32(bits: u32, cap: u32) -> u32 {
+        // diff = cap - bits, wraps to negative (high bit set) iff bits > cap.
+        let diff = cap.wrapping_sub(bits);
+        let too_big_bit = (diff >> 31) & 1;
+        let too_big_mask = core::hint::black_box(too_big_bit.wrapping_neg());
+        // bits if !too_big, cap otherwise. XOR-AND-XOR select with
+        // opaque mask.
+        bits ^ (too_big_mask & (bits ^ cap))
     }
 
     // Helper to normalize shift amount and detect overflow.
