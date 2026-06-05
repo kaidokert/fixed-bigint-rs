@@ -172,23 +172,32 @@ pub const TARGETS: &[TargetSpec] = &[
     },
 ];
 
-/// Shared per-helper allowlist. Helpers whose bodies match any of these
-/// regexes are skipped during the reachability scan, because their
-/// `cmp/b.lt` branches are public-parameter loops (loop counter compared
-/// to compile-time `N`) rather than secret-dependent branches.
+/// Per-helper allowlist shared across every backend.
 ///
-/// Keep entries narrow — match on demangled-ish substrings of the rust
-/// symbol mangling so a typo or rename surfaces as a hard scope miss
-/// rather than a silent skip. Add an entry only when the smoke run
-/// confirms the helper's body is a public-bounded loop; document the
-/// reason inline.
+/// Sharing is intentional: each entry's CT-safety reasoning is
+/// **source-semantic** — the function body is a public-bounded loop
+/// (`for i in 0..N` with compile-time `N`, `while k < usize::BITS`,
+/// or a copy/zero of a compile-time-sized buffer) — not a property of
+/// any particular backend's lowering. A public-bounded loop compiles
+/// to a branchful `cmp/b.lt` on every architecture we target; the
+/// classification holds because the bound itself is public, not
+/// because aarch64 happens to lower it a certain way.
 ///
-/// Each helper here was inspected during the asm-grep helper-scope
-/// expansion (smoke run on aarch64-apple-darwin) — the flagged branches
-/// are public-parameter loops (`for i in 0..N` or
-/// `while k < usize::BITS`) rather than secret-dependent control flow.
-/// The corresponding CT property is also exercised by the existing
-/// ctgrind harness, which catches it directly through taint.
+/// Empirical check on this PR: each target in the CI matrix
+/// (thumbv6m/7m/7em, riscv32imc/imac, aarch64-linux, x86_64-linux,
+/// avr-none) was run through the helper-scope walker. Targets pass
+/// with zero residual helper violations once their target-specific
+/// upstream concerns are partitioned into `extra_allowed_helpers`
+/// (e.g., thumbv6m's missing CLZ pulls in `__clzsi2` etc.). Anything
+/// truly backend-specific belongs there, not here.
+///
+/// Keep entries narrow — match on demangled-ish substrings of the
+/// rust symbol mangling so a typo or rename surfaces as a hard scope
+/// miss rather than a silent skip. Add an entry only after confirming
+/// the helper's body is a public-bounded loop; document the reason
+/// inline. The same property is exercised independently by the
+/// ctgrind harness on its supported targets, which catches secret
+/// dependence directly through taint.
 const HELPER_ALLOWLIST: &[&str] = &[
     // Bit-shift helpers. const_shl_ct / shr_ct iterate usize::BITS times
     // with a per-iteration mask-AND-XOR select; const_shl_impl / shr_impl
