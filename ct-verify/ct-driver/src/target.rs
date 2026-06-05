@@ -296,6 +296,16 @@ const THUMBV6M_EXTRA_HELPERS: &[&str] = &[
     // compiler_builtins' software division — pulled in transitively
     // by the armv6m `leading_zeros` polynomial. Branchful on size.
     r"compiler_builtins3int.*specialized_div_rem",
+    // compiler-rt runtime helpers only emitted on armv6m because the
+    // ISA lacks the underlying instruction:
+    //   __clzsi2 / __clzdi2  — software CLZ (no `clz` on armv6m)
+    //   __udivmodsi4         — software u32 division (no `udiv`)
+    //   __aeabi_llsl / llsr  — i64 shifts (no native 64-bit shifts)
+    // Each is branchful on its count or magnitude operand, which is a
+    // public parameter at every callsite we reach them through.
+    r"^__clz[sd]i2$",
+    r"^__udivmodsi4$",
+    r"^__aeabi_l?ls[lr]$",
 ];
 
 pub fn lookup(triple: &str) -> Option<&'static TargetSpec> {
