@@ -15,6 +15,7 @@ use std::process::ExitCode;
 mod macros;
 mod valgrind;
 
+mod fixtures_asym;
 mod fixtures_cat_a;
 mod fixtures_cat_b;
 mod fixtures_cat_c;

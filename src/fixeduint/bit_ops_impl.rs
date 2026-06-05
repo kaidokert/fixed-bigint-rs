@@ -1,7 +1,4 @@
-use super::{
-    const_ct_select, const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl, FixedUInt,
-    MachineWord,
-};
+use super::{const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl, FixedUInt, MachineWord};
 
 use crate::const_numtraits::{
     ConstCheckedShl, ConstCheckedShr, ConstOverflowingShl, ConstOverflowingShr,
@@ -185,19 +182,14 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shl(self, bits: u32) -> Self::Output {
-            // `bits as usize` would truncate on 16-bit-usize targets; route
-            // through the u32-aware normalizer that the Overflowing*/Unbounded
-            // paths already use.
-            let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
-            if overflow { <Self as ConstZero>::zero() } else { self.shl(shift) }
+            const_unbounded_shl_u32(self, bits)
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shr(self, bits: u32) -> Self::Output {
-            let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
-            if overflow { <Self as ConstZero>::zero() } else { self.shr(shift) }
+            const_unbounded_shr_u32(self, bits)
         }
     }
 
@@ -323,6 +315,96 @@ c0nst::c0nst! {
         }
     }
 
+    // Shared body for `Shl<u32>` and `ConstUnboundedShift::unbounded_shl`.
+    // Both want the same semantics — shift by a u32 amount, with values
+    // outside [0, BIT_SIZE) collapsing to zero — and previously had
+    // parallel implementations. The Ct fix in PR #120 was applied to
+    // `unbounded_shl` but missed the `Shl<u32>` copy; centralizing here
+    // makes that class of drift impossible.
+    pub(crate) c0nst fn const_unbounded_shl_u32<
+        T: [c0nst] ConstMachineWord + MachineWord,
+        const N: usize,
+        P: Personality,
+    >(
+        target: FixedUInt<T, N, P>,
+        bits: u32,
+    ) -> FixedUInt<T, N, P> {
+        match P::TAG {
+            PersonalityTag::Nct => {
+                let (shift, overflow) =
+                    normalize_shift_amount(bits, FixedUInt::<T, N, P>::BIT_SIZE);
+                if overflow {
+                    <FixedUInt<T, N, P> as ConstZero>::zero()
+                } else {
+                    target << shift
+                }
+            }
+            PersonalityTag::Ct => {
+                // Skip `normalize_shift_amount` entirely. Its `if bits >=
+                // bit_size_u32` is a tainted-flag branch and `bits %
+                // bit_size_u32` is a variable-time modulo when bits is a
+                // secret — both leaks even though current LLVM may pattern-
+                // match them on power-of-2 BIT_SIZE. `const_shl_ct`'s
+                // barrel shifter already collapses out-of-range shifts to
+                // zero (via `const_shl_impl`'s `nwords >= N` zero-out), so
+                // the overflow detection is redundant for the Ct path —
+                // EXCEPT for the cast to usize on 16-bit-usize targets,
+                // where `bits as usize` truncates and could undo the
+                // saturation. Cap branchlessly to `BIT_SIZE` first; for
+                // every priority diagonal BIT_SIZE fits in u16, so the
+                // capped value casts losslessly even on AVR.
+                let bit_size_u32 = FixedUInt::<T, N, P>::BIT_SIZE as u32;
+                let capped = const_ct_min_u32(bits, bit_size_u32);
+                target << (capped as usize)
+            }
+        }
+    }
+
+    /// Mirror of [`const_unbounded_shl_u32`] for right-shifts.
+    pub(crate) c0nst fn const_unbounded_shr_u32<
+        T: [c0nst] ConstMachineWord + MachineWord,
+        const N: usize,
+        P: Personality,
+    >(
+        target: FixedUInt<T, N, P>,
+        bits: u32,
+    ) -> FixedUInt<T, N, P> {
+        match P::TAG {
+            PersonalityTag::Nct => {
+                let (shift, overflow) =
+                    normalize_shift_amount(bits, FixedUInt::<T, N, P>::BIT_SIZE);
+                if overflow {
+                    <FixedUInt<T, N, P> as ConstZero>::zero()
+                } else {
+                    target >> shift
+                }
+            }
+            PersonalityTag::Ct => {
+                // See `const_unbounded_shl_u32` for why this skips
+                // `normalize_shift_amount` and caps before casting.
+                let bit_size_u32 = FixedUInt::<T, N, P>::BIT_SIZE as u32;
+                let capped = const_ct_min_u32(bits, bit_size_u32);
+                target >> (capped as usize)
+            }
+        }
+    }
+
+    /// Branchless CT-safe `min(bits, cap)` for u32, used to clamp Ct
+    /// shift amounts to `BIT_SIZE` before casting to usize. The
+    /// `black_box` on the mask is load-bearing — without it, LLVM
+    /// recognises the XOR-AND-XOR select idiom and rewrites it into a
+    /// `cmov` whose flag depends on the secret `bits`. Same defence as
+    /// `const_ct_select` (PR #118).
+    c0nst fn const_ct_min_u32(bits: u32, cap: u32) -> u32 {
+        // diff = cap - bits, wraps to negative (high bit set) iff bits > cap.
+        let diff = cap.wrapping_sub(bits);
+        let too_big_bit = (diff >> 31) & 1;
+        let too_big_mask = core::hint::black_box(too_big_bit.wrapping_neg());
+        // bits if !too_big, cap otherwise. XOR-AND-XOR select with
+        // opaque mask.
+        bits ^ (too_big_mask & (bits ^ cap))
+    }
+
     // Helper to normalize shift amount and detect overflow.
     // Handles both 16-bit (usize < u32) and 64-bit (bit_size > u32::MAX) platforms.
     c0nst fn normalize_shift_amount(bits: u32, bit_size: usize) -> (usize, bool) {
@@ -386,37 +468,11 @@ c0nst::c0nst! {
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstUnboundedShift for FixedUInt<T, N, P> {
         fn unbounded_shl(self, rhs: u32) -> Self {
-            let (shift, overflow) = normalize_shift_amount(rhs, Self::BIT_SIZE);
-            match P::TAG {
-                PersonalityTag::Nct => {
-                    if overflow {
-                        Self::zero()
-                    } else {
-                        self << shift
-                    }
-                }
-                PersonalityTag::Ct => {
-                    let shifted = self << shift;
-                    const_ct_select(shifted, Self::zero(), overflow as u8)
-                }
-            }
+            const_unbounded_shl_u32(self, rhs)
         }
 
         fn unbounded_shr(self, rhs: u32) -> Self {
-            let (shift, overflow) = normalize_shift_amount(rhs, Self::BIT_SIZE);
-            match P::TAG {
-                PersonalityTag::Nct => {
-                    if overflow {
-                        Self::zero()
-                    } else {
-                        self >> shift
-                    }
-                }
-                PersonalityTag::Ct => {
-                    let shifted = self >> shift;
-                    const_ct_select(shifted, Self::zero(), overflow as u8)
-                }
-            }
+            const_unbounded_shr_u32(self, rhs)
         }
     }
 }

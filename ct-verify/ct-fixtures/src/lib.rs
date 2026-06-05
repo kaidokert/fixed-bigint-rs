@@ -23,6 +23,7 @@
 #![allow(non_snake_case)]
 #![cfg_attr(not(test), allow(unused_imports))]
 
+mod fixtures_asym;
 mod fixtures_cat_a;
 mod fixtures_cat_b;
 mod fixtures_cat_c;
