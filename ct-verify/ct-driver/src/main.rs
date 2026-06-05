@@ -146,31 +146,48 @@ fn main() -> ExitCode {
     // 4. Parse + scan.
     let blocks = parse::split_blocks(&objdump_text);
     let pat = Patterns::build(spec);
+    // Reachability: fixtures plus every helper transitively reachable
+    // through call edges. Helpers that aren't reached from any fixture
+    // are out of scope (probably dead code in the staticlib).
+    let reachable = parse::compute_reachable_symbols(&blocks, &pat.call);
 
     let mut ct_fixture_count: usize = 0;
     let mut ct_violations: Vec<Violation> = Vec::new();
     let mut neg_tripped: BTreeSet<String> = BTreeSet::new();
     let mut neg_seen: BTreeSet<String> = BTreeSet::new();
+    let mut helper_violations: Vec<Violation> = Vec::new();
+    let mut helpers_scanned: usize = 0;
+    let mut helpers_allowlisted: usize = 0;
 
     for block in &blocks {
-        if !parse::is_in_scope_symbol(&block.symbol) {
-            continue;
-        }
-        let violations = parse::scan_block(block, spec, &pat);
-
+        // Fixtures: scan all (positive + negative). Negative-control
+        // bodies are expected to contain forbidden mnemonics.
         if parse::is_positive_fixture(&block.symbol) {
             ct_fixture_count += 1;
-            ct_violations.extend(violations);
-        } else if parse::is_negative_control(&block.symbol) {
-            // For negative controls, count unique top-level fixture names
-            // (one fixture per "nct_fix__neg__<op>__<T>__N<n>" prefix).
-            // Strip any leading underscore.
+            ct_violations.extend(parse::scan_block(block, spec, &pat));
+            continue;
+        }
+        if parse::is_negative_control(&block.symbol) {
             let canonical = block.symbol.trim_start_matches('_').to_string();
             neg_seen.insert(canonical.clone());
-            if !violations.is_empty() {
+            if !parse::scan_block(block, spec, &pat).is_empty() {
                 neg_tripped.insert(canonical);
             }
+            continue;
         }
+
+        // Helper reached transitively from a Ct fixture. Skip if it
+        // matches the per-target allowlist (public-parameter loop
+        // class).
+        if !reachable.contains(&block.symbol) {
+            continue;
+        }
+        if parse::is_allowed_helper(&block.symbol, &pat.allowed_helpers) {
+            helpers_allowlisted += 1;
+            continue;
+        }
+        helpers_scanned += 1;
+        helper_violations.extend(parse::scan_block(block, spec, &pat));
     }
     let neg_fixture_count = neg_seen.len();
     let neg_failed: Vec<String> = neg_seen.difference(&neg_tripped).cloned().collect();
@@ -180,7 +197,13 @@ fn main() -> ExitCode {
         target: triple.clone(),
         fixtures_checked: ct_fixture_count,
         negative_controls_checked: neg_fixture_count,
+        helpers_scanned,
+        helpers_allowlisted,
         ct_violations: ct_violations.into_iter().map(ViolationOut::from).collect(),
+        helper_violations: helper_violations
+            .into_iter()
+            .map(ViolationOut::from)
+            .collect(),
         negative_controls_failed_to_trip: neg_failed,
     };
     report.print_human();
@@ -334,7 +357,13 @@ fn run_objdump(spec: &TargetSpec, archive: &Path) -> Result<String, String> {
     let mut cmd = Command::new(&tool);
     cmd.arg("--disassemble")
         .arg("--no-show-raw-insn")
-        .arg("--no-leading-addr");
+        .arg("--no-leading-addr")
+        // `-r` interleaves relocation entries with the disassembly. The
+        // reachability walker reads these to resolve `bl` / `call` /
+        // `jal` targets — in a static archive they're unresolved at
+        // disassembly time and otherwise print as self-relative
+        // placeholders like `bl 0x6c70 <self+0x10>`.
+        .arg("--reloc");
     if let Some(arch) = arch_flag {
         cmd.arg(format!("--triple={}", arch));
     }

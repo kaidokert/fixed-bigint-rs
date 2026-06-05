@@ -94,3 +94,18 @@ pub const X86_64_FORBIDDEN: &[&str] =
     &[r"^j(e|ne|z|nz|a|ae|b|be|c|nc|g|ge|l|le|o|no|s|ns|p|np|pe|po|cxz|ecxz|rcxz)$"];
 
 pub const X86_64_ALLOWED: &[&str] = &[r"^cmov[a-z]+$", r"^set[a-z]+$", r"^sbb[bwlq]?$"];
+
+// =============================================================================
+// Call instructions (per arch)
+// =============================================================================
+//
+// Used by the reachability walker: from each fixture symbol, scan its
+// disassembly for any of these mnemonics and follow the call target to
+// expand the inspection scope to reachable helpers. The walker doesn't
+// flag these mnemonics — it just uses them as graph edges.
+
+pub const THUMB_CALL: &[&str] = &[r"^blx?$"];
+pub const AARCH64_CALL: &[&str] = &[r"^bl$", r"^blr$"];
+pub const RISCV_CALL: &[&str] = &[r"^jal$", r"^jalr$", r"^c\.jal$", r"^c\.jalr$"];
+pub const AVR_CALL: &[&str] = &[r"^r?call$", r"^icall$", r"^eicall$"];
+pub const X86_64_CALL: &[&str] = &[r"^callq?$"];

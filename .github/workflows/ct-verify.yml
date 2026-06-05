@@ -27,9 +27,14 @@ jobs:
           # Priority 5: aarch64
           - triple: aarch64-unknown-linux-gnu
             toolchain: "1.86"
-          # Priority 6: x86_64
+          # Priority 6: x86_64. +lzcnt,+bmi1 mirrors ct-ctgrind.yml:
+          # baseline-x86_64 lowers `u32::leading_zeros()` to
+          # `test/je/bsr` (bsr undefined on zero, hence the `je`), a
+          # real data-dependent branch in the std intrinsic. BMI1 is
+          # on Haswell+ (2013) and every GitHub Actions x86_64 runner.
           - triple: x86_64-unknown-linux-gnu
             toolchain: "1.86"
+            extra_rustflags: "-C target-feature=+lzcnt,+bmi1"
           # Priority 4: AVR (nightly-only, needs build-std + target-cpu).
           # Bare `nightly` because rust-std for avr-none isn't published
           # on every nightly date — a pinned date risks the AVR job
@@ -64,11 +69,18 @@ jobs:
         with:
           key: ct-verify-${{ matrix.triple }}
 
+      - name: Scope per-target RUSTFLAGS to the cross-build
+        # Cargo recognises CARGO_TARGET_<TRIPLE>_RUSTFLAGS (triple
+        # uppercased with `-` → `_`) and applies it only when building
+        # for that target. We compute the var name here so each matrix
+        # row's `extra_rustflags` lands in the right place without
+        # leaking into the host ct-driver compile.
+        if: matrix.extra_rustflags != ''
+        run: |
+          name="CARGO_TARGET_$(echo '${{ matrix.triple }}' | tr 'a-z-' 'A-Z_')_RUSTFLAGS"
+          echo "$name=${{ matrix.extra_rustflags }}" >> "$GITHUB_ENV"
+
       - name: Run ct-driver
-        env:
-          # Scope target-specific rustflags to the cross-target build
-          # only — leaks into the host ct-driver compile otherwise.
-          CARGO_TARGET_AVR_NONE_RUSTFLAGS: ${{ matrix.extra_rustflags }}
         run: cargo run --release -p ct-driver -- --target ${{ matrix.triple }} --json-out target/ct-report/${{ matrix.triple }}.json
 
       - name: Upload report
