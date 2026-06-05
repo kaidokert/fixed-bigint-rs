@@ -246,6 +246,18 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // Bare libc-style names (Linux/Mach-O) and their `__` variants
     // emitted by compiler-builtins:
     r"^_?_?(?:mem(?:cpy|set|clr|move|cmp)|bcmp)$",
+    // The Rust `compiler_builtins::mem::{memcpy,memset,memmove,memcmp}`
+    // implementations (mangled `_ZN17compiler_builtins3mem…E`). On
+    // bare-metal targets without a libc, the bare-name symbols above
+    // resolve to these. Branchful on length only.
+    r"compiler_builtins3mem(?:6memcpy|6memset|7memmove|6memcmp)",
+    // compiler-rt 128-bit shift helpers (`__ashlti3`, `__ashrti3`,
+    // `__lshrti3`) and their 64-bit twins on 32-bit targets
+    // (`__ashldi3`, etc.). Reached from any FixedUInt shift whose
+    // backing limb pair spans a register width. The internal branches
+    // are on the shift count, which our Ct shift helpers always pass
+    // as a public-bounded `1 << k` from a public iteration counter.
+    r"^__(?:ashl|ashr|lshr)[dt]i3$",
 ];
 
 /// Thumbv6m-specific extras layered onto `HELPER_ALLOWLIST`.
