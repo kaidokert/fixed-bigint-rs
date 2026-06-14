@@ -67,6 +67,15 @@ impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
     /// `DivCeil` doesn't surface a checked variant; we keep this so
     /// downstream callers can still get `None` on division-by-zero or
     /// overflow rather than a panic.
+    ///
+    /// Note on const-callability: this inherent shim is **not** itself
+    /// `const fn`, because the `c0nst` macro does not translate
+    /// `[c0nst]` trait bounds on inherent `impl` blocks (Rust syntax
+    /// only allows `[const]` bounds in trait-impl headers and standalone
+    /// `const fn` items). Nightly callers who need the const path can
+    /// call `checked_div_ceil_impl(a, b)` directly — it's a free
+    /// `pub(crate) c0nst fn` defined above, exercised in const context
+    /// by the existing `test_const_div_ceil` test.
     pub fn checked_div_ceil(self, rhs: Self) -> Option<Self> {
         checked_div_ceil_impl(self, rhs)
     }
@@ -154,6 +163,17 @@ mod tests {
         ) -> FixedUInt<T, N, Nct> {
             DivCeil::div_ceil(a, b)
         }
+        /// Const-callable parallel to `FixedUInt::checked_div_ceil`
+        /// (which can't itself be `const fn` on an inherent impl). Just
+        /// re-exposes the existing `checked_div_ceil_impl` helper above
+        /// under a `const_*` test-shim name for the empirical-proof
+        /// pattern other files use.
+        pub c0nst fn const_checked_div_ceil<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+            a: FixedUInt<T, N, Nct>,
+            b: FixedUInt<T, N, Nct>,
+        ) -> Option<FixedUInt<T, N, Nct>> {
+            super::checked_div_ceil_impl(a, b)
+        }
     }
 
     #[test]
@@ -164,13 +184,26 @@ mod tests {
             const_div_ceil(U16::from(10u8), U16::from(3u8)),
             U16::from(4u8)
         );
+        assert_eq!(
+            const_checked_div_ceil(U16::from(10u8), U16::from(3u8)),
+            Some(U16::from(4u8))
+        );
+        assert_eq!(
+            const_checked_div_ceil(U16::from(10u8), U16::from(0u8)),
+            None
+        );
 
         #[cfg(feature = "nightly")]
         {
             const TEN: U16 = FixedUInt::from_array([10, 0]);
             const THREE: U16 = FixedUInt::from_array([3, 0]);
+            const ZERO: U16 = FixedUInt::from_array([0, 0]);
             const RESULT: U16 = const_div_ceil(TEN, THREE);
+            const CHECKED_OK: Option<U16> = const_checked_div_ceil(TEN, THREE);
+            const CHECKED_ZERO: Option<U16> = const_checked_div_ceil(TEN, ZERO);
             assert_eq!(RESULT, FixedUInt::from_array([4, 0]));
+            assert!(CHECKED_OK.is_some());
+            assert!(CHECKED_ZERO.is_none());
         }
     }
 }

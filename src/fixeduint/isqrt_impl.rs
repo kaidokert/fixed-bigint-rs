@@ -190,6 +190,16 @@ mod tests {
         ) -> FixedUInt<T, N, Nct> {
             Isqrt::isqrt(v)
         }
+        /// Const-callable parallel to `FixedUInt::checked_isqrt` (which
+        /// can't itself be `const fn` on an inherent impl, see the
+        /// shim's doc comment). External `CheckedIsqrt` is signed-only;
+        /// for unsigned types `isqrt` never fails, so this just lifts
+        /// the result into `Some`.
+        pub c0nst fn const_checked_isqrt<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+            v: FixedUInt<T, N, Nct>,
+        ) -> Option<FixedUInt<T, N, Nct>> {
+            Some(Isqrt::isqrt(v))
+        }
     }
 
     #[test]
@@ -198,12 +208,15 @@ mod tests {
 
         assert_eq!(const_isqrt(U16::from(16u8)), U16::from(4u8));
         assert_eq!(const_isqrt(U16::from(100u8)), U16::from(10u8));
+        assert_eq!(const_checked_isqrt(U16::from(16u8)), Some(U16::from(4u8)));
 
         #[cfg(feature = "nightly")]
         {
             const SIXTEEN: U16 = FixedUInt::from_array([16, 0]);
             const RESULT: U16 = const_isqrt(SIXTEEN);
+            const CHECKED: Option<U16> = const_checked_isqrt(SIXTEEN);
             assert_eq!(RESULT, FixedUInt::from_array([4, 0]));
+            assert!(CHECKED.is_some());
         }
     }
 }

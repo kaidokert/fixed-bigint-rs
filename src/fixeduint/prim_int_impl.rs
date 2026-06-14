@@ -111,16 +111,20 @@ c0nst::c0nst! {
     // on FixedUInt below so callers can still use it without the bundle.
 }
 
-impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
-    /// Inherent `pow` retained while the external `PrimInt` bundle is
-    /// not yet implementable on `FixedUInt` (it requires `Num`,
-    /// `NumCast`, and `Saturating` — out of scope for this experiment).
-    pub fn pow(self, exp: u32) -> Self {
+c0nst::c0nst! {
+    /// Standalone const-fn body for `pow`, exposed for nightly users who
+    /// want the const-callable path (the inherent `FixedUInt::pow`
+    /// method shim below delegates here). Kept free-floating because the
+    /// c0nst macro doesn't translate `[c0nst]` trait bounds on inherent
+    /// `impl` blocks — only on c0nst-fn items directly.
+    pub(crate) c0nst fn pow_impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        v: FixedUInt<T, N, Nct>, exp: u32,
+    ) -> FixedUInt<T, N, Nct> {
         if exp == 0 {
-            return <Self as crate::const_numtraits::ConstOne>::ONE;
+            return <FixedUInt<T, N, Nct> as crate::const_numtraits::ConstOne>::ONE;
         }
-        let mut result = <Self as crate::const_numtraits::ConstOne>::ONE;
-        let mut base = self;
+        let mut result = <FixedUInt<T, N, Nct> as crate::const_numtraits::ConstOne>::ONE;
+        let mut base = v;
         let mut e = exp;
         while e > 0 {
             if (e & 1) == 1 {
@@ -132,6 +136,18 @@ impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
             }
         }
         result
+    }
+}
+
+impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
+    /// Inherent `pow` retained while the external `PrimInt` bundle is
+    /// not yet implementable on `FixedUInt` (it requires `Num`,
+    /// `NumCast`, and `Saturating` — out of scope for this experiment).
+    /// For const-callable use on nightly, call the free `pow_impl`
+    /// function above directly (the c0nst-macro limitation on inherent
+    /// `impl` blocks means we can't make this method itself `const`).
+    pub fn pow(self, exp: u32) -> Self {
+        pow_impl(self, exp)
     }
 }
 
@@ -335,6 +351,28 @@ mod tests {
             assert_eq!(TO_LE.array, [1, 0]);
             assert_eq!(FROM_BE.array, [0, 1]);
             assert_eq!(FROM_LE.array, [1, 0]);
+        }
+    }
+
+    // --- Empirical const-eval proof for the standalone `pow_impl` ----------
+
+    #[test]
+    fn nightly_const_eval_pow() {
+        // runtime smoke (works on stable + nightly)
+        let v = U16::from(2u8);
+        assert_eq!(super::pow_impl(v, 8), U16::from(256u16));
+        assert_eq!(super::pow_impl(v, 0), U16::from(1u8));
+
+        #[cfg(feature = "nightly")]
+        {
+            const TWO: U16 = FixedUInt::from_array([2, 0]);
+            const THREE: U16 = FixedUInt::from_array([3, 0]);
+            const TWO_TO_THE_EIGHT: U16 = super::pow_impl(TWO, 8);
+            const THREE_TO_THE_FIVE: U16 = super::pow_impl(THREE, 5);
+            const ZERO_EXP: U16 = super::pow_impl(TWO, 0);
+            assert_eq!(TWO_TO_THE_EIGHT, FixedUInt::from_array([0, 1])); // 256
+            assert_eq!(THREE_TO_THE_FIVE, FixedUInt::from_array([243, 0])); // 243
+            assert_eq!(ZERO_EXP, FixedUInt::from_array([1, 0])); // pow(x, 0) = 1
         }
     }
 }
