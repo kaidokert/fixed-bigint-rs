@@ -740,21 +740,21 @@ mod tests {
 
         let a = TestInt::from(1u8);
 
-        // num_traits::WrappingShl delegates to WrappingShl
-        assert_eq!(WrappingShl::wrapping_shl(a, 4), TestInt::from(16u8));
-        assert_eq!(WrappingShl::wrapping_shl(a, 16), a); // wraps
+        // num_traits::WrappingShl is by-ref (upstream signature).
+        assert_eq!(WrappingShl::wrapping_shl(&a, 4), TestInt::from(16u8));
+        assert_eq!(WrappingShl::wrapping_shl(&a, 16), a); // wraps
 
         // num_traits::WrappingShr
         let b = TestInt::from(16u8);
-        assert_eq!(WrappingShr::wrapping_shr(b, 4), TestInt::from(1u8));
+        assert_eq!(WrappingShr::wrapping_shr(&b, 4), TestInt::from(1u8));
 
         // num_traits::CheckedShl
-        assert_eq!(CheckedShl::checked_shl(a, 4), Some(TestInt::from(16u8)));
-        assert_eq!(CheckedShl::checked_shl(a, 16), None);
+        assert_eq!(CheckedShl::checked_shl(&a, 4), Some(TestInt::from(16u8)));
+        assert_eq!(CheckedShl::checked_shl(&a, 16), None);
 
         // num_traits::CheckedShr
-        assert_eq!(CheckedShr::checked_shr(b, 4), Some(TestInt::from(1u8)));
-        assert_eq!(CheckedShr::checked_shr(b, 16), None);
+        assert_eq!(CheckedShr::checked_shr(&b, 4), Some(TestInt::from(1u8)));
+        assert_eq!(CheckedShr::checked_shr(&b, 16), None);
     }
 
     #[test]
@@ -827,7 +827,13 @@ mod tests {
     fn test_unbounded_shift_polymorphic() {
         fn test_unbounded<T>(val: T, shift: u32, expected_shl: T, expected_shr: T)
         where
-            T: UnboundedShl + Eq + core::fmt::Debug + Copy,
+            T: UnboundedShl<Output = T>
+                + UnboundedShr<Output = T>
+                + core::ops::Shl<u32, Output = T>
+                + core::ops::Shr<u32, Output = T>
+                + Eq
+                + core::fmt::Debug
+                + Copy,
         {
             assert_eq!(UnboundedShl::unbounded_shl(val, shift), expected_shl);
             assert_eq!(UnboundedShr::unbounded_shr(val, shift), expected_shr);

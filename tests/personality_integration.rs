@@ -198,7 +198,7 @@ fn ct_variant_supports_eq_via_partialeq() {
 
 #[test]
 fn is_zero_works_correctly_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstZero;
+    use fixed_bigint::const_numtraits::{ConstZero, Zero};
 
     let z_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
     let nz_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(42u8);
@@ -223,7 +223,7 @@ fn is_zero_works_correctly_under_both_personalities() {
 
 #[test]
 fn is_one_works_correctly_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstOne;
+    use fixed_bigint::const_numtraits::{ConstOne, One};
 
     let one_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(1u8);
     let zero_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
@@ -499,7 +499,7 @@ fn shr_works_under_both_personalities() {
 
 #[test]
 fn is_power_of_two_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::IsPowerOfTwo;
+    use fixed_bigint::const_numtraits::{IsPowerOfTwo, NextPowerOfTwo};
 
     // Zero is not a power of two — exercises the `n == 0` short-circuit path
     // on Nct and the unconditional fallback on Ct.
@@ -619,13 +619,13 @@ fn ct_saturating_add_uses_ct_select() {
     // Below saturation: behaves identically.
     let a_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(100u8).into();
     let b_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(200u8).into();
-    let sum = SaturatingAdd::saturating_add(a_ct, b_ct);
+    let sum = SaturatingAdd::saturating_add(&a_ct, &b_ct);
     assert_eq!(sum.forget_ct(), FixedUInt::<u8, 2, Nct>::from(300u16));
 
     // At saturation: same result as Nct (max_value), different code path.
     let max_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(0xFFFFu16).into();
     let one_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(1u8).into();
-    let sat = SaturatingAdd::saturating_add(max_ct, one_ct);
+    let sat = SaturatingAdd::saturating_add(&max_ct, &one_ct);
     assert_eq!(sat.forget_ct(), FixedUInt::<u8, 2, Nct>::from(0xFFFFu16));
 }
 
@@ -635,13 +635,13 @@ fn ct_saturating_sub_uses_ct_select() {
 
     let a_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(200u8).into();
     let b_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(100u8).into();
-    let diff = SaturatingSub::saturating_sub(a_ct, b_ct);
+    let diff = SaturatingSub::saturating_sub(&a_ct, &b_ct);
     assert_eq!(diff.forget_ct(), FixedUInt::<u8, 2, Nct>::from(100u8));
 
     // Underflow saturates to zero.
     let zero_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(0u8).into();
     let one_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(1u8).into();
-    let sat = SaturatingSub::saturating_sub(zero_ct, one_ct);
+    let sat = SaturatingSub::saturating_sub(&zero_ct, &one_ct);
     assert_eq!(sat.forget_ct(), FixedUInt::<u8, 2, Nct>::from(0u8));
 }
 
@@ -813,7 +813,7 @@ fn ct_debug_redacts_limb_values() {
 
 #[test]
 fn next_power_of_two_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::IsPowerOfTwo;
+    use fixed_bigint::const_numtraits::{IsPowerOfTwo, NextPowerOfTwo};
     for (input, expected) in [
         (0u16, 1u16),
         (1, 1),
@@ -826,14 +826,14 @@ fn next_power_of_two_works_under_both_personalities() {
         let n: FixedUInt<u8, 2, Nct> = FixedUInt::from(input);
         let c: FixedUInt<u8, 2, Ct> = n.into();
         assert_eq!(
-            IsPowerOfTwo::next_power_of_two(n),
+            NextPowerOfTwo::next_power_of_two(n),
             FixedUInt::from(expected),
             "Nct next_power_of_two({}) = {}",
             input,
             expected,
         );
         assert_eq!(
-            IsPowerOfTwo::next_power_of_two(c).forget_ct(),
+            NextPowerOfTwo::next_power_of_two(c).forget_ct(),
             FixedUInt::from(expected),
             "Ct next_power_of_two({}) = {}",
             input,
@@ -958,7 +958,7 @@ fn ct_montgomery_conditional_subtract_pattern() {
         // wrapping_sub is the CT-friendly subtractor — it never branches on
         // the result, so we compute the difference unconditionally and let
         // `conditional_select` discard it when geq is false.
-        let diff_ct: FixedUInt<u8, 4, Ct> = num_traits::WrappingSub::wrapping_sub(x_ct, n_val);
+        let diff_ct: FixedUInt<u8, 4, Ct> = num_traits::WrappingSub::wrapping_sub(&x_ct, &n_val);
 
         // geq = !lt  — both x > N and x == N should trigger subtraction
         let lt: Choice = x_ct.ct_lt(&n_val);
@@ -1077,7 +1077,7 @@ fn ord_on_ct_agrees_with_nct() {
 
 #[test]
 fn next_power_of_two_saturates_to_max_on_ct_overflow() {
-    use fixed_bigint::const_numtraits::{Bounded, IsPowerOfTwo};
+    use fixed_bigint::const_numtraits::{Bounded, IsPowerOfTwo, NextPowerOfTwo};
 
     // u16 type with Ct personality. Inputs whose next_power_of_two exceeds
     // u16::MAX should saturate to MAX, not silently return 0.
@@ -1085,7 +1085,7 @@ fn next_power_of_two_saturates_to_max_on_ct_overflow() {
 
     for input in [0x8001u16, 0xC000, 0xFFFF] {
         let v: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(input).into();
-        let r = IsPowerOfTwo::next_power_of_two(v);
+        let r = NextPowerOfTwo::next_power_of_two(v);
         assert_eq!(
             r.forget_ct(),
             max_u16.forget_ct(),
@@ -1099,13 +1099,13 @@ fn next_power_of_two_saturates_to_max_on_ct_overflow() {
         let n: FixedUInt<u8, 2, Nct> = FixedUInt::from(input);
         let c: FixedUInt<u8, 2, Ct> = n.into();
         assert_eq!(
-            IsPowerOfTwo::next_power_of_two(n),
+            NextPowerOfTwo::next_power_of_two(n),
             FixedUInt::from(expected),
             "Nct next_power_of_two({})",
             input
         );
         assert_eq!(
-            IsPowerOfTwo::next_power_of_two(c).forget_ct(),
+            NextPowerOfTwo::next_power_of_two(c).forget_ct(),
             FixedUInt::from(expected),
             "Ct next_power_of_two({})",
             input

@@ -144,11 +144,11 @@ fn test_overflowing_mul() {
         let a: INT = 2.into();
         let b: INT = 3.into();
         let c: INT = 130.into();
-        assert_eq!(a.overflowing_mul(b), (6.into(), false));
-        assert_eq!(a.overflowing_mul(c), (4.into(), true));
-        assert_eq!(Into::<INT>::into(128).overflowing_mul(a), (0.into(), true));
+        assert_eq!(a.overflowing_mul(&b), (6.into(), false));
+        assert_eq!(a.overflowing_mul(&c), (4.into(), true));
+        assert_eq!(Into::<INT>::into(128).overflowing_mul(&a), (0.into(), true));
         assert_eq!(
-            Into::<INT>::into(127).overflowing_mul(a),
+            Into::<INT>::into(127).overflowing_mul(&a),
             (254.into(), false)
         );
     }
@@ -168,15 +168,15 @@ fn test_overflowing_mul() {
         let b: INT = 3.into();
         let c: INT = 32770.into();
 
-        assert_eq!(a.overflowing_mul(b), (6.into(), false));
-        assert_eq!(a.overflowing_mul(c), (4.into(), true));
-        assert_eq!(c.overflowing_mul(a), (4.into(), true));
+        assert_eq!(a.overflowing_mul(&b), (6.into(), false));
+        assert_eq!(a.overflowing_mul(&c), (4.into(), true));
+        assert_eq!(c.overflowing_mul(&a), (4.into(), true));
         assert_eq!(
-            Into::<INT>::into(32768).overflowing_mul(a),
+            Into::<INT>::into(32768).overflowing_mul(&a),
             (0.into(), true)
         );
         assert_eq!(
-            Into::<INT>::into(32767).overflowing_mul(a),
+            Into::<INT>::into(32767).overflowing_mul(&a),
             (65534.into(), false)
         );
 
@@ -195,11 +195,11 @@ fn test_overflowing_mul() {
         for (a, b, res, overflow) in &tests {
             let ac: INT = (*a).into();
             let bc: INT = (*b).into();
-            assert_eq!(ac.overflowing_mul(bc), ((*res).into(), *overflow));
-            assert_eq!(bc.overflowing_mul(ac), ((*res).into(), *overflow));
-            assert_eq!(ac.wrapping_mul(bc), (*res).into());
-            let checked = ac.checked_mul(bc);
-            let saturating = ac.saturating_mul(bc);
+            assert_eq!(ac.overflowing_mul(&bc), ((*res).into(), *overflow));
+            assert_eq!(bc.overflowing_mul(&ac), ((*res).into(), *overflow));
+            assert_eq!(ac.wrapping_mul(&bc), (*res).into());
+            let checked = ac.checked_mul(&bc);
+            let saturating = ac.saturating_mul(&bc);
             if *overflow {
                 assert_eq!(checked, None);
                 assert_eq!(saturating, INT::max_value());
@@ -226,9 +226,9 @@ fn test_overflowing_mul() {
         let b: INT = 3.into();
         let c: INT = 2147483650.into();
 
-        assert_eq!(a.overflowing_mul(b), (6.into(), false));
-        assert_eq!(a.overflowing_mul(c), (4.into(), true));
-        assert_eq!(c.overflowing_mul(a), (4.into(), true));
+        assert_eq!(a.overflowing_mul(&b), (6.into(), false));
+        assert_eq!(a.overflowing_mul(&c), (4.into(), true));
+        assert_eq!(c.overflowing_mul(&a), (4.into(), true));
         let tests = [
             (0u32, 0u32, 0u32, false),
             (2, 3, 6, false),
@@ -244,10 +244,10 @@ fn test_overflowing_mul() {
         for (a, b, res, overflow) in &tests {
             let ac: INT = (*a).into();
             let bc: INT = (*b).into();
-            assert_eq!(ac.overflowing_mul(bc), ((*res).into(), *overflow));
-            assert_eq!(ac.wrapping_mul(bc), (*res).into());
-            let checked = ac.checked_mul(bc);
-            let saturating = ac.saturating_mul(bc);
+            assert_eq!(ac.overflowing_mul(&bc), ((*res).into(), *overflow));
+            assert_eq!(ac.wrapping_mul(&bc), (*res).into());
+            let checked = ac.checked_mul(&bc);
+            let saturating = ac.saturating_mul(&bc);
             if *overflow {
                 assert_eq!(checked, None);
                 assert_eq!(saturating, INT::max_value());
@@ -306,10 +306,10 @@ fn test_key_range_mul() {
         // Test all combinations of key values
         for &i in &test_values {
             for &j in &test_values {
-                let ref_val = i.overflowing_mul(j);
+                let ref_val = i.overflowing_mul(&j);
                 let lhs: INT = i.into();
                 let rhs: INT = j.into();
-                let int_val = lhs.overflowing_mul(rhs);
+                let int_val = lhs.overflowing_mul(&rhs);
                 assert_eq!(
                     int_val,
                     (ref_val.0.into(), ref_val.1),
@@ -343,15 +343,15 @@ fn test_checked_div() {
     >() {
         let a: INT = 2.into();
         let b: INT = 0.into();
-        assert_eq!(Into::<INT>::into(128).checked_div(a), Some(64.into()));
-        assert_eq!(Into::<INT>::into(128).checked_div(b), None);
-        assert_eq!(Into::<INT>::into(0).checked_div(b), None);
-        assert_eq!(Into::<INT>::into(0).checked_div(a), Some(0.into()));
+        assert_eq!(Into::<INT>::into(128).checked_div(&a), Some(64.into()));
+        assert_eq!(Into::<INT>::into(128).checked_div(&b), None);
+        assert_eq!(Into::<INT>::into(0).checked_div(&b), None);
+        assert_eq!(Into::<INT>::into(0).checked_div(&a), Some(0.into()));
 
-        assert_eq!(Into::<INT>::into(127).checked_rem(a), Some(1.into()));
-        assert_eq!(Into::<INT>::into(127).checked_rem(b), None);
-        assert_eq!(Into::<INT>::into(0).checked_rem(b), None);
-        assert_eq!(Into::<INT>::into(0).checked_rem(a), Some(0.into()));
+        assert_eq!(Into::<INT>::into(127).checked_rem(&a), Some(1.into()));
+        assert_eq!(Into::<INT>::into(127).checked_rem(&b), None);
+        assert_eq!(Into::<INT>::into(0).checked_rem(&b), None);
+        assert_eq!(Into::<INT>::into(0).checked_rem(&a), Some(0.into()));
     }
     test::<u8>();
     test::<Bn<u8, 1>>();

@@ -408,7 +408,14 @@ mod tests {
         // Generic test function following crate pattern
         fn test_widening<T>(a: T, b: T, expected_lo: T, expected_hi: T)
         where
-            T: CarryingMul<Unsigned = T> + CarryingAdd + BorrowingSub + Eq + core::fmt::Debug + Copy + Zero,
+            T: CarryingMul<Unsigned = T>
+                + core::ops::Mul<T, Output = T>
+                + CarryingAdd
+                + BorrowingSub
+                + Eq
+                + core::fmt::Debug
+                + Copy
+                + Zero,
         {
             let (lo, hi) = CarryingMul::carrying_mul(a, b, <T as Zero>::zero());
             assert_eq!(lo, expected_lo, "lo mismatch");
@@ -454,7 +461,11 @@ mod tests {
     fn test_carrying_mul_add_polymorphic() {
         fn test_cma<T>(a: T, b: T, addend: T, carry: T, expected_lo: T, expected_hi: T)
         where
-            T: CarryingMul + Eq + core::fmt::Debug + Copy,
+            T: CarryingMul<Unsigned = T>
+                + core::ops::Mul<T, Output = T>
+                + Eq
+                + core::fmt::Debug
+                + Copy,
         {
             let (lo, hi) = CarryingMul::carrying_mul_add(a, b, addend, carry);
             assert_eq!(lo, expected_lo, "lo mismatch");

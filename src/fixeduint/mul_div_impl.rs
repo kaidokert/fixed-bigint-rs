@@ -257,42 +257,42 @@ c0nst::c0nst! {
         a: &FixedUInt<T, N, P>,
         b: &FixedUInt<T, N, P>
     ) -> FixedUInt<T, N, P> {
-        <FixedUInt<T, N, P> as WrappingMul>::wrapping_mul(a, b)
+        <FixedUInt<T, N, P> as WrappingMul>::wrapping_mul(*a, *b)
     }
 
     pub c0nst fn const_checked_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(
         a: &FixedUInt<T, N, P>,
         b: &FixedUInt<T, N, P>
     ) -> Option<FixedUInt<T, N, P>> {
-        <FixedUInt<T, N, P> as CheckedMul>::checked_mul(a, b)
+        <FixedUInt<T, N, P> as CheckedMul>::checked_mul(*a, *b)
     }
 
     pub c0nst fn const_saturating_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(
         a: &FixedUInt<T, N, P>,
         b: &FixedUInt<T, N, P>
     ) -> FixedUInt<T, N, P> {
-        <FixedUInt<T, N, P> as SaturatingMul>::saturating_mul(a, b)
+        <FixedUInt<T, N, P> as SaturatingMul>::saturating_mul(*a, *b)
     }
 
     pub c0nst fn const_overflowing_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(
         a: &FixedUInt<T, N, P>,
         b: &FixedUInt<T, N, P>
     ) -> (FixedUInt<T, N, P>, bool) {
-        <FixedUInt<T, N, P> as OverflowingMul>::overflowing_mul(a, b)
+        <FixedUInt<T, N, P> as OverflowingMul>::overflowing_mul(*a, *b)
     }
 
     pub c0nst fn const_checked_div<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
         a: &FixedUInt<T, N, Nct>,
         b: &FixedUInt<T, N, Nct>
     ) -> Option<FixedUInt<T, N, Nct>> {
-        <FixedUInt<T, N, Nct> as CheckedDiv>::checked_div(a, b)
+        <FixedUInt<T, N, Nct> as CheckedDiv>::checked_div(*a, *b)
     }
 
     pub c0nst fn const_checked_rem<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
         a: &FixedUInt<T, N, Nct>,
         b: &FixedUInt<T, N, Nct>
     ) -> Option<FixedUInt<T, N, Nct>> {
-        <FixedUInt<T, N, Nct> as CheckedRem>::checked_rem(a, b)
+        <FixedUInt<T, N, Nct> as CheckedRem>::checked_rem(*a, *b)
     }
 }
 

@@ -62,32 +62,32 @@ mod tests {
     fn test_is_multiple_of() {
         type U16 = FixedUInt<u8, 2>;
 
-        assert!(MultipleOf::is_multiple_of(&U16::from(0u8), &U16::from(5u8)));
+        assert!(MultipleOf::is_multiple_of(U16::from(0u8), U16::from(5u8)));
         assert!(MultipleOf::is_multiple_of(
-            &U16::from(10u8),
-            &U16::from(5u8)
+            U16::from(10u8),
+            U16::from(5u8)
         ));
         assert!(MultipleOf::is_multiple_of(
-            &U16::from(15u8),
-            &U16::from(5u8)
+            U16::from(15u8),
+            U16::from(5u8)
         ));
         assert!(!MultipleOf::is_multiple_of(
-            &U16::from(11u8),
-            &U16::from(5u8)
+            U16::from(11u8),
+            U16::from(5u8)
         ));
         assert!(MultipleOf::is_multiple_of(
-            &U16::from(100u8),
-            &U16::from(10u8)
+            U16::from(100u8),
+            U16::from(10u8)
         ));
         assert!(!MultipleOf::is_multiple_of(
-            &U16::from(101u8),
-            &U16::from(10u8)
+            U16::from(101u8),
+            U16::from(10u8)
         ));
 
         // rhs == 0 returns false
         assert!(!MultipleOf::is_multiple_of(
-            &U16::from(10u8),
-            &U16::from(0u8)
+            U16::from(10u8),
+            U16::from(0u8)
         ));
     }
 
@@ -162,7 +162,7 @@ mod tests {
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> bool {
-            MultipleOf::is_multiple_of(a, b)
+            MultipleOf::is_multiple_of(*a, *b)
         }
 
         pub c0nst fn const_next_multiple_of<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(

@@ -210,7 +210,7 @@ mod tests {
         pub c0nst fn const_is_power_of_two<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(
             v: &FixedUInt<T, N, P>,
         ) -> bool {
-            IsPowerOfTwo::is_power_of_two(v)
+            IsPowerOfTwo::is_power_of_two(*v)
         }
 
         pub c0nst fn const_next_power_of_two<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(

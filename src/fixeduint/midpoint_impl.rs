@@ -110,7 +110,7 @@ mod tests {
     fn test_midpoint_polymorphic() {
         fn test_mid<T>(a: T, b: T, expected: T)
         where
-            T: Midpoint + Eq + core::fmt::Debug + Copy,
+            T: Midpoint<Output = T> + Eq + core::fmt::Debug + Copy,
         {
             assert_eq!(Midpoint::midpoint(a, b), expected);
             assert_eq!(Midpoint::midpoint(b, a), expected); // order doesn't matter

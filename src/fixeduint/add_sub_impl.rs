@@ -259,7 +259,7 @@ mod tests {
             a: &FixedUInt<T, N, P>,
             b: &FixedUInt<T, N, P>
         ) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as OverflowingAdd>::overflowing_add(a, b)
+            <FixedUInt<T, N, P> as OverflowingAdd>::overflowing_add(*a, *b)
         }
 
         /// Test wrapper for OverflowingSub
@@ -267,7 +267,7 @@ mod tests {
             a: &FixedUInt<T, N, P>,
             b: &FixedUInt<T, N, P>
         ) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as OverflowingSub>::overflowing_sub(a, b)
+            <FixedUInt<T, N, P> as OverflowingSub>::overflowing_sub(*a, *b)
         }
 
         /// Test wrapper for const Add
@@ -291,7 +291,7 @@ mod tests {
             a: &FixedUInt<T, N, P>,
             b: &FixedUInt<T, N, P>
         ) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as WrappingAdd>::wrapping_add(a, b)
+            <FixedUInt<T, N, P> as WrappingAdd>::wrapping_add(*a, *b)
         }
 
         /// Test wrapper for WrappingSub
@@ -299,7 +299,7 @@ mod tests {
             a: &FixedUInt<T, N, P>,
             b: &FixedUInt<T, N, P>
         ) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as WrappingSub>::wrapping_sub(a, b)
+            <FixedUInt<T, N, P> as WrappingSub>::wrapping_sub(*a, *b)
         }
 
         /// Test wrapper for CheckedAdd
@@ -307,7 +307,7 @@ mod tests {
             a: &FixedUInt<T, N, P>,
             b: &FixedUInt<T, N, P>
         ) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as CheckedAdd>::checked_add(a, b)
+            <FixedUInt<T, N, P> as CheckedAdd>::checked_add(*a, *b)
         }
 
         /// Test wrapper for CheckedSub
@@ -315,7 +315,7 @@ mod tests {
             a: &FixedUInt<T, N, P>,
             b: &FixedUInt<T, N, P>
         ) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as CheckedSub>::checked_sub(a, b)
+            <FixedUInt<T, N, P> as CheckedSub>::checked_sub(*a, *b)
         }
     }
 
