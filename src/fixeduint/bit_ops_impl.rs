@@ -2,7 +2,7 @@ use super::{const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl, FixedUIn
 
 use crate::const_numtraits::{CheckedShl, CheckedShr, ConstZero, One, OverflowingShl, OverflowingShr, UnboundedShl, UnboundedShr, WrappingShl, WrappingShr, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::{Personality, PersonalityTag};
+use crate::personality::{Nct, Personality, PersonalityTag};
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Not for FixedUInt<T, N, P> {
@@ -679,6 +679,126 @@ c0nst::c0nst! {
             <FixedUInt<T, N, P> as crate::const_numtraits::ShrExact>::shr_exact(*self, rhs)
         }
     }
+
+    // --- FunnelShl / FunnelShr ---------------------------------------------
+    //
+    // Double-width funnel shift: form the conceptual `(hi, lo)` value of
+    // width `2 * BIT_SIZE`, shift by `n`, and return one half. `n` is a
+    // public parameter (loop counters, fixed amounts), so the `n >= BIT_SIZE`
+    // panic is value-independent and safe for both personalities. The shift
+    // ops dispatched by `<<` / `>>` are personality-aware (Ct uses the
+    // mask-AND-XOR variant), so the funnel impl inherits that.
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::FunnelShl for FixedUInt<T, N, P> {
+        type Output = Self;
+        fn funnel_shl(self, rhs: Self, n: u32) -> Self {
+            assert!((n as usize) < Self::BIT_SIZE, "FixedUInt::funnel_shl: n out of range");
+            if n == 0 {
+                self
+            } else {
+                let lo_shift = Self::BIT_SIZE as u32 - n;
+                (self << (n as usize)) | (rhs >> (lo_shift as usize))
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::FunnelShr for FixedUInt<T, N, P> {
+        type Output = Self;
+        fn funnel_shr(self, rhs: Self, n: u32) -> Self {
+            assert!((n as usize) < Self::BIT_SIZE, "FixedUInt::funnel_shr: n out of range");
+            if n == 0 {
+                rhs
+            } else {
+                let hi_shift = Self::BIT_SIZE as u32 - n;
+                (rhs >> (n as usize)) | (self << (hi_shift as usize))
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::FunnelShl for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
+        fn funnel_shl(self, rhs: Self, n: u32) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as crate::const_numtraits::FunnelShl>::funnel_shl(*self, *rhs, n)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::FunnelShr for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
+        fn funnel_shr(self, rhs: Self, n: u32) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as crate::const_numtraits::FunnelShr>::funnel_shr(*self, *rhs, n)
+        }
+    }
+
+    // --- DepositBits / ExtractBits (PDEP / PEXT) ---------------------------
+    //
+    // Nct-only: the natural implementation iterates once per set bit of the
+    // mask, which is value-dependent. A constant-time version would have to
+    // iterate `BIT_SIZE` times unconditionally (and mask-select per step),
+    // which is a worthwhile but separate Ct-fixture exercise. For now we
+    // gate on `P = Nct`, matching how `CheckedDiv`/`CheckedRem` and the
+    // `Strict*` family are gated.
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst crate::const_numtraits::DepositBits for FixedUInt<T, N, Nct> {
+        type Output = Self;
+        fn deposit_bits(self, mask: Self) -> Self {
+            // Scatter contiguous low bits of `self` into positions of the
+            // one-bits of `mask`. Iterates once per set bit of `mask`.
+            let mut result = <Self as crate::const_numtraits::ConstZero>::ZERO;
+            let mut remaining = mask;
+            let mut bb = <Self as crate::const_numtraits::ConstOne>::ONE;
+            while !<Self as crate::const_numtraits::Zero>::is_zero(&remaining) {
+                // Lowest set bit of `remaining` via `x & -x`.
+                let lowest = <Self as crate::const_numtraits::IsolateLowestOne>::isolate_lowest_one(remaining);
+                if !<Self as crate::const_numtraits::Zero>::is_zero(&(self & bb)) {
+                    result = result | lowest;
+                }
+                // Clear that lowest bit and advance the source-side bit.
+                remaining = remaining & <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(
+                    remaining,
+                    <Self as crate::const_numtraits::ConstOne>::ONE,
+                );
+                bb = <Self as crate::const_numtraits::WrappingShl>::wrapping_shl(bb, 1);
+            }
+            result
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst crate::const_numtraits::ExtractBits for FixedUInt<T, N, Nct> {
+        type Output = Self;
+        fn extract_bits(self, mask: Self) -> Self {
+            // Gather the bits of `self` selected by `mask` into the low end
+            // of the result. Mirror of `deposit_bits`.
+            let mut result = <Self as crate::const_numtraits::ConstZero>::ZERO;
+            let mut remaining = mask;
+            let mut bb = <Self as crate::const_numtraits::ConstOne>::ONE;
+            while !<Self as crate::const_numtraits::Zero>::is_zero(&remaining) {
+                let lowest = <Self as crate::const_numtraits::IsolateLowestOne>::isolate_lowest_one(remaining);
+                if !<Self as crate::const_numtraits::Zero>::is_zero(&(self & lowest)) {
+                    result = result | bb;
+                }
+                remaining = remaining & <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(
+                    remaining,
+                    <Self as crate::const_numtraits::ConstOne>::ONE,
+                );
+                bb = <Self as crate::const_numtraits::WrappingShl>::wrapping_shl(bb, 1);
+            }
+            result
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst crate::const_numtraits::DepositBits for &FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
+        fn deposit_bits(self, mask: Self) -> FixedUInt<T, N, Nct> {
+            <FixedUInt<T, N, Nct> as crate::const_numtraits::DepositBits>::deposit_bits(*self, *mask)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst crate::const_numtraits::ExtractBits for &FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
+        fn extract_bits(self, mask: Self) -> FixedUInt<T, N, Nct> {
+            <FixedUInt<T, N, Nct> as crate::const_numtraits::ExtractBits>::extract_bits(*self, *mask)
+        }
+    }
 }
 
 // num_traits wrappers - delegate to const impls
@@ -1173,5 +1293,108 @@ mod tests {
         );
         assert_eq!(ShlExact::shl_exact(&v, 2), Some(U16::from(0b1010_0000u8)));
         assert_eq!(ShrExact::shr_exact(&v, 3), Some(U16::from(0b0000_0101u8)));
+    }
+
+    #[test]
+    fn test_funnel_shifts() {
+        use crate::const_numtraits::{FunnelShl, FunnelShr};
+        type U16 = FixedUInt<u8, 2>;
+
+        // 0x0180 << 1 = 0x0300 -> high half (16 bits) = 0x0003
+        assert_eq!(
+            FunnelShl::funnel_shl(U16::from(0x0001u16), U16::from(0x8000u16), 1),
+            U16::from(0x0003u16),
+        );
+        // n == 0: returns self (hi)
+        assert_eq!(
+            FunnelShl::funnel_shl(U16::from(0xABCDu16), U16::from(0xFFFFu16), 0),
+            U16::from(0xABCDu16),
+        );
+        // 0x0180 >> 1 = 0x00C0 -> low half (16 bits) = 0x00C0... wait
+        // hi=0x0001 lo=0x8000, double = 0x00018000.
+        // funnel_shr n=1 → low half of (>> 1) = 0x0001_8000 >> 1 = 0x0000_C000, low = 0xC000.
+        assert_eq!(
+            FunnelShr::funnel_shr(U16::from(0x0001u16), U16::from(0x8000u16), 1),
+            U16::from(0xC000u16),
+        );
+        // n == 0: returns rhs (lo)
+        assert_eq!(
+            FunnelShr::funnel_shr(U16::from(0xABCDu16), U16::from(0x1234u16), 0),
+            U16::from(0x1234u16),
+        );
+
+        // Reference receivers
+        let hi = U16::from(0x0001u16);
+        let lo = U16::from(0x8000u16);
+        assert_eq!(FunnelShl::funnel_shl(&hi, &lo, 1), U16::from(0x0003u16));
+        assert_eq!(FunnelShr::funnel_shr(&hi, &lo, 1), U16::from(0xC000u16));
+    }
+
+    #[test]
+    #[should_panic(expected = "funnel_shl: n out of range")]
+    fn test_funnel_shl_panics_at_bit_size() {
+        use crate::const_numtraits::FunnelShl;
+        type U16 = FixedUInt<u8, 2>;
+        let _ = FunnelShl::funnel_shl(U16::from(1u8), U16::from(0u8), 16);
+    }
+
+    #[test]
+    fn test_deposit_extract_bits() {
+        use crate::const_numtraits::{DepositBits, ExtractBits};
+        use crate::personality::Nct;
+        type U16 = FixedUInt<u8, 2, Nct>;
+
+        // Mirror of the primitive doctest:
+        // deposit_bits(0b101, mask=0b1111_0000) = 0b0101_0000
+        assert_eq!(
+            DepositBits::deposit_bits(U16::from(0b101u8), U16::from(0b1111_0000u8)),
+            U16::from(0b0101_0000u8),
+        );
+        // extract_bits(0b0101_0011, mask=0b1111_0000) = 0b101
+        assert_eq!(
+            ExtractBits::extract_bits(U16::from(0b0101_0011u8), U16::from(0b1111_0000u8)),
+            U16::from(0b101u8),
+        );
+
+        // Empty mask → 0 (both directions).
+        assert_eq!(
+            DepositBits::deposit_bits(U16::from(0xFFFFu16), U16::from(0u8)),
+            U16::from(0u8),
+        );
+        assert_eq!(
+            ExtractBits::extract_bits(U16::from(0xFFFFu16), U16::from(0u8)),
+            U16::from(0u8),
+        );
+
+        // All-ones mask → identity.
+        assert_eq!(
+            DepositBits::deposit_bits(U16::from(0xABCDu16), U16::from(0xFFFFu16)),
+            U16::from(0xABCDu16),
+        );
+        assert_eq!(
+            ExtractBits::extract_bits(U16::from(0xABCDu16), U16::from(0xFFFFu16)),
+            U16::from(0xABCDu16),
+        );
+
+        // Round-trip on a non-trivial mask. extract then deposit through the
+        // same mask gives back the originally-selected bits in their original
+        // positions.
+        let mask = U16::from(0b1010_1010u8);
+        let v = U16::from(0b1111_1111u8);
+        let extracted = ExtractBits::extract_bits(v, mask);
+        let redeposited = DepositBits::deposit_bits(extracted, mask);
+        assert_eq!(redeposited, v & mask);
+
+        // Reference receivers
+        let v_ref = U16::from(0b0110_0110u8);
+        let m_ref = U16::from(0b1111_0000u8);
+        assert_eq!(
+            ExtractBits::extract_bits(&v_ref, &m_ref),
+            U16::from(0b0110u8),
+        );
+        assert_eq!(
+            DepositBits::deposit_bits(&U16::from(0b101u8), &m_ref),
+            U16::from(0b0101_0000u8),
+        );
     }
 }

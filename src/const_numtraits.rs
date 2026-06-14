@@ -61,6 +61,9 @@ pub use ::const_num_traits::{
     BitWidth, HighestOne, IsolateHighestOne, IsolateLowestOne, LowestOne, ShlExact, ShrExact,
 };
 
+// Funnel shifts + PDEP/PEXT-style bit movement.
+pub use ::const_num_traits::{DepositBits, ExtractBits, FunnelShl, FunnelShr};
+
 // Strict-arithmetic family (panic-on-overflow).
 pub use ::const_num_traits::{
     StrictAdd, StrictDiv, StrictMul, StrictPow, StrictRem, StrictShl, StrictShr, StrictSub,
