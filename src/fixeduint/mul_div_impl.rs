@@ -1,49 +1,44 @@
-use super::{
-    const_ct_select, const_div_rem, const_mul, maybe_panic_if, FixedUInt, MachineWord, PanicReason,
-};
-use crate::const_numtraits::{
-    ConstBounded, ConstCheckedDiv, ConstCheckedMul, ConstCheckedRem, ConstOverflowingMul,
-    ConstSaturatingMul, ConstWrappingMul, ConstZero,
-};
+use super::{const_ct_select, const_div_rem, const_mul, maybe_panic_if, FixedUInt, MachineWord, PanicReason};
+use crate::const_numtraits::{Bounded, CheckedDiv, CheckedMul, CheckedRem, OverflowingMul, SaturatingMul, WrappingMul, ConstZero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::{Nct, Personality, PersonalityTag};
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowing::OverflowingMul
     for FixedUInt<T, N, P>
 {
-    fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
-        <Self as ConstOverflowingMul>::overflowing_mul(self, other)
+    fn overflowing_mul(self, other: Self) -> (Self, bool) {
+        <Self as OverflowingMul>::overflowing_mul(self, other)
     }
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstOverflowingMul for FixedUInt<T, N, P> {
-        fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst OverflowingMul for FixedUInt<T, N, P> {
+        fn overflowing_mul(self, other: Self) -> (Self, bool) {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             (Self::from_array(array), overflow)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstWrappingMul for FixedUInt<T, N, P> {
-        fn wrapping_mul(&self, other: &Self) -> Self {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingMul for FixedUInt<T, N, P> {
+        fn wrapping_mul(self, other: Self) -> Self {
             let (array, _) = const_mul::<T, N, false, P>(&self.array, &other.array, Self::WORD_BITS);
             Self::from_array(array)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstCheckedMul for FixedUInt<T, N, P> {
-        fn checked_mul(&self, other: &Self) -> Option<Self> {
-            let (res, overflow) = <Self as ConstOverflowingMul>::overflowing_mul(self, other);
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedMul for FixedUInt<T, N, P> {
+        fn checked_mul(self, other: Self) -> Option<Self> {
+            let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(self, other);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstSaturatingMul for FixedUInt<T, N, P> {
-        fn saturating_mul(&self, other: &Self) -> Self {
-            let (res, overflow) = <Self as ConstOverflowingMul>::overflowing_mul(self, other);
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst SaturatingMul for FixedUInt<T, N, P> {
+        fn saturating_mul(self, other: Self) -> Self {
+            let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(self, other);
             match P::TAG {
-                PersonalityTag::Nct => if overflow { <Self as ConstBounded>::max_value() } else { res },
-                PersonalityTag::Ct => const_ct_select(res, <Self as ConstBounded>::max_value(), overflow as u8),
+                PersonalityTag::Nct => if overflow { <Self as Bounded>::max_value() } else { res },
+                PersonalityTag::Ct => const_ct_select(res, <Self as Bounded>::max_value(), overflow as u8),
             }
         }
     }
@@ -116,22 +111,22 @@ c0nst::c0nst! {
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingMul
     for FixedUInt<T, N, P>
 {
-    fn wrapping_mul(&self, other: &Self) -> Self {
-        <Self as ConstWrappingMul>::wrapping_mul(self, other)
+    fn wrapping_mul(self, other: Self) -> Self {
+        <Self as WrappingMul>::wrapping_mul(self, other)
     }
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedMul for FixedUInt<T, N, P> {
-    fn checked_mul(&self, other: &Self) -> Option<Self> {
-        <Self as ConstCheckedMul>::checked_mul(self, other)
+    fn checked_mul(self, other: Self) -> Option<Self> {
+        <Self as CheckedMul>::checked_mul(self, other)
     }
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating::SaturatingMul
     for FixedUInt<T, N, P>
 {
-    fn saturating_mul(&self, other: &Self) -> Self {
-        <Self as ConstSaturatingMul>::saturating_mul(self, other)
+    fn saturating_mul(self, other: Self) -> Self {
+        <Self as SaturatingMul>::saturating_mul(self, other)
     }
 }
 
@@ -178,9 +173,9 @@ c0nst::c0nst! {
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedDiv for FixedUInt<T, N, Nct> {
-        fn checked_div(&self, other: &Self) -> Option<Self> {
-            if <Self as ConstZero>::is_zero(other) {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedDiv for FixedUInt<T, N, Nct> {
+        fn checked_div(self, other: Self) -> Option<Self> {
+            if <Self as Zero>::is_zero(other) {
                 None
             } else {
                 Some(*self / *other)
@@ -190,8 +185,8 @@ c0nst::c0nst! {
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedDiv for FixedUInt<T, N, Nct> {
-    fn checked_div(&self, other: &Self) -> Option<Self> {
-        <Self as ConstCheckedDiv>::checked_div(self, other)
+    fn checked_div(self, other: Self) -> Option<Self> {
+        <Self as CheckedDiv>::checked_div(self, other)
     }
 }
 
@@ -238,9 +233,9 @@ c0nst::c0nst! {
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedRem for FixedUInt<T, N, Nct> {
-        fn checked_rem(&self, other: &Self) -> Option<Self> {
-            if <Self as ConstZero>::is_zero(other) {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedRem for FixedUInt<T, N, Nct> {
+        fn checked_rem(self, other: Self) -> Option<Self> {
+            if <Self as Zero>::is_zero(other) {
                 None
             } else {
                 Some(*self % *other)
@@ -250,8 +245,8 @@ c0nst::c0nst! {
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedRem for FixedUInt<T, N, Nct> {
-    fn checked_rem(&self, other: &Self) -> Option<Self> {
-        <Self as ConstCheckedRem>::checked_rem(self, other)
+    fn checked_rem(self, other: Self) -> Option<Self> {
+        <Self as CheckedRem>::checked_rem(self, other)
     }
 }
 
@@ -262,42 +257,42 @@ c0nst::c0nst! {
         a: &FixedUInt<T, N, P>,
         b: &FixedUInt<T, N, P>
     ) -> FixedUInt<T, N, P> {
-        <FixedUInt<T, N, P> as ConstWrappingMul>::wrapping_mul(a, b)
+        <FixedUInt<T, N, P> as WrappingMul>::wrapping_mul(a, b)
     }
 
     pub c0nst fn const_checked_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(
         a: &FixedUInt<T, N, P>,
         b: &FixedUInt<T, N, P>
     ) -> Option<FixedUInt<T, N, P>> {
-        <FixedUInt<T, N, P> as ConstCheckedMul>::checked_mul(a, b)
+        <FixedUInt<T, N, P> as CheckedMul>::checked_mul(a, b)
     }
 
     pub c0nst fn const_saturating_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(
         a: &FixedUInt<T, N, P>,
         b: &FixedUInt<T, N, P>
     ) -> FixedUInt<T, N, P> {
-        <FixedUInt<T, N, P> as ConstSaturatingMul>::saturating_mul(a, b)
+        <FixedUInt<T, N, P> as SaturatingMul>::saturating_mul(a, b)
     }
 
     pub c0nst fn const_overflowing_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(
         a: &FixedUInt<T, N, P>,
         b: &FixedUInt<T, N, P>
     ) -> (FixedUInt<T, N, P>, bool) {
-        <FixedUInt<T, N, P> as ConstOverflowingMul>::overflowing_mul(a, b)
+        <FixedUInt<T, N, P> as OverflowingMul>::overflowing_mul(a, b)
     }
 
     pub c0nst fn const_checked_div<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
         a: &FixedUInt<T, N, Nct>,
         b: &FixedUInt<T, N, Nct>
     ) -> Option<FixedUInt<T, N, Nct>> {
-        <FixedUInt<T, N, Nct> as ConstCheckedDiv>::checked_div(a, b)
+        <FixedUInt<T, N, Nct> as CheckedDiv>::checked_div(a, b)
     }
 
     pub c0nst fn const_checked_rem<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
         a: &FixedUInt<T, N, Nct>,
         b: &FixedUInt<T, N, Nct>
     ) -> Option<FixedUInt<T, N, Nct>> {
-        <FixedUInt<T, N, Nct> as ConstCheckedRem>::checked_rem(a, b)
+        <FixedUInt<T, N, Nct> as CheckedRem>::checked_rem(a, b)
     }
 }
 
@@ -367,16 +362,16 @@ mod tests {
         let b = FixedUInt::<u8, 2>::from(3u8);
         let expected = FixedUInt::<u8, 2>::from(36u8);
 
-        // ConstWrappingMul
+        // WrappingMul
         assert_eq!(const_wrapping_mul(&a, &b), expected);
 
-        // ConstCheckedMul - no overflow
+        // CheckedMul - no overflow
         assert_eq!(const_checked_mul(&a, &b), Some(expected));
 
-        // ConstSaturatingMul - no overflow
+        // SaturatingMul - no overflow
         assert_eq!(const_saturating_mul(&a, &b), expected);
 
-        // ConstOverflowingMul - no overflow
+        // OverflowingMul - no overflow
         let (result, overflow) = const_overflowing_mul(&a, &b);
         assert_eq!(result, expected);
         assert!(!overflow);
@@ -384,14 +379,14 @@ mod tests {
         // Test overflow cases: 256 * 256 = 65536 which overflows 16 bits
         let large = FixedUInt::<u8, 2>::from(256u16); // 0x100
 
-        // ConstCheckedMul - with overflow
+        // CheckedMul - with overflow
         assert_eq!(const_checked_mul(&large, &large), None);
 
-        // ConstSaturatingMul - with overflow saturates to max
+        // SaturatingMul - with overflow saturates to max
         let saturated = const_saturating_mul(&large, &large);
         assert_eq!(saturated, FixedUInt::<u8, 2>::from(0xFFFFu16));
 
-        // ConstOverflowingMul - with overflow
+        // OverflowingMul - with overflow
         let (_, overflow) = const_overflowing_mul(&large, &large);
         assert!(overflow);
 
@@ -421,22 +416,22 @@ mod tests {
         let b = FixedUInt::<u8, 2>::from(5u8);
         let zero = FixedUInt::<u8, 2>::from(0u8);
 
-        // ConstCheckedDiv - valid division
+        // CheckedDiv - valid division
         assert_eq!(
             const_checked_div(&a, &b),
             Some(FixedUInt::<u8, 2>::from(7u8))
         ); // 36 / 5 = 7
 
-        // ConstCheckedDiv - divide by zero
+        // CheckedDiv - divide by zero
         assert_eq!(const_checked_div(&a, &zero), None);
 
-        // ConstCheckedRem - valid remainder
+        // CheckedRem - valid remainder
         assert_eq!(
             const_checked_rem(&a, &b),
             Some(FixedUInt::<u8, 2>::from(1u8))
         ); // 36 % 5 = 1
 
-        // ConstCheckedRem - remainder by zero
+        // CheckedRem - remainder by zero
         assert_eq!(const_checked_rem(&a, &zero), None);
 
         #[cfg(feature = "nightly")]

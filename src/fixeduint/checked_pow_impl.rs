@@ -15,12 +15,12 @@
 //! Checked power implementation for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstCheckedMul, ConstCheckedPow, ConstOne};
+use crate::const_numtraits::{CheckedMul, CheckedPow, ConstOne};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedPow for FixedUInt<T, N, Nct> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedPow for FixedUInt<T, N, Nct> {
         fn checked_pow(self, exp: u32) -> Option<Self> {
             if exp == 0 {
                 return Some(Self::one());
@@ -31,14 +31,14 @@ c0nst::c0nst! {
             let mut e = exp;
             while e > 0 {
                 if (e & 1) == 1 {
-                    result = match ConstCheckedMul::checked_mul(&result, &base) {
+                    result = match CheckedMul::checked_mul(&result, &base) {
                         Some(v) => v,
                         None => return None,
                     };
                 }
                 e >>= 1;
                 if e > 0 {
-                    base = match ConstCheckedMul::checked_mul(&base, &base) {
+                    base = match CheckedMul::checked_mul(&base, &base) {
                         Some(v) => v,
                         None => return None,
                     };
@@ -59,47 +59,47 @@ mod tests {
 
         // Basic cases
         assert_eq!(
-            ConstCheckedPow::checked_pow(U16::from(2u8), 0),
+            CheckedPow::checked_pow(U16::from(2u8), 0),
             Some(U16::from(1u8))
         );
         assert_eq!(
-            ConstCheckedPow::checked_pow(U16::from(2u8), 1),
+            CheckedPow::checked_pow(U16::from(2u8), 1),
             Some(U16::from(2u8))
         );
         assert_eq!(
-            ConstCheckedPow::checked_pow(U16::from(2u8), 2),
+            CheckedPow::checked_pow(U16::from(2u8), 2),
             Some(U16::from(4u8))
         );
         assert_eq!(
-            ConstCheckedPow::checked_pow(U16::from(2u8), 8),
+            CheckedPow::checked_pow(U16::from(2u8), 8),
             Some(U16::from(256u16))
         );
         assert_eq!(
-            ConstCheckedPow::checked_pow(U16::from(3u8), 3),
+            CheckedPow::checked_pow(U16::from(3u8), 3),
             Some(U16::from(27u8))
         );
 
         // Edge cases
         assert_eq!(
-            ConstCheckedPow::checked_pow(U16::from(0u8), 0),
+            CheckedPow::checked_pow(U16::from(0u8), 0),
             Some(U16::from(1u8))
         );
         assert_eq!(
-            ConstCheckedPow::checked_pow(U16::from(0u8), 5),
+            CheckedPow::checked_pow(U16::from(0u8), 5),
             Some(U16::from(0u8))
         );
         assert_eq!(
-            ConstCheckedPow::checked_pow(U16::from(1u8), 100),
+            CheckedPow::checked_pow(U16::from(1u8), 100),
             Some(U16::from(1u8))
         );
 
         // Overflow cases
-        assert_eq!(ConstCheckedPow::checked_pow(U16::from(2u8), 16), None); // 2^16 = 65536 > 65535
-        assert_eq!(ConstCheckedPow::checked_pow(U16::from(256u16), 2), None); // 256^2 = 65536 > 65535
+        assert_eq!(CheckedPow::checked_pow(U16::from(2u8), 16), None); // 2^16 = 65536 > 65535
+        assert_eq!(CheckedPow::checked_pow(U16::from(256u16), 2), None); // 256^2 = 65536 > 65535
 
         // Just fits
         assert_eq!(
-            ConstCheckedPow::checked_pow(U16::from(2u8), 15),
+            CheckedPow::checked_pow(U16::from(2u8), 15),
             Some(U16::from(32768u16))
         );
     }
@@ -109,7 +109,7 @@ mod tests {
             base: FixedUInt<T, N, Nct>,
             exp: u32,
         ) -> Option<FixedUInt<T, N, Nct>> {
-            ConstCheckedPow::checked_pow(base, exp)
+            CheckedPow::checked_pow(base, exp)
         }
     }
 

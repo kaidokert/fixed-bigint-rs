@@ -18,7 +18,7 @@
 //! to compute byte array sizes at compile time without unsafe code.
 
 use super::{impl_from_be_bytes_slice, impl_from_le_bytes_slice, FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstFromBytes, ConstToBytes};
+use crate::const_numtraits::{FromBytes, ToBytes};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Personality;
 use core::mem::size_of;
@@ -78,7 +78,7 @@ impl<const SIZE: usize> core::borrow::BorrowMut<[u8]> for ConstBytesHolder<SIZE>
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstToBytes for FixedUInt<T, N, P>
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ToBytes for FixedUInt<T, N, P>
     where
         [(); byte_len::<T, N>()]:,
     {
@@ -89,7 +89,7 @@ c0nst::c0nst! {
             let word_size = size_of::<T>();
             let mut i = 0;
             while i < N {
-                let word_bytes = ConstToBytes::to_le_bytes(&self.array[i]);
+                let word_bytes = ToBytes::to_le_bytes(&self.array[i]);
                 let src = word_bytes.as_ref();
                 let mut j = 0;
                 while j < word_size {
@@ -108,7 +108,7 @@ c0nst::c0nst! {
             while i < N {
                 // For big-endian, reverse word order: highest word first
                 let word_idx = N - 1 - i;
-                let word_bytes = ConstToBytes::to_be_bytes(&self.array[word_idx]);
+                let word_bytes = ToBytes::to_be_bytes(&self.array[word_idx]);
                 let src = word_bytes.as_ref();
                 let mut j = 0;
                 while j < word_size {
@@ -121,7 +121,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstFromBytes for FixedUInt<T, N, P>
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst FromBytes for FixedUInt<T, N, P>
     where
         [(); byte_len::<T, N>()]:,
     {
@@ -147,27 +147,27 @@ mod tests {
     #[test]
     fn test_const_to_le_bytes() {
         let val: FixedUInt<u8, 4> = FixedUInt::from(0x04030201u32);
-        let bytes = ConstToBytes::to_le_bytes(&val);
+        let bytes = ToBytes::to_le_bytes(&val);
         assert_eq!(bytes.as_ref(), &[0x01, 0x02, 0x03, 0x04]);
     }
 
     #[test]
     fn test_const_to_be_bytes() {
         let val: FixedUInt<u8, 4> = FixedUInt::from(0x04030201u32);
-        let bytes = ConstToBytes::to_be_bytes(&val);
+        let bytes = ToBytes::to_be_bytes(&val);
         assert_eq!(bytes.as_ref(), &[0x04, 0x03, 0x02, 0x01]);
     }
 
     #[test]
     fn test_const_to_bytes_u32_words() {
         let val: FixedUInt<u32, 2> = FixedUInt::from_array([0x04030201, 0x08070605]);
-        let le_bytes = ConstToBytes::to_le_bytes(&val);
+        let le_bytes = ToBytes::to_le_bytes(&val);
         assert_eq!(
             le_bytes.as_ref(),
             &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
         );
 
-        let be_bytes = ConstToBytes::to_be_bytes(&val);
+        let be_bytes = ToBytes::to_be_bytes(&val);
         assert_eq!(
             be_bytes.as_ref(),
             &[0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01]
@@ -177,7 +177,7 @@ mod tests {
     // Test that it works in const context
     const CONST_LE_BYTES: [u8; 4] = {
         let val: FixedUInt<u8, 4> = FixedUInt::from_array([0x01, 0x02, 0x03, 0x04]);
-        let holder = ConstToBytes::to_le_bytes(&val);
+        let holder = ToBytes::to_le_bytes(&val);
         holder.bytes
     };
 
@@ -191,7 +191,7 @@ mod tests {
         let bytes = ConstBytesHolder {
             bytes: [0x01, 0x02, 0x03, 0x04],
         };
-        let val: FixedUInt<u8, 4> = ConstFromBytes::from_le_bytes(&bytes);
+        let val: FixedUInt<u8, 4> = FromBytes::from_le_bytes(&bytes);
         assert_eq!(val.array, [0x01, 0x02, 0x03, 0x04]);
     }
 
@@ -200,7 +200,7 @@ mod tests {
         let bytes = ConstBytesHolder {
             bytes: [0x04, 0x03, 0x02, 0x01],
         };
-        let val: FixedUInt<u8, 4> = ConstFromBytes::from_be_bytes(&bytes);
+        let val: FixedUInt<u8, 4> = FromBytes::from_be_bytes(&bytes);
         assert_eq!(val.array, [0x01, 0x02, 0x03, 0x04]);
     }
 
@@ -209,22 +209,22 @@ mod tests {
         let bytes = ConstBytesHolder {
             bytes: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
         };
-        let le_val: FixedUInt<u32, 2> = ConstFromBytes::from_le_bytes(&bytes);
+        let le_val: FixedUInt<u32, 2> = FromBytes::from_le_bytes(&bytes);
         assert_eq!(le_val.array, [0x04030201, 0x08070605]);
 
         let be_bytes = ConstBytesHolder {
             bytes: [0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01],
         };
-        let be_val: FixedUInt<u32, 2> = ConstFromBytes::from_be_bytes(&be_bytes);
+        let be_val: FixedUInt<u32, 2> = FromBytes::from_be_bytes(&be_bytes);
         assert_eq!(be_val.array, [0x04030201, 0x08070605]);
     }
 
-    // Test that ConstFromBytes works in const context
+    // Test that FromBytes works in const context
     const CONST_FROM_LE: FixedUInt<u8, 4> = {
         let bytes = ConstBytesHolder {
             bytes: [0x01, 0x02, 0x03, 0x04],
         };
-        ConstFromBytes::from_le_bytes(&bytes)
+        FromBytes::from_le_bytes(&bytes)
     };
 
     #[test]
@@ -237,12 +237,12 @@ mod tests {
     fn test_const_bytes_roundtrip() {
         let original: FixedUInt<u32, 2> = FixedUInt::from_array([0x12345678, 0xDEADBEEF]);
 
-        let le_bytes = ConstToBytes::to_le_bytes(&original);
-        let from_le: FixedUInt<u32, 2> = ConstFromBytes::from_le_bytes(&le_bytes);
+        let le_bytes = ToBytes::to_le_bytes(&original);
+        let from_le: FixedUInt<u32, 2> = FromBytes::from_le_bytes(&le_bytes);
         assert_eq!(from_le.array, original.array);
 
-        let be_bytes = ConstToBytes::to_be_bytes(&original);
-        let from_be: FixedUInt<u32, 2> = ConstFromBytes::from_be_bytes(&be_bytes);
+        let be_bytes = ToBytes::to_be_bytes(&original);
+        let from_be: FixedUInt<u32, 2> = FromBytes::from_be_bytes(&be_bytes);
         assert_eq!(from_be.array, original.array);
     }
 }

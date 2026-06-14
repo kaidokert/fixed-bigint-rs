@@ -15,12 +15,12 @@
 //! Ceiling division for FixedUInt.
 
 use super::{const_div, const_is_zero, FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstCheckedAdd, ConstDivCeil, ConstOne};
+use crate::const_numtraits::{CheckedAdd, DivCeil, ConstOne};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstDivCeil for FixedUInt<T, N, Nct> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst DivCeil for FixedUInt<T, N, Nct> {
         fn div_ceil(self, rhs: Self) -> Self {
             match self.checked_div_ceil(rhs) {
                 Some(v) => v,
@@ -39,7 +39,7 @@ c0nst::c0nst! {
                 Some(Self::from_array(quotient))
             } else {
                 // Use checked_add to return None on overflow
-                ConstCheckedAdd::checked_add(&Self::from_array(quotient), &Self::one())
+                CheckedAdd::checked_add(&Self::from_array(quotient), &Self::one())
             }
         }
     }
@@ -55,39 +55,39 @@ mod tests {
 
         // Exact division
         assert_eq!(
-            ConstDivCeil::div_ceil(U16::from(10u8), U16::from(5u8)),
+            DivCeil::div_ceil(U16::from(10u8), U16::from(5u8)),
             U16::from(2u8)
         );
         assert_eq!(
-            ConstDivCeil::div_ceil(U16::from(10u8), U16::from(2u8)),
+            DivCeil::div_ceil(U16::from(10u8), U16::from(2u8)),
             U16::from(5u8)
         );
 
         // Rounds up
         assert_eq!(
-            ConstDivCeil::div_ceil(U16::from(10u8), U16::from(3u8)),
+            DivCeil::div_ceil(U16::from(10u8), U16::from(3u8)),
             U16::from(4u8)
         ); // 10/3 = 3.33... -> 4
         assert_eq!(
-            ConstDivCeil::div_ceil(U16::from(11u8), U16::from(3u8)),
+            DivCeil::div_ceil(U16::from(11u8), U16::from(3u8)),
             U16::from(4u8)
         ); // 11/3 = 3.66... -> 4
         assert_eq!(
-            ConstDivCeil::div_ceil(U16::from(12u8), U16::from(3u8)),
+            DivCeil::div_ceil(U16::from(12u8), U16::from(3u8)),
             U16::from(4u8)
         ); // 12/3 = 4 exact
 
         // Edge cases
         assert_eq!(
-            ConstDivCeil::div_ceil(U16::from(0u8), U16::from(5u8)),
+            DivCeil::div_ceil(U16::from(0u8), U16::from(5u8)),
             U16::from(0u8)
         );
         assert_eq!(
-            ConstDivCeil::div_ceil(U16::from(1u8), U16::from(5u8)),
+            DivCeil::div_ceil(U16::from(1u8), U16::from(5u8)),
             U16::from(1u8)
         ); // 1/5 = 0.2 -> 1
         assert_eq!(
-            ConstDivCeil::div_ceil(U16::from(1u8), U16::from(1u8)),
+            DivCeil::div_ceil(U16::from(1u8), U16::from(1u8)),
             U16::from(1u8)
         );
     }
@@ -97,25 +97,25 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         assert_eq!(
-            ConstDivCeil::checked_div_ceil(U16::from(10u8), U16::from(3u8)),
+            DivCeil::checked_div_ceil(U16::from(10u8), U16::from(3u8)),
             Some(U16::from(4u8))
         );
 
         // Division by zero
         assert_eq!(
-            ConstDivCeil::checked_div_ceil(U16::from(10u8), U16::from(0u8)),
+            DivCeil::checked_div_ceil(U16::from(10u8), U16::from(0u8)),
             None
         );
 
         // Edge case: MAX / 2 = 32767 remainder 1, ceil = 32768
         assert_eq!(
-            ConstDivCeil::checked_div_ceil(U16::from(65535u16), U16::from(2u16)),
+            DivCeil::checked_div_ceil(U16::from(65535u16), U16::from(2u16)),
             Some(U16::from(32768u16))
         );
 
         // Edge case: MAX / 1 = MAX exactly (no remainder, no +1 needed)
         assert_eq!(
-            ConstDivCeil::checked_div_ceil(U16::from(65535u16), U16::from(1u16)),
+            DivCeil::checked_div_ceil(U16::from(65535u16), U16::from(1u16)),
             Some(U16::from(65535u16))
         );
     }
@@ -125,7 +125,7 @@ mod tests {
             a: FixedUInt<T, N, Nct>,
             b: FixedUInt<T, N, Nct>,
         ) -> FixedUInt<T, N, Nct> {
-            ConstDivCeil::div_ceil(a, b)
+            DivCeil::div_ceil(a, b)
         }
     }
 

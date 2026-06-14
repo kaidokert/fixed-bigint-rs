@@ -63,7 +63,7 @@ pub use num_integer;
 pub mod fixeduint;
 
 /// Bits that should be in num_traits
-pub mod patch_num_traits;
+pub mod const_numtraits;
 
 /// Constant versions of num_traits
 pub mod const_numtraits;
@@ -75,7 +75,7 @@ pub mod personality;
 /// Machine word and doubleword
 mod machineword;
 
-pub use crate::const_numtraits::{ConstBitPrimInt, ConstPrimInt};
+pub use crate::const_numtraits::{PrimBits, PrimInt};
 pub use crate::fixeduint::FixedUInt;
 pub use crate::machineword::MachineWord;
 pub use crate::mul_acc_ops::MulAccOps;

@@ -1,12 +1,12 @@
 use num_traits::{CheckedEuclid, Euclid};
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstCheckedEuclid, ConstEuclid, ConstZero};
+use crate::const_numtraits::{CheckedEuclid, Euclid, ConstZero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstEuclid for FixedUInt<T, N, Nct> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Euclid for FixedUInt<T, N, Nct> {
         fn div_euclid(&self, v: &Self) -> Self {
             // For unsigned integers, Euclidean division is the same as regular division
             *self / *v
@@ -18,7 +18,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedEuclid for FixedUInt<T, N, Nct> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedEuclid for FixedUInt<T, N, Nct> {
         fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
             if v.is_zero() {
                 None
@@ -92,28 +92,28 @@ mod tests {
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> FixedUInt<T, N, Nct> {
-            ConstEuclid::div_euclid(a, b)
+            Euclid::div_euclid(a, b)
         }
 
         pub c0nst fn const_rem_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> FixedUInt<T, N, Nct> {
-            ConstEuclid::rem_euclid(a, b)
+            Euclid::rem_euclid(a, b)
         }
 
         pub c0nst fn const_checked_div_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> Option<FixedUInt<T, N, Nct>> {
-            ConstCheckedEuclid::checked_div_euclid(a, b)
+            CheckedEuclid::checked_div_euclid(a, b)
         }
 
         pub c0nst fn const_checked_rem_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> Option<FixedUInt<T, N, Nct>> {
-            ConstCheckedEuclid::checked_rem_euclid(a, b)
+            CheckedEuclid::checked_rem_euclid(a, b)
         }
     }
 

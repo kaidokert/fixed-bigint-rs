@@ -1,15 +1,12 @@
-use super::{
-    const_leading_zeros, const_leading_zeros_ct, const_trailing_zeros, const_trailing_zeros_ct,
-    FixedUInt, MachineWord,
-};
-use crate::const_numtraits::{ConstBitPrimInt, ConstPrimInt};
+use super::{const_leading_zeros, const_leading_zeros_ct, const_trailing_zeros, const_trailing_zeros_ct, FixedUInt, MachineWord};
+use crate::const_numtraits::{PrimBits, PrimInt};
 use crate::machineword::ConstMachineWord;
 
 use crate::personality::{Nct, Personality, PersonalityTag};
 use num_traits::One;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstBitPrimInt for FixedUInt<T, N, P> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst PrimBits for FixedUInt<T, N, P> {
         fn count_ones(self) -> u32 {
             let mut count = 0u32;
             let mut i = 0;
@@ -41,7 +38,7 @@ c0nst::c0nst! {
             }
         }
         fn swap_bytes(self) -> Self {
-            let mut ret = <Self as crate::const_numtraits::ConstZero>::zero();
+            let mut ret = <Self as crate::const_numtraits::ConstZero>::ZERO;
             let mut i = 0;
             while i < N {
                 ret.array[i] = self.array[N - 1 - i].swap_bytes();
@@ -76,7 +73,7 @@ c0nst::c0nst! {
             core::ops::Shr::<u32>::shr(self, n)
         }
         fn reverse_bits(self) -> Self {
-            let mut ret = <Self as crate::const_numtraits::ConstZero>::zero();
+            let mut ret = <Self as crate::const_numtraits::ConstZero>::ZERO;
             let mut i = 0;
             while i < N {
                 ret.array[N - 1 - i] = self.array[i].reverse_bits();
@@ -98,13 +95,13 @@ c0nst::c0nst! {
             self
         }
     }
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstPrimInt for FixedUInt<T, N, Nct> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst PrimInt for FixedUInt<T, N, Nct> {
         fn pow(self, exp: u32) -> Self {
             if exp == 0 {
-                return <Self as crate::const_numtraits::ConstOne>::one();
+                return <Self as crate::const_numtraits::ConstOne>::ONE;
             }
             // Exponentiation by squaring: O(log exp) instead of O(exp)
-            let mut result = <Self as crate::const_numtraits::ConstOne>::one();
+            let mut result = <Self as crate::const_numtraits::ConstOne>::ONE;
             let mut base = self;
             let mut e = exp;
             while e > 0 {

@@ -15,12 +15,12 @@
 //! Midpoint (average) implementation for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::ConstMidpoint;
+use crate::const_numtraits::Midpoint;
 use crate::machineword::ConstMachineWord;
 use crate::personality::Personality;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstMidpoint for FixedUInt<T, N, P> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Midpoint for FixedUInt<T, N, P> {
         fn midpoint(self, rhs: Self) -> Self {
             // (a & b) + ((a ^ b) >> 1) avoids overflow
             (self & rhs) + ((self ^ rhs) >> 1usize)
@@ -38,35 +38,35 @@ mod tests {
 
         // Simple midpoint
         assert_eq!(
-            ConstMidpoint::midpoint(U16::from(0u8), U16::from(10u8)),
+            Midpoint::midpoint(U16::from(0u8), U16::from(10u8)),
             U16::from(5u8)
         );
 
         // Order doesn't matter
         assert_eq!(
-            ConstMidpoint::midpoint(U16::from(10u8), U16::from(0u8)),
+            Midpoint::midpoint(U16::from(10u8), U16::from(0u8)),
             U16::from(5u8)
         );
 
         // Midpoint rounds down
         assert_eq!(
-            ConstMidpoint::midpoint(U16::from(0u8), U16::from(9u8)),
+            Midpoint::midpoint(U16::from(0u8), U16::from(9u8)),
             U16::from(4u8)
         );
 
         // Same values
         assert_eq!(
-            ConstMidpoint::midpoint(U16::from(42u8), U16::from(42u8)),
+            Midpoint::midpoint(U16::from(42u8), U16::from(42u8)),
             U16::from(42u8)
         );
 
         // Max values (no overflow)
         let max = U16::from(0xFFFFu16);
-        assert_eq!(ConstMidpoint::midpoint(max, max), max);
+        assert_eq!(Midpoint::midpoint(max, max), max);
 
         // 0 and max
         assert_eq!(
-            ConstMidpoint::midpoint(U16::from(0u8), max),
+            Midpoint::midpoint(U16::from(0u8), max),
             U16::from(0x7FFFu16)
         );
     }
@@ -76,7 +76,7 @@ mod tests {
             a: FixedUInt<T, N, P>,
             b: FixedUInt<T, N, P>,
         ) -> FixedUInt<T, N, P> {
-            ConstMidpoint::midpoint(a, b)
+            Midpoint::midpoint(a, b)
         }
     }
 
@@ -109,10 +109,10 @@ mod tests {
     fn test_midpoint_polymorphic() {
         fn test_mid<T>(a: T, b: T, expected: T)
         where
-            T: ConstMidpoint + Eq + core::fmt::Debug + Copy,
+            T: Midpoint + Eq + core::fmt::Debug + Copy,
         {
-            assert_eq!(ConstMidpoint::midpoint(a, b), expected);
-            assert_eq!(ConstMidpoint::midpoint(b, a), expected); // order doesn't matter
+            assert_eq!(Midpoint::midpoint(a, b), expected);
+            assert_eq!(Midpoint::midpoint(b, a), expected); // order doesn't matter
         }
 
         // Test with different layouts

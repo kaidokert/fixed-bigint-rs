@@ -42,6 +42,13 @@ exclude = ["/.github/*"]
 version = "0.2.19"
 default-features = false
 
+# Experimental: the in-tree const-friendly fork of num-traits. Used to
+# replace the local `src/const_numtraits.rs` module on this branch and
+# see what (if anything) breaks in the API/contract.
+[dependencies.const-num-traits]
+path = "../num-traits"
+default-features = false
+
 [dependencies.num-integer]
 version = "0.1.45"
 default-features = false

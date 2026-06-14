@@ -15,25 +15,22 @@
 // Note: in the future, #![feature(const_trait_impl)] should allow
 // turning this into a const trait
 
-pub use crate::const_numtraits::ConstPrimInt;
-use crate::const_numtraits::{
-    ConstBorrowingSub, ConstCarryingAdd, ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes,
-    ConstWideningMul,
-};
+pub use crate::const_numtraits::PrimInt;
+use crate::const_numtraits::{BorrowingSub, CarryingAdd, OverflowingAdd, OverflowingSub, ToBytes, WideningMul};
 
 c0nst::c0nst! {
     /// A const-friendly trait for MachineWord operations.
-    /// Extends ConstWideningMul to provide widening multiplication.
+    /// Extends WideningMul to provide widening multiplication.
     pub c0nst trait ConstMachineWord:
-        [c0nst] ConstPrimInt +
-        [c0nst] ConstOverflowingAdd +
-        [c0nst] ConstOverflowingSub +
-        [c0nst] ConstCarryingAdd +
-        [c0nst] ConstBorrowingSub +
-        [c0nst] ConstToBytes +
-        [c0nst] ConstWideningMul
+        [c0nst] PrimInt +
+        [c0nst] OverflowingAdd +
+        [c0nst] OverflowingSub +
+        [c0nst] CarryingAdd +
+        [c0nst] BorrowingSub +
+        [c0nst] ToBytes +
+        [c0nst] WideningMul
     {
-        type ConstDoubleWord: [c0nst] ConstPrimInt;
+        type ConstDoubleWord: [c0nst] PrimInt;
         fn to_double(self) -> Self::ConstDoubleWord;
         fn from_double(word: Self::ConstDoubleWord) -> Self;
     }
@@ -68,7 +65,7 @@ c0nst::c0nst! {
 pub trait MachineWord:
     ConstMachineWord<ConstDoubleWord = Self::DoubleWord> + core::hash::Hash + num_traits::ToPrimitive
 {
-    type DoubleWord: ConstPrimInt;
+    type DoubleWord: PrimInt;
 }
 
 impl MachineWord for u8 {

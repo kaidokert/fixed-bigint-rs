@@ -15,15 +15,15 @@
 //! Integer square root for FixedUInt.
 
 use super::{const_set_bit, FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstBitPrimInt, ConstIsqrt, ConstZero};
+use crate::const_numtraits::{PrimBits, Isqrt, ConstZero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstIsqrt for FixedUInt<T, N, Nct> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Isqrt for FixedUInt<T, N, Nct> {
         fn isqrt(self) -> Self {
             // For unsigned types, isqrt always succeeds
-            match ConstIsqrt::checked_isqrt(self) {
+            match Isqrt::checked_isqrt(self) {
                 Some(v) => v,
                 None => unreachable!(),
             }
@@ -41,7 +41,7 @@ c0nst::c0nst! {
             let mut result = Self::zero();
 
             // Find starting bit position: half of the bit length of self
-            let bit_len = Self::BIT_SIZE - ConstBitPrimInt::leading_zeros(self) as usize;
+            let bit_len = Self::BIT_SIZE - PrimBits::leading_zeros(self) as usize;
             let start_bit = bit_len.div_ceil(2);
 
             let mut bit_pos = start_bit;
@@ -76,23 +76,23 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         // Perfect squares
-        assert_eq!(ConstIsqrt::isqrt(U16::from(0u8)), U16::from(0u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(1u8)), U16::from(1u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(4u8)), U16::from(2u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(9u8)), U16::from(3u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(16u8)), U16::from(4u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(25u8)), U16::from(5u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(100u8)), U16::from(10u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(144u8)), U16::from(12u8));
+        assert_eq!(Isqrt::isqrt(U16::from(0u8)), U16::from(0u8));
+        assert_eq!(Isqrt::isqrt(U16::from(1u8)), U16::from(1u8));
+        assert_eq!(Isqrt::isqrt(U16::from(4u8)), U16::from(2u8));
+        assert_eq!(Isqrt::isqrt(U16::from(9u8)), U16::from(3u8));
+        assert_eq!(Isqrt::isqrt(U16::from(16u8)), U16::from(4u8));
+        assert_eq!(Isqrt::isqrt(U16::from(25u8)), U16::from(5u8));
+        assert_eq!(Isqrt::isqrt(U16::from(100u8)), U16::from(10u8));
+        assert_eq!(Isqrt::isqrt(U16::from(144u8)), U16::from(12u8));
 
         // Non-perfect squares (floor)
-        assert_eq!(ConstIsqrt::isqrt(U16::from(2u8)), U16::from(1u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(3u8)), U16::from(1u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(5u8)), U16::from(2u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(8u8)), U16::from(2u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(10u8)), U16::from(3u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(15u8)), U16::from(3u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(24u8)), U16::from(4u8));
+        assert_eq!(Isqrt::isqrt(U16::from(2u8)), U16::from(1u8));
+        assert_eq!(Isqrt::isqrt(U16::from(3u8)), U16::from(1u8));
+        assert_eq!(Isqrt::isqrt(U16::from(5u8)), U16::from(2u8));
+        assert_eq!(Isqrt::isqrt(U16::from(8u8)), U16::from(2u8));
+        assert_eq!(Isqrt::isqrt(U16::from(10u8)), U16::from(3u8));
+        assert_eq!(Isqrt::isqrt(U16::from(15u8)), U16::from(3u8));
+        assert_eq!(Isqrt::isqrt(U16::from(24u8)), U16::from(4u8));
     }
 
     #[test]
@@ -100,9 +100,9 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         // Larger values
-        assert_eq!(ConstIsqrt::isqrt(U16::from(10000u16)), U16::from(100u8));
-        assert_eq!(ConstIsqrt::isqrt(U16::from(65535u16)), U16::from(255u8)); // sqrt(65535) = 255.998...
-        assert_eq!(ConstIsqrt::isqrt(U16::from(65025u16)), U16::from(255u8)); // 255^2 = 65025
+        assert_eq!(Isqrt::isqrt(U16::from(10000u16)), U16::from(100u8));
+        assert_eq!(Isqrt::isqrt(U16::from(65535u16)), U16::from(255u8)); // sqrt(65535) = 255.998...
+        assert_eq!(Isqrt::isqrt(U16::from(65025u16)), U16::from(255u8)); // 255^2 = 65025
     }
 
     #[test]
@@ -111,15 +111,15 @@ mod tests {
 
         // For unsigned, checked_isqrt always returns Some
         assert_eq!(
-            ConstIsqrt::checked_isqrt(U16::from(0u8)),
+            Isqrt::checked_isqrt(U16::from(0u8)),
             Some(U16::from(0u8))
         );
         assert_eq!(
-            ConstIsqrt::checked_isqrt(U16::from(16u8)),
+            Isqrt::checked_isqrt(U16::from(16u8)),
             Some(U16::from(4u8))
         );
         assert_eq!(
-            ConstIsqrt::checked_isqrt(U16::from(17u8)),
+            Isqrt::checked_isqrt(U16::from(17u8)),
             Some(U16::from(4u8))
         );
     }
@@ -131,7 +131,7 @@ mod tests {
         // Verify r^2 <= n < (r+1)^2 for various values
         for n in 0..=1000u16 {
             let n_int = U16::from(n);
-            let r = ConstIsqrt::isqrt(n_int);
+            let r = Isqrt::isqrt(n_int);
 
             // r^2 <= n
             assert!(r * r <= n_int, "Failed: {}^2 > {}", r, n);
@@ -153,32 +153,32 @@ mod tests {
         type U32x2 = FixedUInt<u32, 2>;
 
         // Perfect squares
-        assert_eq!(ConstIsqrt::isqrt(U32x2::from(0u8)), U32x2::from(0u8));
-        assert_eq!(ConstIsqrt::isqrt(U32x2::from(1u8)), U32x2::from(1u8));
-        assert_eq!(ConstIsqrt::isqrt(U32x2::from(16u8)), U32x2::from(4u8));
+        assert_eq!(Isqrt::isqrt(U32x2::from(0u8)), U32x2::from(0u8));
+        assert_eq!(Isqrt::isqrt(U32x2::from(1u8)), U32x2::from(1u8));
+        assert_eq!(Isqrt::isqrt(U32x2::from(16u8)), U32x2::from(4u8));
 
         // Larger values that span multiple bits
         assert_eq!(
-            ConstIsqrt::isqrt(U32x2::from(1000000u32)),
+            Isqrt::isqrt(U32x2::from(1000000u32)),
             U32x2::from(1000u32)
         );
         assert_eq!(
-            ConstIsqrt::isqrt(U32x2::from(0xFFFFFFFFu32)),
+            Isqrt::isqrt(U32x2::from(0xFFFFFFFFu32)),
             U32x2::from(0xFFFFu32)
         );
 
         // Test with u8x4 for different word boundary behavior
         type U8x4 = FixedUInt<u8, 4>;
-        assert_eq!(ConstIsqrt::isqrt(U8x4::from(65536u32)), U8x4::from(256u32));
+        assert_eq!(Isqrt::isqrt(U8x4::from(65536u32)), U8x4::from(256u32));
         assert_eq!(
-            ConstIsqrt::isqrt(U8x4::from(1000000u32)),
+            Isqrt::isqrt(U8x4::from(1000000u32)),
             U8x4::from(1000u32)
         );
 
         // Verify correctness for a range
         for n in (0..=10000u32).step_by(100) {
             let n_int = U32x2::from(n);
-            let r = ConstIsqrt::isqrt(n_int);
+            let r = Isqrt::isqrt(n_int);
 
             // r^2 <= n
             assert!(r * r <= n_int, "Failed: {}^2 > {} for U32x2", r, n);
@@ -196,7 +196,7 @@ mod tests {
         pub c0nst fn const_isqrt<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             v: FixedUInt<T, N, Nct>,
         ) -> FixedUInt<T, N, Nct> {
-            ConstIsqrt::isqrt(v)
+            Isqrt::isqrt(v)
         }
     }
 

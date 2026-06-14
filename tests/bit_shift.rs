@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use fixed_bigint::patch_num_traits::{OverflowingShl, OverflowingShr};
+use fixed_bigint::const_numtraits::{OverflowingShl, OverflowingShr};
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
 

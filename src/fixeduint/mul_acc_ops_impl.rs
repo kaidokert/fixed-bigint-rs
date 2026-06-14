@@ -5,9 +5,9 @@
 //! this module; the public trait surface never exposes raw arrays.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstCarryingAdd, ConstZero};
+use crate::const_numtraits::{CarryingAdd, ConstZero};
 use crate::mul_acc_ops::MulAccOps;
-use crate::patch_num_traits::CarryingMul;
+use crate::const_numtraits::CarryingMul;
 use crate::personality::{Ct, Nct};
 
 macro_rules! mul_acc_ops_common {
@@ -42,7 +42,7 @@ macro_rules! mul_acc_ops_common {
                 scalar,
                 multiplicand.array[0],
                 acc.array[0],
-                <T as ConstZero>::zero(),
+                <T as ConstZero>::ZERO,
             );
 
             // Remaining words: shift down by one position
@@ -60,13 +60,13 @@ macro_rules! mul_acc_ops_common {
             }
 
             // Fold acc_hi + carry into acc[N-1]
-            let (sum, overflow) = <T as ConstCarryingAdd>::carrying_add(acc_hi, carry, false);
+            let (sum, overflow) = <T as CarryingAdd>::carrying_add(acc_hi, carry, false);
             acc.array[N - 1] = sum;
 
             // Branchless: convert overflow bool to word via carrying_add(0, 0, overflow)
-            let (overflow_word, _) = <T as ConstCarryingAdd>::carrying_add(
-                <T as ConstZero>::zero(),
-                <T as ConstZero>::zero(),
+            let (overflow_word, _) = <T as CarryingAdd>::carrying_add(
+                <T as ConstZero>::ZERO,
+                <T as ConstZero>::ZERO,
                 overflow,
             );
             overflow_word
@@ -76,7 +76,7 @@ macro_rules! mul_acc_ops_common {
 
 impl<T, const N: usize> MulAccOps for FixedUInt<T, N, Nct>
 where
-    T: MachineWord + CarryingMul<Output = T> + ConstCarryingAdd,
+    T: MachineWord + CarryingMul<Output = T> + CarryingAdd,
 {
     type GetWordOutput = Option<T>;
 
@@ -89,13 +89,13 @@ where
 
 impl<T, const N: usize> MulAccOps for FixedUInt<T, N, Ct>
 where
-    T: MachineWord + CarryingMul<Output = T> + ConstCarryingAdd + subtle::ConditionallySelectable,
+    T: MachineWord + CarryingMul<Output = T> + CarryingAdd + subtle::ConditionallySelectable,
 {
     type GetWordOutput = subtle::CtOption<T>;
 
     fn get_word(&self, i: usize) -> subtle::CtOption<T> {
         use subtle::{Choice, CtOption};
-        let mut selected = <T as ConstZero>::zero();
+        let mut selected = <T as ConstZero>::ZERO;
         let mut j = 0;
         while j < N {
             let is_target = Choice::from((j == i) as u8);
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn test_zero_init() {
         use crate::const_numtraits::ConstZero;
-        let z = <U32 as ConstZero>::zero();
+        let z = <U32 as ConstZero>::ZERO;
         assert_eq!(z, U32::from(0u8));
     }
 
@@ -154,7 +154,7 @@ mod tests {
         // 200 * 200 = 40000 = 0x9C40
         use crate::const_numtraits::ConstZero;
         let multiplicand = U16::from(200u16);
-        let mut acc = <U16 as ConstZero>::zero();
+        let mut acc = <U16 as ConstZero>::ZERO;
         let carry = U16::mul_acc_row(200u8, &multiplicand, &mut acc, 0u8);
         assert_eq!(acc, U16::from(40000u16));
         assert_eq!(carry, 0u8);

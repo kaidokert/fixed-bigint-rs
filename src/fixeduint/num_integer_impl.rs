@@ -49,7 +49,7 @@ impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N, Nc
     fn divides(&self, other: &Self) -> bool {
         self.is_multiple_of(other)
     }
-    fn is_multiple_of(&self, other: &Self) -> bool {
+    fn is_multiple_of(self, other: Self) -> bool {
         (*self) % other == Self::zero()
     }
     fn is_even(&self) -> bool {

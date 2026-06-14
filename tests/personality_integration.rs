@@ -318,7 +318,7 @@ fn nct_variant_does_not_have_ct_gt() {
 
 #[test]
 fn leading_zeros_works_under_both_personalities() {
-    use fixed_bigint::ConstBitPrimInt;
+    use fixed_bigint::PrimBits;
 
     // Zero: full word_bits * N leading zeros.
     let z_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
@@ -348,7 +348,7 @@ fn leading_zeros_works_under_both_personalities() {
 
 #[test]
 fn trailing_zeros_works_under_both_personalities() {
-    use fixed_bigint::ConstBitPrimInt;
+    use fixed_bigint::PrimBits;
 
     // Zero: full width.
     let z_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
@@ -694,7 +694,7 @@ fn ct_checked_mul_returns_ctoption() {
 
 #[test]
 fn abs_diff_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstAbsDiff;
+    use fixed_bigint::const_numtraits::AbsDiff;
 
     let cases: [(u8, u8, u8); 6] = [
         (10, 3, 7), // a > b
@@ -712,7 +712,7 @@ fn abs_diff_works_under_both_personalities() {
         let bc: FixedUInt<u8, 2, Ct> = bn.into();
         let want: FixedUInt<u8, 2, Nct> = FixedUInt::from(expected);
         assert_eq!(
-            ConstAbsDiff::abs_diff(an, bn),
+            AbsDiff::abs_diff(an, bn),
             want,
             "Nct abs_diff({}, {}) = {}",
             a,
@@ -720,7 +720,7 @@ fn abs_diff_works_under_both_personalities() {
             expected
         );
         assert_eq!(
-            ConstAbsDiff::abs_diff(ac, bc).forget_ct(),
+            AbsDiff::abs_diff(ac, bc).forget_ct(),
             want,
             "Ct abs_diff({}, {}) = {}",
             a,
@@ -922,7 +922,7 @@ fn ct_shr_by_trailing_zeros_pattern() {
     // The motivating modular-inverse use case: shr by tz(x), where
     // tz is a secret count. Both halves of the operation are CT under
     // Ct personality. Verifies the pieces compose correctly.
-    use fixed_bigint::ConstBitPrimInt;
+    use fixed_bigint::PrimBits;
 
     // Pick a value with a known trailing-zero count.
     // 0x10000000 = bit 28 set, so trailing_zeros == 28.
@@ -1077,11 +1077,11 @@ fn ord_on_ct_agrees_with_nct() {
 
 #[test]
 fn next_power_of_two_saturates_to_max_on_ct_overflow() {
-    use fixed_bigint::const_numtraits::{ConstBounded, ConstPowerOfTwo};
+    use fixed_bigint::const_numtraits::{Bounded, ConstPowerOfTwo};
 
     // u16 type with Ct personality. Inputs whose next_power_of_two exceeds
     // u16::MAX should saturate to MAX, not silently return 0.
-    let max_u16: FixedUInt<u8, 2, Ct> = <FixedUInt<u8, 2, Ct> as ConstBounded>::max_value();
+    let max_u16: FixedUInt<u8, 2, Ct> = <FixedUInt<u8, 2, Ct> as Bounded>::max_value();
 
     for input in [0x8001u16, 0xC000, 0xFFFF] {
         let v: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(input).into();

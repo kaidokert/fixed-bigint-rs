@@ -1,14 +1,12 @@
-use super::{
-    const_is_one, const_is_one_ct, const_is_zero, const_is_zero_ct, FixedUInt, MachineWord,
-};
-use crate::const_numtraits::{ConstBounded, ConstOne, ConstZero};
+use super::{const_is_one, const_is_one_ct, const_is_zero, const_is_zero_ct, FixedUInt, MachineWord};
+use crate::const_numtraits::{Bounded, ConstOne, ConstZero, One, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstZero for FixedUInt<T, N, P> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Zero for FixedUInt<T, N, P> {
         fn zero() -> Self {
-            FixedUInt::from_array([T::zero(); N])
+            FixedUInt::from_array([<T as Zero>::zero(); N])
         }
         fn is_zero(&self) -> bool {
             match P::TAG {
@@ -19,17 +17,21 @@ c0nst::c0nst! {
         fn set_zero(&mut self) {
             let mut i = 0;
             while i < N {
-                self.array[i].set_zero();
+                <T as Zero>::set_zero(&mut self.array[i]);
                 i += 1;
             }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstOne for FixedUInt<T, N, P> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstZero for FixedUInt<T, N, P> {
+        const ZERO: Self = FixedUInt::from_array([<T as ConstZero>::ZERO; N]);
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst One for FixedUInt<T, N, P> {
         fn one() -> Self {
-            let mut ret = <Self as ConstZero>::zero();
+            let mut ret = <Self as ConstZero>::ZERO;
             if N > 0 {
-                ret.array[0] = T::one();
+                ret.array[0] = <T as One>::one();
             }
             ret
         }
@@ -40,44 +42,55 @@ c0nst::c0nst! {
             }
         }
         fn set_one(&mut self) {
-            <Self as ConstZero>::set_zero(self);
+            <Self as Zero>::set_zero(self);
             if N > 0 {
-                self.array[0].set_one();
+                <T as One>::set_one(&mut self.array[0]);
             }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstBounded for FixedUInt<T, N, P> {
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstOne for FixedUInt<T, N, P> {
+        const ONE: Self = {
+            // Construct array with T::ONE in slot 0, T::ZERO elsewhere.
+            let mut a = [<T as ConstZero>::ZERO; N];
+            if N > 0 {
+                a[0] = <T as ConstOne>::ONE;
+            }
+            FixedUInt::from_array(a)
+        };
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Bounded for FixedUInt<T, N, P> {
         fn min_value() -> Self {
-            <Self as ConstZero>::zero()
+            <Self as ConstZero>::ZERO
         }
         fn max_value() -> Self {
-            FixedUInt::from_array([T::max_value(); N])
+            FixedUInt::from_array([<T as Bounded>::max_value(); N])
         }
     }
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::Zero for FixedUInt<T, N, P> {
     fn zero() -> Self {
-        <Self as ConstZero>::zero()
+        <Self as ConstZero>::ZERO
     }
     fn is_zero(&self) -> bool {
-        <Self as ConstZero>::is_zero(self)
+        <Self as Zero>::is_zero(self)
     }
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::One for FixedUInt<T, N, P> {
     fn one() -> Self {
-        <Self as ConstOne>::one()
+        <Self as ConstOne>::ONE
     }
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::Bounded for FixedUInt<T, N, P> {
     fn min_value() -> Self {
-        <Self as ConstBounded>::min_value()
+        <Self as Bounded>::min_value()
     }
     fn max_value() -> Self {
-        <Self as ConstBounded>::max_value()
+        <Self as Bounded>::max_value()
     }
 }
 
@@ -88,35 +101,35 @@ mod tests {
 
     c0nst::c0nst! {
         c0nst fn const_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>() -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as ConstZero>::zero()
+            <FixedUInt<T, N, P> as ConstZero>::ZERO
         }
 
         c0nst fn const_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>() -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as ConstOne>::one()
+            <FixedUInt<T, N, P> as ConstOne>::ONE
         }
 
         c0nst fn const_is_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: &FixedUInt<T, N, P>) -> bool {
-            <FixedUInt<T, N, P> as ConstZero>::is_zero(v)
+            <FixedUInt<T, N, P> as Zero>::is_zero(v)
         }
 
         c0nst fn const_is_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: &FixedUInt<T, N, P>) -> bool {
-            <FixedUInt<T, N, P> as ConstOne>::is_one(v)
+            <FixedUInt<T, N, P> as One>::is_one(v)
         }
 
         c0nst fn const_min_value<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>() -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as ConstBounded>::min_value()
+            <FixedUInt<T, N, P> as Bounded>::min_value()
         }
 
         c0nst fn const_max_value<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>() -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as ConstBounded>::max_value()
+            <FixedUInt<T, N, P> as Bounded>::max_value()
         }
 
         c0nst fn const_set_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: &mut FixedUInt<T, N, P>) {
-            <FixedUInt<T, N, P> as ConstZero>::set_zero(v)
+            <FixedUInt<T, N, P> as Zero>::set_zero(v)
         }
 
         c0nst fn const_set_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: &mut FixedUInt<T, N, P>) {
-            <FixedUInt<T, N, P> as ConstOne>::set_one(v)
+            <FixedUInt<T, N, P> as One>::set_one(v)
         }
     }
 
