@@ -241,7 +241,13 @@ mod tests {
         pub c0nst fn const_widening_mul<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality>(
             a: FixedUInt<T, N, P>,
             b: FixedUInt<T, N, P>,
-        ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
+        ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>)
+        where
+            <T as ConstMachineWord>::ConstDoubleWord:
+                [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
+                + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
+                + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+        {
             CarryingMul::carrying_mul(a, b, <FixedUInt<T, N, P> as Zero>::zero())
         }
 
@@ -249,7 +255,13 @@ mod tests {
             a: FixedUInt<T, N, P>,
             b: FixedUInt<T, N, P>,
             carry: FixedUInt<T, N, P>,
-        ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
+        ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>)
+        where
+            <T as ConstMachineWord>::ConstDoubleWord:
+                [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
+                + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
+                + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+        {
             CarryingMul::carrying_mul(a, b, carry)
         }
 
@@ -258,7 +270,13 @@ mod tests {
             b: FixedUInt<T, N, P>,
             addend: FixedUInt<T, N, P>,
             carry: FixedUInt<T, N, P>,
-        ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
+        ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>)
+        where
+            <T as ConstMachineWord>::ConstDoubleWord:
+                [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
+                + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
+                + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+        {
             CarryingMul::carrying_mul_add(a, b, addend, carry)
         }
     }

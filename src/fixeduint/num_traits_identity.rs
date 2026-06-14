@@ -23,9 +23,6 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstZero for FixedUInt<T, N, P> {
-        const ZERO: Self = FixedUInt::from_array([<T as ConstZero>::ZERO; N]);
-    }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst One for FixedUInt<T, N, P> {
         fn one() -> Self {
@@ -49,16 +46,6 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstOne for FixedUInt<T, N, P> {
-        const ONE: Self = {
-            // Construct array with T::ONE in slot 0, T::ZERO elsewhere.
-            let mut a = [<T as ConstZero>::ZERO; N];
-            if N > 0 {
-                a[0] = <T as ConstOne>::ONE;
-            }
-            FixedUInt::from_array(a)
-        };
-    }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Bounded for FixedUInt<T, N, P> {
         fn min_value() -> Self {
@@ -68,6 +55,26 @@ c0nst::c0nst! {
             FixedUInt::from_array([<T as Bounded>::max_value(); N])
         }
     }
+}
+
+// `ConstZero` and `ConstOne` are NOT `c0nst` traits in the external
+// crate (they only declare an associated constant). The c0nst macro
+// rejects mixing const-trait impls with non-const-trait impls in the
+// same block, so these two impls live outside the c0nst! block above.
+
+impl<T: ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstZero for FixedUInt<T, N, P> {
+    const ZERO: Self = FixedUInt::from_array([<T as ConstZero>::ZERO; N]);
+}
+
+impl<T: ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstOne for FixedUInt<T, N, P> {
+    const ONE: Self = {
+        // Construct array with T::ONE in slot 0, T::ZERO elsewhere.
+        let mut a = [<T as ConstZero>::ZERO; N];
+        if N > 0 {
+            a[0] = <T as ConstOne>::ONE;
+        }
+        FixedUInt::from_array(a)
+    };
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::Zero for FixedUInt<T, N, P> {
