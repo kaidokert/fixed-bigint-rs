@@ -13,16 +13,23 @@ pub struct BytesHolder<T: MachineWord, const N: usize> {
     array: [T; N],
 }
 
-impl<T: MachineWord, const N: usize> Default for BytesHolder<T, N> {
-    fn default() -> Self {
-        Self::from_array(core::array::from_fn(|_| {
-            <T as crate::const_numtraits::Zero>::zero()
-        }))
+c0nst::c0nst! {
+    // `c0nst Default` so this is callable from a `const` context on
+    // nightly (the `nightly` feature pulls in `feature(const_default)`).
+    // On stable the c0nst macro renders the same impl as plain
+    // `impl Default`, so downstream `BytesHolder::default()` callers see
+    // no behavior change. Body uses the `[<T as ConstZero>::ZERO; N]`
+    // initializer rather than `core::array::from_fn(...)` because the
+    // closure-based helper isn't const-callable.
+    impl<T: [c0nst] crate::machineword::ConstMachineWord + MachineWord, const N: usize> c0nst Default for BytesHolder<T, N> {
+        fn default() -> Self {
+            Self::from_array([<T as crate::const_numtraits::ConstZero>::ZERO; N])
+        }
     }
 }
 
 impl<T: MachineWord, const N: usize> BytesHolder<T, N> {
-    pub(crate) fn from_array(array: [T; N]) -> Self {
+    pub(crate) const fn from_array(array: [T; N]) -> Self {
         Self { array }
     }
     // Converts internal storage to a mutable byte slice
@@ -172,5 +179,31 @@ mod tests {
             &[0x12, 0x34, 0x56, 0x78],
             FixedUInt::<u32, 1>::from_u32(0x12345678).unwrap(),
         );
+    }
+
+    // --- Empirical const-evaluability of `Default` -------------------------
+    //
+    // `core::default::Default` becomes a `const trait` on nightly under
+    // `feature(const_default)`, which our `nightly` feature enables. The
+    // `impl c0nst Default for BytesHolder` above is rendered as
+    // `impl const Default for BytesHolder` on nightly and as the plain
+    // impl on stable. This test binds the result of `Default::default()`
+    // to a `const` item, proving the const path is real on nightly.
+
+    #[test]
+    fn nightly_const_eval_default() {
+        // runtime smoke (works on stable + nightly).
+        let h: BytesHolder<u8, 4> = Default::default();
+        assert_eq!(h.array, [0u8; 4]);
+
+        #[cfg(feature = "nightly")]
+        {
+            const DEFAULT_U8X4: BytesHolder<u8, 4> = Default::default();
+            const DEFAULT_U16X2: BytesHolder<u16, 2> = Default::default();
+            const DEFAULT_U32X1: BytesHolder<u32, 1> = Default::default();
+            assert_eq!(DEFAULT_U8X4.array, [0u8; 4]);
+            assert_eq!(DEFAULT_U16X2.array, [0u16; 2]);
+            assert_eq!(DEFAULT_U32X1.array, [0u32; 1]);
+        }
     }
 }
