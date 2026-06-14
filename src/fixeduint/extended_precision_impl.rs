@@ -162,6 +162,30 @@ c0nst::c0nst! {
             (Self::from_array(lo3), Self::from_array(hi3))
         }
     }
+
+    // --- Reference-receiver bigint-helper impls -----------------------------
+
+    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + MachineWord, const N: usize, P: Personality> c0nst CarryingAdd for &FixedUInt<T, N, P> {
+        fn carrying_add(self, rhs: Self, carry: bool) -> (FixedUInt<T, N, P>, bool) {
+            <FixedUInt<T, N, P> as CarryingAdd>::carrying_add(*self, *rhs, carry)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst BorrowingSub for &FixedUInt<T, N, P> {
+        fn borrowing_sub(self, rhs: Self, borrow: bool) -> (FixedUInt<T, N, P>, bool) {
+            <FixedUInt<T, N, P> as BorrowingSub>::borrowing_sub(*self, *rhs, borrow)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst CarryingMul for &FixedUInt<T, N, P> {
+        type Unsigned = FixedUInt<T, N, P>;
+        fn carrying_mul(self, rhs: Self, carry: Self) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
+            <FixedUInt<T, N, P> as CarryingMul>::carrying_mul(*self, *rhs, *carry)
+        }
+        fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
+            <FixedUInt<T, N, P> as CarryingMul>::carrying_mul_add(*self, *rhs, *addend, *carry)
+        }
+    }
 }
 
 // (Legacy non-const WideningMul / CarryingMul shim impls retired —

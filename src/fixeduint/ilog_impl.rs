@@ -88,6 +88,33 @@ c0nst::c0nst! {
             Some(count)
         }
     }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog2 for &FixedUInt<T, N, Nct> {
+        fn ilog2(self) -> u32 {
+            <FixedUInt<T, N, Nct> as Ilog2>::ilog2(*self)
+        }
+        fn checked_ilog2(self) -> Option<u32> {
+            <FixedUInt<T, N, Nct> as Ilog2>::checked_ilog2(*self)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog10 for &FixedUInt<T, N, Nct> {
+        fn ilog10(self) -> u32 {
+            <FixedUInt<T, N, Nct> as Ilog10>::ilog10(*self)
+        }
+        fn checked_ilog10(self) -> Option<u32> {
+            <FixedUInt<T, N, Nct> as Ilog10>::checked_ilog10(*self)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog for &FixedUInt<T, N, Nct> {
+        fn ilog(self, base: Self) -> u32 {
+            <FixedUInt<T, N, Nct> as Ilog>::ilog(*self, *base)
+        }
+        fn checked_ilog(self, base: Self) -> Option<u32> {
+            <FixedUInt<T, N, Nct> as Ilog>::checked_ilog(*self, *base)
+        }
+    }
 }
 
 #[cfg(test)]

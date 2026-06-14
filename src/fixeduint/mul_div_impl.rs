@@ -42,6 +42,32 @@ c0nst::c0nst! {
             }
         }
     }
+
+    // --- Reference-receiver mul impls (see add_sub_impl.rs for rationale) ---
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst OverflowingMul for &FixedUInt<T, N, P> {
+        fn overflowing_mul(self, other: Self) -> (FixedUInt<T, N, P>, bool) {
+            <FixedUInt<T, N, P> as OverflowingMul>::overflowing_mul(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingMul for &FixedUInt<T, N, P> {
+        fn wrapping_mul(self, other: Self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as WrappingMul>::wrapping_mul(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedMul for &FixedUInt<T, N, P> {
+        fn checked_mul(self, other: Self) -> Option<FixedUInt<T, N, P>> {
+            <FixedUInt<T, N, P> as CheckedMul>::checked_mul(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst SaturatingMul for &FixedUInt<T, N, P> {
+        fn saturating_mul(self, other: Self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as SaturatingMul>::saturating_mul(*self, *other)
+        }
+    }
 }
 
 c0nst::c0nst! {
@@ -182,6 +208,12 @@ c0nst::c0nst! {
             }
         }
     }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedDiv for &FixedUInt<T, N, Nct> {
+        fn checked_div(self, other: Self) -> Option<FixedUInt<T, N, Nct>> {
+            <FixedUInt<T, N, Nct> as CheckedDiv>::checked_div(*self, *other)
+        }
+    }
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedDiv for FixedUInt<T, N, Nct> {
@@ -240,6 +272,12 @@ c0nst::c0nst! {
             } else {
                 Some(self % other)
             }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedRem for &FixedUInt<T, N, Nct> {
+        fn checked_rem(self, other: Self) -> Option<FixedUInt<T, N, Nct>> {
+            <FixedUInt<T, N, Nct> as CheckedRem>::checked_rem(*self, *other)
         }
     }
 }

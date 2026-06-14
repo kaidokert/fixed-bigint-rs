@@ -45,6 +45,30 @@ c0nst::c0nst! {
             }
         }
     }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Euclid for &FixedUInt<T, N, Nct> {
+        fn div_euclid(self, v: Self) -> FixedUInt<T, N, Nct> {
+            <FixedUInt<T, N, Nct> as Euclid>::div_euclid(*self, *v)
+        }
+        fn rem_euclid(self, v: Self) -> FixedUInt<T, N, Nct> {
+            <FixedUInt<T, N, Nct> as Euclid>::rem_euclid(*self, *v)
+        }
+        fn div_rem_euclid(self, v: Self) -> (FixedUInt<T, N, Nct>, FixedUInt<T, N, Nct>) {
+            <FixedUInt<T, N, Nct> as Euclid>::div_rem_euclid(*self, *v)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedEuclid for &FixedUInt<T, N, Nct> {
+        fn checked_div_euclid(self, v: Self) -> Option<FixedUInt<T, N, Nct>> {
+            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_div_euclid(*self, *v)
+        }
+        fn checked_rem_euclid(self, v: Self) -> Option<FixedUInt<T, N, Nct>> {
+            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_rem_euclid(*self, *v)
+        }
+        fn checked_div_rem_euclid(self, v: Self) -> Option<(FixedUInt<T, N, Nct>, FixedUInt<T, N, Nct>)> {
+            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_div_rem_euclid(*self, *v)
+        }
+    }
 }
 
 // (legacy num_traits::Euclid / CheckedEuclid shim impls retired — the

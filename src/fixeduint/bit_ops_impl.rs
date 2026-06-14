@@ -473,6 +473,61 @@ c0nst::c0nst! {
             const_unbounded_shr_u32(self, rhs)
         }
     }
+
+    // --- Reference-receiver shift impls (see add_sub_impl.rs for rationale) ---
+    //
+    // The shift Output comes from the operator supertrait
+    // (`Shl<u32>` / `Shr<u32>`); both `Shl<u32> for &FixedUInt` and
+    // `Shr<u32> for &FixedUInt` are defined above (lines 235, 242),
+    // so Output resolves to `FixedUInt<T,N,P>`.
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst OverflowingShl for &FixedUInt<T, N, P> {
+        fn overflowing_shl(self, bits: u32) -> (FixedUInt<T, N, P>, bool) {
+            <FixedUInt<T, N, P> as OverflowingShl>::overflowing_shl(*self, bits)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst OverflowingShr for &FixedUInt<T, N, P> {
+        fn overflowing_shr(self, bits: u32) -> (FixedUInt<T, N, P>, bool) {
+            <FixedUInt<T, N, P> as OverflowingShr>::overflowing_shr(*self, bits)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingShl for &FixedUInt<T, N, P> {
+        fn wrapping_shl(self, bits: u32) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as WrappingShl>::wrapping_shl(*self, bits)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingShr for &FixedUInt<T, N, P> {
+        fn wrapping_shr(self, bits: u32) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as WrappingShr>::wrapping_shr(*self, bits)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedShl for &FixedUInt<T, N, P> {
+        fn checked_shl(self, bits: u32) -> Option<FixedUInt<T, N, P>> {
+            <FixedUInt<T, N, P> as CheckedShl>::checked_shl(*self, bits)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedShr for &FixedUInt<T, N, P> {
+        fn checked_shr(self, bits: u32) -> Option<FixedUInt<T, N, P>> {
+            <FixedUInt<T, N, P> as CheckedShr>::checked_shr(*self, bits)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst UnboundedShl for &FixedUInt<T, N, P> {
+        fn unbounded_shl(self, rhs: u32) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as UnboundedShl>::unbounded_shl(*self, rhs)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst UnboundedShr for &FixedUInt<T, N, P> {
+        fn unbounded_shr(self, rhs: u32) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as UnboundedShr>::unbounded_shr(*self, rhs)
+        }
+    }
 }
 
 // num_traits wrappers - delegate to const impls

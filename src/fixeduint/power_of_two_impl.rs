@@ -103,6 +103,25 @@ c0nst::c0nst! {
             Some(Self::one() << (bits as usize))
         }
     }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst IsPowerOfTwo for &FixedUInt<T, N, P> {
+        fn is_power_of_two(self) -> bool {
+            <FixedUInt<T, N, P> as IsPowerOfTwo>::is_power_of_two(*self)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst NextPowerOfTwo for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
+        fn next_power_of_two(self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as NextPowerOfTwo>::next_power_of_two(*self)
+        }
+        fn checked_next_power_of_two(self) -> Option<FixedUInt<T, N, P>> {
+            <FixedUInt<T, N, P> as NextPowerOfTwo>::checked_next_power_of_two(*self)
+        }
+        fn wrapping_next_power_of_two(self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as NextPowerOfTwo>::wrapping_next_power_of_two(*self)
+        }
+    }
 }
 
 #[cfg(test)]

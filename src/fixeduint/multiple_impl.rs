@@ -52,6 +52,21 @@ c0nst::c0nst! {
             }
         }
     }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst MultipleOf for &FixedUInt<T, N, Nct> {
+        fn is_multiple_of(self, rhs: Self) -> bool {
+            <FixedUInt<T, N, Nct> as MultipleOf>::is_multiple_of(*self, *rhs)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst NextMultipleOf for &FixedUInt<T, N, Nct> {
+        fn next_multiple_of(self, rhs: Self) -> FixedUInt<T, N, Nct> {
+            <FixedUInt<T, N, Nct> as NextMultipleOf>::next_multiple_of(*self, *rhs)
+        }
+        fn checked_next_multiple_of(self, rhs: Self) -> Option<FixedUInt<T, N, Nct>> {
+            <FixedUInt<T, N, Nct> as NextMultipleOf>::checked_next_multiple_of(*self, *rhs)
+        }
+    }
 }
 
 #[cfg(test)]

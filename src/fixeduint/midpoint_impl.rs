@@ -27,6 +27,13 @@ c0nst::c0nst! {
             (self & rhs) + ((self ^ rhs) >> 1usize)
         }
     }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Midpoint for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
+        fn midpoint(self, rhs: Self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as Midpoint>::midpoint(*self, *rhs)
+        }
+    }
 }
 
 #[cfg(test)]

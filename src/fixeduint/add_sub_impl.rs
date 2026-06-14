@@ -173,6 +173,66 @@ c0nst::c0nst! {
             self.array = array;
         }
     }
+
+    // --- Reference-receiver impls ------------------------------------------
+    //
+    // MIGRATION.md §2.3 introduces the `type Output` associated type so the
+    // by-value trait surface can also be implemented for `&Self`. For Copy
+    // types like FixedUInt the body just dereferences and delegates to the
+    // owned impl above, but the ergonomic payoff is real: call sites can
+    // write `(&x).checked_add(&y)` (or call generically through a `T:
+    // CheckedAdd` bound where T is `&FixedUInt`) without sprinkling derefs
+    // through arithmetic helpers. The `Add<&FixedUInt> for &FixedUInt`
+    // impls in this file (lines 96+) supply the `Output = FixedUInt<T,N,P>`
+    // that the operator-backed supertrait expects.
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::OverflowingAdd for &FixedUInt<T, N, P> {
+        fn overflowing_add(self, other: Self) -> (FixedUInt<T, N, P>, bool) {
+            <FixedUInt<T, N, P> as crate::const_numtraits::OverflowingAdd>::overflowing_add(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::OverflowingSub for &FixedUInt<T, N, P> {
+        fn overflowing_sub(self, other: Self) -> (FixedUInt<T, N, P>, bool) {
+            <FixedUInt<T, N, P> as crate::const_numtraits::OverflowingSub>::overflowing_sub(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingAdd for &FixedUInt<T, N, P> {
+        fn wrapping_add(self, other: Self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as WrappingAdd>::wrapping_add(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingSub for &FixedUInt<T, N, P> {
+        fn wrapping_sub(self, other: Self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as WrappingSub>::wrapping_sub(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedAdd for &FixedUInt<T, N, P> {
+        fn checked_add(self, other: Self) -> Option<FixedUInt<T, N, P>> {
+            <FixedUInt<T, N, P> as CheckedAdd>::checked_add(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedSub for &FixedUInt<T, N, P> {
+        fn checked_sub(self, other: Self) -> Option<FixedUInt<T, N, P>> {
+            <FixedUInt<T, N, P> as CheckedSub>::checked_sub(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst SaturatingAdd for &FixedUInt<T, N, P> {
+        fn saturating_add(self, other: Self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as SaturatingAdd>::saturating_add(*self, *other)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst SaturatingSub for &FixedUInt<T, N, P> {
+        fn saturating_sub(self, other: Self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as SaturatingSub>::saturating_sub(*self, *other)
+        }
+    }
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowing::OverflowingAdd
