@@ -17,7 +17,7 @@ use num_traits::{ToPrimitive, Zero};
 use core::convert::TryFrom;
 use core::fmt::Write;
 
-pub use crate::const_numtraits::{AbsDiff, PrimBits, BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedPow, DivCeil, Ilog, Isqrt, MultipleOf, NextMultipleOf, ConstOne, IsPowerOfTwo, NextPowerOfTwo, PrimInt, WideningMul, ConstZero};
+pub use crate::const_numtraits::{AbsDiff, BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedPow, ConstOne, ConstZero, DivCeil, Ilog, IsPowerOfTwo, Isqrt, MultipleOf, NextMultipleOf, NextPowerOfTwo, PrimBits, PrimInt, WideningMul};
 use crate::machineword::{ConstMachineWord, MachineWord};
 
 #[allow(unused_imports)]
@@ -195,7 +195,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
         T: subtle::ConstantTimeEq,
     {
         let one = <Self as num_traits::One>::one();
-        let m_one = <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(&self, &one);
+        let m_one = <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(self, one);
         let leading = <Self as crate::const_numtraits::PrimBits>::leading_zeros(m_one);
         let bits = Self::BIT_SIZE as u32 - leading;
         let shifted = one << (bits as usize);
@@ -234,20 +234,19 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
             // recognize the XOR-select as a cmov-on-secret-flag — see
             // `const_ct_select` for the load-bearing explanation.
             let bit = core::hint::black_box((e & 1) as u8);
-            let (candidate, mul_ov) = OverflowingMul::overflowing_mul(&result, &base);
+            let (candidate, mul_ov) = OverflowingMul::overflowing_mul(result, base);
             // Multiply overflow matters iff bit_k is set.
             any_overflow |= (mul_ov as u8) & bit;
             // Per-limb CT-select of result vs candidate.
             let bit_t = <T as core::convert::From<u8>>::from(bit);
-            let mask = core::hint::black_box(
-                bit_t * <T as crate::const_numtraits::Bounded>::max_value(),
-            );
+            let mask =
+                core::hint::black_box(bit_t * <T as crate::const_numtraits::Bounded>::max_value());
             for i in 0..N {
                 let diff = result.array[i] ^ candidate.array[i];
                 result.array[i] ^= mask & diff;
             }
             e >>= 1;
-            let (new_base, base_ov) = OverflowingMul::overflowing_mul(&base, &base);
+            let (new_base, base_ov) = OverflowingMul::overflowing_mul(base, base);
             // Square overflow matters iff there are remaining set bits in e.
             let any_remaining: u8 = core::hint::black_box((e != 0) as u8);
             any_overflow |= (base_ov as u8) & any_remaining;
@@ -1304,8 +1303,8 @@ c0nst::c0nst! {
         let mut index = 0;
         while index < N {
             let other_word = const_get_shifted_word::<T, N>(other, index, word_shift, bit_shift);
-            let (res, borrow1) = array[index].overflowing_sub(&other_word);
-            let (res, borrow2) = res.overflowing_sub(&borrow);
+            let (res, borrow1) = array[index].overflowing_sub(other_word);
+            let (res, borrow2) = res.overflowing_sub(borrow);
             borrow = if borrow1 || borrow2 { T::one() } else { T::zero() };
             array[index] = res;
             index += 1;

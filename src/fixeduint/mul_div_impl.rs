@@ -1,5 +1,5 @@
 use super::{const_ct_select, const_div_rem, const_mul, maybe_panic_if, FixedUInt, MachineWord, PanicReason};
-use crate::const_numtraits::{Bounded, CheckedDiv, CheckedMul, CheckedRem, OverflowingMul, SaturatingMul, WrappingMul, ConstZero};
+use crate::const_numtraits::{Bounded, CheckedDiv, CheckedMul, CheckedRem, ConstZero, One, OverflowingMul, SaturatingMul, WrappingMul, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::{Nct, Personality, PersonalityTag};
 
@@ -175,10 +175,10 @@ c0nst::c0nst! {
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedDiv for FixedUInt<T, N, Nct> {
         fn checked_div(self, other: Self) -> Option<Self> {
-            if <Self as Zero>::is_zero(other) {
+            if <Self as Zero>::is_zero(&other) {
                 None
             } else {
-                Some(*self / *other)
+                Some(self / other)
             }
         }
     }
@@ -235,10 +235,10 @@ c0nst::c0nst! {
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedRem for FixedUInt<T, N, Nct> {
         fn checked_rem(self, other: Self) -> Option<Self> {
-            if <Self as Zero>::is_zero(other) {
+            if <Self as Zero>::is_zero(&other) {
                 None
             } else {
-                Some(*self % *other)
+                Some(self % other)
             }
         }
     }

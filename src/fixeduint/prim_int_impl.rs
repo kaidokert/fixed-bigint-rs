@@ -1,5 +1,5 @@
 use super::{const_leading_zeros, const_leading_zeros_ct, const_trailing_zeros, const_trailing_zeros_ct, FixedUInt, MachineWord};
-use crate::const_numtraits::{PrimBits, PrimInt};
+use crate::const_numtraits::{One, PrimBits, PrimInt, Zero};
 use crate::machineword::ConstMachineWord;
 
 use crate::personality::{Nct, Personality, PersonalityTag};
@@ -95,26 +95,33 @@ c0nst::c0nst! {
             self
         }
     }
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst PrimInt for FixedUInt<T, N, Nct> {
-        fn pow(self, exp: u32) -> Self {
-            if exp == 0 {
-                return <Self as crate::const_numtraits::ConstOne>::ONE;
-            }
-            // Exponentiation by squaring: O(log exp) instead of O(exp)
-            let mut result = <Self as crate::const_numtraits::ConstOne>::ONE;
-            let mut base = self;
-            let mut e = exp;
-            while e > 0 {
-                if (e & 1) == 1 {
-                    result = core::ops::Mul::mul(result, base);
-                }
-                e >>= 1;
-                if e > 0 {
-                    base = core::ops::Mul::mul(base, base);
-                }
-            }
-            result
+    // External `PrimInt` requires `Num + NumCast + Saturating` (among
+    // other things). Implementing those on FixedUInt is real follow-up
+    // work — for the experiment we leave `pow` as an inherent method
+    // on FixedUInt below so callers can still use it without the bundle.
+}
+
+impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
+    /// Inherent `pow` retained while the external `PrimInt` bundle is
+    /// not yet implementable on `FixedUInt` (it requires `Num`,
+    /// `NumCast`, and `Saturating` — out of scope for this experiment).
+    pub fn pow(self, exp: u32) -> Self {
+        if exp == 0 {
+            return <Self as crate::const_numtraits::ConstOne>::ONE;
         }
+        let mut result = <Self as crate::const_numtraits::ConstOne>::ONE;
+        let mut base = self;
+        let mut e = exp;
+        while e > 0 {
+            if (e & 1) == 1 {
+                result = core::ops::Mul::mul(result, base);
+            }
+            e >>= 1;
+            if e > 0 {
+                base = core::ops::Mul::mul(base, base);
+            }
+        }
+        result
     }
 }
 

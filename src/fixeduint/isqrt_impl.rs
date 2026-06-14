@@ -15,32 +15,27 @@
 //! Integer square root for FixedUInt.
 
 use super::{const_set_bit, FixedUInt, MachineWord};
-use crate::const_numtraits::{PrimBits, Isqrt, ConstZero};
+use crate::const_numtraits::{ConstZero, Isqrt, One, PrimBits, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Isqrt for FixedUInt<T, N, Nct> {
+        type Output = Self;
+
         fn isqrt(self) -> Self {
-            // For unsigned types, isqrt always succeeds
-            match Isqrt::checked_isqrt(self) {
-                Some(v) => v,
-                None => unreachable!(),
-            }
-        }
-
-        fn checked_isqrt(self) -> Option<Self> {
-            // Bit-by-bit algorithm for integer square root
-            // Returns the largest r such that r * r <= self
-            if self.is_zero() {
-                return Some(Self::zero());
+            // Bit-by-bit algorithm for integer square root.
+            // Returns the largest r such that r * r <= self.
+            // (External `CheckedIsqrt` is signed-only; unsigned isqrt
+            // can never fail, so we don't implement that trait. A
+            // backwards-compatible inherent `checked_isqrt` returning
+            // `Option<Self>` is provided below for downstream callers.)
+            if <Self as Zero>::is_zero(&self) {
+                return <Self as Zero>::zero();
             }
 
-            // Start with the highest bit position that could be set in the result
-            // For sqrt, the result has at most half the bits of the input
-            let mut result = Self::zero();
+            let mut result = <Self as Zero>::zero();
 
-            // Find starting bit position: half of the bit length of self
             let bit_len = Self::BIT_SIZE - PrimBits::leading_zeros(self) as usize;
             let start_bit = bit_len.div_ceil(2);
 
@@ -48,21 +43,26 @@ c0nst::c0nst! {
             while bit_pos > 0 {
                 bit_pos -= 1;
 
-                // Try setting this bit in the result
                 let mut candidate = result;
                 const_set_bit(&mut candidate.array, bit_pos);
 
-                // Check if candidate * candidate <= self
-                // Since candidate has at most half the bits of self,
-                // candidate * candidate won't overflow.
                 let square = candidate * candidate;
                 if square <= self {
                     result = candidate;
                 }
             }
 
-            Some(result)
+            result
         }
+    }
+}
+
+impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
+    /// Backwards-compatible inherent shim for `checked_isqrt`. External
+    /// `CheckedIsqrt` is signed-only; for unsigned types the operation
+    /// can never fail, so we always return `Some`.
+    pub fn checked_isqrt(self) -> Option<Self> {
+        Some(<Self as Isqrt>::isqrt(self))
     }
 }
 
@@ -110,18 +110,9 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         // For unsigned, checked_isqrt always returns Some
-        assert_eq!(
-            Isqrt::checked_isqrt(U16::from(0u8)),
-            Some(U16::from(0u8))
-        );
-        assert_eq!(
-            Isqrt::checked_isqrt(U16::from(16u8)),
-            Some(U16::from(4u8))
-        );
-        assert_eq!(
-            Isqrt::checked_isqrt(U16::from(17u8)),
-            Some(U16::from(4u8))
-        );
+        assert_eq!(FixedUInt::checked_isqrt(U16::from(0u8)), Some(U16::from(0u8)));
+        assert_eq!(FixedUInt::checked_isqrt(U16::from(16u8)), Some(U16::from(4u8)));
+        assert_eq!(FixedUInt::checked_isqrt(U16::from(17u8)), Some(U16::from(4u8)));
     }
 
     #[test]
@@ -137,9 +128,9 @@ mod tests {
             assert!(r * r <= n_int, "Failed: {}^2 > {}", r, n);
 
             // (r+1)^2 > n - use checked arithmetic to handle potential overflow
-            if let Some(r_plus_1) = r.checked_add(&U16::from(1u8)) {
+            if let Some(r_plus_1) = r.checked_add(U16::from(1u8)) {
                 // If (r+1)^2 overflows, it's definitely > n since n fits in U16
-                if let Some(square) = r_plus_1.checked_mul(&r_plus_1) {
+                if let Some(square) = r_plus_1.checked_mul(r_plus_1) {
                     assert!(square > n_int, "Failed: {}^2 <= {}", r_plus_1, n);
                 }
             }
@@ -158,10 +149,7 @@ mod tests {
         assert_eq!(Isqrt::isqrt(U32x2::from(16u8)), U32x2::from(4u8));
 
         // Larger values that span multiple bits
-        assert_eq!(
-            Isqrt::isqrt(U32x2::from(1000000u32)),
-            U32x2::from(1000u32)
-        );
+        assert_eq!(Isqrt::isqrt(U32x2::from(1000000u32)), U32x2::from(1000u32));
         assert_eq!(
             Isqrt::isqrt(U32x2::from(0xFFFFFFFFu32)),
             U32x2::from(0xFFFFu32)
@@ -170,10 +158,7 @@ mod tests {
         // Test with u8x4 for different word boundary behavior
         type U8x4 = FixedUInt<u8, 4>;
         assert_eq!(Isqrt::isqrt(U8x4::from(65536u32)), U8x4::from(256u32));
-        assert_eq!(
-            Isqrt::isqrt(U8x4::from(1000000u32)),
-            U8x4::from(1000u32)
-        );
+        assert_eq!(Isqrt::isqrt(U8x4::from(1000000u32)), U8x4::from(1000u32));
 
         // Verify correctness for a range
         for n in (0..=10000u32).step_by(100) {
@@ -184,8 +169,8 @@ mod tests {
             assert!(r * r <= n_int, "Failed: {}^2 > {} for U32x2", r, n);
 
             // (r+1)^2 > n
-            if let Some(r_plus_1) = r.checked_add(&U32x2::from(1u8)) {
-                if let Some(square) = r_plus_1.checked_mul(&r_plus_1) {
+            if let Some(r_plus_1) = r.checked_add(U32x2::from(1u8)) {
+                if let Some(square) = r_plus_1.checked_mul(r_plus_1) {
                     assert!(square > n_int, "Failed: {}^2 <= {} for U32x2", r_plus_1, n);
                 }
             }

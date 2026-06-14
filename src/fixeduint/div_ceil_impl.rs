@@ -15,32 +15,40 @@
 //! Ceiling division for FixedUInt.
 
 use super::{const_div, const_is_zero, FixedUInt, MachineWord};
-use crate::const_numtraits::{CheckedAdd, DivCeil, ConstOne};
+use crate::const_numtraits::{CheckedAdd, ConstOne, DivCeil, One, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst DivCeil for FixedUInt<T, N, Nct> {
         fn div_ceil(self, rhs: Self) -> Self {
-            match self.checked_div_ceil(rhs) {
+            match Self::checked_div_ceil_impl(self, rhs) {
                 Some(v) => v,
                 None => panic!("div_ceil: division by zero or overflow"),
             }
         }
+    }
+}
 
-        fn checked_div_ceil(self, rhs: Self) -> Option<Self> {
-            if const_is_zero(&rhs.array) {
-                return None;
-            }
-            // Use const_div which computes both quotient and remainder in one pass
-            let mut quotient = self.array;
-            let remainder = const_div(&mut quotient, &rhs.array);
-            if const_is_zero(&remainder) {
-                Some(Self::from_array(quotient))
-            } else {
-                // Use checked_add to return None on overflow
-                CheckedAdd::checked_add(&Self::from_array(quotient), &Self::one())
-            }
+impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
+    /// Backwards-compatible inherent `checked_div_ceil`. External
+    /// `DivCeil` doesn't surface a checked variant; we keep this so
+    /// downstream callers can still get `None` on division-by-zero or
+    /// overflow rather than a panic.
+    pub fn checked_div_ceil(self, rhs: Self) -> Option<Self> {
+        Self::checked_div_ceil_impl(self, rhs)
+    }
+
+    pub(crate) fn checked_div_ceil_impl(self, rhs: Self) -> Option<Self> {
+        if const_is_zero(&rhs.array) {
+            return None;
+        }
+        let mut quotient = self.array;
+        let remainder = const_div(&mut quotient, &rhs.array);
+        if const_is_zero(&remainder) {
+            Some(Self::from_array(quotient))
+        } else {
+            CheckedAdd::checked_add(Self::from_array(quotient), <Self as One>::one())
         }
     }
 }
@@ -97,25 +105,25 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         assert_eq!(
-            DivCeil::checked_div_ceil(U16::from(10u8), U16::from(3u8)),
+            FixedUInt::checked_div_ceil(U16::from(10u8), U16::from(3u8)),
             Some(U16::from(4u8))
         );
 
         // Division by zero
         assert_eq!(
-            DivCeil::checked_div_ceil(U16::from(10u8), U16::from(0u8)),
+            FixedUInt::checked_div_ceil(U16::from(10u8), U16::from(0u8)),
             None
         );
 
         // Edge case: MAX / 2 = 32767 remainder 1, ceil = 32768
         assert_eq!(
-            DivCeil::checked_div_ceil(U16::from(65535u16), U16::from(2u16)),
+            FixedUInt::checked_div_ceil(U16::from(65535u16), U16::from(2u16)),
             Some(U16::from(32768u16))
         );
 
         // Edge case: MAX / 1 = MAX exactly (no remainder, no +1 needed)
         assert_eq!(
-            DivCeil::checked_div_ceil(U16::from(65535u16), U16::from(1u16)),
+            FixedUInt::checked_div_ceil(U16::from(65535u16), U16::from(1u16)),
             Some(U16::from(65535u16))
         );
     }

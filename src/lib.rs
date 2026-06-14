@@ -62,10 +62,7 @@ pub use num_integer;
 /// Fixed-size big integer implementation
 pub mod fixeduint;
 
-/// Bits that should be in num_traits
-pub mod const_numtraits;
-
-/// Constant versions of num_traits
+/// Curated re-export shim onto the external `const-num-traits` crate.
 pub mod const_numtraits;
 
 /// Fused multiply-accumulate row operations

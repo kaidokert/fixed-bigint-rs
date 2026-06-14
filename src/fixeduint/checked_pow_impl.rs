@@ -15,7 +15,7 @@
 //! Checked power implementation for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{CheckedMul, CheckedPow, ConstOne};
+use crate::const_numtraits::{CheckedMul, CheckedPow, ConstOne, One, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
@@ -31,14 +31,14 @@ c0nst::c0nst! {
             let mut e = exp;
             while e > 0 {
                 if (e & 1) == 1 {
-                    result = match CheckedMul::checked_mul(&result, &base) {
+                    result = match CheckedMul::checked_mul(result, base) {
                         Some(v) => v,
                         None => return None,
                     };
                 }
                 e >>= 1;
                 if e > 0 {
-                    base = match CheckedMul::checked_mul(&base, &base) {
+                    base = match CheckedMul::checked_mul(base, base) {
                         Some(v) => v,
                         None => return None,
                     };

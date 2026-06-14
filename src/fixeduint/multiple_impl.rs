@@ -15,24 +15,22 @@
 //! Multiple-of operations for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{CheckedAdd, MultipleOf, NextMultipleOf, ConstZero, Zero};
+use crate::const_numtraits::{CheckedAdd, ConstZero, MultipleOf, NextMultipleOf, One, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst MultipleOf for FixedUInt<T, N, Nct> {
         fn is_multiple_of(self, rhs: Self) -> bool {
-            if rhs.is_zero() {
+            if <Self as Zero>::is_zero(&rhs) {
                 false
             } else {
-                (*self % *rhs).is_zero()
+                <Self as Zero>::is_zero(&(self % rhs))
             }
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst NextMultipleOf for FixedUInt<T, N, Nct> {
-        type Output = Self;
-
         fn next_multiple_of(self, rhs: Self) -> Self {
             match self.checked_next_multiple_of(rhs) {
                 Some(v) => v,
@@ -64,10 +62,7 @@ mod tests {
     fn test_is_multiple_of() {
         type U16 = FixedUInt<u8, 2>;
 
-        assert!(MultipleOf::is_multiple_of(
-            &U16::from(0u8),
-            &U16::from(5u8)
-        ));
+        assert!(MultipleOf::is_multiple_of(&U16::from(0u8), &U16::from(5u8)));
         assert!(MultipleOf::is_multiple_of(
             &U16::from(10u8),
             &U16::from(5u8)

@@ -619,13 +619,13 @@ fn ct_saturating_add_uses_ct_select() {
     // Below saturation: behaves identically.
     let a_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(100u8).into();
     let b_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(200u8).into();
-    let sum = SaturatingAdd::saturating_add(&a_ct, &b_ct);
+    let sum = SaturatingAdd::saturating_add(a_ct, b_ct);
     assert_eq!(sum.forget_ct(), FixedUInt::<u8, 2, Nct>::from(300u16));
 
     // At saturation: same result as Nct (max_value), different code path.
     let max_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(0xFFFFu16).into();
     let one_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(1u8).into();
-    let sat = SaturatingAdd::saturating_add(&max_ct, &one_ct);
+    let sat = SaturatingAdd::saturating_add(max_ct, one_ct);
     assert_eq!(sat.forget_ct(), FixedUInt::<u8, 2, Nct>::from(0xFFFFu16));
 }
 
@@ -635,13 +635,13 @@ fn ct_saturating_sub_uses_ct_select() {
 
     let a_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(200u8).into();
     let b_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(100u8).into();
-    let diff = SaturatingSub::saturating_sub(&a_ct, &b_ct);
+    let diff = SaturatingSub::saturating_sub(a_ct, b_ct);
     assert_eq!(diff.forget_ct(), FixedUInt::<u8, 2, Nct>::from(100u8));
 
     // Underflow saturates to zero.
     let zero_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(0u8).into();
     let one_ct: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(1u8).into();
-    let sat = SaturatingSub::saturating_sub(&zero_ct, &one_ct);
+    let sat = SaturatingSub::saturating_sub(zero_ct, one_ct);
     assert_eq!(sat.forget_ct(), FixedUInt::<u8, 2, Nct>::from(0u8));
 }
 
@@ -958,7 +958,7 @@ fn ct_montgomery_conditional_subtract_pattern() {
         // wrapping_sub is the CT-friendly subtractor — it never branches on
         // the result, so we compute the difference unconditionally and let
         // `conditional_select` discard it when geq is false.
-        let diff_ct: FixedUInt<u8, 4, Ct> = num_traits::WrappingSub::wrapping_sub(&x_ct, &n_val);
+        let diff_ct: FixedUInt<u8, 4, Ct> = num_traits::WrappingSub::wrapping_sub(x_ct, n_val);
 
         // geq = !lt  — both x > N and x == N should trigger subtraction
         let lt: Choice = x_ct.ct_lt(&n_val);

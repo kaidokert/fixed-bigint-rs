@@ -15,12 +15,13 @@
 //! Absolute difference implementation for FixedUInt.
 
 use super::{const_ct_select, FixedUInt, MachineWord};
-use crate::const_numtraits::{AbsDiff, OverflowingSub, WrappingSub, ConstZero};
+use crate::const_numtraits::{AbsDiff, ConstZero, One, OverflowingSub, WrappingSub, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst AbsDiff for FixedUInt<T, N, P> {
+        type Output = Self;
         fn abs_diff(self, other: Self) -> Self {
             match P::TAG {
                 PersonalityTag::Nct => {
@@ -32,9 +33,9 @@ c0nst::c0nst! {
                 }
                 PersonalityTag::Ct => {
                     let (diff, borrow) =
-                        <Self as OverflowingSub>::overflowing_sub(&self, &other);
+                        <Self as OverflowingSub>::overflowing_sub(self, other);
                     let neg_diff =
-                        <Self as WrappingSub>::wrapping_sub(&<Self as ConstZero>::ZERO, &diff);
+                        <Self as WrappingSub>::wrapping_sub(<Self as ConstZero>::ZERO, diff);
                     const_ct_select(diff, neg_diff, borrow as u8)
                 }
             }

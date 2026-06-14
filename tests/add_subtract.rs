@@ -33,20 +33,20 @@ fn test_add_variants() {
         let max = INT::max_value();
         let ref_max = REF::max_value().to_u64().unwrap();
 
-        assert_eq!(one.overflowing_add(&one), (2.into(), false));
-        assert_eq!(max.overflowing_add(&one), (0.into(), true));
-        assert_eq!(max.overflowing_add(&two), (1.into(), true));
+        assert_eq!(one.overflowing_add(one), (2.into(), false));
+        assert_eq!(max.overflowing_add(one), (0.into(), true));
+        assert_eq!(max.overflowing_add(two), (1.into(), true));
 
-        assert_eq!(one.wrapping_add(&one), 2.into());
+        assert_eq!(one.wrapping_add(one), 2.into());
         assert_eq!(one + one, 2.into());
-        assert_eq!(max.wrapping_add(&one), 0.into());
+        assert_eq!(max.wrapping_add(one), 0.into());
         // would panic: assert_eq!(max + one , 0.into());
-        assert_eq!(max.wrapping_add(&two), 1.into());
+        assert_eq!(max.wrapping_add(two), 1.into());
         // would panic: assert_eq!(max + two , 1.into());
 
-        assert_eq!(one.checked_add(&one), Some(2.into()));
-        assert_eq!(max.checked_add(&one), None);
-        assert_eq!(max.checked_add(&two), None);
+        assert_eq!(one.checked_add(one), Some(2.into()));
+        assert_eq!(max.checked_add(one), None);
+        assert_eq!(max.checked_add(two), None);
 
         assert_eq!(one.saturating_add(one), 2.into());
         assert_eq!(max.saturating_add(one), max);
@@ -98,24 +98,24 @@ fn test_subtract() {
         let two: INT = 2u8.into();
         let max = INT::max_value();
 
-        assert_eq!(two.overflowing_sub(&one), (1.into(), false));
-        assert_eq!(zero.overflowing_sub(&one), (max, true));
-        assert_eq!(one.overflowing_sub(&two), (max, true));
-        assert_eq!(one.overflowing_sub(&max), (two, true));
+        assert_eq!(two.overflowing_sub(one), (1.into(), false));
+        assert_eq!(zero.overflowing_sub(one), (max, true));
+        assert_eq!(one.overflowing_sub(two), (max, true));
+        assert_eq!(one.overflowing_sub(max), (two, true));
 
-        assert_eq!(two.wrapping_sub(&one), 1.into());
+        assert_eq!(two.wrapping_sub(one), 1.into());
         assert_eq!(two - one, 1.into());
-        assert_eq!(zero.wrapping_sub(&one), max);
+        assert_eq!(zero.wrapping_sub(one), max);
         // would panic: assert_eq!(zero - one , max);
-        assert_eq!(one.wrapping_sub(&two), max);
+        assert_eq!(one.wrapping_sub(two), max);
         // would panic: assert_eq!(one - two , max);
-        assert_eq!(one.wrapping_sub(&max), two);
+        assert_eq!(one.wrapping_sub(max), two);
         // would panic: assert_eq!(one - max , two);
 
-        assert_eq!(two.checked_sub(&one), Some(1.into()));
-        assert_eq!(zero.checked_sub(&one), None);
-        assert_eq!(one.checked_sub(&two), None);
-        assert_eq!(one.checked_sub(&max), None);
+        assert_eq!(two.checked_sub(one), Some(1.into()));
+        assert_eq!(zero.checked_sub(one), None);
+        assert_eq!(one.checked_sub(two), None);
+        assert_eq!(one.checked_sub(max), None);
 
         assert_eq!(two.saturating_sub(one), 1.into());
         assert_eq!(zero.saturating_sub(one), 0.into());

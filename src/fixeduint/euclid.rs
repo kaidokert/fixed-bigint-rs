@@ -1,63 +1,43 @@
-use num_traits::{CheckedEuclid, Euclid};
-
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{CheckedEuclid, Euclid, ConstZero};
+use crate::const_numtraits::{CheckedEuclid, ConstZero, Euclid, One, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Euclid for FixedUInt<T, N, Nct> {
-        fn div_euclid(&self, v: &Self) -> Self {
+        fn div_euclid(self, v: Self) -> Self {
             // For unsigned integers, Euclidean division is the same as regular division
-            *self / *v
+            self / v
         }
 
-        fn rem_euclid(&self, v: &Self) -> Self {
+        fn rem_euclid(self, v: Self) -> Self {
             // For unsigned integers, Euclidean remainder is the same as regular remainder
-            *self % *v
+            self % v
         }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedEuclid for FixedUInt<T, N, Nct> {
-        fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
-            if v.is_zero() {
+        fn checked_div_euclid(self, v: Self) -> Option<Self> {
+            if <Self as Zero>::is_zero(&v) {
                 None
             } else {
-                Some(*self / *v)
+                Some(self / v)
             }
         }
 
-        fn checked_rem_euclid(&self, v: &Self) -> Option<Self> {
-            if v.is_zero() {
+        fn checked_rem_euclid(self, v: Self) -> Option<Self> {
+            if <Self as Zero>::is_zero(&v) {
                 None
             } else {
-                Some(*self % *v)
+                Some(self % v)
             }
         }
     }
 }
 
-// num_traits::Euclid — Nct only.
-impl<T: MachineWord, const N: usize> Euclid for FixedUInt<T, N, Nct> {
-    fn div_euclid(&self, v: &Self) -> Self {
-        self / v
-    }
-
-    fn rem_euclid(&self, v: &Self) -> Self {
-        self % v
-    }
-}
-
-// num_traits::CheckedEuclid — Nct only.
-impl<T: MachineWord, const N: usize> CheckedEuclid for FixedUInt<T, N, Nct> {
-    fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
-        num_traits::CheckedDiv::checked_div(self, v)
-    }
-
-    fn checked_rem_euclid(&self, v: &Self) -> Option<Self> {
-        num_traits::CheckedRem::checked_rem(self, v)
-    }
-}
+// (legacy num_traits::Euclid / CheckedEuclid shim impls retired — the
+// `c0nst Euclid` / `c0nst CheckedEuclid` impls above ARE the impls
+// of the external traits now.)
 
 #[cfg(test)]
 mod tests {

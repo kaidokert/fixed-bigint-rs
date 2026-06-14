@@ -5,9 +5,9 @@
 //! this module; the public trait surface never exposes raw arrays.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{CarryingAdd, ConstZero};
-use crate::mul_acc_ops::MulAccOps;
 use crate::const_numtraits::CarryingMul;
+use crate::const_numtraits::{CarryingAdd, ConstZero, One, Zero};
+use crate::mul_acc_ops::MulAccOps;
 use crate::personality::{Ct, Nct};
 
 macro_rules! mul_acc_ops_common {

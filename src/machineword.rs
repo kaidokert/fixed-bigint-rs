@@ -21,6 +21,12 @@ use crate::const_numtraits::{BorrowingSub, CarryingAdd, OverflowingAdd, Overflow
 c0nst::c0nst! {
     /// A const-friendly trait for MachineWord operations.
     /// Extends WideningMul to provide widening multiplication.
+    ///
+    /// `*Assign` bounds are added explicitly: external `PrimBits` /
+    /// `PrimInt` cover the by-value bit/shift ops (the CT-friendly
+    /// core) but not their `*Assign` counterparts, which we rely on
+    /// in `fixeduint.rs` (the per-limb loops use `|=` / `^=` / `<<=`
+    /// / `>>=` / `&=` etc. on `T`).
     pub c0nst trait ConstMachineWord:
         [c0nst] PrimInt +
         [c0nst] OverflowingAdd +
@@ -28,9 +34,19 @@ c0nst::c0nst! {
         [c0nst] CarryingAdd +
         [c0nst] BorrowingSub +
         [c0nst] ToBytes +
-        [c0nst] WideningMul
+        [c0nst] WideningMul +
+        [c0nst] core::ops::BitAndAssign +
+        [c0nst] core::ops::BitOrAssign +
+        [c0nst] core::ops::BitXorAssign +
+        [c0nst] core::ops::ShlAssign<usize> +
+        [c0nst] core::ops::ShrAssign<usize> +
+        [c0nst] core::ops::AddAssign +
+        [c0nst] core::ops::SubAssign
     {
-        type ConstDoubleWord: [c0nst] PrimInt;
+        type ConstDoubleWord: [c0nst] PrimInt
+            + [c0nst] core::ops::BitAndAssign
+            + [c0nst] core::ops::BitOrAssign
+            + [c0nst] core::ops::AddAssign;
         fn to_double(self) -> Self::ConstDoubleWord;
         fn from_double(word: Self::ConstDoubleWord) -> Self;
     }

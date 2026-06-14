@@ -15,7 +15,7 @@
 //! Power-of-two operations for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{PrimBits, Bounded, ConstOne, IsPowerOfTwo, NextPowerOfTwo, WrappingSub, ConstZero, Zero};
+use crate::const_numtraits::{Bounded, ConstOne, ConstZero, IsPowerOfTwo, NextPowerOfTwo, One, PrimBits, WrappingSub, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::{Personality, PersonalityTag};
 
@@ -24,11 +24,11 @@ c0nst::c0nst! {
         fn is_power_of_two(self) -> bool {
             match P::TAG {
                 PersonalityTag::Nct => {
-                    !self.is_zero() && (*self & (*self - Self::one())).is_zero()
+                    !<Self as Zero>::is_zero(&self) && <Self as Zero>::is_zero(&(self & (self - <Self as One>::one())))
                 }
                 PersonalityTag::Ct => {
-                    let a = !self.is_zero();
-                    let b = (*self & self.wrapping_sub(&Self::one())).is_zero();
+                    let a = !<Self as Zero>::is_zero(&self);
+                    let b = <Self as Zero>::is_zero(&(self & <Self as WrappingSub>::wrapping_sub(self, <Self as One>::one())));
                     a & b
                 }
             }
@@ -53,7 +53,7 @@ c0nst::c0nst! {
                     // value-dependent and so unavailable here; silently
                     // returning a wrong power of two would be worse than
                     // a defined saturation sentinel.
-                    let m_one = <Self as WrappingSub>::wrapping_sub(&self, &Self::one());
+                    let m_one = <Self as WrappingSub>::wrapping_sub(self, Self::one());
                     let leading = PrimBits::leading_zeros(m_one);
                     let bits = Self::BIT_SIZE as u32 - leading;
                     let shifted = Self::one() << (bits as usize);
@@ -98,17 +98,17 @@ mod tests {
     fn test_is_power_of_two() {
         type U16 = FixedUInt<u8, 2>;
 
-        assert!(!IsPowerOfTwo::is_power_of_two(&U16::from(0u8)));
-        assert!(IsPowerOfTwo::is_power_of_two(&U16::from(1u8)));
-        assert!(IsPowerOfTwo::is_power_of_two(&U16::from(2u8)));
-        assert!(!IsPowerOfTwo::is_power_of_two(&U16::from(3u8)));
-        assert!(IsPowerOfTwo::is_power_of_two(&U16::from(4u8)));
-        assert!(!IsPowerOfTwo::is_power_of_two(&U16::from(5u8)));
-        assert!(IsPowerOfTwo::is_power_of_two(&U16::from(8u8)));
-        assert!(IsPowerOfTwo::is_power_of_two(&U16::from(16u8)));
-        assert!(IsPowerOfTwo::is_power_of_two(&U16::from(128u8)));
-        assert!(IsPowerOfTwo::is_power_of_two(&U16::from(256u16)));
-        assert!(!IsPowerOfTwo::is_power_of_two(&U16::from(255u8)));
+        assert!(!IsPowerOfTwo::is_power_of_two(U16::from(0u8)));
+        assert!(IsPowerOfTwo::is_power_of_two(U16::from(1u8)));
+        assert!(IsPowerOfTwo::is_power_of_two(U16::from(2u8)));
+        assert!(!IsPowerOfTwo::is_power_of_two(U16::from(3u8)));
+        assert!(IsPowerOfTwo::is_power_of_two(U16::from(4u8)));
+        assert!(!IsPowerOfTwo::is_power_of_two(U16::from(5u8)));
+        assert!(IsPowerOfTwo::is_power_of_two(U16::from(8u8)));
+        assert!(IsPowerOfTwo::is_power_of_two(U16::from(16u8)));
+        assert!(IsPowerOfTwo::is_power_of_two(U16::from(128u8)));
+        assert!(IsPowerOfTwo::is_power_of_two(U16::from(256u16)));
+        assert!(!IsPowerOfTwo::is_power_of_two(U16::from(255u8)));
     }
 
     #[test]
