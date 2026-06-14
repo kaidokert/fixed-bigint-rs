@@ -571,6 +571,114 @@ c0nst::c0nst! {
             <FixedUInt<T, N, P> as crate::const_numtraits::LowestOne>::lowest_one(*self)
         }
     }
+
+    // --- BitWidth ----------------------------------------------------------
+    //
+    // Minimum bits to represent self: `BIT_SIZE - leading_zeros(self)`.
+    // Returns 0 for 0. Mirrors std's `u32::BITS - n.leading_zeros()`.
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::BitWidth for FixedUInt<T, N, P> {
+        fn bit_width(self) -> u32 {
+            Self::BIT_SIZE as u32 - <Self as crate::const_numtraits::PrimBits>::leading_zeros(self)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::BitWidth for &FixedUInt<T, N, P> {
+        fn bit_width(self) -> u32 {
+            <FixedUInt<T, N, P> as crate::const_numtraits::BitWidth>::bit_width(*self)
+        }
+    }
+
+    // --- IsolateHighestOne / IsolateLowestOne ------------------------------
+    //
+    // Mask the value down to just its highest / lowest set bit.
+    // IsolateHighestOne: `0` → `0`, else `1 << (BIT_SIZE - 1 - leading_zeros)`.
+    // IsolateLowestOne: the classic `self & self.wrapping_neg()` trick
+    //   (which yields 0 for 0 input automatically) — and uses arithmetic
+    //   already implemented uniformly across personalities.
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::IsolateHighestOne for FixedUInt<T, N, P> {
+        type Output = Self;
+        fn isolate_highest_one(self) -> Self {
+            let lz = <Self as crate::const_numtraits::PrimBits>::leading_zeros(self);
+            if lz as usize == Self::BIT_SIZE {
+                // self == 0; preserve the zero.
+                <Self as crate::const_numtraits::ConstZero>::ZERO
+            } else {
+                let pos = Self::BIT_SIZE as u32 - 1 - lz;
+                <Self as crate::const_numtraits::ConstOne>::ONE << (pos as usize)
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::IsolateLowestOne for FixedUInt<T, N, P> {
+        type Output = Self;
+        fn isolate_lowest_one(self) -> Self {
+            // `self & (-self)`. For unsigned `-x` is `wrapping_neg(x) =
+            // (0).wrapping_sub(x)`. Works for `self == 0` (0 & 0 = 0).
+            let neg = <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(
+                <Self as crate::const_numtraits::ConstZero>::ZERO,
+                self,
+            );
+            self & neg
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::IsolateHighestOne for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
+        fn isolate_highest_one(self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as crate::const_numtraits::IsolateHighestOne>::isolate_highest_one(*self)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::IsolateLowestOne for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
+        fn isolate_lowest_one(self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as crate::const_numtraits::IsolateLowestOne>::isolate_lowest_one(*self)
+        }
+    }
+
+    // --- ShlExact / ShrExact -----------------------------------------------
+    //
+    // Reversible (lossless) shifts: return `None` if any one-bit would be
+    // shifted out, or `rhs >= BIT_SIZE`. Mirrors core's primitive impls
+    // exactly (compare `rhs` against `leading_zeros` / `trailing_zeros`).
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::ShlExact for FixedUInt<T, N, P> {
+        fn shl_exact(self, rhs: u32) -> Option<Self> {
+            if (rhs as usize) < Self::BIT_SIZE
+                && rhs <= <Self as crate::const_numtraits::PrimBits>::leading_zeros(self)
+            {
+                Some(self << (rhs as usize))
+            } else {
+                None
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::ShrExact for FixedUInt<T, N, P> {
+        fn shr_exact(self, rhs: u32) -> Option<Self> {
+            if (rhs as usize) < Self::BIT_SIZE
+                && rhs <= <Self as crate::const_numtraits::PrimBits>::trailing_zeros(self)
+            {
+                Some(self >> (rhs as usize))
+            } else {
+                None
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::ShlExact for &FixedUInt<T, N, P> {
+        fn shl_exact(self, rhs: u32) -> Option<FixedUInt<T, N, P>> {
+            <FixedUInt<T, N, P> as crate::const_numtraits::ShlExact>::shl_exact(*self, rhs)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::ShrExact for &FixedUInt<T, N, P> {
+        fn shr_exact(self, rhs: u32) -> Option<FixedUInt<T, N, P>> {
+            <FixedUInt<T, N, P> as crate::const_numtraits::ShrExact>::shr_exact(*self, rhs)
+        }
+    }
 }
 
 // num_traits wrappers - delegate to const impls
@@ -955,5 +1063,115 @@ mod tests {
         // Boundary tests
         test_unbounded(1u8, 8, 0u8, 0u8);
         test_unbounded(U8x2::from(1u8), 16, U8x2::from(0u8), U8x2::from(0u8));
+    }
+
+    #[test]
+    fn test_bit_width() {
+        use crate::const_numtraits::BitWidth;
+        type U16 = FixedUInt<u8, 2>;
+        assert_eq!(BitWidth::bit_width(U16::from(0u8)), 0);
+        assert_eq!(BitWidth::bit_width(U16::from(1u8)), 1);
+        assert_eq!(BitWidth::bit_width(U16::from(2u8)), 2);
+        assert_eq!(BitWidth::bit_width(U16::from(3u8)), 2);
+        assert_eq!(BitWidth::bit_width(U16::from(255u8)), 8);
+        assert_eq!(BitWidth::bit_width(U16::from(256u16)), 9);
+        assert_eq!(BitWidth::bit_width(U16::from(0xFFFFu16)), 16);
+    }
+
+    #[test]
+    fn test_highest_lowest_one() {
+        use crate::const_numtraits::{HighestOne, LowestOne};
+        type U16 = FixedUInt<u8, 2>;
+        assert_eq!(HighestOne::highest_one(U16::from(0u8)), None);
+        assert_eq!(HighestOne::highest_one(U16::from(1u8)), Some(0));
+        assert_eq!(HighestOne::highest_one(U16::from(0b1010_0000u8)), Some(7));
+        assert_eq!(HighestOne::highest_one(U16::from(0x8000u16)), Some(15));
+
+        assert_eq!(LowestOne::lowest_one(U16::from(0u8)), None);
+        assert_eq!(LowestOne::lowest_one(U16::from(1u8)), Some(0));
+        assert_eq!(LowestOne::lowest_one(U16::from(0b0010_1000u8)), Some(3));
+        assert_eq!(LowestOne::lowest_one(U16::from(0x8000u16)), Some(15));
+    }
+
+    #[test]
+    fn test_isolate_highest_lowest_one() {
+        use crate::const_numtraits::{IsolateHighestOne, IsolateLowestOne};
+        type U16 = FixedUInt<u8, 2>;
+        // zero → zero
+        assert_eq!(
+            IsolateHighestOne::isolate_highest_one(U16::from(0u8)),
+            U16::from(0u8)
+        );
+        assert_eq!(
+            IsolateLowestOne::isolate_lowest_one(U16::from(0u8)),
+            U16::from(0u8)
+        );
+        // nonzero
+        assert_eq!(
+            IsolateHighestOne::isolate_highest_one(U16::from(0b1010_0000u8)),
+            U16::from(0b1000_0000u8)
+        );
+        assert_eq!(
+            IsolateLowestOne::isolate_lowest_one(U16::from(0b1010_1000u8)),
+            U16::from(0b0000_1000u8)
+        );
+        // power of two: highest == lowest == self
+        let p: U16 = U16::from(0x0100u16);
+        assert_eq!(IsolateHighestOne::isolate_highest_one(p), p);
+        assert_eq!(IsolateLowestOne::isolate_lowest_one(p), p);
+    }
+
+    #[test]
+    fn test_shl_shr_exact() {
+        use crate::const_numtraits::{ShlExact, ShrExact};
+        type U16 = FixedUInt<u8, 2>;
+        // shl_exact: must not lose bits
+        assert_eq!(
+            ShlExact::shl_exact(U16::from(1u8), 4),
+            Some(U16::from(16u8))
+        );
+        assert_eq!(
+            ShlExact::shl_exact(U16::from(0u8), 8),
+            Some(U16::from(0u8))
+        );
+        // dropping a high bit → None
+        assert_eq!(ShlExact::shl_exact(U16::from(0x8000u16), 1), None);
+        // rhs >= BIT_SIZE → None
+        assert_eq!(ShlExact::shl_exact(U16::from(1u8), 16), None);
+
+        // shr_exact: must not lose set bits
+        assert_eq!(
+            ShrExact::shr_exact(U16::from(16u8), 4),
+            Some(U16::from(1u8))
+        );
+        assert_eq!(
+            ShrExact::shr_exact(U16::from(0u8), 8),
+            Some(U16::from(0u8))
+        );
+        // dropping a low bit → None
+        assert_eq!(ShrExact::shr_exact(U16::from(0b0001u8), 1), None);
+        assert_eq!(ShrExact::shr_exact(U16::from(0b0011u8), 1), None);
+        // rhs >= BIT_SIZE → None
+        assert_eq!(ShrExact::shr_exact(U16::from(1u8), 16), None);
+    }
+
+    #[test]
+    fn test_ref_receivers_compile_through() {
+        use crate::const_numtraits::{
+            BitWidth, IsolateHighestOne, IsolateLowestOne, ShlExact, ShrExact,
+        };
+        type U16 = FixedUInt<u8, 2>;
+        let v = U16::from(0b0010_1000u8);
+        assert_eq!(BitWidth::bit_width(&v), 6);
+        assert_eq!(
+            IsolateHighestOne::isolate_highest_one(&v),
+            U16::from(0b0010_0000u8)
+        );
+        assert_eq!(
+            IsolateLowestOne::isolate_lowest_one(&v),
+            U16::from(0b0000_1000u8)
+        );
+        assert_eq!(ShlExact::shl_exact(&v, 2), Some(U16::from(0b1010_0000u8)));
+        assert_eq!(ShrExact::shr_exact(&v, 3), Some(U16::from(0b0000_0101u8)));
     }
 }

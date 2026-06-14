@@ -56,8 +56,10 @@ pub use ::const_num_traits::{BorrowingSub, CarryingAdd, CarryingMul, WideningMul
 // Parity.
 pub use ::const_num_traits::Parity;
 
-// Highest/lowest set-bit index.
-pub use ::const_num_traits::{HighestOne, LowestOne};
+// Highest/lowest set-bit index + masks.
+pub use ::const_num_traits::{
+    BitWidth, HighestOne, IsolateHighestOne, IsolateLowestOne, LowestOne, ShlExact, ShrExact,
+};
 
 // Strict-arithmetic family (panic-on-overflow).
 pub use ::const_num_traits::{
