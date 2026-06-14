@@ -6,8 +6,8 @@ use crate::personality::{Nct, Personality, PersonalityTag};
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowing::OverflowingMul
     for FixedUInt<T, N, P>
 {
-    fn overflowing_mul(self, other: Self) -> (Self, bool) {
-        <Self as OverflowingMul>::overflowing_mul(self, other)
+    fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
+        <Self as OverflowingMul>::overflowing_mul(*self, *other)
     }
 }
 
@@ -111,22 +111,22 @@ c0nst::c0nst! {
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingMul
     for FixedUInt<T, N, P>
 {
-    fn wrapping_mul(self, other: Self) -> Self {
-        <Self as WrappingMul>::wrapping_mul(self, other)
+    fn wrapping_mul(&self, other: &Self) -> Self {
+        <Self as WrappingMul>::wrapping_mul(*self, *other)
     }
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedMul for FixedUInt<T, N, P> {
-    fn checked_mul(self, other: Self) -> Option<Self> {
-        <Self as CheckedMul>::checked_mul(self, other)
+    fn checked_mul(&self, other: &Self) -> Option<Self> {
+        <Self as CheckedMul>::checked_mul(*self, *other)
     }
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating::SaturatingMul
     for FixedUInt<T, N, P>
 {
-    fn saturating_mul(self, other: Self) -> Self {
-        <Self as SaturatingMul>::saturating_mul(self, other)
+    fn saturating_mul(&self, other: &Self) -> Self {
+        <Self as SaturatingMul>::saturating_mul(*self, *other)
     }
 }
 
@@ -185,8 +185,8 @@ c0nst::c0nst! {
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedDiv for FixedUInt<T, N, Nct> {
-    fn checked_div(self, other: Self) -> Option<Self> {
-        <Self as CheckedDiv>::checked_div(self, other)
+    fn checked_div(&self, other: &Self) -> Option<Self> {
+        <Self as CheckedDiv>::checked_div(*self, *other)
     }
 }
 
@@ -245,8 +245,8 @@ c0nst::c0nst! {
 }
 
 impl<T: MachineWord, const N: usize> num_traits::CheckedRem for FixedUInt<T, N, Nct> {
-    fn checked_rem(self, other: Self) -> Option<Self> {
-        <Self as CheckedRem>::checked_rem(self, other)
+    fn checked_rem(&self, other: &Self) -> Option<Self> {
+        <Self as CheckedRem>::checked_rem(*self, *other)
     }
 }
 

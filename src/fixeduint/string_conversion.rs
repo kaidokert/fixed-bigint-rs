@@ -30,9 +30,9 @@ impl<T: MachineWord, const N: usize> num_traits::Num for FixedUInt<T, N, Nct> {
                 None => return Err(make_parse_int_err()), // Invalid character for the radix
             };
 
-            ret = num_traits::CheckedMul::checked_mul(ret, Self::from(radix as u8))
+            ret = num_traits::CheckedMul::checked_mul(&ret, &Self::from(radix as u8))
                 .ok_or(make_overflow_err())?;
-            ret = num_traits::CheckedAdd::checked_add(ret, Self::from(digit as u8))
+            ret = num_traits::CheckedAdd::checked_add(&ret, &Self::from(digit as u8))
                 .ok_or(make_overflow_err())?;
         }
 

@@ -41,7 +41,8 @@ c0nst::c0nst! {
         [c0nst] core::ops::ShlAssign<usize> +
         [c0nst] core::ops::ShrAssign<usize> +
         [c0nst] core::ops::AddAssign +
-        [c0nst] core::ops::SubAssign
+        [c0nst] core::ops::SubAssign +
+        From<u8>
     {
         type ConstDoubleWord: [c0nst] PrimInt
             + [c0nst] core::ops::BitAndAssign

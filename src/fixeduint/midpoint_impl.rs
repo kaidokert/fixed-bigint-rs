@@ -21,6 +21,7 @@ use crate::personality::Personality;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Midpoint for FixedUInt<T, N, P> {
+        type Output = Self;
         fn midpoint(self, rhs: Self) -> Self {
             // (a & b) + ((a ^ b) >> 1) avoids overflow
             (self & rhs) + ((self ^ rhs) >> 1usize)

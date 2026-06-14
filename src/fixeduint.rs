@@ -152,7 +152,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     /// a control-flow signal.
     pub fn ct_checked_add(&self, other: &Self) -> subtle::CtOption<Self> {
         let (res, overflow) =
-            <Self as crate::const_numtraits::OverflowingAdd>::overflowing_add(self, other);
+            <Self as crate::const_numtraits::OverflowingAdd>::overflowing_add(*self, *other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
@@ -160,7 +160,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     /// CT-friendly counterpart to `num_traits::CheckedSub::checked_sub`.
     pub fn ct_checked_sub(&self, other: &Self) -> subtle::CtOption<Self> {
         let (res, overflow) =
-            <Self as crate::const_numtraits::OverflowingSub>::overflowing_sub(self, other);
+            <Self as crate::const_numtraits::OverflowingSub>::overflowing_sub(*self, *other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
@@ -168,7 +168,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     /// CT-friendly counterpart to `num_traits::CheckedMul::checked_mul`.
     pub fn ct_checked_mul(&self, other: &Self) -> subtle::CtOption<Self> {
         let (res, overflow) =
-            <Self as crate::const_numtraits::OverflowingMul>::overflowing_mul(self, other);
+            <Self as crate::const_numtraits::OverflowingMul>::overflowing_mul(*self, *other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
@@ -176,7 +176,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     /// CT-friendly counterpart to `CheckedShl::checked_shl`.
     pub fn ct_checked_shl(&self, bits: u32) -> subtle::CtOption<Self> {
         let (res, overflow) =
-            <Self as crate::const_numtraits::OverflowingShl>::overflowing_shl(self, bits);
+            <Self as crate::const_numtraits::OverflowingShl>::overflowing_shl(*self, bits);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
@@ -184,7 +184,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     /// CT-friendly counterpart to `CheckedShr::checked_shr`.
     pub fn ct_checked_shr(&self, bits: u32) -> subtle::CtOption<Self> {
         let (res, overflow) =
-            <Self as crate::const_numtraits::OverflowingShr>::overflowing_shr(self, bits);
+            <Self as crate::const_numtraits::OverflowingShr>::overflowing_shr(*self, bits);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
@@ -234,7 +234,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
             // recognize the XOR-select as a cmov-on-secret-flag — see
             // `const_ct_select` for the load-bearing explanation.
             let bit = core::hint::black_box((e & 1) as u8);
-            let (candidate, mul_ov) = OverflowingMul::overflowing_mul(result, base);
+            let (candidate, mul_ov) = <Self as crate::const_numtraits::OverflowingMul>::overflowing_mul(result, base);
             // Multiply overflow matters iff bit_k is set.
             any_overflow |= (mul_ov as u8) & bit;
             // Per-limb CT-select of result vs candidate.
@@ -246,7 +246,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
                 result.array[i] ^= mask & diff;
             }
             e >>= 1;
-            let (new_base, base_ov) = OverflowingMul::overflowing_mul(base, base);
+            let (new_base, base_ov) = <Self as crate::const_numtraits::OverflowingMul>::overflowing_mul(base, base);
             // Square overflow matters iff there are remaining set bits in e.
             let any_remaining: u8 = core::hint::black_box((e != 0) as u8);
             any_overflow |= (base_ov as u8) & any_remaining;
@@ -412,7 +412,7 @@ c0nst::c0nst! {
             let word_index = byte_index / word_size;
             let byte_in_word = byte_index % word_size;
 
-            let byte_value: T = T::from(bytes[byte_index]);
+            let byte_value: T = <T as core::convert::From<u8>>::from(bytes[byte_index]);
             let shifted_value = byte_value.shl(byte_in_word * 8);
             ret[word_index] = ret[word_index].bitor(shifted_value);
             byte_index += 1;
@@ -445,7 +445,7 @@ c0nst::c0nst! {
             let word_index = byte_index / word_size;
             let byte_in_word = byte_index % word_size;
 
-            let byte_value: T = T::from(bytes[be_byte_index]);
+            let byte_value: T = <T as core::convert::From<u8>>::from(bytes[be_byte_index]);
             let shifted_value = byte_value.shl(byte_in_word * 8);
             ret[word_index] = ret[word_index].bitor(shifted_value);
             byte_index += 1;
@@ -959,7 +959,7 @@ c0nst::c0nst! {
             index -= 1;
             let v = array[index];
             ret += <T as PrimBits>::leading_zeros(v);
-            if !<T as Zero>::is_zero(&v) {
+            if !<T as crate::const_numtraits::Zero>::is_zero(&v) {
                 break;
             }
         }
@@ -989,7 +989,7 @@ c0nst::c0nst! {
             let undecided = core::hint::black_box(!decided);
             total += undecided & v_lz;
             // Lock the decision the moment we see a non-zero limb.
-            let v_nz_bit = (!<T as Zero>::is_zero(&v)) as u32;
+            let v_nz_bit = (!<T as crate::const_numtraits::Zero>::is_zero(&v)) as u32;
             let v_nz_mask = core::hint::black_box(v_nz_bit.wrapping_neg());
             decided |= v_nz_mask;
         }
@@ -1005,7 +1005,7 @@ c0nst::c0nst! {
         while index < N {
             let v = array[index];
             ret += <T as PrimBits>::trailing_zeros(v);
-            if !<T as Zero>::is_zero(&v) {
+            if !<T as crate::const_numtraits::Zero>::is_zero(&v) {
                 break;
             }
             index += 1;
@@ -1031,7 +1031,7 @@ c0nst::c0nst! {
             // `black_box` is here.
             let undecided = core::hint::black_box(!decided);
             total += undecided & v_tz;
-            let v_nz_bit = (!<T as Zero>::is_zero(&v)) as u32;
+            let v_nz_bit = (!<T as crate::const_numtraits::Zero>::is_zero(&v)) as u32;
             let v_nz_mask = core::hint::black_box(v_nz_bit.wrapping_neg());
             decided |= v_nz_mask;
             index += 1;
@@ -1054,7 +1054,7 @@ c0nst::c0nst! {
     ) -> bool {
         let mut index = 0;
         while index < N {
-            if !<T as Zero>::is_zero(&array[index]) {
+            if !<T as crate::const_numtraits::Zero>::is_zero(&array[index]) {
                 return false;
             }
             index += 1;
@@ -1075,7 +1075,7 @@ c0nst::c0nst! {
             acc = <T as core::ops::BitOr>::bitor(acc, array[index]);
             index += 1;
         }
-        <T as Zero>::is_zero(&acc)
+        <T as crate::const_numtraits::Zero>::is_zero(&acc)
     }
 
     /// Check if array is one. Short-circuits as soon as a non-matching limb
@@ -1090,7 +1090,7 @@ c0nst::c0nst! {
         }
         let mut i = 1;
         while i < N {
-            if !<T as Zero>::is_zero(&array[i]) {
+            if !<T as crate::const_numtraits::Zero>::is_zero(&array[i]) {
                 return false;
             }
             i += 1;
@@ -1114,7 +1114,7 @@ c0nst::c0nst! {
             acc = <T as core::ops::BitOr>::bitor(acc, array[index]);
             index += 1;
         }
-        <T as Zero>::is_zero(&acc)
+        <T as crate::const_numtraits::Zero>::is_zero(&acc)
     }
 
     /// Set a specific bit in the array.
@@ -1435,7 +1435,7 @@ c0nst::c0nst! {
                         diff = <T as core::ops::BitOr>::bitor(diff, x);
                         i += 1;
                     }
-                    <T as crate::const_numtraits::ConstZero>::is_zero(&diff)
+                    <T as crate::const_numtraits::Zero>::is_zero(&diff)
                 }
             }
         }

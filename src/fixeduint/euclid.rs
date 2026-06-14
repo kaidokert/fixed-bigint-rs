@@ -14,6 +14,10 @@ c0nst::c0nst! {
             // For unsigned integers, Euclidean remainder is the same as regular remainder
             self % v
         }
+
+        fn div_rem_euclid(self, v: Self) -> (Self, Self) {
+            (self / v, self % v)
+        }
     }
 
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedEuclid for FixedUInt<T, N, Nct> {
@@ -30,6 +34,14 @@ c0nst::c0nst! {
                 None
             } else {
                 Some(self % v)
+            }
+        }
+
+        fn checked_div_rem_euclid(self, v: Self) -> Option<(Self, Self)> {
+            if <Self as Zero>::is_zero(&v) {
+                None
+            } else {
+                Some((self / v, self % v))
             }
         }
     }

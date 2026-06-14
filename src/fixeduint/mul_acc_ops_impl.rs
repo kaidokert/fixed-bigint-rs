@@ -76,7 +76,10 @@ macro_rules! mul_acc_ops_common {
 
 impl<T, const N: usize> MulAccOps for FixedUInt<T, N, Nct>
 where
-    T: MachineWord + CarryingMul<Output = T> + CarryingAdd,
+    T: MachineWord
+        + CarryingMul<Unsigned = T>
+        + CarryingAdd
+        + core::ops::Mul<T, Output = T>,
 {
     type GetWordOutput = Option<T>;
 
@@ -89,7 +92,11 @@ where
 
 impl<T, const N: usize> MulAccOps for FixedUInt<T, N, Ct>
 where
-    T: MachineWord + CarryingMul<Output = T> + CarryingAdd + subtle::ConditionallySelectable,
+    T: MachineWord
+        + CarryingMul<Unsigned = T>
+        + CarryingAdd
+        + core::ops::Mul<T, Output = T>
+        + subtle::ConditionallySelectable,
 {
     type GetWordOutput = subtle::CtOption<T>;
 

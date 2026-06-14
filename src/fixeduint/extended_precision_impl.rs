@@ -18,7 +18,7 @@
 //! multiplication, useful for implementing arbitrary-precision arithmetic.
 
 use super::{add_with_carry, sub_with_borrow, FixedUInt, MachineWord};
-use crate::const_numtraits::{BorrowingSub, CarryingAdd, CarryingMul, One, WideningMul, Zero};
+use crate::const_numtraits::{BorrowingSub, Bounded, CarryingAdd, CarryingMul, One, WideningMul, Zero};
 use crate::machineword::ConstMachineWord;
 use crate::personality::{Personality, PersonalityTag};
 
@@ -56,15 +56,26 @@ c0nst::c0nst! {
         fn widening_mul(self, rhs: Self) -> (Self, Self) {
             // Schoolbook multiplication: for each (i,j), add the 2-word product a[i]*b[j]
             // to result[i+j : i+j+2], propagating any carry upward.
-            let mut result_low = [T::zero(); N];
-            let mut result_high = [T::zero(); N];
+            //
+            // The external WideningMul on primitives returns a single
+            // wide-int (`type Wide = u16` for `u8`, etc.), not a
+            // `(lo, hi)` tuple. Compute the wide product via the
+            // ConstMachineWord double-word path and split.
+            let word_bits = core::mem::size_of::<T>() * 8;
+            let t_max_dw = <T as ConstMachineWord>::to_double(<T as Bounded>::max_value());
+            let mut result_low = [<T as Zero>::zero(); N];
+            let mut result_high = [<T as Zero>::zero(); N];
 
             let mut i = 0usize;
             while i < N {
                 let mut j = 0usize;
                 while j < N {
                     let pos = i + j;
-                    let (mul_lo, mul_hi) = WideningMul::widening_mul(self.array[i], rhs.array[j]);
+                    let op1_dw = <T as ConstMachineWord>::to_double(self.array[i]);
+                    let op2_dw = <T as ConstMachineWord>::to_double(rhs.array[j]);
+                    let prod_dw = op1_dw * op2_dw;
+                    let mul_lo = <T as ConstMachineWord>::from_double(prod_dw & t_max_dw);
+                    let mul_hi = <T as ConstMachineWord>::from_double(prod_dw >> word_bits);
 
                     // Add the 2-word product (mul_hi, mul_lo) at position pos.
                     // Step 1: add mul_lo at pos

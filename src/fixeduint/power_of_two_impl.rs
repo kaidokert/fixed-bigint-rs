@@ -39,6 +39,21 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst NextPowerOfTwo for FixedUInt<T, N, P> {
         type Output = Self;
 
+        fn wrapping_next_power_of_two(self) -> Self {
+            // For unsigned: on Nct, the value-dependent overflow case
+            // (`next_power_of_two` would exceed MAX) panics; here we
+            // wrap to ZERO instead, matching std's primitive
+            // `wrapping_next_power_of_two`. For Ct we reuse the
+            // saturating `next_power_of_two` (overflow → MAX).
+            match P::TAG {
+                PersonalityTag::Nct => match self.checked_next_power_of_two() {
+                    Some(v) => v,
+                    None => <Self as ConstZero>::ZERO,
+                },
+                PersonalityTag::Ct => self.next_power_of_two(),
+            }
+        }
+
         fn next_power_of_two(self) -> Self {
             match P::TAG {
                 PersonalityTag::Nct => {

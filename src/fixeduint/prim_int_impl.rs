@@ -1,9 +1,7 @@
 use super::{const_leading_zeros, const_leading_zeros_ct, const_trailing_zeros, const_trailing_zeros_ct, FixedUInt, MachineWord};
 use crate::const_numtraits::{One, PrimBits, PrimInt, Zero};
 use crate::machineword::ConstMachineWord;
-
 use crate::personality::{Nct, Personality, PersonalityTag};
-use num_traits::One;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst PrimBits for FixedUInt<T, N, P> {
@@ -70,6 +68,18 @@ c0nst::c0nst! {
             core::ops::Shl::<u32>::shl(self, n)
         }
         fn unsigned_shr(self, n: u32) -> Self {
+            core::ops::Shr::<u32>::shr(self, n)
+        }
+        fn signed_shl(self, n: u32) -> Self {
+            // FixedUInt is always unsigned, so signed_shl is equivalent
+            // to unsigned_shl (the sign bit doesn't change shift-left
+            // semantics for unsigned types).
+            core::ops::Shl::<u32>::shl(self, n)
+        }
+        fn signed_shr(self, n: u32) -> Self {
+            // For unsigned types the sign bit is always 0, so the
+            // arithmetic (sign-extending) right shift produces the
+            // same result as the logical right shift.
             core::ops::Shr::<u32>::shr(self, n)
         }
         fn reverse_bits(self) -> Self {
