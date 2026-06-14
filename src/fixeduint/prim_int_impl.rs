@@ -221,3 +221,120 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N, Nct
         result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::const_numtraits::PrimBits;
+
+    type U16 = FixedUInt<u8, 2, Nct>;
+
+    // --- Empirical const-evaluability proofs for `PrimBits` ----------------
+    //
+    // Wraps each by-value `PrimBits` method in a `c0nst fn` so the
+    // surrounding `c0nst::c0nst!` block forces it into const-callable
+    // form on nightly. The `nightly_const_eval_prim_bits` test then binds
+    // each wrapper's result to a `const` item, proving the trait method
+    // actually evaluates at compile time.
+
+    c0nst::c0nst! {
+        pub c0nst fn const_count_ones<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> u32 {
+            PrimBits::count_ones(v)
+        }
+        pub c0nst fn const_count_zeros<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> u32 {
+            PrimBits::count_zeros(v)
+        }
+        pub c0nst fn const_leading_zeros<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> u32 {
+            PrimBits::leading_zeros(v)
+        }
+        pub c0nst fn const_trailing_zeros<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> u32 {
+            PrimBits::trailing_zeros(v)
+        }
+        pub c0nst fn const_swap_bytes<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
+            PrimBits::swap_bytes(v)
+        }
+        pub c0nst fn const_rotate_left<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
+            PrimBits::rotate_left(v, n)
+        }
+        pub c0nst fn const_rotate_right<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
+            PrimBits::rotate_right(v, n)
+        }
+        pub c0nst fn const_unsigned_shl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
+            PrimBits::unsigned_shl(v, n)
+        }
+        pub c0nst fn const_unsigned_shr<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
+            PrimBits::unsigned_shr(v, n)
+        }
+        pub c0nst fn const_signed_shl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
+            PrimBits::signed_shl(v, n)
+        }
+        pub c0nst fn const_signed_shr<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
+            PrimBits::signed_shr(v, n)
+        }
+        pub c0nst fn const_reverse_bits<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
+            PrimBits::reverse_bits(v)
+        }
+        pub c0nst fn const_to_be<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
+            PrimBits::to_be(v)
+        }
+        pub c0nst fn const_to_le<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
+            PrimBits::to_le(v)
+        }
+        pub c0nst fn const_from_be<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
+            PrimBits::from_be(v)
+        }
+        pub c0nst fn const_from_le<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
+            PrimBits::from_le(v)
+        }
+    }
+
+    #[test]
+    fn nightly_const_eval_prim_bits() {
+        // runtime smoke
+        let v = U16::from(0b0010_1000u8);
+        assert_eq!(const_count_ones(v), 2);
+        assert_eq!(const_leading_zeros(v), 10);
+        assert_eq!(const_trailing_zeros(v), 3);
+
+        #[cfg(feature = "nightly")]
+        {
+            const V: U16 = FixedUInt::from_array([0x28, 0]);
+            const V_FULL: U16 = FixedUInt::from_array([0xFF, 0xFF]);
+            const V_ONE: U16 = FixedUInt::from_array([1, 0]);
+
+            const C_ONES: u32 = const_count_ones(V);
+            const C_ZEROS: u32 = const_count_zeros(V);
+            const LZ: u32 = const_leading_zeros(V);
+            const TZ: u32 = const_trailing_zeros(V);
+            const SWAP: U16 = const_swap_bytes(V_ONE);
+            const ROTL: U16 = const_rotate_left(V_ONE, 4);
+            const ROTR: U16 = const_rotate_right(V_ONE, 4);
+            const USHL: U16 = const_unsigned_shl(V_ONE, 4);
+            const USHR: U16 = const_unsigned_shr(V_FULL, 4);
+            const SSHL: U16 = const_signed_shl(V_ONE, 4);
+            const SSHR: U16 = const_signed_shr(V_FULL, 4);
+            const REV: U16 = const_reverse_bits(V_ONE);
+            const TO_BE: U16 = const_to_be(V_ONE);
+            const TO_LE: U16 = const_to_le(V_ONE);
+            const FROM_BE: U16 = const_from_be(V_ONE);
+            const FROM_LE: U16 = const_from_le(V_ONE);
+
+            assert_eq!(C_ONES, 2);
+            assert_eq!(C_ZEROS, 14);
+            assert_eq!(LZ, 10);
+            assert_eq!(TZ, 3);
+            assert_eq!(SWAP.array, [0, 1]);
+            assert_eq!(ROTL.array, [16, 0]);
+            assert_eq!(ROTR.array, [0, 0x10]);
+            assert_eq!(USHL.array, [16, 0]);
+            assert_eq!(USHR.array, [0xFF, 0x0F]);
+            assert_eq!(SSHL.array, [16, 0]);
+            assert_eq!(SSHR.array, [0xFF, 0x0F]);
+            assert_eq!(REV.array, [0, 0x80]);
+            assert_eq!(TO_BE.array, [0, 1]);
+            assert_eq!(TO_LE.array, [1, 0]);
+            assert_eq!(FROM_BE.array, [0, 1]);
+            assert_eq!(FROM_LE.array, [1, 0]);
+        }
+    }
+}

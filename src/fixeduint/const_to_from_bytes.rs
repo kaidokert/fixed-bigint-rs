@@ -233,6 +233,32 @@ mod tests {
         assert_eq!(CONST_FROM_LE.array, [0x01, 0x02, 0x03, 0x04]);
     }
 
+    // Empirical const-eval proofs for the big-endian half too — completes
+    // the audit coverage of `ToBytes` / `FromBytes`. (This module is
+    // already `#[cfg(feature = "nightly")]`, so these consts only exist
+    // under that feature.)
+    const CONST_BE_BYTES: [u8; 4] = {
+        let val: FixedUInt<u8, 4> = FixedUInt::from_array([0x01, 0x02, 0x03, 0x04]);
+        let holder = ToBytes::to_be_bytes(val);
+        holder.bytes
+    };
+
+    const CONST_FROM_BE: FixedUInt<u8, 4> = {
+        let bytes = ConstBytesHolder {
+            bytes: [0x04, 0x03, 0x02, 0x01],
+        };
+        FromBytes::from_be_bytes(bytes)
+    };
+
+    #[test]
+    fn test_const_be_bytes_context() {
+        // 0x01_02_03_04 stored le in array → high byte is array[3]=0x04;
+        // big-endian byte order writes MSB first, so [0x04, 0x03, 0x02, 0x01].
+        assert_eq!(CONST_BE_BYTES, [0x04, 0x03, 0x02, 0x01]);
+        // Mirror round-trip: from_be of the BE bytes recovers the LE-stored value.
+        assert_eq!(CONST_FROM_BE.array, [0x01, 0x02, 0x03, 0x04]);
+    }
+
     // Test roundtrip: to_bytes -> from_bytes
     #[test]
     fn test_const_bytes_roundtrip() {

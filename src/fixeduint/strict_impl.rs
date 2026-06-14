@@ -224,4 +224,71 @@ mod tests {
         let b = U16::from(20u8);
         assert_eq!(StrictAdd::strict_add(&a, &b), U16::from(30u8));
     }
+
+    // --- Empirical const-evaluability proofs --------------------------------
+    c0nst::c0nst! {
+        pub c0nst fn const_strict_add<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(a: FixedUInt<T, N, Nct>, b: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
+            StrictAdd::strict_add(a, b)
+        }
+        pub c0nst fn const_strict_sub<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(a: FixedUInt<T, N, Nct>, b: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
+            StrictSub::strict_sub(a, b)
+        }
+        pub c0nst fn const_strict_mul<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(a: FixedUInt<T, N, Nct>, b: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
+            StrictMul::strict_mul(a, b)
+        }
+        pub c0nst fn const_strict_div<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(a: FixedUInt<T, N, Nct>, b: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
+            StrictDiv::strict_div(a, b)
+        }
+        pub c0nst fn const_strict_rem<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(a: FixedUInt<T, N, Nct>, b: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
+            StrictRem::strict_rem(a, b)
+        }
+        pub c0nst fn const_strict_shl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(a: FixedUInt<T, N, Nct>, rhs: u32) -> FixedUInt<T, N, Nct> {
+            StrictShl::strict_shl(a, rhs)
+        }
+        pub c0nst fn const_strict_shr<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(a: FixedUInt<T, N, Nct>, rhs: u32) -> FixedUInt<T, N, Nct> {
+            StrictShr::strict_shr(a, rhs)
+        }
+        pub c0nst fn const_strict_pow<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(a: FixedUInt<T, N, Nct>, exp: u32) -> FixedUInt<T, N, Nct> {
+            StrictPow::strict_pow(a, exp)
+        }
+    }
+
+    #[test]
+    fn nightly_const_eval_strict() {
+        // runtime smoke
+        assert_eq!(const_strict_add(U16::from(10u8), U16::from(20u8)), U16::from(30u8));
+        assert_eq!(const_strict_mul(U16::from(6u8), U16::from(7u8)), U16::from(42u8));
+        assert_eq!(const_strict_shl(U16::from(1u8), 4), U16::from(16u8));
+        assert_eq!(const_strict_pow(U16::from(2u8), 8), U16::from(256u16));
+
+        #[cfg(feature = "nightly")]
+        {
+            const A: U16 = FixedUInt::from_array([10, 0]);
+            const B: U16 = FixedUInt::from_array([20, 0]);
+            const TWO: U16 = FixedUInt::from_array([2, 0]);
+            const THIRTY: U16 = FixedUInt::from_array([30, 0]);
+            const TEN: U16 = FixedUInt::from_array([10, 0]);
+            const TWO_HUNDRED: U16 = FixedUInt::from_array([200, 0]);
+            const SIXTEEN: U16 = FixedUInt::from_array([16, 0]);
+            const TWO_FIFTY_SIX: U16 = FixedUInt::from_array([0, 1]);
+
+            const ADD: U16 = const_strict_add(A, B);
+            const SUB: U16 = const_strict_sub(THIRTY, A);
+            const MUL: U16 = const_strict_mul(TEN, TWO);
+            const DIV: U16 = const_strict_div(TWO_HUNDRED, TEN);
+            const REM: U16 = const_strict_rem(TWO_HUNDRED, FixedUInt::from_array([7, 0]));
+            const SHL: U16 = const_strict_shl(TWO, 3);
+            const SHR: U16 = const_strict_shr(SIXTEEN, 2);
+            const POW: U16 = const_strict_pow(TWO, 8);
+
+            assert_eq!(ADD, FixedUInt::from_array([30, 0]));
+            assert_eq!(SUB, FixedUInt::from_array([20, 0]));
+            assert_eq!(MUL, FixedUInt::from_array([20, 0]));
+            assert_eq!(DIV, FixedUInt::from_array([20, 0]));
+            assert_eq!(REM, FixedUInt::from_array([4, 0])); // 200 % 7 = 4
+            assert_eq!(SHL, FixedUInt::from_array([16, 0]));
+            assert_eq!(SHR, FixedUInt::from_array([4, 0]));
+            assert_eq!(POW, TWO_FIFTY_SIX);
+        }
+    }
 }

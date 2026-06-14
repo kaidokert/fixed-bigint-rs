@@ -85,4 +85,36 @@ mod tests {
         assert!(Parity::is_odd(&v));
         assert!(!Parity::is_even(&v));
     }
+
+    // --- Empirical const-evaluability proofs --------------------------------
+    use crate::machineword::ConstMachineWord;
+    use crate::personality::Personality;
+
+    c0nst::c0nst! {
+        pub c0nst fn const_is_odd<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> bool {
+            Parity::is_odd(v)
+        }
+        pub c0nst fn const_is_even<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> bool {
+            Parity::is_even(v)
+        }
+    }
+
+    #[test]
+    fn nightly_const_eval_parity() {
+        // runtime smoke
+        assert!(const_is_odd(U16Nct::from(7u8)));
+        assert!(const_is_even(U16Nct::from(8u8)));
+
+        #[cfg(feature = "nightly")]
+        {
+            const ODD: U16Nct = FixedUInt::from_array([7, 0]);
+            const EVEN: U16Nct = FixedUInt::from_array([8, 0]);
+            const IS_ODD: bool = const_is_odd(ODD);
+            const IS_EVEN: bool = const_is_even(EVEN);
+            const IS_ODD_OF_EVEN: bool = const_is_odd(EVEN);
+            assert!(IS_ODD);
+            assert!(IS_EVEN);
+            assert!(!IS_ODD_OF_EVEN);
+        }
+    }
 }
