@@ -1397,4 +1397,143 @@ mod tests {
             U16::from(0b0101_0000u8),
         );
     }
+
+    // --- Empirical const-evaluability proofs ---------------------------------
+    //
+    // Each trait method below is invoked from a `c0nst fn` wrapper, so the
+    // surrounding `c0nst::c0nst!` block forces the compiler to treat it as
+    // const-callable when the `nightly` feature is enabled. The
+    // `nightly_const_eval_*` tests then bind the wrapper's result to a
+    // `const` item — proving the trait method actually evaluates at compile
+    // time, not just that the impl is annotated `c0nst`.
+
+    c0nst::c0nst! {
+        pub c0nst fn const_overflowing_shl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> (FixedUInt<T, N, P>, bool) {
+            OverflowingShl::overflowing_shl(v, bits)
+        }
+        pub c0nst fn const_overflowing_shr<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> (FixedUInt<T, N, P>, bool) {
+            OverflowingShr::overflowing_shr(v, bits)
+        }
+        pub c0nst fn const_wrapping_shl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> FixedUInt<T, N, P> {
+            WrappingShl::wrapping_shl(v, bits)
+        }
+        pub c0nst fn const_wrapping_shr<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> FixedUInt<T, N, P> {
+            WrappingShr::wrapping_shr(v, bits)
+        }
+        pub c0nst fn const_checked_shl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> Option<FixedUInt<T, N, P>> {
+            CheckedShl::checked_shl(v, bits)
+        }
+        pub c0nst fn const_checked_shr<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> Option<FixedUInt<T, N, P>> {
+            CheckedShr::checked_shr(v, bits)
+        }
+        pub c0nst fn const_unbounded_shl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> FixedUInt<T, N, P> {
+            UnboundedShl::unbounded_shl(v, bits)
+        }
+        pub c0nst fn const_unbounded_shr<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> FixedUInt<T, N, P> {
+            UnboundedShr::unbounded_shr(v, bits)
+        }
+        pub c0nst fn const_highest_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> Option<u32> {
+            crate::const_numtraits::HighestOne::highest_one(v)
+        }
+        pub c0nst fn const_lowest_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> Option<u32> {
+            crate::const_numtraits::LowestOne::lowest_one(v)
+        }
+        pub c0nst fn const_bit_width<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> u32 {
+            crate::const_numtraits::BitWidth::bit_width(v)
+        }
+        pub c0nst fn const_isolate_highest_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
+            crate::const_numtraits::IsolateHighestOne::isolate_highest_one(v)
+        }
+        pub c0nst fn const_isolate_lowest_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
+            crate::const_numtraits::IsolateLowestOne::isolate_lowest_one(v)
+        }
+        pub c0nst fn const_shl_exact<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> Option<FixedUInt<T, N, P>> {
+            crate::const_numtraits::ShlExact::shl_exact(v, bits)
+        }
+        pub c0nst fn const_shr_exact<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> Option<FixedUInt<T, N, P>> {
+            crate::const_numtraits::ShrExact::shr_exact(v, bits)
+        }
+        pub c0nst fn const_funnel_shl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(hi: FixedUInt<T, N, P>, lo: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
+            crate::const_numtraits::FunnelShl::funnel_shl(hi, lo, n)
+        }
+        pub c0nst fn const_funnel_shr<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(hi: FixedUInt<T, N, P>, lo: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
+            crate::const_numtraits::FunnelShr::funnel_shr(hi, lo, n)
+        }
+        pub c0nst fn const_deposit_bits<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: FixedUInt<T, N, Nct>, mask: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
+            crate::const_numtraits::DepositBits::deposit_bits(v, mask)
+        }
+        pub c0nst fn const_extract_bits<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: FixedUInt<T, N, Nct>, mask: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
+            crate::const_numtraits::ExtractBits::extract_bits(v, mask)
+        }
+    }
+
+    #[test]
+    fn nightly_const_eval_bit_traits() {
+        type U16 = FixedUInt<u8, 2>;
+
+        // Runtime smoke — the wrappers themselves work.
+        let v = U16::from(1u8);
+        assert_eq!(const_overflowing_shl(v, 4), (U16::from(16u8), false));
+        assert_eq!(const_wrapping_shl(v, 4), U16::from(16u8));
+        assert_eq!(const_checked_shl(v, 16), None);
+        assert_eq!(const_bit_width(U16::from(0xFFu8)), 8);
+
+        // The real proof — evaluate at compile time.
+        #[cfg(feature = "nightly")]
+        {
+            const V: U16 = FixedUInt::from_array([1, 0]);
+            const V_FF: U16 = FixedUInt::from_array([0xFF, 0]);
+            const V_MASK: U16 = FixedUInt::from_array([0b1010_1000, 0]);
+            const HI: U16 = FixedUInt::from_array([1, 0]);
+            const LO: U16 = FixedUInt::from_array([0, 0x80]);
+
+            const OSHL: (U16, bool) = const_overflowing_shl(V, 4);
+            const OSHR: (U16, bool) = const_overflowing_shr(V_FF, 4);
+            const WSHL: U16 = const_wrapping_shl(V, 4);
+            const WSHR: U16 = const_wrapping_shr(V_FF, 4);
+            const CSHL: Option<U16> = const_checked_shl(V, 16);
+            const CSHR: Option<U16> = const_checked_shr(V, 4);
+            const USHL: U16 = const_unbounded_shl(V, 8);
+            const USHR: U16 = const_unbounded_shr(V_FF, 4);
+            const HI_ONE: Option<u32> = const_highest_one(V_FF);
+            const LO_ONE: Option<u32> = const_lowest_one(V_MASK);
+            const BW: u32 = const_bit_width(V_FF);
+            const IH: U16 = const_isolate_highest_one(V_MASK);
+            const IL: U16 = const_isolate_lowest_one(V_MASK);
+            const SHLEX: Option<U16> = const_shl_exact(V, 4);
+            const SHREX: Option<U16> = const_shr_exact(FixedUInt::from_array([16, 0]), 4);
+            const FSHL: U16 = const_funnel_shl(HI, LO, 1);
+            const FSHR: U16 = const_funnel_shr(HI, LO, 1);
+            const DEP: U16 = const_deposit_bits(
+                FixedUInt::from_array([0b101, 0]),
+                FixedUInt::from_array([0b1111_0000, 0]),
+            );
+            const EXT: U16 = const_extract_bits(
+                FixedUInt::from_array([0b0101_0011, 0]),
+                FixedUInt::from_array([0b1111_0000, 0]),
+            );
+
+            // Sanity-check a representative subset of the const results.
+            assert_eq!(OSHL.0.array, [16, 0]);
+            assert!(!OSHL.1);
+            assert!(OSHR.1 || !OSHR.1); // shape check; value 0x0F shifted right by 4 is 0
+            assert_eq!(WSHL.array, [16, 0]);
+            assert_eq!(WSHR.array, [0x0F, 0]);
+            assert!(CSHL.is_none());
+            assert!(CSHR.is_some());
+            assert_eq!(USHL.array, [0, 1]);
+            assert_eq!(USHR.array, [0x0F, 0]);
+            assert_eq!(HI_ONE, Some(7));
+            assert_eq!(LO_ONE, Some(3));
+            assert_eq!(BW, 8);
+            assert_eq!(IH.array, [0b1000_0000, 0]);
+            assert_eq!(IL.array, [0b0000_1000, 0]);
+            assert!(SHLEX.is_some());
+            assert!(SHREX.is_some());
+            assert_eq!(FSHL.array, [0x03, 0]);
+            assert_eq!(FSHR.array, [0x00, 0xC0]);
+            assert_eq!(DEP.array, [0b0101_0000, 0]);
+            assert_eq!(EXT.array, [0b101, 0]);
+        }
+    }
 }

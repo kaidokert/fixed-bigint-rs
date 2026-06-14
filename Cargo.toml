@@ -81,5 +81,5 @@ codegen-units = 16
 [features]
 use-unsafe = []
 1_87 = []
-nightly = ["c0nst/nightly", "1_87"]
+nightly = ["c0nst/nightly", "const-num-traits/nightly", "1_87"]
 default = []
