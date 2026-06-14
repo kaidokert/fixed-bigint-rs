@@ -528,6 +528,49 @@ c0nst::c0nst! {
             <FixedUInt<T, N, P> as UnboundedShr>::unbounded_shr(*self, rhs)
         }
     }
+
+    // --- HighestOne / LowestOne ---------------------------------------------
+    //
+    // Indices of the highest / lowest set bit. Both reduce to the leading-
+    // and trailing-zero counts we already compute (Nct fast-path through
+    // `const_leading_zeros` / `const_trailing_zeros`; Ct path through the
+    // mask-select `_ct` variants). Returning `None` for zero is the only
+    // value-dependent branch — fine on Nct, and on Ct the caller has to
+    // know they're consuming an Option in a value-aware way regardless.
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::HighestOne for FixedUInt<T, N, P> {
+        fn highest_one(self) -> Option<u32> {
+            let lz = <Self as crate::const_numtraits::PrimBits>::leading_zeros(self);
+            if lz as usize == Self::BIT_SIZE {
+                None
+            } else {
+                Some(Self::BIT_SIZE as u32 - 1 - lz)
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::LowestOne for FixedUInt<T, N, P> {
+        fn lowest_one(self) -> Option<u32> {
+            let tz = <Self as crate::const_numtraits::PrimBits>::trailing_zeros(self);
+            if tz as usize == Self::BIT_SIZE {
+                None
+            } else {
+                Some(tz)
+            }
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::HighestOne for &FixedUInt<T, N, P> {
+        fn highest_one(self) -> Option<u32> {
+            <FixedUInt<T, N, P> as crate::const_numtraits::HighestOne>::highest_one(*self)
+        }
+    }
+
+    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::LowestOne for &FixedUInt<T, N, P> {
+        fn lowest_one(self) -> Option<u32> {
+            <FixedUInt<T, N, P> as crate::const_numtraits::LowestOne>::lowest_one(*self)
+        }
+    }
 }
 
 // num_traits wrappers - delegate to const impls

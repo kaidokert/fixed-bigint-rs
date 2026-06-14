@@ -53,5 +53,16 @@ pub use ::const_num_traits::{FromBytes, ToBytes};
 // Bigint helpers (multi-word arithmetic).
 pub use ::const_num_traits::{BorrowingSub, CarryingAdd, CarryingMul, WideningMul};
 
+// Parity.
+pub use ::const_num_traits::Parity;
+
+// Highest/lowest set-bit index.
+pub use ::const_num_traits::{HighestOne, LowestOne};
+
+// Strict-arithmetic family (panic-on-overflow).
+pub use ::const_num_traits::{
+    StrictAdd, StrictDiv, StrictMul, StrictPow, StrictRem, StrictShl, StrictShr, StrictSub,
+};
+
 // Unbounded shifts — split.
 pub use ::const_num_traits::{UnboundedShl, UnboundedShr};

@@ -38,6 +38,8 @@ mod mul_acc_ops_impl;
 mod mul_div_impl;
 mod multiple_impl;
 mod num_integer_impl;
+mod parity_impl;
+mod strict_impl;
 mod num_traits_casts;
 mod num_traits_identity;
 mod power_of_two_impl;
