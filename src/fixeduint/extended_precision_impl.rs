@@ -67,7 +67,13 @@ c0nst::c0nst! {
         const N: usize, P: Personality,
     >(
         a: FixedUInt<T, N, P>, b: FixedUInt<T, N, P>,
-    ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
+    ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>)
+    where
+        <T as ConstMachineWord>::ConstDoubleWord:
+            [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
+            + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
+            + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+    {
         // External `WideningMul` on T returns a single wide-int
         // (`<u8 as WideningMul>::Wide = u16`), not a `(lo, hi)` tuple.
         // We compute the per-limb wide product via the
@@ -134,7 +140,13 @@ c0nst::c0nst! {
         (FixedUInt::from_array(result_low), FixedUInt::from_array(result_high))
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst CarryingMul for FixedUInt<T, N, P> {
+    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst CarryingMul for FixedUInt<T, N, P>
+    where
+        <T as ConstMachineWord>::ConstDoubleWord:
+            [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
+            + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
+            + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+    {
         type Unsigned = Self;
         fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
             // Full product + add carry to low half, propagate to high.
@@ -177,7 +189,13 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst CarryingMul for &FixedUInt<T, N, P> {
+    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst CarryingMul for &FixedUInt<T, N, P>
+    where
+        <T as ConstMachineWord>::ConstDoubleWord:
+            [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
+            + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
+            + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+    {
         type Unsigned = FixedUInt<T, N, P>;
         fn carrying_mul(self, rhs: Self, carry: Self) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
             <FixedUInt<T, N, P> as CarryingMul>::carrying_mul(*self, *rhs, *carry)

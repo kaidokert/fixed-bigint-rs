@@ -81,15 +81,16 @@ c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ToBytes for FixedUInt<T, N, P>
     where
         [(); byte_len::<T, N>()]:,
+        <T as ToBytes>::Bytes: [c0nst] AsRef<[u8]>,
     {
         type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
 
-        fn to_le_bytes(&self) -> Self::Bytes {
+        fn to_le_bytes(self) -> Self::Bytes {
             let mut result = ConstBytesHolder { bytes: [0u8; byte_len::<T, N>()] };
             let word_size = size_of::<T>();
             let mut i = 0;
             while i < N {
-                let word_bytes = ToBytes::to_le_bytes(&self.array[i]);
+                let word_bytes = ToBytes::to_le_bytes(self.array[i]);
                 let src = word_bytes.as_ref();
                 let mut j = 0;
                 while j < word_size {
@@ -101,14 +102,14 @@ c0nst::c0nst! {
             result
         }
 
-        fn to_be_bytes(&self) -> Self::Bytes {
+        fn to_be_bytes(self) -> Self::Bytes {
             let mut result = ConstBytesHolder { bytes: [0u8; byte_len::<T, N>()] };
             let word_size = size_of::<T>();
             let mut i = 0;
             while i < N {
                 // For big-endian, reverse word order: highest word first
                 let word_idx = N - 1 - i;
-                let word_bytes = ToBytes::to_be_bytes(&self.array[word_idx]);
+                let word_bytes = ToBytes::to_be_bytes(self.array[word_idx]);
                 let src = word_bytes.as_ref();
                 let mut j = 0;
                 while j < word_size {
@@ -127,11 +128,11 @@ c0nst::c0nst! {
     {
         type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
 
-        fn from_le_bytes(bytes: &Self::Bytes) -> Self {
+        fn from_le_bytes(bytes: Self::Bytes) -> Self {
             Self::from_array(impl_from_le_bytes_slice::<T, N>(bytes.as_ref()))
         }
 
-        fn from_be_bytes(bytes: &Self::Bytes) -> Self {
+        fn from_be_bytes(bytes: Self::Bytes) -> Self {
             Self::from_array(impl_from_be_bytes_slice::<T, N>(bytes.as_ref()))
         }
     }

@@ -15,7 +15,9 @@ pub struct BytesHolder<T: MachineWord, const N: usize> {
 
 impl<T: MachineWord, const N: usize> Default for BytesHolder<T, N> {
     fn default() -> Self {
-        Self::from_array(core::array::from_fn(|_| T::default()))
+        Self::from_array(core::array::from_fn(|_| {
+            <T as crate::const_numtraits::Zero>::zero()
+        }))
     }
 }
 

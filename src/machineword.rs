@@ -42,12 +42,15 @@ c0nst::c0nst! {
         [c0nst] core::ops::ShrAssign<usize> +
         [c0nst] core::ops::AddAssign +
         [c0nst] core::ops::SubAssign +
-        From<u8>
+        [c0nst] From<u8>
     {
         type ConstDoubleWord: [c0nst] PrimInt
             + [c0nst] core::ops::BitAndAssign
             + [c0nst] core::ops::BitOrAssign
-            + [c0nst] core::ops::AddAssign;
+            + [c0nst] core::ops::AddAssign
+            + [c0nst] core::ops::Mul<Output = Self::ConstDoubleWord>
+            + [c0nst] core::ops::BitAnd<Output = Self::ConstDoubleWord>
+            + [c0nst] core::ops::Shr<usize, Output = Self::ConstDoubleWord>;
         fn to_double(self) -> Self::ConstDoubleWord;
         fn from_double(word: Self::ConstDoubleWord) -> Self;
     }

@@ -22,7 +22,7 @@ use crate::personality::Nct;
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst DivCeil for FixedUInt<T, N, Nct> {
         fn div_ceil(self, rhs: Self) -> Self {
-            match Self::checked_div_ceil_impl(self, rhs) {
+            match checked_div_ceil_impl(self, rhs) {
                 Some(v) => v,
                 None => panic!("div_ceil: division by zero or overflow"),
             }
@@ -36,26 +36,39 @@ c0nst::c0nst! {
     }
 }
 
+c0nst::c0nst! {
+    /// Standalone const fn body for div_ceil's checked variant, used both
+    /// by the inherent `checked_div_ceil` shim and (transitively) by the
+    /// `DivCeil::div_ceil` trait impl above. Kept free-floating rather
+    /// than as an inherent method because the c0nst macro doesn't
+    /// translate `[c0nst]` bounds on inherent `impl` blocks (only on
+    /// `c0nst fn` items directly).
+    pub(crate) c0nst fn checked_div_ceil_impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
+        a: FixedUInt<T, N, Nct>, rhs: FixedUInt<T, N, Nct>,
+    ) -> Option<FixedUInt<T, N, Nct>> {
+        if const_is_zero(&rhs.array) {
+            return None;
+        }
+        let mut quotient = a.array;
+        let remainder = const_div(&mut quotient, &rhs.array);
+        if const_is_zero(&remainder) {
+            Some(FixedUInt::from_array(quotient))
+        } else {
+            <FixedUInt<T, N, Nct> as CheckedAdd>::checked_add(
+                FixedUInt::from_array(quotient),
+                <FixedUInt<T, N, Nct> as One>::one(),
+            )
+        }
+    }
+}
+
 impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
     /// Backwards-compatible inherent `checked_div_ceil`. External
     /// `DivCeil` doesn't surface a checked variant; we keep this so
     /// downstream callers can still get `None` on division-by-zero or
     /// overflow rather than a panic.
     pub fn checked_div_ceil(self, rhs: Self) -> Option<Self> {
-        Self::checked_div_ceil_impl(self, rhs)
-    }
-
-    pub(crate) fn checked_div_ceil_impl(self, rhs: Self) -> Option<Self> {
-        if const_is_zero(&rhs.array) {
-            return None;
-        }
-        let mut quotient = self.array;
-        let remainder = const_div(&mut quotient, &rhs.array);
-        if const_is_zero(&remainder) {
-            Some(Self::from_array(quotient))
-        } else {
-            CheckedAdd::checked_add(Self::from_array(quotient), <Self as One>::one())
-        }
+        checked_div_ceil_impl(self, rhs)
     }
 }
 
