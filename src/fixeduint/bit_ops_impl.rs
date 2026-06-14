@@ -311,7 +311,7 @@ c0nst::c0nst! {
         }
     }
 
-    // Shared body for `Shl<u32>` and `ConstUnboundedShift::unbounded_shl`.
+    // Shared body for `Shl<u32>` and `UnboundedShl::unbounded_shl`.
     // Both want the same semantics — shift by a u32 amount, with values
     // outside [0, BIT_SIZE) collapsing to zero — and previously had
     // parallel implementations. The Ct fix in PR #120 was applied to
@@ -764,41 +764,41 @@ mod tests {
         let one = U16::from(1u8);
 
         // Normal shifts (within bounds)
-        assert_eq!(ConstUnboundedShift::unbounded_shl(one, 0), one);
-        assert_eq!(ConstUnboundedShift::unbounded_shl(one, 4), U16::from(16u8));
+        assert_eq!(UnboundedShl::unbounded_shl(one, 0), one);
+        assert_eq!(UnboundedShl::unbounded_shl(one, 4), U16::from(16u8));
         assert_eq!(
-            ConstUnboundedShift::unbounded_shl(one, 15),
+            UnboundedShl::unbounded_shl(one, 15),
             U16::from(0x8000u16)
         );
 
         assert_eq!(
-            ConstUnboundedShift::unbounded_shr(U16::from(0x8000u16), 15),
+            UnboundedShr::unbounded_shr(U16::from(0x8000u16), 15),
             one
         );
-        assert_eq!(ConstUnboundedShift::unbounded_shr(U16::from(16u8), 4), one);
+        assert_eq!(UnboundedShr::unbounded_shr(U16::from(16u8), 4), one);
 
         // At boundary (shift by bit width) - returns 0
-        assert_eq!(ConstUnboundedShift::unbounded_shl(one, 16), U16::from(0u8));
+        assert_eq!(UnboundedShl::unbounded_shl(one, 16), U16::from(0u8));
         assert_eq!(
-            ConstUnboundedShift::unbounded_shr(U16::from(0xFFFFu16), 16),
+            UnboundedShr::unbounded_shr(U16::from(0xFFFFu16), 16),
             U16::from(0u8)
         );
 
         // Beyond boundary - returns 0
         assert_eq!(
-            ConstUnboundedShift::unbounded_shl(U16::from(0xFFFFu16), 17),
+            UnboundedShl::unbounded_shl(U16::from(0xFFFFu16), 17),
             U16::from(0u8)
         );
         assert_eq!(
-            ConstUnboundedShift::unbounded_shl(U16::from(0xFFFFu16), 100),
+            UnboundedShl::unbounded_shl(U16::from(0xFFFFu16), 100),
             U16::from(0u8)
         );
         assert_eq!(
-            ConstUnboundedShift::unbounded_shr(U16::from(0xFFFFu16), 17),
+            UnboundedShr::unbounded_shr(U16::from(0xFFFFu16), 17),
             U16::from(0u8)
         );
         assert_eq!(
-            ConstUnboundedShift::unbounded_shr(U16::from(0xFFFFu16), 100),
+            UnboundedShr::unbounded_shr(U16::from(0xFFFFu16), 100),
             U16::from(0u8)
         );
 
@@ -806,19 +806,19 @@ mod tests {
         type U32 = FixedUInt<u8, 4>;
         let one32 = U32::from(1u8);
         assert_eq!(
-            ConstUnboundedShift::unbounded_shl(one32, 31),
+            UnboundedShl::unbounded_shl(one32, 31),
             U32::from(0x80000000u32)
         );
         assert_eq!(
-            ConstUnboundedShift::unbounded_shl(one32, 32),
+            UnboundedShl::unbounded_shl(one32, 32),
             U32::from(0u8)
         );
         assert_eq!(
-            ConstUnboundedShift::unbounded_shr(U32::from(0x80000000u32), 31),
+            UnboundedShr::unbounded_shr(U32::from(0x80000000u32), 31),
             one32
         );
         assert_eq!(
-            ConstUnboundedShift::unbounded_shr(U32::from(0x80000000u32), 32),
+            UnboundedShr::unbounded_shr(U32::from(0x80000000u32), 32),
             U32::from(0u8)
         );
     }
@@ -827,10 +827,10 @@ mod tests {
     fn test_unbounded_shift_polymorphic() {
         fn test_unbounded<T>(val: T, shift: u32, expected_shl: T, expected_shr: T)
         where
-            T: ConstUnboundedShift + Eq + core::fmt::Debug + Copy,
+            T: UnboundedShl + Eq + core::fmt::Debug + Copy,
         {
-            assert_eq!(ConstUnboundedShift::unbounded_shl(val, shift), expected_shl);
-            assert_eq!(ConstUnboundedShift::unbounded_shr(val, shift), expected_shr);
+            assert_eq!(UnboundedShl::unbounded_shl(val, shift), expected_shl);
+            assert_eq!(UnboundedShr::unbounded_shr(val, shift), expected_shr);
         }
 
         // Test with FixedUInt layouts

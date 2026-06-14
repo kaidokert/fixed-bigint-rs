@@ -206,9 +206,9 @@ fn is_zero_works_correctly_under_both_personalities() {
     // short-circuit (Nct) and OR-fold (Ct) bodies.
     let high_nz_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from([0u8, 0, 0, 1]);
 
-    assert!(<FixedUInt<u8, 4, Nct> as ConstZero>::is_zero(&z_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstZero>::is_zero(&nz_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstZero>::is_zero(&high_nz_nct));
+    assert!(<FixedUInt<u8, 4, Nct> as Zero>::is_zero(&z_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as Zero>::is_zero(&nz_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as Zero>::is_zero(&high_nz_nct));
 
     let z_ct: FixedUInt<u8, 4, Ct> = z_nct.into();
     let nz_ct: FixedUInt<u8, 4, Ct> = nz_nct.into();
@@ -216,9 +216,9 @@ fn is_zero_works_correctly_under_both_personalities() {
 
     // Same answers as Nct — different code path under the hood
     // (`match P::TAG` selects `const_is_zero_ct` here).
-    assert!(<FixedUInt<u8, 4, Ct> as ConstZero>::is_zero(&z_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstZero>::is_zero(&nz_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstZero>::is_zero(&high_nz_ct));
+    assert!(<FixedUInt<u8, 4, Ct> as Zero>::is_zero(&z_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as Zero>::is_zero(&nz_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as Zero>::is_zero(&high_nz_ct));
 }
 
 #[test]
@@ -231,10 +231,10 @@ fn is_one_works_correctly_under_both_personalities() {
     // High-limb-set distinguishes short-circuit from OR-fold timing.
     let high_set_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from([1u8, 0, 0, 1]);
 
-    assert!(<FixedUInt<u8, 4, Nct> as ConstOne>::is_one(&one_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstOne>::is_one(&zero_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstOne>::is_one(&two_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstOne>::is_one(&high_set_nct));
+    assert!(<FixedUInt<u8, 4, Nct> as One>::is_one(&one_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as One>::is_one(&zero_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as One>::is_one(&two_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as One>::is_one(&high_set_nct));
 
     let one_ct: FixedUInt<u8, 4, Ct> = one_nct.into();
     let zero_ct: FixedUInt<u8, 4, Ct> = zero_nct.into();
@@ -243,10 +243,10 @@ fn is_one_works_correctly_under_both_personalities() {
 
     // Same answers as Nct — different code path under the hood
     // (`match P::TAG` selects `const_is_one_ct` here).
-    assert!(<FixedUInt<u8, 4, Ct> as ConstOne>::is_one(&one_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstOne>::is_one(&zero_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstOne>::is_one(&two_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstOne>::is_one(&high_set_ct));
+    assert!(<FixedUInt<u8, 4, Ct> as One>::is_one(&one_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as One>::is_one(&zero_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as One>::is_one(&two_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as One>::is_one(&high_set_ct));
 }
 
 #[test]
@@ -499,7 +499,7 @@ fn shr_works_under_both_personalities() {
 
 #[test]
 fn is_power_of_two_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstPowerOfTwo;
+    use fixed_bigint::const_numtraits::IsPowerOfTwo;
 
     // Zero is not a power of two — exercises the `n == 0` short-circuit path
     // on Nct and the unconditional fallback on Ct.
@@ -813,7 +813,7 @@ fn ct_debug_redacts_limb_values() {
 
 #[test]
 fn next_power_of_two_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstPowerOfTwo;
+    use fixed_bigint::const_numtraits::IsPowerOfTwo;
     for (input, expected) in [
         (0u16, 1u16),
         (1, 1),
@@ -826,14 +826,14 @@ fn next_power_of_two_works_under_both_personalities() {
         let n: FixedUInt<u8, 2, Nct> = FixedUInt::from(input);
         let c: FixedUInt<u8, 2, Ct> = n.into();
         assert_eq!(
-            ConstPowerOfTwo::next_power_of_two(n),
+            IsPowerOfTwo::next_power_of_two(n),
             FixedUInt::from(expected),
             "Nct next_power_of_two({}) = {}",
             input,
             expected,
         );
         assert_eq!(
-            ConstPowerOfTwo::next_power_of_two(c).forget_ct(),
+            IsPowerOfTwo::next_power_of_two(c).forget_ct(),
             FixedUInt::from(expected),
             "Ct next_power_of_two({}) = {}",
             input,
@@ -1077,7 +1077,7 @@ fn ord_on_ct_agrees_with_nct() {
 
 #[test]
 fn next_power_of_two_saturates_to_max_on_ct_overflow() {
-    use fixed_bigint::const_numtraits::{Bounded, ConstPowerOfTwo};
+    use fixed_bigint::const_numtraits::{Bounded, IsPowerOfTwo};
 
     // u16 type with Ct personality. Inputs whose next_power_of_two exceeds
     // u16::MAX should saturate to MAX, not silently return 0.
@@ -1085,7 +1085,7 @@ fn next_power_of_two_saturates_to_max_on_ct_overflow() {
 
     for input in [0x8001u16, 0xC000, 0xFFFF] {
         let v: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(input).into();
-        let r = ConstPowerOfTwo::next_power_of_two(v);
+        let r = IsPowerOfTwo::next_power_of_two(v);
         assert_eq!(
             r.forget_ct(),
             max_u16.forget_ct(),
@@ -1099,13 +1099,13 @@ fn next_power_of_two_saturates_to_max_on_ct_overflow() {
         let n: FixedUInt<u8, 2, Nct> = FixedUInt::from(input);
         let c: FixedUInt<u8, 2, Ct> = n.into();
         assert_eq!(
-            ConstPowerOfTwo::next_power_of_two(n),
+            IsPowerOfTwo::next_power_of_two(n),
             FixedUInt::from(expected),
             "Nct next_power_of_two({})",
             input
         );
         assert_eq!(
-            ConstPowerOfTwo::next_power_of_two(c).forget_ct(),
+            IsPowerOfTwo::next_power_of_two(c).forget_ct(),
             FixedUInt::from(expected),
             "Ct next_power_of_two({})",
             input
