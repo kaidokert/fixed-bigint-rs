@@ -25,6 +25,15 @@ crate's conventions, and a few traits were added or split.
   for the full rationale; the short version is that core's inherent
   methods are by-value because primitives are `Copy`, and the new
   crate tracks that exactly.
+* **`ToBytes` is by-value, `FromBytes` stays borrowed.**
+  `ToBytes::to_le_bytes(self) -> Self::Bytes` and `to_be_bytes(self)`
+  take `self` by value (matches the other by-value-receiver changes
+  above). `FromBytes::from_le_bytes(bytes: &Self::Bytes) -> Self`
+  and `from_be_bytes` stay *borrowed* — the buffer is read, not
+  reused as storage, and keeping it borrowed lets variable-length
+  types use `type Bytes: ?Sized` with a `[u8]` slice (no allocation).
+  This is a deliberate asymmetry; see the new crate's API_BREAKS.md
+  entry #5.
 * **Bundled-trait splits.** The local crate's "fat" traits were
   split along upstream `num-traits` lines. `ConstZero` → `Zero`
   (methods) + `ConstZero` (the `ZERO` associated constant);

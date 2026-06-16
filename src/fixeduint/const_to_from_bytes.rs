@@ -126,13 +126,18 @@ c0nst::c0nst! {
     where
         [(); byte_len::<T, N>()]:,
     {
+        // External `FromBytes::Bytes` is `?Sized` + `NumBytes`-bounded.
+        // We keep using the sized `ConstBytesHolder` (the c0nst const
+        // generic path needs a concrete return type for `ToBytes`
+        // anyway); `from_*_bytes` takes it by reference per the
+        // reverted-in upstream signature.
         type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
 
-        fn from_le_bytes(bytes: Self::Bytes) -> Self {
+        fn from_le_bytes(bytes: &Self::Bytes) -> Self {
             Self::from_array(impl_from_le_bytes_slice::<T, N>(bytes.as_ref()))
         }
 
-        fn from_be_bytes(bytes: Self::Bytes) -> Self {
+        fn from_be_bytes(bytes: &Self::Bytes) -> Self {
             Self::from_array(impl_from_be_bytes_slice::<T, N>(bytes.as_ref()))
         }
     }
@@ -192,7 +197,7 @@ mod tests {
         let bytes = ConstBytesHolder {
             bytes: [0x01, 0x02, 0x03, 0x04],
         };
-        let val: FixedUInt<u8, 4> = FromBytes::from_le_bytes(bytes);
+        let val: FixedUInt<u8, 4> = FromBytes::from_le_bytes(&bytes);
         assert_eq!(val.array, [0x01, 0x02, 0x03, 0x04]);
     }
 
@@ -201,7 +206,7 @@ mod tests {
         let bytes = ConstBytesHolder {
             bytes: [0x04, 0x03, 0x02, 0x01],
         };
-        let val: FixedUInt<u8, 4> = FromBytes::from_be_bytes(bytes);
+        let val: FixedUInt<u8, 4> = FromBytes::from_be_bytes(&bytes);
         assert_eq!(val.array, [0x01, 0x02, 0x03, 0x04]);
     }
 
@@ -210,13 +215,13 @@ mod tests {
         let bytes = ConstBytesHolder {
             bytes: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
         };
-        let le_val: FixedUInt<u32, 2> = FromBytes::from_le_bytes(bytes);
+        let le_val: FixedUInt<u32, 2> = FromBytes::from_le_bytes(&bytes);
         assert_eq!(le_val.array, [0x04030201, 0x08070605]);
 
         let be_bytes = ConstBytesHolder {
             bytes: [0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01],
         };
-        let be_val: FixedUInt<u32, 2> = FromBytes::from_be_bytes(be_bytes);
+        let be_val: FixedUInt<u32, 2> = FromBytes::from_be_bytes(&be_bytes);
         assert_eq!(be_val.array, [0x04030201, 0x08070605]);
     }
 
@@ -225,7 +230,7 @@ mod tests {
         let bytes = ConstBytesHolder {
             bytes: [0x01, 0x02, 0x03, 0x04],
         };
-        FromBytes::from_le_bytes(bytes)
+        FromBytes::from_le_bytes(&bytes)
     };
 
     #[test]
@@ -247,7 +252,7 @@ mod tests {
         let bytes = ConstBytesHolder {
             bytes: [0x04, 0x03, 0x02, 0x01],
         };
-        FromBytes::from_be_bytes(bytes)
+        FromBytes::from_be_bytes(&bytes)
     };
 
     #[test]
@@ -265,11 +270,11 @@ mod tests {
         let original: FixedUInt<u32, 2> = FixedUInt::from_array([0x12345678, 0xDEADBEEF]);
 
         let le_bytes = ToBytes::to_le_bytes(original);
-        let from_le: FixedUInt<u32, 2> = FromBytes::from_le_bytes(le_bytes);
+        let from_le: FixedUInt<u32, 2> = FromBytes::from_le_bytes(&le_bytes);
         assert_eq!(from_le.array, original.array);
 
         let be_bytes = ToBytes::to_be_bytes(original);
-        let from_be: FixedUInt<u32, 2> = FromBytes::from_be_bytes(be_bytes);
+        let from_be: FixedUInt<u32, 2> = FromBytes::from_be_bytes(&be_bytes);
         assert_eq!(from_be.array, original.array);
     }
 }
