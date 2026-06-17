@@ -66,6 +66,17 @@ crate's conventions, and a few traits were added or split.
   upstream `num-traits` lacked them; the new crate provides them
   directly. Users who imported `fixed_bigint::patch_num_traits::*`
   should switch to `fixed_bigint::const_numtraits::*`.
+* **`fixed_bigint::personality` module is gone — the `Ct`/`Nct`
+  typestate now lives in `const-num-traits`.** The marker is a
+  pure-`core` capability (it depends only on `PhantomData`) and a
+  growing number of consumers want it without depending on
+  `fixed-bigint`, so it moved upstream. The trait and its tag/marker
+  are byte-identical; only the path changed. Downstream:
+  `use fixed_bigint::personality::{Ct, Nct, Personality, PersonalityTag};`
+  → `use const_num_traits::{Ct, Nct, Personality, PersonalityTag};`,
+  and add a direct dep on `const-num-traits` (we deliberately do
+  *not* re-export from `fixed_bigint`, to keep downstream coupling
+  visible).
 
 ### Added
 

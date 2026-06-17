@@ -2,7 +2,7 @@ use core::fmt::Write;
 use num_traits::{Num, ToPrimitive, Zero};
 
 use super::{make_empty_error, make_overflow_err, make_parse_int_err, FixedUInt, MachineWord};
-use crate::personality::Nct;
+use const_num_traits::Nct;
 
 impl<T: MachineWord, const N: usize> num_traits::Num for FixedUInt<T, N, Nct> {
     type FromStrRadixErr = core::num::ParseIntError;

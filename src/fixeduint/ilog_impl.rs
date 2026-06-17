@@ -17,7 +17,7 @@
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::{ConstZero, Ilog, Ilog10, Ilog2, One, PrimBits, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::Nct;
+use const_num_traits::Nct;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog2 for FixedUInt<T, N, Nct> {

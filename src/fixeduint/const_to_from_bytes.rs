@@ -20,7 +20,7 @@
 use super::{impl_from_be_bytes_slice, impl_from_le_bytes_slice, FixedUInt, MachineWord};
 use crate::const_numtraits::{FromBytes, One, ToBytes, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::Personality;
+use const_num_traits::Personality;
 use core::mem::size_of;
 
 /// Compute byte length for FixedUInt<T, N>.

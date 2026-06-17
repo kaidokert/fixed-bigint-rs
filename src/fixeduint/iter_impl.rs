@@ -1,5 +1,5 @@
 use super::{FixedUInt, MachineWord};
-use crate::personality::Personality;
+use const_num_traits::Personality;
 use num_traits::{One, Zero};
 
 impl<T: MachineWord, const N: usize, P: Personality> core::iter::Sum for FixedUInt<T, N, P> {

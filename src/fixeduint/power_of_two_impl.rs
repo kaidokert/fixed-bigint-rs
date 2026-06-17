@@ -17,7 +17,7 @@
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::{Bounded, ConstOne, ConstZero, IsPowerOfTwo, NextPowerOfTwo, One, PrimBits, WrappingSub, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::{Personality, PersonalityTag};
+use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst IsPowerOfTwo for FixedUInt<T, N, P> {

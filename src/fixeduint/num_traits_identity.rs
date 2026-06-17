@@ -1,7 +1,7 @@
 use super::{const_is_one, const_is_one_ct, const_is_zero, const_is_zero_ct, FixedUInt, MachineWord};
 use crate::const_numtraits::{Bounded, ConstOne, ConstZero, One, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::{Personality, PersonalityTag};
+use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Zero for FixedUInt<T, N, P> {
@@ -104,7 +104,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::Bounded for Fix
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::personality::Nct;
+    use const_num_traits::Nct;
 
     c0nst::c0nst! {
         c0nst fn const_zero<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>() -> FixedUInt<T, N, P> {

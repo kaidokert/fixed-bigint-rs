@@ -1,6 +1,6 @@
 use crate::fixeduint::FixedUInt;
 use crate::machineword::MachineWord;
-use crate::personality::Nct;
+use const_num_traits::Nct;
 use num_integer::Roots;
 use num_traits::{FromPrimitive, One, PrimInt, Zero};
 

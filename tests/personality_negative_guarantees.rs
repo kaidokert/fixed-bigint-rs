@@ -6,7 +6,7 @@
 //! `tests/personality_integration.rs`.
 
 use core::fmt::{Display, LowerHex, UpperHex};
-use fixed_bigint::personality::{Ct, Nct};
+use const_num_traits::{Ct, Nct};
 use fixed_bigint::FixedUInt;
 use static_assertions::assert_not_impl_any;
 use subtle::{ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess};

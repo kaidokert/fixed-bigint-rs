@@ -17,7 +17,7 @@
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::Midpoint;
 use crate::machineword::ConstMachineWord;
-use crate::personality::Personality;
+use const_num_traits::Personality;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Midpoint for FixedUInt<T, N, P> {

@@ -20,7 +20,7 @@
 use super::{add_with_carry, sub_with_borrow, FixedUInt, MachineWord};
 use crate::const_numtraits::{BorrowingSub, Bounded, CarryingAdd, CarryingMul, One, WideningMul, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::{Personality, PersonalityTag};
+use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + MachineWord, const N: usize, P: Personality> c0nst CarryingAdd for FixedUInt<T, N, P> {

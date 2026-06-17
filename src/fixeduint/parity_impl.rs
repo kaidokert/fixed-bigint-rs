@@ -20,7 +20,7 @@
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::Parity;
 use crate::machineword::ConstMachineWord;
-use crate::personality::Personality;
+use const_num_traits::Personality;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Parity for FixedUInt<T, N, P> {
@@ -53,7 +53,7 @@ c0nst::c0nst! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::personality::{Ct, Nct};
+    use const_num_traits::{Ct, Nct};
 
     type U16Nct = FixedUInt<u8, 2, Nct>;
     type U16Ct = FixedUInt<u8, 2, Ct>;
@@ -88,7 +88,7 @@ mod tests {
 
     // --- Empirical const-evaluability proofs --------------------------------
     use crate::machineword::ConstMachineWord;
-    use crate::personality::Personality;
+    use const_num_traits::Personality;
 
     c0nst::c0nst! {
         pub c0nst fn const_is_odd<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> bool {

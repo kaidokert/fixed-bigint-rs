@@ -1,7 +1,7 @@
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::{CheckedEuclid, ConstZero, Euclid, One, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::Nct;
+use const_num_traits::Nct;
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Euclid for FixedUInt<T, N, Nct> {

@@ -2,7 +2,7 @@ use super::{const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl, FixedUIn
 
 use crate::const_numtraits::{CheckedShl, CheckedShr, ConstZero, One, OverflowingShl, OverflowingShr, UnboundedShl, UnboundedShr, WrappingShl, WrappingShr, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::{Nct, Personality, PersonalityTag};
+use const_num_traits::{Nct, Personality, PersonalityTag};
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Not for FixedUInt<T, N, P> {
@@ -1341,7 +1341,7 @@ mod tests {
     #[test]
     fn test_deposit_extract_bits() {
         use crate::const_numtraits::{DepositBits, ExtractBits};
-        use crate::personality::Nct;
+        use const_num_traits::Nct;
         type U16 = FixedUInt<u8, 2, Nct>;
 
         // Mirror of the primitive doctest:

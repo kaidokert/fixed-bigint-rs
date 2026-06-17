@@ -1,7 +1,7 @@
 use super::{const_leading_zeros, const_leading_zeros_ct, const_trailing_zeros, const_trailing_zeros_ct, FixedUInt, MachineWord};
 use crate::const_numtraits::{One, PrimBits, PrimInt, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::{Nct, Personality, PersonalityTag};
+use const_num_traits::{Nct, Personality, PersonalityTag};
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst PrimBits for FixedUInt<T, N, P> {

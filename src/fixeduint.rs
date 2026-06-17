@@ -53,7 +53,7 @@ mod const_to_from_bytes;
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]
 mod to_from_bytes;
 
-use crate::personality::{Ct, Nct, Personality, PersonalityMarker, PersonalityTag};
+use const_num_traits::{Ct, Nct, Personality, PersonalityMarker, PersonalityTag};
 #[cfg(feature = "zeroize")]
 use zeroize::DefaultIsZeroes;
 
@@ -62,10 +62,10 @@ use zeroize::DefaultIsZeroes;
 /// The optional `P: Personality` parameter selects which implementations of
 /// operation primitives are used at each call site. Defaults to [`Nct`]
 /// (non-constant-time). Use `FixedUInt<T, N, Ct>` for
-/// values that must be handled in constant time. See [`crate::personality`].
+/// values that must be handled in constant time. See [`const_num_traits::personality`].
 ///
-/// [`Nct`]: crate::personality::Nct
-/// [`Ct`]: crate::personality::Ct
+/// [`Nct`]: const_num_traits::Nct
+/// [`Ct`]: const_num_traits::Ct
 #[derive(Copy)]
 pub struct FixedUInt<T, const N: usize, P: Personality = Nct>
 where
@@ -1637,7 +1637,7 @@ mod tests {
             b: &[T; N],
             word_bits: usize,
         ) -> ([T; N], bool) {
-            const_mul::<T, N, true, crate::personality::Nct>(a, b, word_bits)
+            const_mul::<T, N, true, const_num_traits::Nct>(a, b, word_bits)
         }
 
         pub c0nst fn arr_leading_zeros<T: [c0nst] ConstMachineWord, const N: usize>(

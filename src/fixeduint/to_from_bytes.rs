@@ -5,7 +5,7 @@ use core::borrow::{Borrow, BorrowMut};
 use core::hash::Hash;
 
 use super::FixedUInt;
-use crate::personality::Personality;
+use const_num_traits::Personality;
 
 // Helper, holds an owned copy of returned bytes
 #[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Debug)]

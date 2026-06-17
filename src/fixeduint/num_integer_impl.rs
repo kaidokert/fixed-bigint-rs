@@ -1,6 +1,6 @@
 use super::{FixedUInt, MachineWord};
 
-use crate::personality::Nct;
+use const_num_traits::Nct;
 use num_traits::{PrimInt, Zero};
 
 // Most code here from num_integer crate, unsigned implementation

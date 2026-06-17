@@ -1,4 +1,4 @@
-use fixed_bigint::personality::{Ct, Nct};
+use const_num_traits::{Ct, Nct};
 use fixed_bigint::{FixedUInt, MulAccOps};
 use num_traits::Zero;
 use subtle::{

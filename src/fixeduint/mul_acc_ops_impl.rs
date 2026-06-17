@@ -8,7 +8,7 @@ use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::CarryingMul;
 use crate::const_numtraits::{CarryingAdd, ConstZero, One, Zero};
 use crate::mul_acc_ops::MulAccOps;
-use crate::personality::{Ct, Nct};
+use const_num_traits::{Ct, Nct};
 
 macro_rules! mul_acc_ops_common {
     () => {

@@ -1,7 +1,7 @@
 use super::{add_impl, const_ct_select, maybe_panic_if, sub_impl, FixedUInt, MachineWord, PanicReason};
 use crate::const_numtraits::{Bounded, CheckedAdd, CheckedSub, ConstZero, One, OverflowingAdd, OverflowingSub, SaturatingAdd, SaturatingSub, WrappingAdd, WrappingSub, Zero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::{Personality, PersonalityTag};
+use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
     impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::OverflowingAdd for FixedUInt<T, N, P> {
