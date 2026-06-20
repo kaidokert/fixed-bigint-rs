@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstIsqrt for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstIsqrt for FixedUInt<T, N, Nct> {
         fn isqrt(self) -> Self {
             // For unsigned types, isqrt always succeeds
             match ConstIsqrt::checked_isqrt(self) {

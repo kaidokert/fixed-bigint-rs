@@ -1408,13 +1408,13 @@ c0nst::c0nst! {
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Default for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Default for FixedUInt<T, N, P> {
         fn default() -> Self {
             FixedUInt::from_array([<T as ConstZero>::zero(); N])
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Clone for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Clone for FixedUInt<T, N, P> {
         fn clone(&self) -> Self {
             *self
         }
@@ -1428,7 +1428,7 @@ impl<T: MachineWord, const N: usize> num_traits::Unsigned for FixedUInt<T, N, Nc
 // #region Equality and Ordering
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::cmp::PartialEq for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::cmp::PartialEq for FixedUInt<T, N, P> {
         fn eq(&self, other: &Self) -> bool {
             match P::TAG {
                 PersonalityTag::Nct => self.array == other.array,
@@ -1446,9 +1446,9 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::cmp::Eq for FixedUInt<T, N, P> {}
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::cmp::Eq for FixedUInt<T, N, P> {}
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::cmp::Ord for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::cmp::Ord for FixedUInt<T, N, P> {
         fn cmp(&self, other: &Self) -> core::cmp::Ordering {
             match P::TAG {
                 PersonalityTag::Nct => const_cmp(&self.array, &other.array),
@@ -1457,7 +1457,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::cmp::PartialOrd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::cmp::PartialOrd for FixedUInt<T, N, P> {
         fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
             Some(self.cmp(other))
         }
@@ -1477,25 +1477,25 @@ c0nst::c0nst! {
         impl_from_le_bytes_slice::<T, N>(&bytes)
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::convert::From<u8> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::convert::From<u8> for FixedUInt<T, N, P> {
         fn from(x: u8) -> Self {
             Self::from_array(const_from_le_bytes(x.to_le_bytes()))
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::convert::From<u16> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::convert::From<u16> for FixedUInt<T, N, P> {
         fn from(x: u16) -> Self {
             Self::from_array(const_from_le_bytes(x.to_le_bytes()))
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::convert::From<u32> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::convert::From<u32> for FixedUInt<T, N, P> {
         fn from(x: u32) -> Self {
             Self::from_array(const_from_le_bytes(x.to_le_bytes()))
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::convert::From<u64> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::convert::From<u64> for FixedUInt<T, N, P> {
         fn from(x: u64) -> Self {
             Self::from_array(const_from_le_bytes(x.to_le_bytes()))
         }

@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstIlog for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstIlog for FixedUInt<T, N, Nct> {
         fn ilog2(self) -> u32 {
             match self.checked_ilog2() {
                 Some(v) => v,

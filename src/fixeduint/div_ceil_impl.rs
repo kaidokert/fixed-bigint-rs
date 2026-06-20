@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstDivCeil for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstDivCeil for FixedUInt<T, N, Nct> {
         fn div_ceil(self, rhs: Self) -> Self {
             match self.checked_div_ceil(rhs) {
                 Some(v) => v,
