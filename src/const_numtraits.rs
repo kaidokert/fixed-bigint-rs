@@ -535,7 +535,7 @@ c0nst::c0nst! {
 macro_rules! const_zero_impl {
     ($t:ty, $v:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstZero for $t {
+            c0nst impl ConstZero for $t {
                 fn zero() -> Self { $v }
                 fn is_zero(&self) -> bool { *self == $v }
                 fn set_zero(&mut self) { *self = $v }
@@ -547,7 +547,7 @@ macro_rules! const_zero_impl {
 macro_rules! const_one_impl {
     ($t:ty, $v:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstOne for $t {
+            c0nst impl ConstOne for $t {
                 fn one() -> Self { $v }
                 fn is_one(&self) -> bool { *self == $v }
                 fn set_one(&mut self) { *self = $v }
@@ -559,7 +559,7 @@ macro_rules! const_one_impl {
 macro_rules! const_bounded_impl {
     ($t:ty, $min:expr, $max:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstBounded for $t {
+            c0nst impl ConstBounded for $t {
                 fn min_value() -> Self { $min }
                 fn max_value() -> Self { $max }
             }
@@ -570,7 +570,7 @@ macro_rules! const_bounded_impl {
 macro_rules! const_bit_prim_int_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstBitPrimInt for $t {
+            c0nst impl ConstBitPrimInt for $t {
                 fn leading_zeros(self) -> u32 { self.leading_zeros() }
                 fn trailing_zeros(self) -> u32 { self.trailing_zeros() }
                 fn count_zeros(self) -> u32 { self.count_zeros() }
@@ -593,7 +593,7 @@ macro_rules! const_bit_prim_int_impl {
 macro_rules! const_prim_int_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstPrimInt for $t {
+            c0nst impl ConstPrimInt for $t {
                 fn pow(self, exp: u32) -> Self { self.pow(exp) }
             }
         }
@@ -603,7 +603,7 @@ macro_rules! const_prim_int_impl {
 macro_rules! const_overflowing_add_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstOverflowingAdd for $t {
+            c0nst impl ConstOverflowingAdd for $t {
                 fn overflowing_add(&self, v: &Self) -> (Self, bool) {
                     (*self).overflowing_add(*v)
                 }
@@ -615,7 +615,7 @@ macro_rules! const_overflowing_add_impl {
 macro_rules! const_overflowing_sub_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstOverflowingSub for $t {
+            c0nst impl ConstOverflowingSub for $t {
                 fn overflowing_sub(&self, v: &Self) -> (Self, bool) {
                     (*self).overflowing_sub(*v)
                 }
@@ -657,7 +657,7 @@ const_overflowing_sub_impl!(u128);
 macro_rules! const_wrapping_add_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstWrappingAdd for $t {
+            c0nst impl ConstWrappingAdd for $t {
                 fn wrapping_add(&self, v: &Self) -> Self {
                     self.overflowing_add(v).0
                 }
@@ -669,7 +669,7 @@ macro_rules! const_wrapping_add_impl {
 macro_rules! const_wrapping_sub_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstWrappingSub for $t {
+            c0nst impl ConstWrappingSub for $t {
                 fn wrapping_sub(&self, v: &Self) -> Self {
                     self.overflowing_sub(v).0
                 }
@@ -681,7 +681,7 @@ macro_rules! const_wrapping_sub_impl {
 macro_rules! const_checked_add_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCheckedAdd for $t {
+            c0nst impl ConstCheckedAdd for $t {
                 fn checked_add(&self, v: &Self) -> Option<Self> {
                     let (res, overflow) = self.overflowing_add(v);
                     if overflow { None } else { Some(res) }
@@ -694,7 +694,7 @@ macro_rules! const_checked_add_impl {
 macro_rules! const_checked_sub_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCheckedSub for $t {
+            c0nst impl ConstCheckedSub for $t {
                 fn checked_sub(&self, v: &Self) -> Option<Self> {
                     let (res, overflow) = self.overflowing_sub(v);
                     if overflow { None } else { Some(res) }
@@ -731,7 +731,7 @@ const_checked_sub_impl!(u128);
 macro_rules! const_saturating_add_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstSaturatingAdd for $t {
+            c0nst impl ConstSaturatingAdd for $t {
                 fn saturating_add(&self, v: &Self) -> Self {
                     let (res, overflow) = self.overflowing_add(v);
                     if overflow { Self::max_value() } else { res }
@@ -744,7 +744,7 @@ macro_rules! const_saturating_add_impl {
 macro_rules! const_saturating_sub_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstSaturatingSub for $t {
+            c0nst impl ConstSaturatingSub for $t {
                 fn saturating_sub(&self, v: &Self) -> Self {
                     let (res, overflow) = self.overflowing_sub(v);
                     if overflow { Self::zero() } else { res }
@@ -769,7 +769,7 @@ const_saturating_sub_impl!(u128);
 macro_rules! const_overflowing_mul_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstOverflowingMul for $t {
+            c0nst impl ConstOverflowingMul for $t {
                 fn overflowing_mul(&self, v: &Self) -> (Self, bool) {
                     (*self).overflowing_mul(*v)
                 }
@@ -781,7 +781,7 @@ macro_rules! const_overflowing_mul_impl {
 macro_rules! const_wrapping_mul_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstWrappingMul for $t {
+            c0nst impl ConstWrappingMul for $t {
                 fn wrapping_mul(&self, v: &Self) -> Self {
                     self.overflowing_mul(v).0
                 }
@@ -793,7 +793,7 @@ macro_rules! const_wrapping_mul_impl {
 macro_rules! const_checked_mul_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCheckedMul for $t {
+            c0nst impl ConstCheckedMul for $t {
                 fn checked_mul(&self, v: &Self) -> Option<Self> {
                     let (res, overflow) = self.overflowing_mul(v);
                     if overflow { None } else { Some(res) }
@@ -806,7 +806,7 @@ macro_rules! const_checked_mul_impl {
 macro_rules! const_saturating_mul_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstSaturatingMul for $t {
+            c0nst impl ConstSaturatingMul for $t {
                 fn saturating_mul(&self, v: &Self) -> Self {
                     let (res, overflow) = self.overflowing_mul(v);
                     if overflow { Self::max_value() } else { res }
@@ -843,7 +843,7 @@ const_saturating_mul_impl!(u128);
 macro_rules! const_checked_div_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCheckedDiv for $t {
+            c0nst impl ConstCheckedDiv for $t {
                 fn checked_div(&self, v: &Self) -> Option<Self> {
                     if v.is_zero() { None } else { Some(*self / *v) }
                 }
@@ -855,7 +855,7 @@ macro_rules! const_checked_div_impl {
 macro_rules! const_checked_rem_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCheckedRem for $t {
+            c0nst impl ConstCheckedRem for $t {
                 fn checked_rem(&self, v: &Self) -> Option<Self> {
                     if v.is_zero() { None } else { Some(*self % *v) }
                 }
@@ -879,7 +879,7 @@ const_checked_rem_impl!(u128);
 macro_rules! const_euclid_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstEuclid for $t {
+            c0nst impl ConstEuclid for $t {
                 fn div_euclid(&self, v: &Self) -> Self {
                     // For unsigned integers, Euclidean division is the same as regular division
                     *self / *v
@@ -896,7 +896,7 @@ macro_rules! const_euclid_impl {
 macro_rules! const_checked_euclid_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCheckedEuclid for $t {
+            c0nst impl ConstCheckedEuclid for $t {
                 fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
                     if v.is_zero() { None } else { Some(*self / *v) }
                 }
@@ -923,7 +923,7 @@ const_checked_euclid_impl!(u128);
 macro_rules! const_overflowing_shl_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstOverflowingShl for $t {
+            c0nst impl ConstOverflowingShl for $t {
                 fn overflowing_shl(&self, rhs: u32) -> (Self, bool) {
                     (*self).overflowing_shl(rhs)
                 }
@@ -935,7 +935,7 @@ macro_rules! const_overflowing_shl_impl {
 macro_rules! const_overflowing_shr_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstOverflowingShr for $t {
+            c0nst impl ConstOverflowingShr for $t {
                 fn overflowing_shr(&self, rhs: u32) -> (Self, bool) {
                     (*self).overflowing_shr(rhs)
                 }
@@ -947,7 +947,7 @@ macro_rules! const_overflowing_shr_impl {
 macro_rules! const_wrapping_shl_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstWrappingShl for $t {
+            c0nst impl ConstWrappingShl for $t {
                 fn wrapping_shl(&self, rhs: u32) -> Self {
                     ConstOverflowingShl::overflowing_shl(self, rhs).0
                 }
@@ -959,7 +959,7 @@ macro_rules! const_wrapping_shl_impl {
 macro_rules! const_wrapping_shr_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstWrappingShr for $t {
+            c0nst impl ConstWrappingShr for $t {
                 fn wrapping_shr(&self, rhs: u32) -> Self {
                     ConstOverflowingShr::overflowing_shr(self, rhs).0
                 }
@@ -971,7 +971,7 @@ macro_rules! const_wrapping_shr_impl {
 macro_rules! const_checked_shl_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCheckedShl for $t {
+            c0nst impl ConstCheckedShl for $t {
                 fn checked_shl(&self, rhs: u32) -> Option<Self> {
                     let (res, overflow) = ConstOverflowingShl::overflowing_shl(self, rhs);
                     if overflow { None } else { Some(res) }
@@ -984,7 +984,7 @@ macro_rules! const_checked_shl_impl {
 macro_rules! const_checked_shr_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCheckedShr for $t {
+            c0nst impl ConstCheckedShr for $t {
                 fn checked_shr(&self, rhs: u32) -> Option<Self> {
                     let (res, overflow) = ConstOverflowingShr::overflowing_shr(self, rhs);
                     if overflow { None } else { Some(res) }
@@ -1033,7 +1033,7 @@ const_checked_shr_impl!(u128);
 macro_rules! const_to_bytes_impl {
     ($t:ty, $n:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstToBytes for $t {
+            c0nst impl ConstToBytes for $t {
                 type Bytes = [u8; $n];
                 fn to_le_bytes(&self) -> [u8; $n] { (*self).to_le_bytes() }
                 fn to_be_bytes(&self) -> [u8; $n] { (*self).to_be_bytes() }
@@ -1051,7 +1051,7 @@ const_to_bytes_impl!(u128, 16);
 macro_rules! const_from_bytes_impl {
     ($t:ty, $n:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstFromBytes for $t {
+            c0nst impl ConstFromBytes for $t {
                 type Bytes = [u8; $n];
                 fn from_le_bytes(bytes: &[u8; $n]) -> Self { <$t>::from_le_bytes(*bytes) }
                 fn from_be_bytes(bytes: &[u8; $n]) -> Self { <$t>::from_be_bytes(*bytes) }
@@ -1069,7 +1069,7 @@ const_from_bytes_impl!(u128, 16);
 macro_rules! const_power_of_two_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstPowerOfTwo for $t {
+            c0nst impl ConstPowerOfTwo for $t {
                 fn is_power_of_two(&self) -> bool {
                     (*self).is_power_of_two()
                 }
@@ -1093,7 +1093,7 @@ const_power_of_two_impl!(u128);
 macro_rules! const_abs_diff_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstAbsDiff for $t {
+            c0nst impl ConstAbsDiff for $t {
                 fn abs_diff(self, other: Self) -> Self {
                     <$t>::abs_diff(self, other)
                 }
@@ -1111,7 +1111,7 @@ const_abs_diff_impl!(u128);
 macro_rules! const_checked_pow_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCheckedPow for $t {
+            c0nst impl ConstCheckedPow for $t {
                 fn checked_pow(self, exp: u32) -> Option<Self> {
                     self.checked_pow(exp)
                 }
@@ -1129,7 +1129,7 @@ const_checked_pow_impl!(u128);
 macro_rules! const_ilog_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstIlog for $t {
+            c0nst impl ConstIlog for $t {
                 fn ilog2(self) -> u32 {
                     self.ilog2()
                 }
@@ -1164,7 +1164,7 @@ const_ilog_impl!(u128);
 macro_rules! const_multiple_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstMultiple for $t {
+            c0nst impl ConstMultiple for $t {
                 fn is_multiple_of(&self, rhs: &Self) -> bool {
                     if rhs.is_zero() {
                         false
@@ -1187,7 +1187,7 @@ macro_rules! const_multiple_impl {
 macro_rules! const_multiple_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstMultiple for $t {
+            c0nst impl ConstMultiple for $t {
                 fn is_multiple_of(&self, rhs: &Self) -> bool {
                     <$t>::is_multiple_of(*self, *rhs)
                 }
@@ -1211,7 +1211,7 @@ const_multiple_impl!(u128);
 macro_rules! const_div_ceil_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstDivCeil for $t {
+            c0nst impl ConstDivCeil for $t {
                 fn div_ceil(self, rhs: Self) -> Self {
                     <$t>::div_ceil(self, rhs)
                 }
@@ -1238,7 +1238,7 @@ const_div_ceil_impl!(u128);
 macro_rules! const_isqrt_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstIsqrt for $t {
+            c0nst impl ConstIsqrt for $t {
                 fn isqrt(self) -> Self {
                     <$t>::isqrt(self)
                 }
@@ -1268,7 +1268,7 @@ const_isqrt_impl!(u128);
 macro_rules! const_carrying_add_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCarryingAdd for $t {
+            c0nst impl ConstCarryingAdd for $t {
                 fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
                     let (sum1, c1) = self.overflowing_add(rhs);
                     let (sum2, c2) = sum1.overflowing_add(carry as $t);
@@ -1285,7 +1285,7 @@ macro_rules! const_carrying_add_impl {
 macro_rules! const_carrying_add_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstCarryingAdd for $t {
+            c0nst impl ConstCarryingAdd for $t {
                 fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
                     <$t>::carrying_add(self, rhs, carry)
                 }
@@ -1298,7 +1298,7 @@ macro_rules! const_carrying_add_impl {
 macro_rules! const_borrowing_sub_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstBorrowingSub for $t {
+            c0nst impl ConstBorrowingSub for $t {
                 fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
                     let (diff1, b1) = self.overflowing_sub(rhs);
                     let (diff2, b2) = diff1.overflowing_sub(borrow as $t);
@@ -1313,7 +1313,7 @@ macro_rules! const_borrowing_sub_impl {
 macro_rules! const_borrowing_sub_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstBorrowingSub for $t {
+            c0nst impl ConstBorrowingSub for $t {
                 fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
                     <$t>::borrowing_sub(self, rhs, borrow)
                 }
@@ -1326,7 +1326,7 @@ macro_rules! const_borrowing_sub_impl {
 macro_rules! const_widening_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstWideningMul for $t {
+            c0nst impl ConstWideningMul for $t {
                 fn widening_mul(self, rhs: Self) -> (Self, Self) {
                     let product = (self as $double) * (rhs as $double);
                     (product as $t, (product >> $bits) as $t)
@@ -1340,7 +1340,7 @@ macro_rules! const_widening_mul_impl {
 macro_rules! const_widening_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstWideningMul for $t {
+            c0nst impl ConstWideningMul for $t {
                 fn widening_mul(self, rhs: Self) -> (Self, Self) {
                     let product: $double = <$t>::widening_mul(self, rhs);
                     (product as $t, (product >> $bits) as $t)
@@ -1354,7 +1354,7 @@ macro_rules! const_widening_mul_impl {
 macro_rules! const_carrying_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstCarryingMul for $t {
+            c0nst impl ConstCarryingMul for $t {
                 fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
                     let product = (self as $double) * (rhs as $double) + (carry as $double);
                     (product as $t, (product >> $bits) as $t)
@@ -1374,7 +1374,7 @@ macro_rules! const_carrying_mul_impl {
 macro_rules! const_carrying_mul_impl {
     ($t:ty, $double:ty, $bits:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstCarryingMul for $t {
+            c0nst impl ConstCarryingMul for $t {
                 fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
                     <$t>::carrying_mul(self, rhs, carry)
                 }
@@ -1418,7 +1418,7 @@ const_carrying_mul_impl!(u64, u128, 64);
 macro_rules! const_midpoint_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstMidpoint for $t {
+            c0nst impl ConstMidpoint for $t {
                 fn midpoint(self, rhs: Self) -> Self {
                     // (a & b) + ((a ^ b) >> 1) avoids overflow
                     (self & rhs) + ((self ^ rhs) >> 1)
@@ -1432,7 +1432,7 @@ macro_rules! const_midpoint_impl {
 macro_rules! const_midpoint_impl {
     ($t:ty) => {
         c0nst::c0nst! {
-            impl c0nst ConstMidpoint for $t {
+            c0nst impl ConstMidpoint for $t {
                 fn midpoint(self, rhs: Self) -> Self {
                     <$t>::midpoint(self, rhs)
                 }
@@ -1452,7 +1452,7 @@ const_midpoint_impl!(u128);
 macro_rules! const_unbounded_shift_impl {
     ($t:ty, $bits:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstUnboundedShift for $t {
+            c0nst impl ConstUnboundedShift for $t {
                 fn unbounded_shl(self, rhs: u32) -> Self {
                     if rhs >= $bits { 0 } else { self << rhs }
                 }
@@ -1468,7 +1468,7 @@ macro_rules! const_unbounded_shift_impl {
 macro_rules! const_unbounded_shift_impl {
     ($t:ty, $bits:expr) => {
         c0nst::c0nst! {
-            impl c0nst ConstUnboundedShift for $t {
+            c0nst impl ConstUnboundedShift for $t {
                 fn unbounded_shl(self, rhs: u32) -> Self {
                     <$t>::unbounded_shl(self, rhs)
                 }

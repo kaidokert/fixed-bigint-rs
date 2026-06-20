@@ -38,22 +38,22 @@ c0nst::c0nst! {
         fn from_double(word: Self::ConstDoubleWord) -> Self;
     }
 
-    impl c0nst ConstMachineWord for u8 {
+    c0nst impl ConstMachineWord for u8 {
         type ConstDoubleWord = u16;
         fn to_double(self) -> u16 { self as u16 }
         fn from_double(word: u16) -> u8 { word as u8 }
     }
-    impl c0nst ConstMachineWord for u16 {
+    c0nst impl ConstMachineWord for u16 {
         type ConstDoubleWord = u32;
         fn to_double(self) -> u32 { self as u32 }
         fn from_double(word: u32) -> u16 { word as u16 }
     }
-    impl c0nst ConstMachineWord for u32 {
+    c0nst impl ConstMachineWord for u32 {
         type ConstDoubleWord = u64;
         fn to_double(self) -> u64 { self as u64 }
         fn from_double(word: u64) -> u32 { word as u32 }
     }
-    impl c0nst ConstMachineWord for u64 {
+    c0nst impl ConstMachineWord for u64 {
         type ConstDoubleWord = u128;
         fn to_double(self) -> u128 { self as u128 }
         fn from_double(word: u128) -> u64 { word as u64 }

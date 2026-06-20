@@ -9,7 +9,7 @@ use crate::personality::{Nct, Personality, PersonalityTag};
 use num_traits::One;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstBitPrimInt for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstBitPrimInt for FixedUInt<T, N, P> {
         fn count_ones(self) -> u32 {
             let mut count = 0u32;
             let mut i = 0;
@@ -98,7 +98,7 @@ c0nst::c0nst! {
             self
         }
     }
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstPrimInt for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstPrimInt for FixedUInt<T, N, Nct> {
         fn pow(self, exp: u32) -> Self {
             if exp == 0 {
                 return <Self as crate::const_numtraits::ConstOne>::one();

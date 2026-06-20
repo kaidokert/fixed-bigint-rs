@@ -9,7 +9,7 @@ use crate::patch_num_traits::{OverflowingShl, OverflowingShr};
 use crate::personality::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Not for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Not for FixedUInt<T, N, P> {
         type Output = Self;
         fn not(self) -> Self::Output {
             let mut ret = <Self as ConstZero>::zero();
@@ -22,7 +22,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitAnd<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitAnd<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn bitand(self, other: &FixedUInt<T, N, P>) -> Self::Output {
             let mut ret = <FixedUInt<T, N, P> as ConstZero>::zero();
@@ -35,28 +35,28 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitAnd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitAnd for FixedUInt<T, N, P> {
         type Output = Self;
         fn bitand(self, other: Self) -> Self::Output {
             (&self).bitand(&other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitAnd<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitAnd<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
         type Output = Self;
         fn bitand(self, other: &FixedUInt<T, N, P>) -> Self::Output {
             (&self).bitand(other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitAnd<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitAnd<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn bitand(self, other: FixedUInt<T, N, P>) -> Self::Output {
             self.bitand(&other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitAndAssign for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitAndAssign for FixedUInt<T, N, P> {
         fn bitand_assign(&mut self, other: Self) {
             let mut i = 0;
             while i < N {
@@ -66,7 +66,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitOr<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitOr<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn bitor(self, other: &FixedUInt<T, N, P>) -> Self::Output {
             let mut ret = <FixedUInt<T, N, P> as ConstZero>::zero();
@@ -79,28 +79,28 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitOr for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitOr for FixedUInt<T, N, P> {
         type Output = Self;
         fn bitor(self, other: Self) -> Self::Output {
             (&self).bitor(&other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitOr<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitOr<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
         type Output = Self;
         fn bitor(self, other: &FixedUInt<T, N, P>) -> Self::Output {
             (&self).bitor(other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitOr<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitOr<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn bitor(self, other: FixedUInt<T, N, P>) -> Self::Output {
             self.bitor(&other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitOrAssign for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitOrAssign for FixedUInt<T, N, P> {
         fn bitor_assign(&mut self, other: Self) {
             let mut i = 0;
             while i < N {
@@ -110,7 +110,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitXor<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitXor<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn bitxor(self, other: &FixedUInt<T, N, P>) -> Self::Output {
             let mut ret = <FixedUInt<T, N, P> as ConstZero>::zero();
@@ -123,28 +123,28 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitXor for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitXor for FixedUInt<T, N, P> {
         type Output = Self;
         fn bitxor(self, other: Self) -> Self::Output {
             (&self).bitxor(&other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitXor<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitXor<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
         type Output = Self;
         fn bitxor(self, other: &FixedUInt<T, N, P>) -> Self::Output {
             (&self).bitxor(other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitXor<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitXor<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn bitxor(self, other: FixedUInt<T, N, P>) -> Self::Output {
             self.bitxor(&other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::BitXorAssign for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitXorAssign for FixedUInt<T, N, P> {
         fn bitxor_assign(&mut self, other: Self) {
             let mut i = 0;
             while i < N {
@@ -155,7 +155,7 @@ c0nst::c0nst! {
     }
 
     // Primary Shl/Shr implementations
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<usize> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<usize> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shl(self, bits: usize) -> Self::Output {
             let mut result = self;
@@ -167,7 +167,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<usize> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<usize> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shr(self, bits: usize) -> Self::Output {
             let mut result = self;
@@ -179,42 +179,42 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<u32> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shl(self, bits: u32) -> Self::Output {
             const_unbounded_shl_u32(self, bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<u32> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shr(self, bits: u32) -> Self::Output {
             const_unbounded_shr_u32(self, bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<&usize> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<&usize> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shl(self, bits: &usize) -> Self::Output {
             self.shl(*bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<&usize> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<&usize> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shr(self, bits: &usize) -> Self::Output {
             self.shr(*bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<&u32> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<&u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shl(self, bits: &u32) -> Self::Output {
             self.shl(*bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<&u32> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<&u32> for FixedUInt<T, N, P> {
         type Output = Self;
         fn shr(self, bits: &u32) -> Self::Output {
             self.shr(*bits)
@@ -222,56 +222,56 @@ c0nst::c0nst! {
     }
 
     // Shl/Shr for &FixedUInt
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<usize> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<usize> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: usize) -> Self::Output {
             (*self).shl(bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<usize> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<usize> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: usize) -> Self::Output {
             (*self).shr(bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<u32> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: u32) -> Self::Output {
             (*self).shl(bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<u32> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: u32) -> Self::Output {
             (*self).shr(bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<&usize> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<&usize> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: &usize) -> Self::Output {
             (*self).shl(*bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<&usize> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<&usize> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: &usize) -> Self::Output {
             (*self).shr(*bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shl<&u32> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<&u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: &u32) -> Self::Output {
             (*self).shl(*bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Shr<&u32> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<&u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: &u32) -> Self::Output {
             (*self).shr(*bits)
@@ -279,7 +279,7 @@ c0nst::c0nst! {
     }
 
     // ShlAssign/ShrAssign
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::ShlAssign<usize> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::ShlAssign<usize> for FixedUInt<T, N, P> {
         fn shl_assign(&mut self, bits: usize) {
             match P::TAG {
                 PersonalityTag::Nct => const_shl_impl(self, bits),
@@ -288,7 +288,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::ShrAssign<usize> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::ShrAssign<usize> for FixedUInt<T, N, P> {
         fn shr_assign(&mut self, bits: usize) {
             match P::TAG {
                 PersonalityTag::Nct => const_shr_impl(self, bits),
@@ -297,7 +297,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::ShlAssign<&usize> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::ShlAssign<&usize> for FixedUInt<T, N, P> {
         fn shl_assign(&mut self, bits: &usize) {
             match P::TAG {
                 PersonalityTag::Nct => const_shl_impl(self, *bits),
@@ -306,7 +306,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::ShrAssign<&usize> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::ShrAssign<&usize> for FixedUInt<T, N, P> {
         fn shr_assign(&mut self, bits: &usize) {
             match P::TAG {
                 PersonalityTag::Nct => const_shr_impl(self, *bits),
@@ -424,7 +424,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstOverflowingShl for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstOverflowingShl for FixedUInt<T, N, P> {
         fn overflowing_shl(&self, bits: u32) -> (Self, bool) {
             let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
             let res = core::ops::Shl::<usize>::shl(*self, shift);
@@ -432,7 +432,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstOverflowingShr for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstOverflowingShr for FixedUInt<T, N, P> {
         fn overflowing_shr(&self, bits: u32) -> (Self, bool) {
             let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
             let res = core::ops::Shr::<usize>::shr(*self, shift);
@@ -440,33 +440,33 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstWrappingShl for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstWrappingShl for FixedUInt<T, N, P> {
         fn wrapping_shl(&self, bits: u32) -> Self {
             ConstOverflowingShl::overflowing_shl(self, bits).0
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstWrappingShr for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstWrappingShr for FixedUInt<T, N, P> {
         fn wrapping_shr(&self, bits: u32) -> Self {
             ConstOverflowingShr::overflowing_shr(self, bits).0
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstCheckedShl for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstCheckedShl for FixedUInt<T, N, P> {
         fn checked_shl(&self, bits: u32) -> Option<Self> {
             let (res, overflow) = ConstOverflowingShl::overflowing_shl(self, bits);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstCheckedShr for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstCheckedShr for FixedUInt<T, N, P> {
         fn checked_shr(&self, bits: u32) -> Option<Self> {
             let (res, overflow) = ConstOverflowingShr::overflowing_shr(self, bits);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstUnboundedShift for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstUnboundedShift for FixedUInt<T, N, P> {
         fn unbounded_shl(self, rhs: u32) -> Self {
             const_unbounded_shl_u32(self, rhs)
         }

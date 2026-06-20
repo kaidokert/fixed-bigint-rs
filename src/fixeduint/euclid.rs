@@ -6,7 +6,7 @@ use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstEuclid for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstEuclid for FixedUInt<T, N, Nct> {
         fn div_euclid(&self, v: &Self) -> Self {
             // For unsigned integers, Euclidean division is the same as regular division
             *self / *v
@@ -18,7 +18,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedEuclid for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstCheckedEuclid for FixedUInt<T, N, Nct> {
         fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
             if v.is_zero() {
                 None

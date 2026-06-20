@@ -17,28 +17,28 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowin
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstOverflowingMul for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstOverflowingMul for FixedUInt<T, N, P> {
         fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             (Self::from_array(array), overflow)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstWrappingMul for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstWrappingMul for FixedUInt<T, N, P> {
         fn wrapping_mul(&self, other: &Self) -> Self {
             let (array, _) = const_mul::<T, N, false, P>(&self.array, &other.array, Self::WORD_BITS);
             Self::from_array(array)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstCheckedMul for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstCheckedMul for FixedUInt<T, N, P> {
         fn checked_mul(&self, other: &Self) -> Option<Self> {
             let (res, overflow) = <Self as ConstOverflowingMul>::overflowing_mul(self, other);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstSaturatingMul for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstSaturatingMul for FixedUInt<T, N, P> {
         fn saturating_mul(&self, other: &Self) -> Self {
             let (res, overflow) = <Self as ConstOverflowingMul>::overflowing_mul(self, other);
             match P::TAG {
@@ -50,7 +50,7 @@ c0nst::c0nst! {
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Mul for FixedUInt<T, N, P> {
         type Output = Self;
         fn mul(self, other: Self) -> Self::Output {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
@@ -59,7 +59,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Mul<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
         type Output = Self;
         fn mul(self, other: &FixedUInt<T, N, P>) -> Self::Output {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
@@ -68,7 +68,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Mul<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn mul(self, other: FixedUInt<T, N, P>) -> Self::Output {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::Output::WORD_BITS);
@@ -77,7 +77,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Mul<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn mul(self, other: &FixedUInt<T, N, P>) -> Self::Output {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::Output::WORD_BITS);
@@ -86,7 +86,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Mul<&&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Mul<&&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn mul(self, other: &&FixedUInt<T, N, P>) -> Self::Output {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::Output::WORD_BITS);
@@ -95,7 +95,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::MulAssign for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::MulAssign for FixedUInt<T, N, P> {
         fn mul_assign(&mut self, other: Self) {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             maybe_panic_if::<P>(overflow, PanicReason::Mul);
@@ -103,7 +103,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::MulAssign<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::MulAssign<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
         fn mul_assign(&mut self, other: &FixedUInt<T, N, P>) {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             maybe_panic_if::<P>(overflow, PanicReason::Mul);
@@ -136,41 +136,41 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Div for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::Div for FixedUInt<T, N, Nct> {
         type Output = Self;
         fn div(self, other: Self) -> Self::Output {
             Self::from_array(const_div_rem(&self.array, &other.array).0)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Div<&FixedUInt<T, N, Nct>> for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::Div<&FixedUInt<T, N, Nct>> for FixedUInt<T, N, Nct> {
         type Output = Self;
         fn div(self, other: &FixedUInt<T, N, Nct>) -> Self::Output {
             Self::from_array(const_div_rem(&self.array, &other.array).0)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Div<FixedUInt<T, N, Nct>> for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::Div<FixedUInt<T, N, Nct>> for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn div(self, other: FixedUInt<T, N, Nct>) -> Self::Output {
             Self::Output::from_array(const_div_rem(&self.array, &other.array).0)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Div<&FixedUInt<T, N, Nct>> for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::Div<&FixedUInt<T, N, Nct>> for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn div(self, other: &FixedUInt<T, N, Nct>) -> Self::Output {
             Self::Output::from_array(const_div_rem(&self.array, &other.array).0)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::DivAssign for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::DivAssign for FixedUInt<T, N, Nct> {
         fn div_assign(&mut self, other: Self) {
             self.array = const_div_rem(&self.array, &other.array).0;
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::DivAssign<&FixedUInt<T, N, Nct>> for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::DivAssign<&FixedUInt<T, N, Nct>> for FixedUInt<T, N, Nct> {
         fn div_assign(&mut self, other: &FixedUInt<T, N, Nct>) {
             self.array = const_div_rem(&self.array, &other.array).0;
         }
@@ -178,7 +178,7 @@ c0nst::c0nst! {
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedDiv for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstCheckedDiv for FixedUInt<T, N, Nct> {
         fn checked_div(&self, other: &Self) -> Option<Self> {
             if <Self as ConstZero>::is_zero(other) {
                 None
@@ -196,41 +196,41 @@ impl<T: MachineWord, const N: usize> num_traits::CheckedDiv for FixedUInt<T, N, 
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Rem for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::Rem for FixedUInt<T, N, Nct> {
         type Output = Self;
         fn rem(self, other: Self) -> Self::Output {
             Self::from_array(const_div_rem(&self.array, &other.array).1)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Rem<&FixedUInt<T, N, Nct>> for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::Rem<&FixedUInt<T, N, Nct>> for FixedUInt<T, N, Nct> {
         type Output = Self;
         fn rem(self, other: &FixedUInt<T, N, Nct>) -> Self::Output {
             Self::from_array(const_div_rem(&self.array, &other.array).1)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Rem<FixedUInt<T, N, Nct>> for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::Rem<FixedUInt<T, N, Nct>> for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn rem(self, other: FixedUInt<T, N, Nct>) -> Self::Output {
             Self::Output::from_array(const_div_rem(&self.array, &other.array).1)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::Rem<&FixedUInt<T, N, Nct>> for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::Rem<&FixedUInt<T, N, Nct>> for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn rem(self, other: &FixedUInt<T, N, Nct>) -> Self::Output {
             Self::Output::from_array(const_div_rem(&self.array, &other.array).1)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::RemAssign for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::RemAssign for FixedUInt<T, N, Nct> {
         fn rem_assign(&mut self, other: Self) {
             self.array = const_div_rem(&self.array, &other.array).1;
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst core::ops::RemAssign<&FixedUInt<T, N, Nct>> for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> core::ops::RemAssign<&FixedUInt<T, N, Nct>> for FixedUInt<T, N, Nct> {
         fn rem_assign(&mut self, other: &FixedUInt<T, N, Nct>) {
             self.array = const_div_rem(&self.array, &other.array).1;
         }
@@ -238,7 +238,7 @@ c0nst::c0nst! {
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedRem for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstCheckedRem for FixedUInt<T, N, Nct> {
         fn checked_rem(&self, other: &Self) -> Option<Self> {
             if <Self as ConstZero>::is_zero(other) {
                 None

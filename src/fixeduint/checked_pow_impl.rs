@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstCheckedPow for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstCheckedPow for FixedUInt<T, N, Nct> {
         fn checked_pow(self, exp: u32) -> Option<Self> {
             if exp == 0 {
                 return Some(Self::one());
