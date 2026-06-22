@@ -1,3 +1,4 @@
+#![cfg(feature = "num-traits")]
 use fixed_bigint::num_traits::{self, FromPrimitive};
 use fixed_bigint::FixedUInt;
 

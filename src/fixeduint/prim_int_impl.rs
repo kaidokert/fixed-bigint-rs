@@ -151,6 +151,7 @@ impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N, Nct> {
     fn count_ones(self) -> u32 {
         self.array.iter().map(|&val| val.count_ones()).sum()

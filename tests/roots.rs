@@ -1,3 +1,4 @@
+#![cfg(feature = "num-traits")]
 use fixed_bigint::FixedUInt;
 use num_integer::Roots;
 use num_traits::{PrimInt, ToPrimitive};

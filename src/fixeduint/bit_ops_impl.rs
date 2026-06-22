@@ -805,6 +805,7 @@ c0nst::c0nst! {
 // (OverflowingShl/OverflowingShr legacy shim impls retired — the const
 // impls above ARE the OverflowingShl/Shr impls now that we depend on
 // the external const-num-traits crate directly.)
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingShl
     for FixedUInt<T, N, P>
 {
@@ -813,6 +814,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingShl
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingShr
     for FixedUInt<T, N, P>
 {
@@ -821,12 +823,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingShr
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedShl for FixedUInt<T, N, P> {
     fn checked_shl(&self, bits: u32) -> Option<Self> {
         CheckedShl::checked_shl(*self, bits)
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedShr for FixedUInt<T, N, P> {
     fn checked_shr(&self, bits: u32) -> Option<Self> {
         CheckedShr::checked_shr(*self, bits)
@@ -1059,6 +1063,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "num-traits")]
     fn test_num_traits_shift_wrappers() {
         use num_traits::{CheckedShl, CheckedShr, WrappingShl, WrappingShr};
 

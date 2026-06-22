@@ -235,6 +235,7 @@ c0nst::c0nst! {
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowing::OverflowingAdd
     for FixedUInt<T, N, P>
 {
@@ -243,6 +244,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowin
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingAdd
     for FixedUInt<T, N, P>
 {
@@ -251,12 +253,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingAdd
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedAdd for FixedUInt<T, N, P> {
     fn checked_add(&self, other: &Self) -> Option<Self> {
         <Self as CheckedAdd>::checked_add(*self, *other)
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating::SaturatingAdd
     for FixedUInt<T, N, P>
 {
@@ -265,6 +269,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowing::OverflowingSub
     for FixedUInt<T, N, P>
 {
@@ -273,6 +278,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowin
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingSub
     for FixedUInt<T, N, P>
 {
@@ -281,12 +287,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingSub
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedSub for FixedUInt<T, N, P> {
     fn checked_sub(&self, other: &Self) -> Option<Self> {
         <Self as CheckedSub>::checked_sub(*self, *other)
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating::SaturatingSub
     for FixedUInt<T, N, P>
 {
@@ -296,6 +304,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating
 }
 
 /// Note: This is marked deprecated, but still used by PrimInt
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::Saturating for FixedUInt<T, N, P> {
     fn saturating_add(self, other: Self) -> Self {
         <Self as SaturatingAdd>::saturating_add(self, other)
@@ -311,7 +320,7 @@ mod tests {
     use super::*;
     use crate::const_numtraits::{CheckedAdd, CheckedSub, One, OverflowingAdd, OverflowingSub, WrappingAdd, WrappingSub, Zero};
     use crate::machineword::ConstMachineWord;
-    use num_traits::Bounded;
+    use crate::const_numtraits::Bounded;
 
     c0nst::c0nst! {
         /// Test wrapper for OverflowingAdd

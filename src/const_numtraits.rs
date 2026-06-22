@@ -69,5 +69,8 @@ pub use ::const_num_traits::{
     StrictAdd, StrictDiv, StrictMul, StrictPow, StrictRem, StrictShl, StrictShr, StrictSub,
 };
 
+// Cast traits.
+pub use ::const_num_traits::{FromPrimitive, NumCast, ToPrimitive};
+
 // Unbounded shifts — split.
 pub use ::const_num_traits::{UnboundedShl, UnboundedShr};

@@ -54,9 +54,11 @@
 //! ```
 
 /// Re-export num_traits crate
+#[cfg(feature = "num-traits")]
 pub use num_traits;
 
 /// Re-export num_integer crate
+#[cfg(feature = "num-traits")]
 pub use num_integer;
 
 /// Fixed-size big integer implementation

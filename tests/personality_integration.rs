@@ -1,3 +1,4 @@
+#![cfg(feature = "num-traits")]
 use const_num_traits::{Ct, Nct};
 use fixed_bigint::FixedUInt;
 use num_traits::Zero;

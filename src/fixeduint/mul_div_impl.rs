@@ -3,6 +3,7 @@ use crate::const_numtraits::{Bounded, CheckedDiv, CheckedMul, CheckedRem, ConstZ
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{Nct, Personality, PersonalityTag};
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowing::OverflowingMul
     for FixedUInt<T, N, P>
 {
@@ -134,6 +135,7 @@ c0nst::c0nst! {
 }
 
 // num_traits wrappers - delegate to const versions
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingMul
     for FixedUInt<T, N, P>
 {
@@ -142,12 +144,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingMul
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedMul for FixedUInt<T, N, P> {
     fn checked_mul(&self, other: &Self) -> Option<Self> {
         <Self as CheckedMul>::checked_mul(*self, *other)
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating::SaturatingMul
     for FixedUInt<T, N, P>
 {
@@ -216,6 +220,7 @@ c0nst::c0nst! {
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize> num_traits::CheckedDiv for FixedUInt<T, N, Nct> {
     fn checked_div(&self, other: &Self) -> Option<Self> {
         <Self as CheckedDiv>::checked_div(*self, *other)
@@ -282,6 +287,7 @@ c0nst::c0nst! {
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize> num_traits::CheckedRem for FixedUInt<T, N, Nct> {
     fn checked_rem(&self, other: &Self) -> Option<Self> {
         <Self as CheckedRem>::checked_rem(*self, *other)

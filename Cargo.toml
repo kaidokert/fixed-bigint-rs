@@ -44,6 +44,12 @@ exclude = ["/.github/*"]
 
 [dependencies.num-traits]
 version = "0.2.19"
+optional = true
+default-features = false
+
+[dependencies.num-integer]
+version = "0.1.45"
+optional = true
 default-features = false
 
 # Experimental: the in-tree const-friendly fork of num-traits. Used to
@@ -51,10 +57,6 @@ default-features = false
 # see what (if anything) breaks in the API/contract.
 [dependencies.const-num-traits]
 path = "../num-traits"
-default-features = false
-
-[dependencies.num-integer]
-version = "0.1.45"
 default-features = false
 
 [dependencies.c0nst]
@@ -92,4 +94,5 @@ use-unsafe = []
 1_87 = []
 nightly = ["c0nst/nightly", "const-num-traits/nightly", "1_87"]
 cios = ["dep:modmath-cios"]
-default = []
+num-traits = ["dep:num-traits", "dep:num-integer"]
+default = ["num-traits"]

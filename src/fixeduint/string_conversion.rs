@@ -4,6 +4,7 @@ use num_traits::{Num, ToPrimitive, Zero};
 use super::{make_empty_error, make_overflow_err, make_parse_int_err, FixedUInt, MachineWord};
 use const_num_traits::Nct;
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize> num_traits::Num for FixedUInt<T, N, Nct> {
     type FromStrRadixErr = core::num::ParseIntError;
     fn from_str_radix(
@@ -96,6 +97,7 @@ impl<T: MachineWord, const N: usize> core::fmt::Display for FixedUInt<T, N, Nct>
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize> core::str::FromStr for FixedUInt<T, N, Nct> {
     type Err = core::num::ParseIntError;
 

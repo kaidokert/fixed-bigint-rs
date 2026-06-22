@@ -77,6 +77,7 @@ impl<T: ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstOne
     };
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::Zero for FixedUInt<T, N, P> {
     fn zero() -> Self {
         <Self as ConstZero>::ZERO
@@ -86,12 +87,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::Zero for FixedU
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::One for FixedUInt<T, N, P> {
     fn one() -> Self {
         <Self as ConstOne>::ONE
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::Bounded for FixedUInt<T, N, P> {
     fn min_value() -> Self {
         <Self as Bounded>::min_value()

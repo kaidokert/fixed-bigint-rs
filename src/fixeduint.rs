@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "num-traits")]
 use num_traits::{ToPrimitive, Zero};
 
 use core::convert::TryFrom;
@@ -20,6 +21,7 @@ use core::fmt::Write;
 pub use crate::const_numtraits::{AbsDiff, BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedPow, ConstOne, ConstZero, DivCeil, Ilog, IsPowerOfTwo, Isqrt, MultipleOf, NextMultipleOf, NextPowerOfTwo, PrimBits, PrimInt, WideningMul};
 use crate::machineword::{ConstMachineWord, MachineWord};
 
+#[cfg(feature = "num-traits")]
 #[allow(unused_imports)]
 use num_traits::{FromPrimitive, Num};
 
@@ -39,21 +41,28 @@ mod midpoint_impl;
 mod cios_row_ops_impl;
 mod mul_div_impl;
 mod multiple_impl;
+#[cfg(feature = "num-traits")]
 mod num_integer_impl;
 mod parity_impl;
 mod strict_impl;
+#[cfg(feature = "num-traits")]
 mod num_traits_casts;
 mod num_traits_identity;
 mod power_of_two_impl;
 mod power_of_two_ops_impl;
 mod prim_int_impl;
+#[cfg(feature = "num-traits")]
 mod roots_impl;
+#[cfg(feature = "num-traits")]
 mod string_conversion;
 // ToBytes trait (nightly only, uses generic_const_exprs)
 #[cfg(feature = "nightly")]
 mod const_to_from_bytes;
 // num_traits::ToBytes/FromBytes (stable impl, no generic_const_exprs viral bounds)
-#[cfg(any(feature = "nightly", feature = "use-unsafe"))]
+#[cfg(all(
+    feature = "num-traits",
+    any(feature = "nightly", feature = "use-unsafe")
+))]
 mod to_from_bytes;
 
 use const_num_traits::{Ct, Nct, Personality, PersonalityMarker, PersonalityTag};
@@ -199,13 +208,13 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     where
         T: subtle::ConstantTimeEq,
     {
-        let one = <Self as num_traits::One>::one();
+        let one = <Self as crate::const_numtraits::One>::one();
         let m_one = <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(self, one);
         let leading = <Self as crate::const_numtraits::PrimBits>::leading_zeros(m_one);
         let bits = Self::BIT_SIZE as u32 - leading;
         let shifted = one << (bits as usize);
         let is_zero_choice =
-            <Self as subtle::ConstantTimeEq>::ct_eq(&self, &<Self as num_traits::Zero>::zero());
+            <Self as subtle::ConstantTimeEq>::ct_eq(&self, &<Self as crate::const_numtraits::Zero>::zero());
         // result = is_zero ? 1 : shifted
         let result = <Self as subtle::ConditionallySelectable>::conditional_select(
             &shifted,
@@ -229,8 +238,8 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
         T: subtle::ConstantTimeEq + subtle::ConstantTimeGreater,
         for<'a> &'a Self: core::ops::Mul<&'a Self, Output = Self>,
     {
-        use num_traits::ops::overflowing::OverflowingMul;
-        let mut result = <Self as num_traits::One>::one();
+        use crate::const_numtraits::OverflowingMul;
+        let mut result = <Self as crate::const_numtraits::One>::one();
         let mut base = self;
         let mut e = exp;
         let mut any_overflow: u8 = 0;
@@ -370,7 +379,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Nct> {
         for byte in result.iter_mut() {
             *byte = b'0';
         }
-        if Zero::is_zero(self) {
+        if <Self as crate::const_numtraits::Zero>::is_zero(self) {
             if !result.is_empty() {
                 result[0] = b'0';
                 return core::str::from_utf8(&result[0..1]).map_err(|_| Error {});
@@ -384,7 +393,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Nct> {
 
         let radix_t = Self::from(radix);
 
-        while !Zero::is_zero(&number) {
+        while !<Self as crate::const_numtraits::Zero>::is_zero(&number) {
             if idx == 0 {
                 return Err(Error {}); // not enough space in result...
             }
@@ -392,7 +401,11 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Nct> {
             idx -= 1;
             let (quotient, remainder) = number.div_rem(&radix_t);
 
-            let digit = remainder.to_u8().unwrap();
+            // remainder < radix <= 16, so it fits in the low limb's low byte;
+            // pull it via the MachineWord ToPrimitive supertrait instead of
+            // going through the (optional) `num_traits::ToPrimitive for FixedUInt`.
+            let digit = <T as const_num_traits::ToPrimitive>::to_u8(&remainder.array[0])
+                .unwrap_or(0);
             result[idx] = match digit {
                 0..=9 => b'0' + digit,          // digits
                 10..=16 => b'a' + (digit - 10), // alphabetic digits for bases > 10
@@ -1431,6 +1444,7 @@ c0nst::c0nst! {
 
 // num_traits::Unsigned requires Num as a supertrait; Num is Nct-only,
 // so Unsigned is Nct-only too.
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize> num_traits::Unsigned for FixedUInt<T, N, Nct> {}
 
 // #region Equality and Ordering
@@ -1619,10 +1633,11 @@ c0nst::c0nst! {
 // #endregion helpers
 
 #[cfg(test)]
+#[cfg(feature = "num-traits")]
 mod tests {
     use super::FixedUInt as Bn;
     use super::*;
-    use num_traits::One;
+    use crate::const_numtraits::{One, Zero};
 
     type Bn8 = Bn<u8, 8>;
     type Bn16 = Bn<u16, 4>;
@@ -2387,12 +2402,12 @@ mod tests {
     #[test]
     fn test_default() {
         let d: Bn8 = Default::default();
-        assert!(Zero::is_zero(&d));
+        assert!(<Bn8 as crate::const_numtraits::Zero>::is_zero(&d));
 
         #[cfg(feature = "nightly")]
         {
             const D: FixedUInt<u8, 2> = <FixedUInt<u8, 2> as Default>::default();
-            assert!(Zero::is_zero(&D));
+            assert!(<FixedUInt<u8, 2> as crate::const_numtraits::Zero>::is_zero(&D));
         }
     }
 

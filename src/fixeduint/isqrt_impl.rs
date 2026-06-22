@@ -74,6 +74,7 @@ impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
 }
 
 #[cfg(test)]
+#[cfg(feature = "num-traits")]
 mod tests {
     use super::*;
     use num_traits::{CheckedAdd, CheckedMul};
@@ -132,13 +133,13 @@ mod tests {
             let r = Isqrt::isqrt(n_int);
 
             // r^2 <= n
-            assert!(r * r <= n_int, "Failed: {}^2 > {}", r, n);
+            assert!(r * r <= n_int, "Failed: {:?}^2 > {}", r, n);
 
             // (r+1)^2 > n - use checked arithmetic to handle potential overflow
             if let Some(r_plus_1) = r.checked_add(&U16::from(1u8)) {
                 // If (r+1)^2 overflows, it's definitely > n since n fits in U16
                 if let Some(square) = r_plus_1.checked_mul(&r_plus_1) {
-                    assert!(square > n_int, "Failed: {}^2 <= {}", r_plus_1, n);
+                    assert!(square > n_int, "Failed: {:?}^2 <= {}", r_plus_1, n);
                 }
             }
             // If r+1 overflows, r is MAX, so (r+1)^2 > n also holds
@@ -173,12 +174,12 @@ mod tests {
             let r = Isqrt::isqrt(n_int);
 
             // r^2 <= n
-            assert!(r * r <= n_int, "Failed: {}^2 > {} for U32x2", r, n);
+            assert!(r * r <= n_int, "Failed: {:?}^2 > {} for U32x2", r, n);
 
             // (r+1)^2 > n
             if let Some(r_plus_1) = r.checked_add(&U32x2::from(1u8)) {
                 if let Some(square) = r_plus_1.checked_mul(&r_plus_1) {
-                    assert!(square > n_int, "Failed: {}^2 <= {} for U32x2", r_plus_1, n);
+                    assert!(square > n_int, "Failed: {:?}^2 <= {} for U32x2", r_plus_1, n);
                 }
             }
         }

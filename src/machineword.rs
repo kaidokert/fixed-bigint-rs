@@ -83,7 +83,9 @@ c0nst::c0nst! {
 /// This trait is intentionally sealed via the `ConstMachineWord` supertrait,
 /// as custom implementations are not supported.
 pub trait MachineWord:
-    ConstMachineWord<ConstDoubleWord = Self::DoubleWord> + core::hash::Hash + num_traits::ToPrimitive
+    ConstMachineWord<ConstDoubleWord = Self::DoubleWord>
+    + core::hash::Hash
+    + const_num_traits::ToPrimitive
 {
     type DoubleWord: PrimInt;
 }
