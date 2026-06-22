@@ -1,0 +1,19 @@
+[package]
+name = "panic-free-audit"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.86"
+publish = false
+description = "Linker-DCE audit: confirm `FixedUInt::*_bytes_fixed` synthesises no panic symbols."
+
+[lib]
+# staticlib so a cross-target build produces a `.a` that `cargo nm` can
+# read without needing a linker script or runtime. Same shape as
+# `ct-verify/ct-fixtures`.
+crate-type = ["staticlib"]
+
+[dependencies]
+fixed-bigint = { path = "../.." }
+
+# Workspace `[profile.release]` (lto=fat, codegen-units=1, opt-level=z,
+# panic=abort) is what makes DCE worth measuring; do not override here.

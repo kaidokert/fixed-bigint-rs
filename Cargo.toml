@@ -4,6 +4,7 @@ members = [
     "ct-verify/ct-fixtures",
     "ct-verify/ct-driver",
     "ct-verify/ct-ctgrind",
+    "ct-verify/panic-free-audit",
 ]
 resolver = "2"
 
