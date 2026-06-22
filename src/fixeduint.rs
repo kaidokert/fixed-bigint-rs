@@ -58,11 +58,14 @@ mod string_conversion;
 // ToBytes trait (nightly only, uses generic_const_exprs)
 #[cfg(feature = "nightly")]
 mod const_to_from_bytes;
-// num_traits::ToBytes/FromBytes (stable impl, no generic_const_exprs viral bounds)
-#[cfg(all(
-    feature = "num-traits",
-    any(feature = "nightly", feature = "use-unsafe")
-))]
+// BytesHolder + num_traits::ToBytes/FromBytes + (stable) const_num_traits::ToBytes/FromBytes
+// impls. Stable impl: no generic_const_exprs viral bounds, uses unsafe
+// `from_raw_parts` to reinterpret the limb array as bytes. The num_traits impls
+// inside are additionally gated on `feature = "num-traits"`. The
+// const_num_traits impls inside are additionally gated on
+// `not(feature = "nightly")` since `const_to_from_bytes.rs` provides better
+// impls (via `ConstBytesHolder` + generic_const_exprs) on nightly.
+#[cfg(any(feature = "nightly", feature = "use-unsafe"))]
 mod to_from_bytes;
 
 use const_num_traits::{Ct, Nct, Personality, PersonalityMarker, PersonalityTag};

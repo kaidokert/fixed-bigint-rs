@@ -79,6 +79,14 @@ impl<T: MachineWord, const N: usize> Hash for BytesHolder<T, N> {
     }
 }
 
+// ── num_traits::ToBytes/FromBytes (upstream by-ref shape) ────────────
+//
+// Only built when `feature = "num-traits"` is enabled; downstream
+// consumers that have dropped num-traits entirely (e.g. ed25519 /
+// rsa with `default-features = false, features = ["use-unsafe"]`)
+// don't need or want these impls.
+
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ToBytes for FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
@@ -98,6 +106,7 @@ where
     }
 }
 
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::FromBytes for FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
@@ -113,7 +122,54 @@ where
     }
 }
 
+// ── const_num_traits::ToBytes/FromBytes (stable, by-value shape) ─────
+//
+// Provides the const-num-traits byte-conversion surface for stable
+// callers (including those who've dropped num-traits entirely). On
+// nightly, `const_to_from_bytes.rs` provides better impls via
+// `ConstBytesHolder` + generic_const_exprs, so these stable impls are
+// disabled to avoid the duplicate-impl conflict.
+
+#[cfg(not(feature = "nightly"))]
+impl<T: MachineWord, const N: usize, P: Personality> const_num_traits::ToBytes
+    for FixedUInt<T, N, P>
+where
+    T: core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, N>;
+
+    fn to_be_bytes(self) -> Self::Bytes {
+        let mut ret = Self::Bytes::from_array(self.array);
+        let _ = FixedUInt::<T, N, P>::to_be_bytes(&self, ret.as_byte_slice_mut());
+        ret
+    }
+
+    fn to_le_bytes(self) -> Self::Bytes {
+        let mut ret = Self::Bytes::from_array(self.array);
+        let _ = FixedUInt::<T, N, P>::to_le_bytes(&self, ret.as_byte_slice_mut());
+        ret
+    }
+}
+
+#[cfg(not(feature = "nightly"))]
+impl<T: MachineWord, const N: usize, P: Personality> const_num_traits::FromBytes
+    for FixedUInt<T, N, P>
+where
+    T: core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, N>;
+
+    fn from_be_bytes(bytes: &Self::Bytes) -> Self {
+        Self::from_be_bytes(bytes.as_ref())
+    }
+
+    fn from_le_bytes(bytes: &Self::Bytes) -> Self {
+        Self::from_le_bytes(bytes.as_ref())
+    }
+}
+
 #[cfg(test)]
+#[cfg(feature = "num-traits")]
 mod tests {
     use super::*;
     use num_traits::FromPrimitive;
