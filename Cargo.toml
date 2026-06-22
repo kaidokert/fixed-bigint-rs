@@ -8,6 +8,12 @@ members = [
 ]
 resolver = "2"
 
+# Route the version-pinned `modmath = "0.4"` dep onto the local
+# experimental tree during the experimental window. Drop this patch
+# once modmath publishes 0.4.x to crates.io.
+[patch.crates-io]
+modmath = { path = "../modmath-rs/modmath" }
+
 # Pinned release profile: deterministic codegen so a passing PR locks
 # the inspection output.
 [profile.release]
@@ -25,7 +31,7 @@ name = "fixed-bigint"
 version = "0.4.0"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 documentation = "https://docs.rs/fixed-bigint"
-edition = "2018"
+edition = "2024"
 rust-version = "1.86"
 description = """
 Fixed-size big integer implementation for Rust
@@ -67,11 +73,12 @@ version = "2.6"
 default-features = false
 
 # Optional modmath integration: enables `modmath::CiosRowOps` for
-# `FixedUInt`. Path-pinned during the v0.4 experimental window. No
-# feature pin — modmath dropped the `wide-mul` gate; `CiosRowOps`
-# is now unconditional in modmath's public surface.
+# `FixedUInt`. Routed via `[patch.crates-io] modmath` at the workspace
+# root during the experimental window so this and modmath's test target
+# resolve through the same compile unit (avoids "multiple modmath
+# versions in the dep graph" from duelling path-deps).
 [dependencies.modmath]
-path = "../modmath-rs/modmath"
+version = "0.4"
 optional = true
 default-features = false
 
