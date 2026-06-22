@@ -65,13 +65,9 @@ pub mod fixeduint;
 /// Curated re-export shim onto the external `const-num-traits` crate.
 pub mod const_numtraits;
 
-/// Fused multiply-accumulate row operations
-pub mod mul_acc_ops;
-
 /// Machine word and doubleword
 mod machineword;
 
 pub use crate::const_numtraits::{PrimBits, PrimInt};
 pub use crate::fixeduint::FixedUInt;
 pub use crate::machineword::MachineWord;
-pub use crate::mul_acc_ops::MulAccOps;

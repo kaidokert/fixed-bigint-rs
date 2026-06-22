@@ -1,5 +1,5 @@
 use const_num_traits::{Ct, Nct};
-use fixed_bigint::{FixedUInt, MulAccOps};
+use fixed_bigint::FixedUInt;
 use num_traits::Zero;
 use subtle::{
     Choice, ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess,
@@ -86,39 +86,6 @@ fn nct_variant_does_not_have_constant_time_eq() {
 }
 
 // ---------------------------------------------------------------------------
-// MulAccOps demo migration: get_word returns Option for Nct, CtOption for Ct.
-// ---------------------------------------------------------------------------
-
-#[test]
-fn mul_acc_ops_get_word_nct_returns_option() {
-    let val: FixedUInt<u8, 4, Nct> = FixedUInt::from([0x78u8, 0x56, 0x34, 0x12]);
-    let w0 = <FixedUInt<u8, 4, Nct> as MulAccOps>::get_word(&val, 0);
-    let w3 = <FixedUInt<u8, 4, Nct> as MulAccOps>::get_word(&val, 3);
-    let oob = <FixedUInt<u8, 4, Nct> as MulAccOps>::get_word(&val, 4);
-    // Plain Option — Some/None.
-    assert_eq!(w0, Some(0x78u8));
-    assert_eq!(w3, Some(0x12u8));
-    assert_eq!(oob, None);
-}
-
-#[test]
-fn mul_acc_ops_get_word_ct_returns_ctoption() {
-    let val: FixedUInt<u8, 4, Ct> =
-        FixedUInt::<u8, 4, Nct>::from([0x78u8, 0x56, 0x34, 0x12]).into();
-    let w0 = <FixedUInt<u8, 4, Ct> as MulAccOps>::get_word(&val, 0);
-    let w3 = <FixedUInt<u8, 4, Ct> as MulAccOps>::get_word(&val, 3);
-    let oob = <FixedUInt<u8, 4, Ct> as MulAccOps>::get_word(&val, 4);
-    // CtOption — validity is a Choice, not an enum discriminant.
-    assert!(bool::from(w0.is_some()));
-    assert!(bool::from(w3.is_some()));
-    assert!(!bool::from(oob.is_some()));
-    assert_eq!(w0.unwrap_or(0u8), 0x78u8);
-    assert_eq!(w3.unwrap_or(0u8), 0x12u8);
-    // Out-of-range gives the default; validity bit says don't use it.
-    assert_eq!(oob.unwrap_or(0xAAu8), 0xAAu8);
-}
-
-// ---------------------------------------------------------------------------
 // Combined-binary scenario: Nct and Ct in the same test.
 // ---------------------------------------------------------------------------
 
@@ -127,17 +94,13 @@ fn nct_and_ct_coexist_as_distinct_types() {
     type FastU32 = FixedUInt<u8, 4, Nct>;
     type CtU32 = FixedUInt<u8, 4, Ct>;
 
-    let fast: FastU32 = FixedUInt::from([0x01u8, 0x02, 0x03, 0x04]);
-    let ct: CtU32 = FixedUInt::<u8, 4, Nct>::from([0x01u8, 0x02, 0x03, 0x04]).into();
-
-    // Each gets the right MulAccOps::get_word return type.
-    let _w_fast: Option<u8> = <FastU32 as MulAccOps>::get_word(&fast, 0);
-    let _w_ct: subtle::CtOption<u8> = <CtU32 as MulAccOps>::get_word(&ct, 0);
+    let _fast: FastU32 = FixedUInt::from([0x01u8, 0x02, 0x03, 0x04]);
+    let _ct: CtU32 = FixedUInt::<u8, 4, Nct>::from([0x01u8, 0x02, 0x03, 0x04]).into();
 
     // They're distinct types — no accidental interchange. The following
     // SHOULD fail to compile if uncommented:
-    //     let _: FastU32 = ct;  // mismatched types
-    //     let _: CtU32 = fast;  // mismatched types
+    //     let _: FastU32 = _ct;  // mismatched types
+    //     let _: CtU32 = _fast;  // mismatched types
 }
 
 // ---------------------------------------------------------------------------

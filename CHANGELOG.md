@@ -82,6 +82,19 @@ crate's conventions, and a few traits were added or split.
 
 Several traits the local crate didn't carry are now implemented:
 
+* **`modmath::CiosRowOps for FixedUInt<T, N, P>` under the `modmath`
+  cargo feature.** Replaces the retired `MulAccOps` trait (see
+  "Removed"). One impl block covers both personalities — the new
+  trait's `word(&self, i)` is infallible by contract (`i` is public,
+  `i < self.word_count()`), so no `Nct`/`Ct` discriminant on the
+  accessor and no `match P::TAG` dispatch. The two row kernels
+  (`mul_acc_row`, `mul_acc_shift_row`) carry the same algorithm
+  byte-identically from the retired `mul_acc_ops_common!` macro.
+  See `CIOS_MIGRATION.md` at the repo root for the design rationale
+  (Option H placement: trait + algorithm body in modmath,
+  `FixedUInt` impls the trait under an optional feature; dep
+  direction inverts vs the pre-experiment world).
+
 * **Fixed-size byte conversion at the API boundary** — four inherent
   methods on `FixedUInt`:
   - `to_le_bytes_fixed<const M>(&self, out: &mut [u8; M]) -> &[u8]`
@@ -220,6 +233,15 @@ the explicit deref litter.
 
 ### Removed
 
+* **`fixed_bigint::MulAccOps` trait and impls — gone.** The CIOS row-op
+  surface moves to modmath as `modmath::CiosRowOps` (under the
+  `modmath` feature; see "Added"). Single-step cut across the three
+  crates per `CIOS_MIGRATION.md`: modmath rewrote its `cios.rs` body
+  against the new trait, fixed-bigint deleted the old trait + impls,
+  no deprecation window. Concrete deletions: `src/mul_acc_ops.rs`,
+  `src/fixeduint/mul_acc_ops_impl.rs`, the `pub mod mul_acc_ops;`
+  declaration and `pub use ... MulAccOps;` re-export from `lib.rs`,
+  the two MulAccOps-shaped tests in `tests/personality_integration.rs`.
 * `Truncate` checked/saturating variants and `CastSigned`/`CastUnsigned`
   checked/saturating variants — these were exact duplicates of the
   generic cast traits. Use `CheckedCast::<T>`, `SaturatingCast::<T>`,
