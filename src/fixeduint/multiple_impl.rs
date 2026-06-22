@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst MultipleOf for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> MultipleOf for FixedUInt<T, N, Nct> {
         fn is_multiple_of(self, rhs: Self) -> bool {
             if <Self as Zero>::is_zero(&rhs) {
                 false
@@ -30,7 +30,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst NextMultipleOf for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> NextMultipleOf for FixedUInt<T, N, Nct> {
         fn next_multiple_of(self, rhs: Self) -> Self {
             match self.checked_next_multiple_of(rhs) {
                 Some(v) => v,
@@ -53,13 +53,13 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst MultipleOf for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> MultipleOf for &FixedUInt<T, N, Nct> {
         fn is_multiple_of(self, rhs: Self) -> bool {
             <FixedUInt<T, N, Nct> as MultipleOf>::is_multiple_of(*self, *rhs)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst NextMultipleOf for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> NextMultipleOf for &FixedUInt<T, N, Nct> {
         fn next_multiple_of(self, rhs: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as NextMultipleOf>::next_multiple_of(*self, *rhs)
         }

@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst IsPowerOfTwo for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> IsPowerOfTwo for FixedUInt<T, N, P> {
         fn is_power_of_two(self) -> bool {
             match P::TAG {
                 PersonalityTag::Nct => {
@@ -36,7 +36,7 @@ c0nst::c0nst! {
 
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst NextPowerOfTwo for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> NextPowerOfTwo for FixedUInt<T, N, P> {
         type Output = Self;
 
         fn wrapping_next_power_of_two(self) -> Self {
@@ -104,13 +104,13 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst IsPowerOfTwo for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> IsPowerOfTwo for &FixedUInt<T, N, P> {
         fn is_power_of_two(self) -> bool {
             <FixedUInt<T, N, P> as IsPowerOfTwo>::is_power_of_two(*self)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst NextPowerOfTwo for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> NextPowerOfTwo for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn next_power_of_two(self) -> FixedUInt<T, N, P> {
             <FixedUInt<T, N, P> as NextPowerOfTwo>::next_power_of_two(*self)

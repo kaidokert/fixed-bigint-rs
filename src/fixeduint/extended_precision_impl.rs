@@ -23,14 +23,14 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + MachineWord, const N: usize, P: Personality> c0nst CarryingAdd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + MachineWord, const N: usize, P: Personality> CarryingAdd for FixedUInt<T, N, P> {
         fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
             let (array, carry_out) = add_with_carry(&self.array, &rhs.array, carry);
             (Self::from_array(array), carry_out)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst BorrowingSub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> BorrowingSub for FixedUInt<T, N, P> {
         fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
             let (array, borrow_out) = sub_with_borrow(&self.array, &rhs.array, borrow);
             (Self::from_array(array), borrow_out)
@@ -140,7 +140,7 @@ c0nst::c0nst! {
         (FixedUInt::from_array(result_low), FixedUInt::from_array(result_high))
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst CarryingMul for FixedUInt<T, N, P>
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> CarryingMul for FixedUInt<T, N, P>
     where
         <T as ConstMachineWord>::ConstDoubleWord:
             [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
@@ -177,19 +177,19 @@ c0nst::c0nst! {
 
     // --- Reference-receiver bigint-helper impls -----------------------------
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + MachineWord, const N: usize, P: Personality> c0nst CarryingAdd for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + MachineWord, const N: usize, P: Personality> CarryingAdd for &FixedUInt<T, N, P> {
         fn carrying_add(self, rhs: Self, carry: bool) -> (FixedUInt<T, N, P>, bool) {
             <FixedUInt<T, N, P> as CarryingAdd>::carrying_add(*self, *rhs, carry)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst BorrowingSub for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> BorrowingSub for &FixedUInt<T, N, P> {
         fn borrowing_sub(self, rhs: Self, borrow: bool) -> (FixedUInt<T, N, P>, bool) {
             <FixedUInt<T, N, P> as BorrowingSub>::borrowing_sub(*self, *rhs, borrow)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> c0nst CarryingMul for &FixedUInt<T, N, P>
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> CarryingMul for &FixedUInt<T, N, P>
     where
         <T as ConstMachineWord>::ConstDoubleWord:
             [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>

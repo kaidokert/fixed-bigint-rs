@@ -4,7 +4,7 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Euclid for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Euclid for FixedUInt<T, N, Nct> {
         fn div_euclid(self, v: Self) -> Self {
             // For unsigned integers, Euclidean division is the same as regular division
             self / v
@@ -20,7 +20,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedEuclid for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedEuclid for FixedUInt<T, N, Nct> {
         fn checked_div_euclid(self, v: Self) -> Option<Self> {
             if <Self as Zero>::is_zero(&v) {
                 None
@@ -46,7 +46,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Euclid for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Euclid for &FixedUInt<T, N, Nct> {
         fn div_euclid(self, v: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as Euclid>::div_euclid(*self, *v)
         }
@@ -58,7 +58,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst CheckedEuclid for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedEuclid for &FixedUInt<T, N, Nct> {
         fn checked_div_euclid(self, v: Self) -> Option<FixedUInt<T, N, Nct>> {
             <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_div_euclid(*self, *v)
         }

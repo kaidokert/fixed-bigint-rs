@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog2 for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog2 for FixedUInt<T, N, Nct> {
         fn ilog2(self) -> u32 {
             match <Self as Ilog2>::checked_ilog2(self) {
                 Some(v) => v,
@@ -38,7 +38,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog10 for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog10 for FixedUInt<T, N, Nct> {
         fn ilog10(self) -> u32 {
             match <Self as Ilog10>::checked_ilog10(self) {
                 Some(v) => v,
@@ -62,7 +62,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog for FixedUInt<T, N, Nct> {
         fn ilog(self, base: Self) -> u32 {
             match <Self as Ilog>::checked_ilog(self, base) {
                 Some(v) => v,
@@ -89,7 +89,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog2 for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog2 for &FixedUInt<T, N, Nct> {
         fn ilog2(self) -> u32 {
             <FixedUInt<T, N, Nct> as Ilog2>::ilog2(*self)
         }
@@ -98,7 +98,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog10 for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog10 for &FixedUInt<T, N, Nct> {
         fn ilog10(self) -> u32 {
             <FixedUInt<T, N, Nct> as Ilog10>::ilog10(*self)
         }
@@ -107,7 +107,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Ilog for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog for &FixedUInt<T, N, Nct> {
         fn ilog(self, base: Self) -> u32 {
             <FixedUInt<T, N, Nct> as Ilog>::ilog(*self, *base)
         }

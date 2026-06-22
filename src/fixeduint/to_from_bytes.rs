@@ -21,7 +21,7 @@ c0nst::c0nst! {
     // no behavior change. Body uses the `[<T as ConstZero>::ZERO; N]`
     // initializer rather than `core::array::from_fn(...)` because the
     // closure-based helper isn't const-callable.
-    impl<T: [c0nst] crate::machineword::ConstMachineWord + MachineWord, const N: usize> c0nst Default for BytesHolder<T, N> {
+    c0nst impl<T: [c0nst] crate::machineword::ConstMachineWord + MachineWord, const N: usize> Default for BytesHolder<T, N> {
         fn default() -> Self {
             Self::from_array([<T as crate::const_numtraits::ConstZero>::ZERO; N])
         }

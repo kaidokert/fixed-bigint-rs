@@ -4,7 +4,7 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Zero for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Zero for FixedUInt<T, N, P> {
         fn zero() -> Self {
             FixedUInt::from_array([<T as Zero>::zero(); N])
         }
@@ -24,7 +24,7 @@ c0nst::c0nst! {
     }
 
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst One for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> One for FixedUInt<T, N, P> {
         fn one() -> Self {
             let mut ret = <Self as ConstZero>::ZERO;
             if N > 0 {
@@ -47,7 +47,7 @@ c0nst::c0nst! {
     }
 
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Bounded for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Bounded for FixedUInt<T, N, P> {
         fn min_value() -> Self {
             <Self as ConstZero>::ZERO
         }

@@ -420,7 +420,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst OverflowingShl for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingShl for FixedUInt<T, N, P> {
         fn overflowing_shl(self, bits: u32) -> (Self, bool) {
             let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
             let res = core::ops::Shl::<usize>::shl(self, shift);
@@ -428,7 +428,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst OverflowingShr for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingShr for FixedUInt<T, N, P> {
         fn overflowing_shr(self, bits: u32) -> (Self, bool) {
             let (shift, overflow) = normalize_shift_amount(bits, Self::BIT_SIZE);
             let res = core::ops::Shr::<usize>::shr(self, shift);
@@ -436,39 +436,39 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingShl for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingShl for FixedUInt<T, N, P> {
         fn wrapping_shl(self, bits: u32) -> Self {
             OverflowingShl::overflowing_shl(self, bits).0
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingShr for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingShr for FixedUInt<T, N, P> {
         fn wrapping_shr(self, bits: u32) -> Self {
             OverflowingShr::overflowing_shr(self, bits).0
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedShl for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedShl for FixedUInt<T, N, P> {
         fn checked_shl(self, bits: u32) -> Option<Self> {
             let (res, overflow) = OverflowingShl::overflowing_shl(self, bits);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedShr for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedShr for FixedUInt<T, N, P> {
         fn checked_shr(self, bits: u32) -> Option<Self> {
             let (res, overflow) = OverflowingShr::overflowing_shr(self, bits);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst UnboundedShl for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> UnboundedShl for FixedUInt<T, N, P> {
         fn unbounded_shl(self, rhs: u32) -> Self {
             const_unbounded_shl_u32(self, rhs)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst UnboundedShr for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> UnboundedShr for FixedUInt<T, N, P> {
         fn unbounded_shr(self, rhs: u32) -> Self {
             const_unbounded_shr_u32(self, rhs)
         }
@@ -481,49 +481,49 @@ c0nst::c0nst! {
     // `Shr<u32> for &FixedUInt` are defined above (lines 235, 242),
     // so Output resolves to `FixedUInt<T,N,P>`.
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst OverflowingShl for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingShl for &FixedUInt<T, N, P> {
         fn overflowing_shl(self, bits: u32) -> (FixedUInt<T, N, P>, bool) {
             <FixedUInt<T, N, P> as OverflowingShl>::overflowing_shl(*self, bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst OverflowingShr for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingShr for &FixedUInt<T, N, P> {
         fn overflowing_shr(self, bits: u32) -> (FixedUInt<T, N, P>, bool) {
             <FixedUInt<T, N, P> as OverflowingShr>::overflowing_shr(*self, bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingShl for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingShl for &FixedUInt<T, N, P> {
         fn wrapping_shl(self, bits: u32) -> FixedUInt<T, N, P> {
             <FixedUInt<T, N, P> as WrappingShl>::wrapping_shl(*self, bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingShr for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingShr for &FixedUInt<T, N, P> {
         fn wrapping_shr(self, bits: u32) -> FixedUInt<T, N, P> {
             <FixedUInt<T, N, P> as WrappingShr>::wrapping_shr(*self, bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedShl for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedShl for &FixedUInt<T, N, P> {
         fn checked_shl(self, bits: u32) -> Option<FixedUInt<T, N, P>> {
             <FixedUInt<T, N, P> as CheckedShl>::checked_shl(*self, bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedShr for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedShr for &FixedUInt<T, N, P> {
         fn checked_shr(self, bits: u32) -> Option<FixedUInt<T, N, P>> {
             <FixedUInt<T, N, P> as CheckedShr>::checked_shr(*self, bits)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst UnboundedShl for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> UnboundedShl for &FixedUInt<T, N, P> {
         fn unbounded_shl(self, rhs: u32) -> FixedUInt<T, N, P> {
             <FixedUInt<T, N, P> as UnboundedShl>::unbounded_shl(*self, rhs)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst UnboundedShr for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> UnboundedShr for &FixedUInt<T, N, P> {
         fn unbounded_shr(self, rhs: u32) -> FixedUInt<T, N, P> {
             <FixedUInt<T, N, P> as UnboundedShr>::unbounded_shr(*self, rhs)
         }

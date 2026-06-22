@@ -78,7 +78,7 @@ impl<const SIZE: usize> core::borrow::BorrowMut<[u8]> for ConstBytesHolder<SIZE>
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ToBytes for FixedUInt<T, N, P>
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ToBytes for FixedUInt<T, N, P>
     where
         [(); byte_len::<T, N>()]:,
         <T as ToBytes>::Bytes: Copy + [c0nst] AsRef<[u8]>,
@@ -122,7 +122,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst FromBytes for FixedUInt<T, N, P>
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> FromBytes for FixedUInt<T, N, P>
     where
         [(); byte_len::<T, N>()]:,
     {

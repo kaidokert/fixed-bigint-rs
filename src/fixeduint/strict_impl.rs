@@ -29,7 +29,7 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictAdd for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictAdd for FixedUInt<T, N, Nct> {
         fn strict_add(self, v: Self) -> Self {
             let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(self, v);
             if overflow {
@@ -39,7 +39,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictSub for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictSub for FixedUInt<T, N, Nct> {
         fn strict_sub(self, v: Self) -> Self {
             let (res, overflow) = <Self as OverflowingSub>::overflowing_sub(self, v);
             if overflow {
@@ -49,7 +49,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictMul for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictMul for FixedUInt<T, N, Nct> {
         fn strict_mul(self, v: Self) -> Self {
             let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(self, v);
             if overflow {
@@ -59,7 +59,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictDiv for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictDiv for FixedUInt<T, N, Nct> {
         fn strict_div(self, v: Self) -> Self {
             // For unsigned `MIN / -1` is N/A; the only overflow mode is `v == 0`,
             // which `Div<Self>` already panics on. Delegate.
@@ -67,13 +67,13 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictRem for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictRem for FixedUInt<T, N, Nct> {
         fn strict_rem(self, v: Self) -> Self {
             self % v
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictShl for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictShl for FixedUInt<T, N, Nct> {
         fn strict_shl(self, rhs: u32) -> Self {
             if (rhs as usize) >= Self::BIT_SIZE {
                 panic!("FixedUInt: strict_shl shift exceeds bit width");
@@ -82,7 +82,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictShr for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictShr for FixedUInt<T, N, Nct> {
         fn strict_shr(self, rhs: u32) -> Self {
             if (rhs as usize) >= Self::BIT_SIZE {
                 panic!("FixedUInt: strict_shr shift exceeds bit width");
@@ -91,7 +91,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictPow for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictPow for FixedUInt<T, N, Nct> {
         fn strict_pow(self, exp: u32) -> Self {
             match <Self as CheckedPow>::checked_pow(self, exp) {
                 Some(v) => v,
@@ -102,49 +102,49 @@ c0nst::c0nst! {
 
     // --- Reference-receiver mirrors -----------------------------------------
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictAdd for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictAdd for &FixedUInt<T, N, Nct> {
         fn strict_add(self, v: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as StrictAdd>::strict_add(*self, *v)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictSub for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictSub for &FixedUInt<T, N, Nct> {
         fn strict_sub(self, v: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as StrictSub>::strict_sub(*self, *v)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictMul for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictMul for &FixedUInt<T, N, Nct> {
         fn strict_mul(self, v: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as StrictMul>::strict_mul(*self, *v)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictDiv for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictDiv for &FixedUInt<T, N, Nct> {
         fn strict_div(self, v: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as StrictDiv>::strict_div(*self, *v)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictRem for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictRem for &FixedUInt<T, N, Nct> {
         fn strict_rem(self, v: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as StrictRem>::strict_rem(*self, *v)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictShl for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictShl for &FixedUInt<T, N, Nct> {
         fn strict_shl(self, rhs: u32) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as StrictShl>::strict_shl(*self, rhs)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictShr for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictShr for &FixedUInt<T, N, Nct> {
         fn strict_shr(self, rhs: u32) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as StrictShr>::strict_shr(*self, rhs)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst StrictPow for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictPow for &FixedUInt<T, N, Nct> {
         fn strict_pow(self, exp: u32) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as StrictPow>::strict_pow(*self, exp)
         }

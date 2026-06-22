@@ -1405,13 +1405,13 @@ c0nst::c0nst! {
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Default for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Default for FixedUInt<T, N, P> {
         fn default() -> Self {
             FixedUInt::from_array([<T as ConstZero>::ZERO; N])
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Clone for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Clone for FixedUInt<T, N, P> {
         fn clone(&self) -> Self {
             *self
         }

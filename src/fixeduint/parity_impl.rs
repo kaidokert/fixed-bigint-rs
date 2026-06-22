@@ -23,7 +23,7 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::Personality;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Parity for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Parity for FixedUInt<T, N, P> {
         fn is_odd(self) -> bool {
             // N=0 is a degenerate (zero-word) configuration; treat as even.
             // Otherwise parity lives entirely in the LSB of word 0.
@@ -40,7 +40,7 @@ c0nst::c0nst! {
     }
 
     // Reference-receiver mirror (see add_sub_impl.rs for rationale).
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst Parity for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Parity for &FixedUInt<T, N, P> {
         fn is_odd(self) -> bool {
             <FixedUInt<T, N, P> as Parity>::is_odd(*self)
         }

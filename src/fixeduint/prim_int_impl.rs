@@ -4,7 +4,7 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::{Nct, Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst PrimBits for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> PrimBits for FixedUInt<T, N, P> {
         fn count_ones(self) -> u32 {
             let mut count = 0u32;
             let mut i = 0;

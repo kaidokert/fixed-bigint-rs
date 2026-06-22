@@ -20,33 +20,33 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingAdd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingAdd for FixedUInt<T, N, P> {
         fn wrapping_add(self, other: Self) -> Self {
             <Self as OverflowingAdd>::overflowing_add(self, other).0
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingSub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingSub for FixedUInt<T, N, P> {
         fn wrapping_sub(self, other: Self) -> Self {
             <Self as OverflowingSub>::overflowing_sub(self, other).0
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedAdd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedAdd for FixedUInt<T, N, P> {
         fn checked_add(self, other: Self) -> Option<Self> {
             let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(self, other);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedSub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedSub for FixedUInt<T, N, P> {
         fn checked_sub(self, other: Self) -> Option<Self> {
             let (res, overflow) = <Self as OverflowingSub>::overflowing_sub(self, other);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst SaturatingAdd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingAdd for FixedUInt<T, N, P> {
         fn saturating_add(self, other: Self) -> Self {
             let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(self, other);
             match P::TAG {
@@ -56,7 +56,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst SaturatingSub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingSub for FixedUInt<T, N, P> {
         fn saturating_sub(self, other: Self) -> Self {
             let (res, overflow) = <Self as OverflowingSub>::overflowing_sub(self, other);
             match P::TAG {
@@ -198,37 +198,37 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingAdd for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingAdd for &FixedUInt<T, N, P> {
         fn wrapping_add(self, other: Self) -> FixedUInt<T, N, P> {
             <FixedUInt<T, N, P> as WrappingAdd>::wrapping_add(*self, *other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst WrappingSub for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingSub for &FixedUInt<T, N, P> {
         fn wrapping_sub(self, other: Self) -> FixedUInt<T, N, P> {
             <FixedUInt<T, N, P> as WrappingSub>::wrapping_sub(*self, *other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedAdd for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedAdd for &FixedUInt<T, N, P> {
         fn checked_add(self, other: Self) -> Option<FixedUInt<T, N, P>> {
             <FixedUInt<T, N, P> as CheckedAdd>::checked_add(*self, *other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst CheckedSub for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedSub for &FixedUInt<T, N, P> {
         fn checked_sub(self, other: Self) -> Option<FixedUInt<T, N, P>> {
             <FixedUInt<T, N, P> as CheckedSub>::checked_sub(*self, *other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst SaturatingAdd for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingAdd for &FixedUInt<T, N, P> {
         fn saturating_add(self, other: Self) -> FixedUInt<T, N, P> {
             <FixedUInt<T, N, P> as SaturatingAdd>::saturating_add(*self, *other)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst SaturatingSub for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingSub for &FixedUInt<T, N, P> {
         fn saturating_sub(self, other: Self) -> FixedUInt<T, N, P> {
             <FixedUInt<T, N, P> as SaturatingSub>::saturating_sub(*self, *other)
         }

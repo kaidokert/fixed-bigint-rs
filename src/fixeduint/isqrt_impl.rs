@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Isqrt for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Isqrt for FixedUInt<T, N, Nct> {
         type Output = Self;
 
         fn isqrt(self) -> Self {
@@ -56,7 +56,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst Isqrt for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Isqrt for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn isqrt(self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as Isqrt>::isqrt(*self)
