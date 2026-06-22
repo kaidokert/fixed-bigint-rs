@@ -68,15 +68,13 @@ default-features = false
 
 # Optional modmath integration: enables `modmath::CiosRowOps` for
 # `FixedUInt`. Path-pinned during the v0.4 experimental window
-# (modmath 0.4.0-alpha.0). `wide-mul` is the modmath feature that
-# re-exports `CiosRowOps` at the crate root; it transitively pulls
-# `fixed-bigint` without the `modmath` feature, so there's no
-# feature-cycle — Cargo resolves cleanly.
+# (modmath 0.4.0-alpha.0). No feature pin — modmath dropped the
+# `wide-mul` gate; `CiosRowOps` is now unconditional in modmath's
+# public surface.
 [dependencies.modmath]
 path = "../modmath-rs/modmath"
 optional = true
 default-features = false
-features = ["wide-mul"]
 
 [dev-dependencies.static_assertions]
 version = "1.1"
