@@ -82,18 +82,18 @@ crate's conventions, and a few traits were added or split.
 
 Several traits the local crate didn't carry are now implemented:
 
-* **`modmath::CiosRowOps for FixedUInt<T, N, P>` under the `modmath`
-  cargo feature.** Replaces the retired `MulAccOps` trait (see
-  "Removed"). One impl block covers both personalities — the new
-  trait's `word(&self, i)` is infallible by contract (`i` is public,
-  `i < self.word_count()`), so no `Nct`/`Ct` discriminant on the
-  accessor and no `match P::TAG` dispatch. The two row kernels
+* **`modmath_cios::CiosRowOps for FixedUInt<T, N, P>` under the
+  `cios` cargo feature.** Replaces the retired `MulAccOps` trait
+  (see "Removed"). One impl block covers both personalities — the
+  new trait's `word(&self, i)` is infallible by contract (`i` is
+  public, `i < self.word_count()`), so no `Nct`/`Ct` discriminant on
+  the accessor and no `match P::TAG` dispatch. The two row kernels
   (`mul_acc_row`, `mul_acc_shift_row`) carry the same algorithm
   byte-identically from the retired `mul_acc_ops_common!` macro.
-  See `CIOS_MIGRATION.md` at the repo root for the design rationale
-  (Option H placement: trait + algorithm body in modmath,
-  `FixedUInt` impls the trait under an optional feature; dep
-  direction inverts vs the pre-experiment world).
+  The trait lives in `modmath-cios` — a leaf crate with no deps —
+  rather than in `modmath` itself; see `CIOS_TRAIT_MOVED.md` for
+  why (trait-identity duplication across rustc compile units when
+  modmath dev-deps fixed-bigint to test).
 
 * **Fixed-size byte conversion at the API boundary** — four inherent
   methods on `FixedUInt`:
@@ -234,8 +234,8 @@ the explicit deref litter.
 ### Removed
 
 * **`fixed_bigint::MulAccOps` trait and impls — gone.** The CIOS row-op
-  surface moves to modmath as `modmath::CiosRowOps` (under the
-  `modmath` feature; see "Added"). Single-step cut across the three
+  surface moves to modmath as `modmath_cios::CiosRowOps` (under the
+  `cios` feature; see "Added"). Single-step cut across the three
   crates per `CIOS_MIGRATION.md`: modmath rewrote its `cios.rs` body
   against the new trait, fixed-bigint deleted the old trait + impls,
   no deprecation window. Concrete deletions: `src/mul_acc_ops.rs`,

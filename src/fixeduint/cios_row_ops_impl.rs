@@ -12,15 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! `modmath::CiosRowOps` implementation for `FixedUInt`.
+//! `modmath_cios::CiosRowOps` implementation for `FixedUInt`.
 //!
-//! Gated behind the `modmath` cargo feature so a default build of
-//! `fixed-bigint` does not pull modmath in. Enabled by downstream crates
-//! that want to drive CIOS-style Montgomery multiplication through
-//! modmath's algorithm body. The dep direction inverts vs the
-//! pre-experiment world: modmath used to dev-dep `fixed-bigint`, and now
-//! `fixed-bigint` optionally dep's modmath while modmath moves
-//! `fixed-bigint` to a dev-dep on its side.
+//! Gated behind the `cios` cargo feature so a default build of
+//! `fixed-bigint` does not pull `modmath-cios` in. Enabled by downstream
+//! crates that want to drive CIOS-style Montgomery multiplication
+//! through `modmath`'s algorithm body (which deps `modmath-cios` and
+//! is generic over `CiosRowOps`).
+//!
+//! ## Why the trait lives in `modmath-cios` (a leaf crate)
+//!
+//! An earlier iteration (commit `af832a9`) put `CiosRowOps` in
+//! `modmath` itself with `modmath` dev-deping `fixed-bigint` to test
+//! the `FixedUInt` impl. That doesn't work: `cargo test` compiles
+//! `modmath` twice — once normally (the library `fixed-bigint` links
+//! against through its `modmath` dep) and once with `--test` (the
+//! `modmath` test binary). Same source, two distinct metadata hashes,
+//! two distinct `CiosRowOps` identities. The impl satisfies one;
+//! `modmath`'s own tests reference the other. The bound never
+//! resolves. Cargo-level dedup ≠ rustc-level dedup. See
+//! `CIOS_TRAIT_MOVED.md`.
+//!
+//! Moving the trait to its own leaf crate (`modmath-cios`, no deps,
+//! `#![no_std]`) closes the duplication: both `modmath` (in both
+//! normal and `--test` mode) and `fixed-bigint` see exactly one
+//! `modmath_cios::CiosRowOps`.
+//!
+//! `modmath` does not re-export `CiosRowOps`. Consumers import from
+//! `modmath_cios` directly (per the maintainer's "API moved, path
+//! moves with it" policy — no compatibility shim).
 //!
 //! ## One impl, both personalities
 //!
@@ -46,13 +66,13 @@
 //!   -> Self::Word`. Infallible; the personality-discriminant
 //!   associated type is gone.
 
-#![cfg(feature = "modmath")]
+#![cfg(feature = "cios")]
 
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::{CarryingAdd, CarryingMul, ConstZero};
 use const_num_traits::Personality;
 
-impl<T, const N: usize, P: Personality> modmath::CiosRowOps for FixedUInt<T, N, P>
+impl<T, const N: usize, P: Personality> modmath_cios::CiosRowOps for FixedUInt<T, N, P>
 where
     T: MachineWord
         + CarryingMul<Unsigned = T>
@@ -141,7 +161,7 @@ where
 mod tests {
     use super::*;
     use const_num_traits::{Ct, Nct};
-    use modmath::CiosRowOps;
+    use modmath_cios::CiosRowOps;
 
     type U16Nct = FixedUInt<u8, 2, Nct>;
     type U16Ct = FixedUInt<u8, 2, Ct>;

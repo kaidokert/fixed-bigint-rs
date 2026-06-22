@@ -8,11 +8,8 @@ members = [
 ]
 resolver = "2"
 
-# Route the version-pinned `modmath = "0.4"` dep onto the local
-# experimental tree during the experimental window. Drop this patch
-# once modmath publishes 0.4.x to crates.io.
 [patch.crates-io]
-modmath = { path = "../modmath-rs/modmath" }
+modmath-cios = { path = "../modmath-rs/modmath-cios" }
 
 # Pinned release profile: deterministic codegen so a passing PR locks
 # the inspection output.
@@ -72,13 +69,8 @@ default-features = false
 version = "2.6"
 default-features = false
 
-# Optional modmath integration: enables `modmath::CiosRowOps` for
-# `FixedUInt`. Routed via `[patch.crates-io] modmath` at the workspace
-# root during the experimental window so this and modmath's test target
-# resolve through the same compile unit (avoids "multiple modmath
-# versions in the dep graph" from duelling path-deps).
-[dependencies.modmath]
-version = "0.4"
+[dependencies.modmath-cios]
+version = "0.1"
 optional = true
 default-features = false
 
@@ -99,5 +91,5 @@ codegen-units = 16
 use-unsafe = []
 1_87 = []
 nightly = ["c0nst/nightly", "const-num-traits/nightly", "1_87"]
-modmath = ["dep:modmath"]
+cios = ["dep:modmath-cios"]
 default = []

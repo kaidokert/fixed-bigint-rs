@@ -35,7 +35,7 @@ mod ilog_impl;
 mod isqrt_impl;
 mod iter_impl;
 mod midpoint_impl;
-#[cfg(feature = "modmath")]
+#[cfg(feature = "cios")]
 mod cios_row_ops_impl;
 mod mul_div_impl;
 mod multiple_impl;
