@@ -26,6 +26,7 @@ use num_traits::{FromPrimitive, Num};
 mod abs_diff_impl;
 mod add_sub_impl;
 mod bit_ops_impl;
+mod byte_conversion_panic_free;
 mod checked_pow_impl;
 mod div_ceil_impl;
 mod euclid;
@@ -322,6 +323,14 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
     const WORD_BITS: usize = Self::WORD_SIZE * 8;
     const BYTE_SIZE: usize = Self::WORD_SIZE * N;
     const BIT_SIZE: usize = Self::BYTE_SIZE * 8;
+
+    /// The serialized byte width of this `FixedUInt` type, `N * size_of::<T>()`.
+    ///
+    /// Public alias of the internal `BYTE_SIZE` for callers sizing buffers
+    /// to feed the `*_bytes_fixed` panic-free byte conversion methods. Use
+    /// as `const BUF_LEN: usize = MyFixed::BYTE_WIDTH;` then
+    /// `let mut buf = [0u8; BUF_LEN];`.
+    pub const BYTE_WIDTH: usize = Self::BYTE_SIZE;
 
     /// Creates and zero-initializes a FixedUInt.
     pub fn new() -> FixedUInt<T, N, P> {

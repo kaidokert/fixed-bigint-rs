@@ -82,6 +82,50 @@ crate's conventions, and a few traits were added or split.
 
 Several traits the local crate didn't carry are now implemented:
 
+* **Panic-free fixed-size byte conversion** — four inherent methods on
+  `FixedUInt`:
+  - `to_le_bytes_fixed<const M>(&self, out: &mut [u8; M]) -> &[u8]`
+  - `to_be_bytes_fixed<const M>(&self, out: &mut [u8; M]) -> &[u8]`
+  - `from_le_bytes_fixed<const M>(bytes: &[u8; M]) -> Self`
+  - `from_be_bytes_fixed<const M>(bytes: &[u8; M]) -> Self`
+
+  These are the panic-free counterparts to the existing
+  `{to,from}_{le,be}_bytes(…&[u8]…) -> Result<_, bool>` methods. The
+  shape change: typed `&[u8; M]` parameter + monomorphization-time
+  `M >= BYTE_WIDTH` check, no runtime length validation, no
+  `Result<_, bool>` and no `unwrap` site at the call site. Wrong-size
+  callers fail at compile time with a clear diagnostic; the produced
+  binary contains no runtime panic path from these methods.
+
+  Compile-time check is implemented as a private trait
+  (`AssertBufferFits<M>`) with a `const CHECK: () = assert!(...)`
+  associated item — not the more obvious `const { assert!(…) }`
+  block, because on nightly with `generic_const_exprs` enabled
+  in-fn const blocks referencing the const generic become "generic
+  constants" and rustc rejects them as "overly complex." The trait
+  shape sidesteps that and works identically on both toolchains.
+
+  Bodies use `chunks_exact_mut(WORD_SIZE).take(N)` for `to_*` (length-
+  equal `copy_from_slice` by construction) and reuse the existing
+  `impl_from_{le,be}_bytes_slice` helpers for `from_*` (loop-bounded
+  by `min(bytes.len(), capacity)` which equals `BYTE_WIDTH` for
+  fixed buffers). Truncation convention for `M > BYTE_WIDTH` mirrors
+  the slice-based methods: LE reads the first `BYTE_WIDTH` bytes,
+  BE reads the last.
+
+  Also adds `pub const FixedUInt::BYTE_WIDTH: usize = N * size_of::<T>()`
+  so callers can write `let mut buf = [0u8; T::BYTE_WIDTH];` without
+  duplicating the byte-width math.
+
+  17 unit tests cover exact-size + oversized buffers, round-trips,
+  cross-validation against the slice-based methods, and the
+  `BYTE_WIDTH` array-length ergonomic pattern. 4 doctests demonstrate
+  the typical call site. Per PANIC_FREE_REQUESTS.md, the next step
+  for full panic-clean linkage is a `cargo nm` audit on a thumb
+  target to confirm `panic_bounds_check` doesn't survive DCE through
+  the trailing `&out[..BYTE_WIDTH]` slice; if it does, the fix is a
+  `get_unchecked` swap soundly justified by the AssertBufferFits
+  check.
 * `Odd<FixedUInt>` / `Even<FixedUInt>` compose automatically from the
   upstream typestate (`const_num_traits::Odd::<FixedUInt<...>>::new(v)`,
   `Odd::from_ref(&v)`, `get()`, `Even` ditto). No source change in
