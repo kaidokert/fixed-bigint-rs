@@ -39,15 +39,9 @@ c0nst::c0nst! {
         }
     }
 
-    // Reference-receiver mirror (see add_sub_impl.rs for rationale).
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Parity for &FixedUInt<T, N, P> {
-        fn is_odd(self) -> bool {
-            <FixedUInt<T, N, P> as Parity>::is_odd(*self)
-        }
-        fn is_even(self) -> bool {
-            <FixedUInt<T, N, P> as Parity>::is_even(*self)
-        }
-    }
+    // The reference-receiver impl is provided by const_num_traits's blanket
+    // `impl<T: Parity + Copy> Parity for &T` (the D1 fix from the typestate
+    // synthesis). Manually impl'ing it here now conflicts (E0119).
 }
 
 #[cfg(test)]

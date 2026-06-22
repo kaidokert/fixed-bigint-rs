@@ -82,6 +82,22 @@ crate's conventions, and a few traits were added or split.
 
 Several traits the local crate didn't carry are now implemented:
 
+* `PowerOfTwoOps` (with construction via two new inherent methods,
+  `FixedUInt::as_power_of_two` and `FixedUInt::from_power_of_two`) —
+  both personalities. Lifts the new `const-num-traits` typestate that
+  turns `div`/`rem`/`is_multiple`/`next_multiple` into shifts and
+  masks when the divisor is a proven power of two. The proof carries
+  only a `u32` exponent (the original `FixedUInt` is dropped), so it
+  stays `Copy` independent of `N`. Bodies are uniform across `Ct`
+  and `Nct` — every op is a shift, mask, or addition with no
+  value-dependent branch. Construction is exposed as an inherent
+  method on `FixedUInt` because the orphan rule blocks an inherent
+  `impl PowerOfTwo<FixedUInt<...>>` block here; there is no
+  `impl PowerOfTwoOps for &FixedUInt<...>` because the trait's
+  `PowerOfTwo<Self>` parameter would force callers to manufacture a
+  distinct proof for the borrowed shape — deref (`FixedUInt: Copy`)
+  is free, so the borrowed variant adds noise without saving
+  anything.
 * `Parity` (`is_odd`, `is_even`) — both personalities.
 * `HighestOne` / `LowestOne` — both personalities; index of the
   highest/lowest set bit, `None` for zero.
