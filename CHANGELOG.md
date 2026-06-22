@@ -134,6 +134,50 @@ Several traits the local crate didn't carry are now implemented:
   17 unit tests + 4 doctests cover exact-size + oversized buffers,
   round-trips, cross-validation against the slice-based methods, and
   the `BYTE_WIDTH` array-length ergonomic.
+* `PowerOfTwoOps for FixedUInt<T, N, P>` — the five consuming ops
+  (`div_pow2`, `rem_pow2`, `is_multiple_of_pow2`,
+  `next_multiple_of_pow2`, `checked_next_multiple_of_pow2`) that
+  replace `div`/`rem` on a power-of-two divisor with a shift and a
+  mask. One impl covers both `Ct` and `Nct` — every body is a shift,
+  mask, or addition with no value-dependent branch.
+
+  Construction goes through the upstream safe constructor:
+
+  ```rust
+  use const_num_traits::PowerOfTwo;
+  let p = PowerOfTwo::<FixedUInt<u32, 8>>::new_checked(value);
+  ```
+
+  `PowerOfTwo::new_checked` (`const-num-traits` ≥ PR #7, commit
+  `410cfac`) is bounded on `T: IsPowerOfTwo + PrimBits`, both of
+  which `FixedUInt` implements, so no glue method is required on
+  this side and no `unsafe` crosses into the caller. The `c0nst`
+  bounds on the new constructor mean nightly callers get the full
+  construction-and-consumption chain in `const` context too. An
+  earlier shape of this surface (`fixed_bigint::FixedUInt::as_power_of_two`,
+  briefly committed as `143e4c5`) wrapped the upstream `unsafe const
+  fn from_exp_unchecked` and was reverted because the crate's
+  `use-unsafe` feature is scoped narrowly to the `BytesHolder` path,
+  not as a general license; the upstream API change made the workaround
+  unnecessary.
+
+  Also adds `FixedUInt::from_power_of_two(p)` as the symmetric
+  reconstruction helper (`1 << p.exp()`), and `next_multiple_of_pow2`
+  inherits the personality-specific `+` semantic (panic-on-overflow
+  under `Nct`, wrap under `Ct`); untrusted-input callers should use
+  `checked_next_multiple_of_pow2` instead — the explicit no-panic
+  sibling per the design principle "every panicking API ships a
+  Try*-style counterpart."
+
+  No `impl PowerOfTwoOps for &FixedUInt<...>`: the trait's
+  `PowerOfTwo<Self>` parameter would force a separately-typed proof
+  for the borrowed shape. `FixedUInt: Copy` makes deref free, so
+  callers use `PowerOfTwoOps::div_pow2(*v, p)`.
+
+  9 tests cover constructor filtering + round-trip, each consuming
+  op, the wider-carrier (`FixedUInt<u32, 4>`) limb-boundary case,
+  the `checked_*` no-panic sibling, and a nightly empirical-const
+  block proving the full chain is const-callable.
 * `Odd<FixedUInt>` / `Even<FixedUInt>` compose automatically from the
   upstream typestate (`const_num_traits::Odd::<FixedUInt<...>>::new(v)`,
   `Odd::from_ref(&v)`, `get()`, `Even` ditto). No source change in
