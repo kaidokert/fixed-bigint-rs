@@ -22,7 +22,7 @@ incremental = false
 
 [package]
 name = "fixed-bigint"
-version = "0.4.0-alpha.0"
+version = "0.4.0"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 documentation = "https://docs.rs/fixed-bigint"
 edition = "2018"
@@ -67,10 +67,9 @@ version = "2.6"
 default-features = false
 
 # Optional modmath integration: enables `modmath::CiosRowOps` for
-# `FixedUInt`. Path-pinned during the v0.4 experimental window
-# (modmath 0.4.0-alpha.0). No feature pin — modmath dropped the
-# `wide-mul` gate; `CiosRowOps` is now unconditional in modmath's
-# public surface.
+# `FixedUInt`. Path-pinned during the v0.4 experimental window. No
+# feature pin — modmath dropped the `wide-mul` gate; `CiosRowOps`
+# is now unconditional in modmath's public surface.
 [dependencies.modmath]
 path = "../modmath-rs/modmath"
 optional = true

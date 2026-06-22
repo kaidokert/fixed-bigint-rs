@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0-alpha.0 — `experiment/external-const-num-traits`
+## 0.4.0 — `experiment/external-const-num-traits`
 
 This branch shifts `fixed-bigint`'s trait surface from the in-tree
 `const_numtraits` module onto the standalone
