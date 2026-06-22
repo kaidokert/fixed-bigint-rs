@@ -44,7 +44,6 @@ mod strict_impl;
 mod num_traits_casts;
 mod num_traits_identity;
 mod power_of_two_impl;
-mod power_of_two_ops_impl;
 mod prim_int_impl;
 mod roots_impl;
 mod string_conversion;

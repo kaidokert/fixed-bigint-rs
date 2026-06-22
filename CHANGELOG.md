@@ -82,50 +82,58 @@ crate's conventions, and a few traits were added or split.
 
 Several traits the local crate didn't carry are now implemented:
 
-* **Panic-free fixed-size byte conversion** — four inherent methods on
-  `FixedUInt`:
+* **Fixed-size byte conversion at the API boundary** — four inherent
+  methods on `FixedUInt`:
   - `to_le_bytes_fixed<const M>(&self, out: &mut [u8; M]) -> &[u8]`
   - `to_be_bytes_fixed<const M>(&self, out: &mut [u8; M]) -> &[u8]`
   - `from_le_bytes_fixed<const M>(bytes: &[u8; M]) -> Self`
   - `from_be_bytes_fixed<const M>(bytes: &[u8; M]) -> Self`
 
-  These are the panic-free counterparts to the existing
-  `{to,from}_{le,be}_bytes(…&[u8]…) -> Result<_, bool>` methods. The
-  shape change: typed `&[u8; M]` parameter + monomorphization-time
-  `M >= BYTE_WIDTH` check, no runtime length validation, no
-  `Result<_, bool>` and no `unwrap` site at the call site. Wrong-size
-  callers fail at compile time with a clear diagnostic; the produced
-  binary contains no runtime panic path from these methods.
+  These remove the `Result<_, bool>` and the `.unwrap()` at the call
+  site that the existing `{to,from}_{le,be}_bytes(…&[u8]…)` methods
+  force. Typed `&[u8; M]` parameter + monomorphization-time
+  `M >= BYTE_WIDTH` check; wrong-size callers fail at compile time
+  with a clear diagnostic, no runtime length validation.
 
-  Compile-time check is implemented as a private trait
+  **API contract is "no panic at the API boundary," not "no
+  panic_fmt in the linked binary."** A `cargo nm` audit on
+  thumbv7em-none-eabi (`ct-verify/panic-free-audit`) confirms the
+  produced `.a` still contains
+  `core::slice::copy_from_slice_impl::len_mismatch_fail` →
+  `core::panicking::panic_fmt`. Origin: the bodies'
+  `chunk.copy_from_slice(word.to_le_bytes().as_ref())` routes
+  through `slice::copy_from_slice`'s runtime length check, which
+  LLVM cannot elide because both the chunk length and `as_ref().len()`
+  are opaque trait-associated values it can't statically equate
+  (even though both equal `WORD_SIZE` by construction). The fix
+  would be `ptr::copy_nonoverlapping` with a SAFETY proof, but the
+  crate's `use-unsafe` feature is scoped specifically to the
+  ToBytes/FromBytes `BytesHolder` path where const-generics had no
+  other option, not as a general license; without a safe fix from
+  upstream, the residual `panic_fmt` stays. Downstream embedded
+  crypto consumers that *require* a fully panic-clean binary (e.g.
+  `ed25519_heapless`'s AVR linkage gate) cannot rely on these
+  methods alone to satisfy that — the upstream
+  `slice::copy_from_slice` body limits us.
+
+  Compile-time size check is implemented as a private trait
   (`AssertBufferFits<M>`) with a `const CHECK: () = assert!(...)`
-  associated item — not the more obvious `const { assert!(…) }`
-  block, because on nightly with `generic_const_exprs` enabled
-  in-fn const blocks referencing the const generic become "generic
-  constants" and rustc rejects them as "overly complex." The trait
-  shape sidesteps that and works identically on both toolchains.
+  associated item — not `const { assert!(…) }`, because on nightly
+  with `generic_const_exprs` enabled in-fn const blocks referencing
+  the const generic become "generic constants" rustc rejects as
+  "overly complex." The trait shape sidesteps that and works
+  identically on both toolchains.
 
-  Bodies use `chunks_exact_mut(WORD_SIZE).take(N)` for `to_*` (length-
-  equal `copy_from_slice` by construction) and reuse the existing
-  `impl_from_{le,be}_bytes_slice` helpers for `from_*` (loop-bounded
-  by `min(bytes.len(), capacity)` which equals `BYTE_WIDTH` for
-  fixed buffers). Truncation convention for `M > BYTE_WIDTH` mirrors
-  the slice-based methods: LE reads the first `BYTE_WIDTH` bytes,
-  BE reads the last.
+  Truncation convention for `M > BYTE_WIDTH` mirrors the slice-based
+  methods: LE reads the first `BYTE_WIDTH` bytes, BE reads the last.
 
   Also adds `pub const FixedUInt::BYTE_WIDTH: usize = N * size_of::<T>()`
   so callers can write `let mut buf = [0u8; T::BYTE_WIDTH];` without
   duplicating the byte-width math.
 
-  17 unit tests cover exact-size + oversized buffers, round-trips,
-  cross-validation against the slice-based methods, and the
-  `BYTE_WIDTH` array-length ergonomic pattern. 4 doctests demonstrate
-  the typical call site. Per PANIC_FREE_REQUESTS.md, the next step
-  for full panic-clean linkage is a `cargo nm` audit on a thumb
-  target to confirm `panic_bounds_check` doesn't survive DCE through
-  the trailing `&out[..BYTE_WIDTH]` slice; if it does, the fix is a
-  `get_unchecked` swap soundly justified by the AssertBufferFits
-  check.
+  17 unit tests + 4 doctests cover exact-size + oversized buffers,
+  round-trips, cross-validation against the slice-based methods, and
+  the `BYTE_WIDTH` array-length ergonomic.
 * `Odd<FixedUInt>` / `Even<FixedUInt>` compose automatically from the
   upstream typestate (`const_num_traits::Odd::<FixedUInt<...>>::new(v)`,
   `Odd::from_ref(&v)`, `get()`, `Even` ditto). No source change in
@@ -140,22 +148,6 @@ Several traits the local crate didn't carry are now implemented:
   consumers (notably `modmath`'s `Field::from_odd_modulus` plan in
   `PANIC_FREE_REQUESTS.md`) get the typestate-based infallible
   constructor pattern with no fixed-bigint-side glue.
-* `PowerOfTwoOps` (with construction via two new inherent methods,
-  `FixedUInt::as_power_of_two` and `FixedUInt::from_power_of_two`) —
-  both personalities. Lifts the new `const-num-traits` typestate that
-  turns `div`/`rem`/`is_multiple`/`next_multiple` into shifts and
-  masks when the divisor is a proven power of two. The proof carries
-  only a `u32` exponent (the original `FixedUInt` is dropped), so it
-  stays `Copy` independent of `N`. Bodies are uniform across `Ct`
-  and `Nct` — every op is a shift, mask, or addition with no
-  value-dependent branch. Construction is exposed as an inherent
-  method on `FixedUInt` because the orphan rule blocks an inherent
-  `impl PowerOfTwo<FixedUInt<...>>` block here; there is no
-  `impl PowerOfTwoOps for &FixedUInt<...>` because the trait's
-  `PowerOfTwo<Self>` parameter would force callers to manufacture a
-  distinct proof for the borrowed shape — deref (`FixedUInt: Copy`)
-  is free, so the borrowed variant adds noise without saving
-  anything.
 * `Parity` (`is_odd`, `is_even`) — both personalities.
 * `HighestOne` / `LowestOne` — both personalities; index of the
   highest/lowest set bit, `None` for zero.

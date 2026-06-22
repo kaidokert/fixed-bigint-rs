@@ -12,54 +12,72 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Panic-free byte conversion: fixed-size destination/source buffers.
+//! Fixed-size byte conversion: typed buffers + compile-time size check.
 //!
-//! These are the panic-free counterparts to the existing slice-based
-//! `FixedUInt::{to,from}_{le,be}_bytes`. The shape change is the buffer
-//! parameter: instead of an untyped `&[u8]` / `&mut [u8]` with a runtime
-//! length check that returns `Result<_, bool>` (and forces an `unwrap` /
-//! panic site at every call site), the fixed variants take a typed
-//! `&[u8; M]` / `&mut [u8; M]` and verify `M >= BYTE_WIDTH` at
-//! monomorphization via a `const { assert!(…) }` block. Wrong-size
-//! callers fail at compile time with no runtime panic path.
+//! These are the *API-boundary panic-free* counterparts to the existing
+//! slice-based `FixedUInt::{to,from}_{le,be}_bytes`. The shape change is
+//! the buffer parameter: instead of an untyped `&[u8]` / `&mut [u8]`
+//! that returns `Result<_, bool>` (and forces a `.unwrap()` site at every
+//! call site, which synthesises `panic_fmt`), the fixed variants take a
+//! typed `&[u8; M]` / `&mut [u8; M]` and verify `M >= BYTE_WIDTH` at
+//! monomorphization via an `AssertBufferFits<M>` associated-const
+//! assertion. Wrong-size callers fail at compile time with a clear
+//! diagnostic.
 //!
-//! ## Why
+//! ## API contract: "no panic at the API boundary"
 //!
-//! Downstream consumer `ed25519_heapless` (and similar embedded crypto
-//! crates) need the linked binary to have **zero** `core::panicking::panic_fmt`
-//! / `core::panicking::panic_bounds_check` / `rust_begin_unwind` symbols
-//! after `--release` DCE. The existing inherent
-//! `to_le_bytes(&[u8]) -> Result<…>` is correct, but `result.unwrap()`
-//! synthesizes `panic_fmt`, the `Err(false)` formatting machinery does
-//! the same, and the inner-loop `output_buffer[start..end]` slicing
-//! synthesizes `panic_bounds_check` that LLVM often cannot DCE even
-//! when the top-of-function precondition proves indices are in range.
-//! The contract spec is `PANIC_FREE_REQUESTS.md` at the repo root
-//! (mirrored from `modmath-rs/PANIC_FREE_REQUESTS.md`).
+//! These methods have no `Result`, no `.unwrap()`, no runtime length
+//! validation in their *signatures*. That is the contract. They are
+//! **not** "no `panic_fmt` survives DCE in the linked binary."
+//!
+//! A `cargo nm --release --target thumbv7em-none-eabi` audit
+//! (`ct-verify/panic-free-audit`) confirms the produced `.a` still
+//! contains:
+//!
+//! - `core::slice::copy_from_slice_impl::len_mismatch_fail`
+//! - `core::panicking::panic_fmt`
+//!
+//! Origin: the `to_*` bodies do
+//! `chunk.copy_from_slice(word.to_le_bytes().as_ref())`. Both sides of
+//! the copy have length `WORD_SIZE` by construction, but LLVM cannot
+//! statically equate them — they're opaque trait-associated lengths it
+//! treats as runtime values, so it cannot elide
+//! `slice::copy_from_slice`'s internal length-mismatch check, which
+//! ultimately calls `panic_fmt`.
+//!
+//! A `core::ptr::copy_nonoverlapping` with a SAFETY proof would
+//! eliminate this — but the crate's `use-unsafe` feature is scoped
+//! specifically to the ToBytes/FromBytes `BytesHolder` path where
+//! const-generics had no other option, not as a general license, so
+//! that fix is not adopted here. The crate-local trade-off is to keep
+//! safe Rust and document the residual `panic_fmt` honestly.
+//!
+//! Downstream consumers that need the linked binary to be fully panic-
+//! clean (e.g. `ed25519_heapless`'s AVR linkage gate) cannot rely on
+//! these methods alone to satisfy that — the upstream
+//! `slice::copy_from_slice` body limits us. They can:
+//! 1. Wrap calls in a way that the optimizer can fold (e.g. force
+//!    inlining and provide a const `WORD_SIZE` constant the optimizer
+//!    can see through), or
+//! 2. Maintain a downstream `unsafe { ptr::copy_nonoverlapping }`
+//!    shim of their own keyed to their specific instantiations, or
+//! 3. Wait for upstream `slice::copy_from_slice` to learn const-elision
+//!    of the length check (unlikely soon).
 //!
 //! ## Body cleanliness
 //!
 //! `to_*` uses `chunks_exact_mut(WORD_SIZE).take(N)` paired against
 //! `self.array.iter()` (rev for BE). Each chunk has length `WORD_SIZE`
-//! by `chunks_exact_mut`'s contract, and the primitive's `to_*_bytes`
-//! returns `[u8; size_of::<T>()]`, so `copy_from_slice` is length-equal
-//! by construction and cannot panic on mismatch.
+//! by `chunks_exact_mut`'s contract, the primitive's `to_*_bytes`
+//! returns `[u8; size_of::<T>()]`, and `WORD_SIZE = size_of::<T>()` —
+//! so the copy is length-equal by construction, but see the audit
+//! note above: LLVM can't see that through the trait, so the check
+//! survives DCE anyway.
 //!
 //! `from_*` reuses the existing `impl_from_{le,be}_bytes_slice` helpers
-//! which take a `&[u8]` and compute `min(bytes.len(), capacity)` for
-//! their loop bound — when we pass a buffer with `M >= BYTE_WIDTH` the
-//! loop bound is exactly `BYTE_WIDTH` and every indexed access is in
-//! range. Same DCE picture as the existing slice-based methods.
-//!
-//! The trailing `&out[..Self::BYTE_WIDTH]` slice (and the `&bytes[start..]`
-//! payload slice in `from_be_bytes_fixed`) carries a runtime bounds
-//! check. The const assertion at the top proves it valid, but LLVM does
-//! not always lift that assertion through. If a follow-up
-//! `cargo nm --release --target thumbv7em` traces a
-//! `panic_bounds_check` symbol back to one of these slices, swap it for
-//! `unsafe { out.get_unchecked(..Self::BYTE_WIDTH) }` — the const-assert
-//! makes the precondition statically valid, so this is a
-//! soundness-preserving optimization, not a UB-introducing one.
+//! which loop on `min(bytes.len(), capacity)` — when we pass a buffer
+//! with `M >= BYTE_WIDTH` the loop bound is exactly `BYTE_WIDTH` and
+//! every indexed access is in range.
 //!
 //! ## Truncation convention for `from_*` with `M > BYTE_WIDTH`
 //!
