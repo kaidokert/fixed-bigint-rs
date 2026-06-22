@@ -82,6 +82,20 @@ crate's conventions, and a few traits were added or split.
 
 Several traits the local crate didn't carry are now implemented:
 
+* `Odd<FixedUInt>` / `Even<FixedUInt>` compose automatically from the
+  upstream typestate (`const_num_traits::Odd::<FixedUInt<...>>::new(v)`,
+  `Odd::from_ref(&v)`, `get()`, `Even` ditto). No source change in
+  `fixed-bigint` was required — the upstream blanket
+  `impl<T: Parity + Copy> Odd<T>` (and the `for<'a> &'a T: Parity`
+  bound on `from_ref`) is satisfied by `FixedUInt`'s `Parity` impl
+  plus the `&FixedUInt: Parity` blanket the typestate sweep added
+  to `const-num-traits`. The composition is frozen against
+  regression by `tests/odd_even_typestate.rs` (8 tests covering
+  owned/borrowed construction, both personalities, narrow + wide
+  carriers, and a proof-consumer call-site pattern). Downstream
+  consumers (notably `modmath`'s `Field::from_odd_modulus` plan in
+  `PANIC_FREE_REQUESTS.md`) get the typestate-based infallible
+  constructor pattern with no fixed-bigint-side glue.
 * `PowerOfTwoOps` (with construction via two new inherent methods,
   `FixedUInt::as_power_of_two` and `FixedUInt::from_power_of_two`) —
   both personalities. Lifts the new `const-num-traits` typestate that
