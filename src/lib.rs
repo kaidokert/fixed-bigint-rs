@@ -71,5 +71,6 @@ pub mod const_numtraits;
 mod machineword;
 
 pub use crate::const_numtraits::{PrimBits, PrimInt};
+pub use crate::fixeduint::has_nonzero_impl::NonZeroFixedUInt;
 pub use crate::fixeduint::FixedUInt;
 pub use crate::machineword::MachineWord;

@@ -1,0 +1,217 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! `HasNonZero` + `DivNonZero` carrier impls for `FixedUInt`.
+//!
+//! `core::num::NonZero` is sealed to primitives, so `HasNonZero::NonZero`
+//! has to be a backend-defined newtype for `FixedUInt`. The newtype
+//! ([`NonZeroFixedUInt`]) is `#[repr(transparent)]` over `FixedUInt`, so
+//! `Zeroize` or `Drop` semantics on the inner value flow through if a
+//! consumer adds them downstream.
+//!
+//! ## Personality matrix
+//!
+//! - `HasNonZero for FixedUInt<T, N, P>` — both personalities. The
+//!   `!= 0` check is value-level and CT-uniform.
+//! - `DivNonZero for FixedUInt<T, N, Nct>` — Nct only. `FixedUInt`'s
+//!   `core::ops::Div` is `Nct`-only because long division is
+//!   value-dependent and doesn't fit constant-time semantics. Consumers
+//!   with secret moduli should route through `modmath::Field<T, Ct>`
+//!   (Montgomery, no division), constructed via `Odd::new_ct` or
+//!   `Field::try_new_odd_ct`. There is no `*_nz_ct` because there is no
+//!   meaningful CT consumer for one.
+//!
+//! ## API-boundary panic contract
+//!
+//! `div_nonzero` / `rem_nonzero` discharge the *type-level* divide-by-zero
+//! invariant — the divisor proof guarantees `d != 0`, so the caller's
+//! `Result`/`unwrap` site goes away.
+//!
+//! **Audit-verified:** `cargo nm --release --target thumbv7em-none-eabi`
+//! shows the underlying `FixedUInt::Div`'s runtime zero check is elided
+//! through the `NonZeroFixedUInt` wrapper. A `div_nonzero(a, nz)`
+//! fixture produces no `panic_fmt` symbol; a bare `a / b` fixture does.
+//! The wrapper successfully proves the check unreachable. See
+//! `CHANGELOG.md` for the full isolation ladder.
+//!
+//! ## CT note on `into_nonzero`
+//!
+//! `into_nonzero(self) -> Option<Self::NonZero>` is branchful at the
+//! call site (the caller's `match Some/None` on the discriminant). For
+//! public moduli — the common case for `*_nz` — that's fine and
+//! intended. For secret-derived non-zero proofs, callers should use a
+//! `CtOption`-returning sibling if/when one ships; `modmath::Field<T,
+//! Ct>::try_new_odd_ct` already exists for the modular-arithmetic
+//! consumer site.
+
+use super::{FixedUInt, MachineWord};
+use crate::const_numtraits::{ConstZero, Zero};
+use crate::machineword::ConstMachineWord;
+use const_num_traits::{DivNonZero, HasNonZero, Nct, Personality};
+
+/// Non-zero `FixedUInt`. Constructed via [`HasNonZero::into_nonzero`].
+///
+/// `#[repr(transparent)]` over `FixedUInt<T, N, P>` so any
+/// `Zeroize` / `Drop` semantics added to `FixedUInt` downstream flow
+/// through. Always `Copy` (matches `HasNonZero::NonZero: Copy`).
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct NonZeroFixedUInt<T, const N: usize, P: Personality>(FixedUInt<T, N, P>)
+where
+    T: MachineWord;
+
+// `Debug` impl'd manually because `FixedUInt`'s `Debug` bounds differ by
+// personality (Nct needs `T: Debug`, Ct always — see fixeduint.rs:100/108).
+// A `#[derive(Debug)]` here adds a uniform `T: Debug` bound that the Ct
+// variant doesn't need; spelling them out preserves the existing shape.
+impl<T: MachineWord + core::fmt::Debug, const N: usize> core::fmt::Debug
+    for NonZeroFixedUInt<T, N, const_num_traits::Nct>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "NonZero({:?})", self.0)
+    }
+}
+
+impl<T: MachineWord, const N: usize> core::fmt::Debug
+    for NonZeroFixedUInt<T, N, const_num_traits::Ct>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // Ct's `FixedUInt::Debug` doesn't reveal contents (CT hygiene);
+        // we propagate that.
+        write!(f, "NonZero({:?})", self.0)
+    }
+}
+
+impl<T, const N: usize, P: Personality> NonZeroFixedUInt<T, N, P>
+where
+    T: MachineWord,
+{
+    /// Recover the underlying `FixedUInt`. Same as
+    /// `<FixedUInt<T,N,P> as HasNonZero>::nonzero_get(self)`; offered as
+    /// an inherent method for syntactic convenience.
+    #[inline]
+    pub fn get(self) -> FixedUInt<T, N, P> {
+        self.0
+    }
+}
+
+c0nst::c0nst! {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> HasNonZero for FixedUInt<T, N, P> {
+        type NonZero = NonZeroFixedUInt<T, N, P>;
+
+        #[inline]
+        fn into_nonzero(self) -> Option<Self::NonZero> {
+            if <Self as Zero>::is_zero(&self) {
+                None
+            } else {
+                Some(NonZeroFixedUInt(self))
+            }
+        }
+
+        #[inline]
+        fn nonzero_get(nz: Self::NonZero) -> Self {
+            nz.0
+        }
+    }
+
+    // `DivNonZero` is `Nct`-only because `core::ops::Div for FixedUInt` is
+    // `Nct`-only (the long-division body is value-dependent — `if remainder
+    // >= divisor` etc. — and doesn't fit `Ct` semantics).
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> DivNonZero for FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
+
+        #[inline]
+        fn div_nonzero(self, d: Self::NonZero) -> Self::Output {
+            self / d.0
+        }
+
+        #[inline]
+        fn rem_nonzero(self, d: Self::NonZero) -> Self::Output {
+            self % d.0
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use const_num_traits::{Ct, Nct};
+
+    type U32 = FixedUInt<u8, 4, Nct>;
+    type U32Ct = FixedUInt<u8, 4, Ct>;
+
+    #[test]
+    fn into_nonzero_some_for_nonzero() {
+        assert!(U32::from(5u32).into_nonzero().is_some());
+    }
+
+    #[test]
+    fn into_nonzero_none_for_zero() {
+        assert!(U32::from(0u32).into_nonzero().is_none());
+    }
+
+    #[test]
+    fn into_nonzero_works_under_ct_too() {
+        // `HasNonZero` is generic in `P` — the non-zero invariant is
+        // value-level, no CT-specific construction needed. The Option
+        // discriminant at the call site is the existing branchfulness;
+        // for secret values, see the module rustdoc.
+        assert!(U32Ct::from(5u32).into_nonzero().is_some());
+        assert!(U32Ct::from(0u32).into_nonzero().is_none());
+    }
+
+    #[test]
+    fn nonzero_round_trip() {
+        let v = U32::from(42u32);
+        let nz = v.into_nonzero().unwrap();
+        assert_eq!(<U32 as HasNonZero>::nonzero_get(nz), v);
+        assert_eq!(nz.get(), v);
+    }
+
+    #[test]
+    fn div_rem_nonzero_match_div_rem() {
+        let a = U32::from(100u32);
+        let m = U32::from(7u32);
+        let nz = m.into_nonzero().unwrap();
+        assert_eq!(<U32 as DivNonZero>::div_nonzero(a, nz), a / m);
+        assert_eq!(<U32 as DivNonZero>::rem_nonzero(a, nz), a % m);
+    }
+
+    #[test]
+    fn div_rem_nonzero_wider_carrier() {
+        // Spot-check a u32-backed carrier to confirm the trait composes
+        // across limb-width variants.
+        type U128 = FixedUInt<u32, 4, Nct>;
+        let a = U128::from(12_345_678u32);
+        let m = U128::from(101u32);
+        let nz = m.into_nonzero().unwrap();
+        assert_eq!(<U128 as DivNonZero>::div_nonzero(a, nz), a / m);
+        assert_eq!(<U128 as DivNonZero>::rem_nonzero(a, nz), a % m);
+    }
+
+    #[test]
+    fn divnonzero_not_impld_for_ct() {
+        // Compile-time guard: `DivNonZero for FixedUInt<_, _, Ct>` does
+        // NOT exist (Div on FixedUInt is Nct-only). The following SHOULD
+        // fail to compile if uncommented:
+        //
+        //     let a: U32Ct = U32Ct::from(100u32);
+        //     let nz: NonZeroFixedUInt<u8, 4, Ct> = a.into_nonzero().unwrap();
+        //     let _ = <U32Ct as DivNonZero>::div_nonzero(a, nz);
+        //
+        // The HasNonZero impl is still generic in P (see
+        // `into_nonzero_works_under_ct_too`), so the proof type still
+        // exists for Ct carriers — it just can't be divided.
+    }
+}

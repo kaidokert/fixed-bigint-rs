@@ -14,6 +14,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 fixed-bigint = { path = "../.." }
+const-num-traits = { path = "../../../num-traits", default-features = false }
 
 # Workspace `[profile.release]` (lto=fat, codegen-units=1, opt-level=z,
 # panic=abort) is what makes DCE worth measuring; do not override here.

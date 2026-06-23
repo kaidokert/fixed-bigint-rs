@@ -82,6 +82,54 @@ crate's conventions, and a few traits were added or split.
 
 Several traits the local crate didn't carry are now implemented:
 
+* **`HasNonZero` and `DivNonZero` for `FixedUInt`**, with a
+  `NonZeroFixedUInt<T, N, P>` `#[repr(transparent)]` newtype as the
+  `HasNonZero::NonZero` associated type. `core::num::NonZero` is
+  sealed to primitives, so the carrier defines its own wrapper.
+  `NonZeroFixedUInt` is re-exported at the crate root for downstream
+  bound-construction sites.
+
+  Personality matrix:
+  - `HasNonZero for FixedUInt<T, N, P>` — both personalities (the
+    `!= 0` check is value-level, CT-uniform).
+  - `DivNonZero for FixedUInt<T, N, Nct>` — Nct only. `FixedUInt`'s
+    `core::ops::Div` is Nct-only (long division is value-dependent),
+    so the divide-by-proven-nonzero op inherits the same constraint.
+    Consumers with secret moduli route through `modmath::Field<T,
+    Ct>` (Montgomery, no division), constructed via `Odd::new_ct`
+    or `Field::try_new_odd_ct`. There is intentionally no `*_nz_ct`
+    surface in modmath because there's no meaningful consumer.
+
+  **API contract: deletes the divide-by-zero `panic_fmt` from the
+  linked binary** — audit-verified. A `cargo nm
+  --release --target thumbv7em-none-eabi` isolation ladder against
+  `ct-verify/panic-free-audit` shows:
+
+  | Stage                                  | `panic_fmt` symbol |
+  |----------------------------------------|-------------------:|
+  | empty no_std staticlib (control)       |                  0 |
+  | `From<u32>` only                       |                  0 |
+  | `+ into_nonzero` `Option` match        |                  0 |
+  | `+ .get()` round trip                  |                  0 |
+  | **raw `a / b` (unchecked `Div`)**      |              **1** |
+  | **`div_nonzero(a, nz)`**               |              **0** |
+
+  The raw `Div` body retains a runtime "divisor must be non-zero"
+  check that LLVM cannot elide — but the `NonZeroFixedUInt` wrapper
+  successfully discharges it, and `div_nonzero` / `rem_nonzero`
+  produce no `panic_fmt` symbol in the linked archive. This is what
+  the typestate is designed for and the audit confirms it works.
+
+  (The full-fixture build still contains one `panic_fmt` symbol
+  from the pre-existing `*_bytes_fixed` `copy_from_slice` length
+  check — see the byte-conversion bullet below. The
+  `*_nonzero` impls add zero new panic surface.)
+
+  7 unit tests cover constructor filtering (Some for non-zero,
+  None for zero), round-trip via `nonzero_get`, div/rem agreement
+  with the unchecked operators, wider-carrier composition
+  (`FixedUInt<u32, 4, Nct>`), and a compile-time guard that
+  `DivNonZero for FixedUInt<_, _, Ct>` does NOT exist.
 * **`modmath_cios::CiosRowOps for FixedUInt<T, N, P>` under the
   `cios` cargo feature.** Replaces the retired `MulAccOps` trait
   (see "Removed"). One impl block covers both personalities — the

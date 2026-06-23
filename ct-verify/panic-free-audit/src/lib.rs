@@ -71,6 +71,64 @@ pub extern "C" fn panic_audit__from_be_bytes_fixed(
     unsafe { *out = arr };
 }
 
+// ── HasNonZero/DivNonZero panic-deletion audit ───────────────────────
+//
+// Tests whether `div_nonzero` / `rem_nonzero` survive DCE without
+// dragging in `panic_fmt` from `FixedUInt`'s `Div`/`Rem` zero check.
+// The trait contract guarantees `d != 0`, but the underlying
+// `FixedUInt::Div` impl still has a runtime zero check internally —
+// the open question is whether LLVM proves it unreachable through the
+// `NonZeroFixedUInt` wrapper. Same DCE question as `*_bytes_fixed`.
+
+use const_num_traits::{DivNonZero, HasNonZero, Nct};
+use fixed_bigint::NonZeroFixedUInt;
+
+type U256Nct = FixedUInt<u32, 8, Nct>;
+
+#[no_mangle]
+pub extern "C" fn panic_audit__div_nonzero(
+    seed_a: u32,
+    seed_m: u32,
+    out: *mut [u32; 8],
+) {
+    let a = U256Nct::from(black_box(seed_a));
+    let m = U256Nct::from(black_box(seed_m));
+    // `into_nonzero().unwrap()` retains a panic site on its own, but
+    // that's the *construction* path. We want to audit whether the
+    // `div_nonzero` *consumption* path retains a zero-check panic.
+    // Hoist construction outside the audit point via a hint that the
+    // unwrap is unreachable for non-zero `seed_m` — opt for the
+    // closer-to-real-consumer shape: caller has already constructed
+    // the proof and passes it in.
+    let nz: NonZeroFixedUInt<u32, 8, Nct> = match m.into_nonzero() {
+        Some(nz) => nz,
+        // Sentinel: in real consumer code, `into_nonzero` is at the
+        // trust boundary (m known non-zero from a prior check). The
+        // audit's point is the `div_nonzero` body, not the unwrap.
+        None => return,
+    };
+    let q = <U256Nct as DivNonZero>::div_nonzero(a, nz);
+    let arr = black_box(*q.words());
+    unsafe { *out = arr };
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__rem_nonzero(
+    seed_a: u32,
+    seed_m: u32,
+    out: *mut [u32; 8],
+) {
+    let a = U256Nct::from(black_box(seed_a));
+    let m = U256Nct::from(black_box(seed_m));
+    let nz: NonZeroFixedUInt<u32, 8, Nct> = match m.into_nonzero() {
+        Some(nz) => nz,
+        None => return,
+    };
+    let r = <U256Nct as DivNonZero>::rem_nonzero(a, nz);
+    let arr = black_box(*r.words());
+    unsafe { *out = arr };
+}
+
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {}

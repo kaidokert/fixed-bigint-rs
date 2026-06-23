@@ -43,6 +43,7 @@ mod mul_div_impl;
 mod multiple_impl;
 #[cfg(feature = "num-traits")]
 mod num_integer_impl;
+pub mod has_nonzero_impl;
 mod parity_impl;
 mod strict_impl;
 #[cfg(feature = "num-traits")]
