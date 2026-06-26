@@ -56,7 +56,8 @@ default-features = false
 # replace the local `src/const_numtraits.rs` module on this branch and
 # see what (if anything) breaks in the API/contract.
 [dependencies.const-num-traits]
-path = "../num-traits"
+git = "https://github.com/kaidokert/num-traits"
+tag = "v0.1.0-alpha.0"
 default-features = false
 
 [dependencies.c0nst]
