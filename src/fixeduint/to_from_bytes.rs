@@ -7,8 +7,13 @@ use core::hash::Hash;
 use super::FixedUInt;
 use const_num_traits::Personality;
 
-// Helper, holds an owned copy of returned bytes
-#[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Debug)]
+// Helper, holds an owned copy of returned bytes.
+//
+// Not `Copy`: when the `zeroize` feature is enabled this type carries
+// a `Drop` impl that wipes its contents, so copy semantics are not
+// available.  Consumers that previously relied on implicit `BytesHolder:
+// Copy` need an explicit `.clone()`.
+#[derive(Eq, PartialEq, Clone, PartialOrd, Ord, Debug)]
 pub struct BytesHolder<T: MachineWord, const N: usize> {
     array: [T; N],
 }
@@ -76,6 +81,27 @@ impl<T: MachineWord, const N: usize> AsMut<[u8]> for BytesHolder<T, N> {
 impl<T: MachineWord, const N: usize> Hash for BytesHolder<T, N> {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.as_byte_slice().hash(state)
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<T: MachineWord, const N: usize> zeroize::Zeroize for BytesHolder<T, N> {
+    fn zeroize(&mut self) {
+        // Wipe via the byte view so the guarantee covers the actual
+        // memory representation, not just per-word `T::zeroize` (which
+        // could be sub-word-granular for composite limb types).
+        self.as_byte_slice_mut().zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<T: MachineWord, const N: usize> zeroize::ZeroizeOnDrop for BytesHolder<T, N> {}
+
+#[cfg(feature = "zeroize")]
+impl<T: MachineWord, const N: usize> Drop for BytesHolder<T, N> {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.zeroize();
     }
 }
 
@@ -216,6 +242,18 @@ mod tests {
         bytes.as_mut().reverse();
         let result = T::from_le_bytes(&bytes);
         assert_eq!(result, expected);
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn test_zeroize_wipes_byte_view() {
+        use zeroize::Zeroize;
+
+        let value = FixedUInt::<u32, 4>::from_u32(0xDEAD_BEEF).unwrap();
+        let mut bytes = <FixedUInt<u32, 4> as num_traits::ToBytes>::to_be_bytes(&value);
+        assert!(bytes.as_ref().iter().any(|b| *b != 0));
+        bytes.zeroize();
+        assert!(bytes.as_ref().iter().all(|b| *b == 0));
     }
 
     #[test]
