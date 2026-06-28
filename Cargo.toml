@@ -59,6 +59,7 @@ default-features = false
 git = "https://github.com/kaidokert/num-traits"
 tag = "v0.1.0-alpha.0"
 default-features = false
+features = ["ct"]
 
 [dependencies.c0nst]
 version = "0.2"

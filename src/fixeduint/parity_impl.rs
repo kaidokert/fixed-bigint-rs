@@ -12,15 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! `Parity` implementation for FixedUInt.
+//! `Parity` and `CtParity` implementations for FixedUInt.
 //!
 //! Parity is a pure low-bit query: `is_odd` ↔ LSB of word 0 is 1.
 //! Branchless on both personalities; safe to implement uniformly.
+//!
+//! `CtParity` (`ct_is_odd` / `ct_is_even`) is the masked counterpart;
+//! it routes the LSB-vs-zero comparison through `subtle::ConstantTimeEq`
+//! rather than `!=`, so the returned `Choice` stays masked under both
+//! `Nct` and `Ct` callers — `Odd::<FixedUInt<...>>::new_ct(v)` (the
+//! downstream consumer in `const-num-traits/src/ops/typestate.rs`) gets
+//! its `CtOption`-shaped construction path for free.
 
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::Parity;
 use crate::machineword::ConstMachineWord;
+use const_num_traits::ops::ct::CtParity;
 use const_num_traits::Personality;
+use subtle::{Choice, ConstantTimeEq};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Parity for FixedUInt<T, N, P> {
@@ -42,6 +51,34 @@ c0nst::c0nst! {
     // The reference-receiver impl is provided by const_num_traits's blanket
     // `impl<T: Parity + Copy> Parity for &T` (the D1 fix from the typestate
     // synthesis). Manually impl'ing it here now conflicts (E0119).
+}
+
+// `CtParity` is **not** a `c0nst trait` upstream — `subtle::Choice`
+// constructors aren't `const fn` yet (the upstream module doc spells this
+// out: "plain (never-const) traits: subtle's constructors are not const
+// fn"). So the impl is a plain `impl`, not wrapped in `c0nst::c0nst!`.
+impl<T, const N: usize, P: Personality> CtParity for FixedUInt<T, N, P>
+where
+    T: MachineWord + ConstantTimeEq,
+{
+    /// LSB of word 0, masked through `subtle::ConstantTimeEq` against
+    /// `ZERO`. Same body for both personalities — under `Nct`, the
+    /// branchless form is still correct, just unnecessary for CT
+    /// hygiene; under `Ct`, this is the path that keeps the result
+    /// masked all the way to `Odd::new_ct`.
+    fn ct_is_odd(&self) -> Choice {
+        if N == 0 {
+            // Degenerate (zero-word) configuration; treat as even.
+            return Choice::from(0);
+        }
+        let lsb = self.array[0] & <T as crate::const_numtraits::ConstOne>::ONE;
+        // `Choice::TRUE` when `lsb != 0`.
+        !lsb.ct_eq(&<T as crate::const_numtraits::ConstZero>::ZERO)
+    }
+
+    fn ct_is_even(&self) -> Choice {
+        !<Self as CtParity>::ct_is_odd(self)
+    }
 }
 
 #[cfg(test)]
@@ -110,5 +147,77 @@ mod tests {
             assert!(IS_EVEN);
             assert!(!IS_ODD_OF_EVEN);
         }
+    }
+
+    // ── CtParity (masked-return parity) ─────────────────────────────────
+
+    #[test]
+    fn ct_parity_nct() {
+        // Returns `Choice` regardless of personality; convert at the
+        // assertion site to compare.
+        assert!(bool::from(CtParity::ct_is_odd(&U16Nct::from(1u8))));
+        assert!(bool::from(CtParity::ct_is_odd(&U16Nct::from(3u8))));
+        assert!(bool::from(CtParity::ct_is_odd(&U16Nct::from(0xFFFFu16))));
+        assert!(!bool::from(CtParity::ct_is_odd(&U16Nct::from(0u8))));
+        assert!(!bool::from(CtParity::ct_is_odd(&U16Nct::from(2u8))));
+
+        assert!(bool::from(CtParity::ct_is_even(&U16Nct::from(0u8))));
+        assert!(!bool::from(CtParity::ct_is_even(&U16Nct::from(1u8))));
+    }
+
+    #[test]
+    fn ct_parity_ct() {
+        let one_ct: U16Ct = FixedUInt::<u8, 2, Nct>::from(1u8).into();
+        let two_ct: U16Ct = FixedUInt::<u8, 2, Nct>::from(2u8).into();
+        assert!(bool::from(CtParity::ct_is_odd(&one_ct)));
+        assert!(bool::from(CtParity::ct_is_even(&two_ct)));
+    }
+
+    #[test]
+    fn ct_parity_agrees_with_parity() {
+        // The masked-return and plain forms must agree on truth value
+        // for every input. Sweep a handful of representative values
+        // (full 16-bit sweep is overkill but cheap).
+        for v in [0u16, 1, 2, 3, 7, 8, 0xFE, 0xFF, 0x100, 0x101, 0xFFFE, 0xFFFF] {
+            let nct = U16Nct::from(v);
+            let ct: U16Ct = U16Nct::from(v).into();
+            assert_eq!(
+                bool::from(CtParity::ct_is_odd(&nct)),
+                Parity::is_odd(nct),
+                "Nct ct_is_odd disagrees with is_odd at v={v}"
+            );
+            assert_eq!(
+                bool::from(CtParity::ct_is_odd(&ct)),
+                Parity::is_odd(ct),
+                "Ct ct_is_odd disagrees with is_odd at v={v}"
+            );
+        }
+    }
+
+    /// Phase-0 deliverable: `Odd::<FixedUInt<_, _, Ct>>::new_ct(n)` round-trips.
+    /// This is the contract the request quoted from the modmath agent's
+    /// plan ("verify `Field::<FixedUInt, Ct>::try_new_odd_ct(n)`
+    /// round-trips"); on this side we exercise the upstream construction
+    /// path that `Field::try_new_odd_ct` will call into.
+    #[test]
+    fn odd_new_ct_round_trips_for_ct_carrier() {
+        use const_num_traits::Odd;
+
+        let odd_ct: U16Ct = FixedUInt::<u8, 2, Nct>::from(7u8).into();
+        let even_ct: U16Ct = FixedUInt::<u8, 2, Nct>::from(8u8).into();
+
+        let p_odd = Odd::<U16Ct>::new_ct(odd_ct);
+        let p_even = Odd::<U16Ct>::new_ct(even_ct);
+
+        assert!(bool::from(p_odd.is_some()), "Odd::new_ct(7) should mask Some");
+        assert!(
+            !bool::from(p_even.is_some()),
+            "Odd::new_ct(8) should mask None"
+        );
+
+        // Round-trip: unwrap the masked Some, then check the inner value
+        // matches the input.
+        let recovered = p_odd.unwrap();
+        assert_eq!(recovered.get(), odd_ct);
     }
 }
