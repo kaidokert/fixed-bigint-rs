@@ -104,6 +104,30 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::Bounded for Fix
     }
 }
 
+// ── CtIsZero (masked-return is_zero) ─────────────────────────────────
+//
+// AND-fold `ct_eq(&ZERO)` across all limbs. Uniform across both
+// personalities — the masking is purely about the return shape, the
+// `Zero::is_zero` body's `match P::TAG` already covers the
+// short-circuit-vs-OR-fold choice for the `bool`-returning version,
+// but for the `Choice` return we always do the full AND-fold to avoid
+// branching on the limb-by-limb result.
+impl<T, const N: usize, P: Personality> const_num_traits::ops::ct::CtIsZero
+    for FixedUInt<T, N, P>
+where
+    T: MachineWord + subtle::ConstantTimeEq,
+{
+    fn ct_is_zero(&self) -> subtle::Choice {
+        let mut choice = subtle::Choice::from(1u8);
+        let mut i = 0;
+        while i < N {
+            choice &= self.array[i].ct_eq(&<T as ConstZero>::ZERO);
+            i += 1;
+        }
+        choice
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,5 +228,24 @@ mod tests {
             assert_eq!(SET_ZERO_RES.array, [0, 0]);
             assert_eq!(SET_ONE_RES.array, [1, 0]);
         }
+    }
+
+    #[test]
+    fn ct_is_zero_matches_is_zero() {
+        use const_num_traits::ops::ct::CtIsZero;
+        use const_num_traits::Ct;
+        type U16Nct = FixedUInt<u8, 2>;
+        type U16Ct = FixedUInt<u8, 2, Ct>;
+        // Nct
+        assert!(bool::from(CtIsZero::ct_is_zero(&U16Nct::from(0u8))));
+        assert!(!bool::from(CtIsZero::ct_is_zero(&U16Nct::from(1u8))));
+        assert!(!bool::from(CtIsZero::ct_is_zero(&U16Nct::from(0xFFFFu16))));
+        // Non-zero in the high limb only (catches a per-limb-AND bug)
+        assert!(!bool::from(CtIsZero::ct_is_zero(&FixedUInt::<u8, 2>::from_array([0, 1]))));
+        // Ct
+        let z_ct: U16Ct = U16Nct::from(0u8).into();
+        let nz_ct: U16Ct = U16Nct::from(42u8).into();
+        assert!(bool::from(CtIsZero::ct_is_zero(&z_ct)));
+        assert!(!bool::from(CtIsZero::ct_is_zero(&nz_ct)));
     }
 }

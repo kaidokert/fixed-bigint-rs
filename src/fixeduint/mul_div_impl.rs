@@ -340,6 +340,23 @@ c0nst::c0nst! {
     }
 }
 
+// ── CtCheckedMul (masked-return checked mul) ─────────────────────────
+//
+// Same shape as CtCheckedAdd/Sub: delegate to `OverflowingMul`, wrap
+// the (Self, bool) overflow flag into CtOption via Choice. Uniform
+// across both personalities — the underlying `const_mul`'s `true`
+// generic arm computes the overflow flag branchlessly.
+impl<T, const N: usize, P: Personality> const_num_traits::ops::ct::CtCheckedMul
+    for FixedUInt<T, N, P>
+where
+    T: MachineWord,
+{
+    fn ct_checked_mul(&self, v: &Self) -> subtle::CtOption<Self> {
+        let (val, overflow) = <Self as OverflowingMul>::overflowing_mul(*self, *v);
+        subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -494,5 +511,17 @@ mod tests {
             assert_eq!(CHECKED_REM_OK, Some(FixedUInt::from_array([1, 0])));
             assert_eq!(CHECKED_REM_ZERO, None);
         }
+    }
+
+    #[test]
+    fn ct_checked_mul_masks_overflow() {
+        use const_num_traits::ops::ct::CtCheckedMul;
+        type U16 = FixedUInt<u8, 2>;
+        let ok = U16::from(100u8).ct_checked_mul(&U16::from(50u8));
+        assert!(bool::from(ok.is_some()));
+        assert_eq!(ok.unwrap(), U16::from(5000u16));
+        // Overflow: 1000 * 1000 = 1_000_000 > U16::MAX
+        let bad = U16::from(1000u16).ct_checked_mul(&U16::from(1000u16));
+        assert!(!bool::from(bad.is_some()));
     }
 }

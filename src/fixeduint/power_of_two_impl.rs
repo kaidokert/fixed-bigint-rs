@@ -124,6 +124,26 @@ c0nst::c0nst! {
     }
 }
 
+// ── CtIsPowerOfTwo (masked-return is_power_of_two) ───────────────────
+//
+// `nonzero & is_zero(self & (self - 1))` — same predicate as the bool
+// form, just composed of Choice values via `subtle::ConstantTimeEq`
+// (transitively through `CtIsZero`). Uniform across both personalities.
+impl<T, const N: usize, P: Personality> const_num_traits::ops::ct::CtIsPowerOfTwo
+    for FixedUInt<T, N, P>
+where
+    T: MachineWord + subtle::ConstantTimeEq,
+{
+    fn ct_is_power_of_two(&self) -> subtle::Choice {
+        use const_num_traits::ops::ct::CtIsZero;
+        let nonzero = !self.ct_is_zero();
+        let one = <Self as ConstOne>::ONE;
+        let masked = *self & <Self as WrappingSub>::wrapping_sub(*self, one);
+        let pow2 = masked.ct_is_zero();
+        nonzero & pow2
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,6 +278,28 @@ mod tests {
             assert!(IS_POW2_TRUE);
             assert!(!IS_POW2_FALSE);
             assert_eq!(NEXT_POW2, FixedUInt::from_array([8, 0]));
+        }
+    }
+
+    #[test]
+    fn ct_is_power_of_two_matches_is_power_of_two() {
+        use const_num_traits::ops::ct::CtIsPowerOfTwo;
+        type U16 = FixedUInt<u8, 2>;
+        // Zero is NOT a power of two
+        assert!(!bool::from(CtIsPowerOfTwo::ct_is_power_of_two(&U16::from(0u8))));
+        // Powers of two
+        for v in [1u16, 2, 4, 8, 16, 128, 256, 32768] {
+            assert!(
+                bool::from(CtIsPowerOfTwo::ct_is_power_of_two(&U16::from(v))),
+                "ct_is_power_of_two({v}) should mask Some"
+            );
+        }
+        // Non-powers of two
+        for v in [3u16, 5, 6, 7, 9, 100, 255] {
+            assert!(
+                !bool::from(CtIsPowerOfTwo::ct_is_power_of_two(&U16::from(v))),
+                "ct_is_power_of_two({v}) should mask None"
+            );
         }
     }
 }

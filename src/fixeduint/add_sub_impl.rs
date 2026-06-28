@@ -315,6 +315,36 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::Saturating for 
     }
 }
 
+// ── CtCheckedAdd / CtCheckedSub (masked-return checked arithmetic) ───
+//
+// Delegate to the existing `OverflowingAdd`/`OverflowingSub` impls (which
+// already cover both personalities branchlessly via `add_impl`/`sub_impl`),
+// then wrap the `(Self, bool)` into a `CtOption<Self>` by converting the
+// overflow flag to a `Choice`. Same shape upstream uses for the primitives.
+impl<T, const N: usize, P: Personality> const_num_traits::ops::ct::CtCheckedAdd
+    for FixedUInt<T, N, P>
+where
+    T: MachineWord,
+{
+    fn ct_checked_add(&self, v: &Self) -> subtle::CtOption<Self> {
+        let (val, overflow) =
+            <Self as crate::const_numtraits::OverflowingAdd>::overflowing_add(*self, *v);
+        subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
+    }
+}
+
+impl<T, const N: usize, P: Personality> const_num_traits::ops::ct::CtCheckedSub
+    for FixedUInt<T, N, P>
+where
+    T: MachineWord,
+{
+    fn ct_checked_sub(&self, v: &Self) -> subtle::CtOption<Self> {
+        let (val, overflow) =
+            <Self as crate::const_numtraits::OverflowingSub>::overflowing_sub(*self, *v);
+        subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -592,5 +622,33 @@ mod tests {
             const CHECK_ADD_OVERFLOW: Option<FixedUInt<u8, 2>> = const_checked_add(&MAX, &ONE);
             assert!(CHECK_ADD_OVERFLOW.is_none());
         }
+    }
+
+    #[test]
+    fn ct_checked_add_masks_overflow() {
+        use const_num_traits::ops::ct::CtCheckedAdd;
+        type U16 = FixedUInt<u8, 2>;
+        let a = U16::from(100u8);
+        let b = U16::from(50u8);
+        let ok = a.ct_checked_add(&b);
+        assert!(bool::from(ok.is_some()));
+        assert_eq!(ok.unwrap(), U16::from(150u8));
+        // Overflow case: MAX + 1
+        let max = <U16 as crate::const_numtraits::Bounded>::max_value();
+        let one = U16::from(1u8);
+        let bad = max.ct_checked_add(&one);
+        assert!(!bool::from(bad.is_some()));
+    }
+
+    #[test]
+    fn ct_checked_sub_masks_underflow() {
+        use const_num_traits::ops::ct::CtCheckedSub;
+        type U16 = FixedUInt<u8, 2>;
+        let ok = U16::from(100u8).ct_checked_sub(&U16::from(50u8));
+        assert!(bool::from(ok.is_some()));
+        assert_eq!(ok.unwrap(), U16::from(50u8));
+        // Underflow: 0 - 1
+        let bad = U16::from(0u8).ct_checked_sub(&U16::from(1u8));
+        assert!(!bool::from(bad.is_some()));
     }
 }

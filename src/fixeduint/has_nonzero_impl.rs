@@ -104,6 +104,22 @@ where
     pub fn get(self) -> FixedUInt<T, N, P> {
         self.0
     }
+
+    /// # Safety
+    /// `value` must be non-zero.
+    ///
+    /// Crate-internal only — exists to satisfy the upstream
+    /// `CtNonZero::into_nonzero_ct` impl pattern, where the unmasked
+    /// value is wrapped before the `Choice` mask is applied (so a
+    /// reader of a `CtOption::None`-masked result can't observe the
+    /// inner state without the explicit `unwrap`). The same shape as
+    /// `core::num::NonZero::new_unchecked`. Not exposed publicly
+    /// because all other paths (notably the safe
+    /// `HasNonZero::into_nonzero`) are reachable without it.
+    #[inline]
+    pub(crate) const unsafe fn new_unchecked(value: FixedUInt<T, N, P>) -> Self {
+        Self(value)
+    }
 }
 
 c0nst::c0nst! {
@@ -140,6 +156,30 @@ c0nst::c0nst! {
         fn rem_nonzero(self, d: Self::NonZero) -> Self::Output {
             self % d.0
         }
+    }
+}
+
+// ── CtNonZero (masked-return into_nonzero, secret-modulus path) ──────
+//
+// Lives in `const_num_traits::ops::typestate::CtNonZero` (not `ops::ct`,
+// because it's supertrait `HasNonZero` which lives in typestate.rs).
+// Same body shape as the upstream primitive `ct_nonzero!` macro: wrap
+// the unmasked value via `new_unchecked` and gate it behind
+// `!self.ct_is_zero()`. Both personalities — masking is value-level
+// and CT-uniform.
+impl<T, const N: usize, P: Personality> const_num_traits::CtNonZero for FixedUInt<T, N, P>
+where
+    T: MachineWord + subtle::ConstantTimeEq,
+{
+    fn into_nonzero_ct(self) -> subtle::CtOption<Self::NonZero> {
+        use const_num_traits::ops::ct::CtIsZero;
+        let zero = self.ct_is_zero();
+        // SAFETY: the `CtOption` mask is `!zero`, so the wrapper is only
+        // observable to consumers when the underlying value is genuinely
+        // non-zero. Same pattern as `core::num::NonZero::new_unchecked`
+        // inside `subtle::CtOption::new(NonZero::new_unchecked(self), !zero)`.
+        let nz = unsafe { NonZeroFixedUInt::new_unchecked(self) };
+        subtle::CtOption::new(nz, !zero)
     }
 }
 
@@ -213,5 +253,30 @@ mod tests {
         // The HasNonZero impl is still generic in P (see
         // `into_nonzero_works_under_ct_too`), so the proof type still
         // exists for Ct carriers — it just can't be divided.
+    }
+
+    #[test]
+    fn into_nonzero_ct_masks_zero() {
+        use const_num_traits::CtNonZero;
+        type U32Nct = FixedUInt<u8, 4, Nct>;
+        type U32Ct = FixedUInt<u8, 4, Ct>;
+
+        // Nct carrier
+        let nz = U32Nct::from(5u32).into_nonzero_ct();
+        assert!(bool::from(nz.is_some()));
+        assert_eq!(nz.unwrap().get(), U32Nct::from(5u32));
+
+        let z = U32Nct::from(0u32).into_nonzero_ct();
+        assert!(!bool::from(z.is_some()));
+
+        // Ct carrier
+        let nz_ct: U32Ct = U32Nct::from(42u32).into();
+        let opt = nz_ct.into_nonzero_ct();
+        assert!(bool::from(opt.is_some()));
+        assert_eq!(opt.unwrap().get(), nz_ct);
+
+        let z_ct: U32Ct = U32Nct::from(0u32).into();
+        let opt = z_ct.into_nonzero_ct();
+        assert!(!bool::from(opt.is_some()));
     }
 }
