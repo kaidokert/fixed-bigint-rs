@@ -3,7 +3,8 @@
 //! Includes the inherent `ct_checked_*` methods, the four `subtle::*`
 //! trait impls, and `forget_ct` (the Ct → Nct explicit downgrade).
 
-use fixed_bigint::{Ct, FixedUInt, Nct};
+use const_num_traits::{Ct, Nct};
+use fixed_bigint::FixedUInt;
 use subtle::{ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess};
 
 use crate::{

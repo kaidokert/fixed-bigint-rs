@@ -122,6 +122,41 @@ where
     }
 }
 
+// `Default` returns the smallest non-zero value (1). Convention: the
+// "default non-zero" is the multiplicative identity, the same shape
+// `core::num::NonZero` uses (`NonZero::<u32>::new(1).unwrap()`). Needed
+// by `subtle::CtOption::map` whose bound is `T: Default +
+// ConditionallySelectable` on the input value type.
+impl<T, const N: usize, P: Personality> Default for NonZeroFixedUInt<T, N, P>
+where
+    T: MachineWord,
+{
+    fn default() -> Self {
+        // SAFETY: `FixedUInt::from(1u8)` is statically non-zero.
+        unsafe { NonZeroFixedUInt::new_unchecked(FixedUInt::from(1u8)) }
+    }
+}
+
+// `#[repr(transparent)]` over `FixedUInt`, so `ConditionallySelectable`
+// delegates straight through. Restricted to `P = Ct` because
+// `FixedUInt`'s own `ConditionallySelectable` impl is `Ct`-only (the
+// `subtle` typestate makes no sense for `Nct`). Soundness: both
+// branches carry the "value != 0" invariant, so the selected value is
+// non-zero regardless of which arm is taken. Needed by
+// `subtle::CtOption::unwrap_or` in the masked-returning
+// `CtNonZero::into_nonzero_ct` path.
+impl<T, const N: usize> subtle::ConditionallySelectable
+    for NonZeroFixedUInt<T, N, const_num_traits::Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    fn conditional_select(a: &Self, b: &Self, choice: subtle::Choice) -> Self {
+        Self(<FixedUInt<T, N, const_num_traits::Ct> as subtle::ConditionallySelectable>::conditional_select(
+            &a.0, &b.0, choice,
+        ))
+    }
+}
+
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> HasNonZero for FixedUInt<T, N, P> {
         type NonZero = NonZeroFixedUInt<T, N, P>;

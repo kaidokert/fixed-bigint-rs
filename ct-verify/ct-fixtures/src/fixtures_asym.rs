@@ -37,7 +37,8 @@
 //! the corresponding fixture trips on the next ctgrind run. They are
 //! otherwise expected to pass cleanly on every ctgrind-covered architecture.
 
-use fixed_bigint::{Ct, FixedUInt};
+use const_num_traits::Ct;
+use fixed_bigint::FixedUInt;
 use subtle::ConditionallySelectable;
 
 // =============================================================================
