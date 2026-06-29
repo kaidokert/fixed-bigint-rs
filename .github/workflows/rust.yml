@@ -10,12 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Nightly is pinned because the `c0nst::c0nst!` macro tripped on
-        # a const-trait-syntax change in nightly toolchains shipped after
-        # ~2026-06-19. PR #123 fixed the earlier 06-19 break; the current
-        # break needs its own follow-up. Until then, hold at the last
-        # known-good nightly.
-        rust: ["1.86", stable, nightly-2026-06-19]
+        rust: ["1.86", stable, nightly]
 
     steps:
     - uses: actions/checkout@v4
