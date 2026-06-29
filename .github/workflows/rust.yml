@@ -25,12 +25,12 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Run tests with nightly feature
-      if: matrix.rust == 'nightly'
+      if: startsWith(matrix.rust, 'nightly')
       run: cargo test --verbose --features nightly
     - name: Run tests with zeroize
       run: cargo test --verbose --features zeroize
     - name: Run tests with use-unsafe
       run: cargo test --verbose --features use-unsafe
     - name: Run tests with all features
-      if: matrix.rust == 'nightly'
+      if: startsWith(matrix.rust, 'nightly')
       run: cargo test --verbose --all-features
