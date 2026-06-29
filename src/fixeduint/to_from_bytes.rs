@@ -251,7 +251,14 @@ mod tests {
 
         let value = FixedUInt::<u32, 4>::from_u32(0xDEAD_BEEF).unwrap();
         let mut bytes = <FixedUInt<u32, 4> as num_traits::ToBytes>::to_be_bytes(&value);
-        assert!(bytes.as_ref().iter().any(|b| *b != 0));
+        // Seed every byte before the wipe — `from_u32` only fills the
+        // low limb, leaving most of the 16-byte holder already zero.
+        // A buggy `zeroize` that wiped only the populated bytes would
+        // pass an `all-zero` check without the seed.
+        for (index, byte) in bytes.as_mut().iter_mut().enumerate() {
+            *byte = (index as u8).wrapping_add(1);
+        }
+        assert!(bytes.as_ref().iter().all(|b| *b != 0));
         bytes.zeroize();
         assert!(bytes.as_ref().iter().all(|b| *b == 0));
     }
