@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use crate::personality::Nct;
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> c0nst ConstMultiple for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstMultiple for FixedUInt<T, N, Nct> {
         fn is_multiple_of(&self, rhs: &Self) -> bool {
             if rhs.is_zero() {
                 false

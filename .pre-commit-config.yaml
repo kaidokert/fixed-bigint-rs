@@ -25,6 +25,7 @@ repos:
     -   id: check-toml
     -   id: mixed-line-ending
         args: ["--fix=lf"]
+    -   id: fix-byte-order-marker
 
 -   repo: https://github.com/doublify/pre-commit-rust
     rev: v1.0

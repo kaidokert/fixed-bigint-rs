@@ -9,7 +9,7 @@ use crate::machineword::ConstMachineWord;
 use crate::personality::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::ConstOverflowingAdd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::ConstOverflowingAdd for FixedUInt<T, N, P> {
         fn overflowing_add(&self, other: &Self) -> (Self, bool) {
             let mut ret = *self;
             let overflow = add_impl(&mut ret.array, &other.array);
@@ -17,7 +17,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst crate::const_numtraits::ConstOverflowingSub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::ConstOverflowingSub for FixedUInt<T, N, P> {
         fn overflowing_sub(&self, other: &Self) -> (Self, bool) {
             let mut ret = *self;
             let overflow = sub_impl(&mut ret.array, &other.array);
@@ -25,33 +25,33 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstWrappingAdd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstWrappingAdd for FixedUInt<T, N, P> {
         fn wrapping_add(&self, other: &Self) -> Self {
             <Self as ConstOverflowingAdd>::overflowing_add(self, other).0
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstWrappingSub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstWrappingSub for FixedUInt<T, N, P> {
         fn wrapping_sub(&self, other: &Self) -> Self {
             <Self as ConstOverflowingSub>::overflowing_sub(self, other).0
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstCheckedAdd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstCheckedAdd for FixedUInt<T, N, P> {
         fn checked_add(&self, other: &Self) -> Option<Self> {
             let (res, overflow) = <Self as ConstOverflowingAdd>::overflowing_add(self, other);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstCheckedSub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstCheckedSub for FixedUInt<T, N, P> {
         fn checked_sub(&self, other: &Self) -> Option<Self> {
             let (res, overflow) = <Self as ConstOverflowingSub>::overflowing_sub(self, other);
             if overflow { None } else { Some(res) }
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstSaturatingAdd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstSaturatingAdd for FixedUInt<T, N, P> {
         fn saturating_add(&self, other: &Self) -> Self {
             let (res, overflow) = <Self as ConstOverflowingAdd>::overflowing_add(self, other);
             match P::TAG {
@@ -61,7 +61,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstSaturatingSub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstSaturatingSub for FixedUInt<T, N, P> {
         fn saturating_sub(&self, other: &Self) -> Self {
             let (res, overflow) = <Self as ConstOverflowingSub>::overflowing_sub(self, other);
             match P::TAG {
@@ -71,7 +71,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Add for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Add for FixedUInt<T, N, P> {
         type Output = Self;
         fn add(self, other: Self) -> Self {
             let (res, overflow) = <Self as crate::const_numtraits::ConstOverflowingAdd>::overflowing_add(&self, &other);
@@ -80,7 +80,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Sub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Sub for FixedUInt<T, N, P> {
         type Output = Self;
         fn sub(self, other: Self) -> Self {
             let (res, overflow) = <Self as crate::const_numtraits::ConstOverflowingSub>::overflowing_sub(&self, &other);
@@ -89,7 +89,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Add<&'_ Self> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Add<&'_ Self> for FixedUInt<T, N, P> {
         type Output = Self;
         fn add(self, other: &Self) -> Self {
             let (res, overflow) = <Self as crate::const_numtraits::ConstOverflowingAdd>::overflowing_add(&self, other);
@@ -98,7 +98,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Add<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Add<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn add(self, other: FixedUInt<T, N, P>) -> Self::Output {
             let (res, overflow) = <FixedUInt<T, N, P> as crate::const_numtraits::ConstOverflowingAdd>::overflowing_add(self, &other);
@@ -107,7 +107,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Add<Self> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Add<Self> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn add(self, other: Self) -> Self::Output {
             let (res, overflow) = <FixedUInt<T, N, P> as crate::const_numtraits::ConstOverflowingAdd>::overflowing_add(self, other);
@@ -116,7 +116,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Sub<&'_ Self> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Sub<&'_ Self> for FixedUInt<T, N, P> {
         type Output = Self;
         fn sub(self, other: &Self) -> Self {
             let (res, overflow) = <Self as crate::const_numtraits::ConstOverflowingSub>::overflowing_sub(&self, other);
@@ -125,7 +125,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Sub<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Sub<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn sub(self, other: FixedUInt<T, N, P>) -> Self::Output {
             let (res, overflow) = <FixedUInt<T, N, P> as crate::const_numtraits::ConstOverflowingSub>::overflowing_sub(self, &other);
@@ -134,7 +134,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::Sub<Self> for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Sub<Self> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn sub(self, other: Self) -> Self::Output {
             let (res, overflow) = <FixedUInt<T, N, P> as crate::const_numtraits::ConstOverflowingSub>::overflowing_sub(self, other);
@@ -143,7 +143,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::AddAssign<Self> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::AddAssign<Self> for FixedUInt<T, N, P> {
         fn add_assign(&mut self, other: Self) {
             let mut array = self.array;
             let overflow = add_impl(&mut array, &other.array);
@@ -152,7 +152,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::AddAssign<&'_ Self> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::AddAssign<&'_ Self> for FixedUInt<T, N, P> {
         fn add_assign(&mut self, other: &Self) {
             let mut array = self.array;
             let overflow = add_impl(&mut array, &other.array);
@@ -161,7 +161,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::SubAssign<Self> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::SubAssign<Self> for FixedUInt<T, N, P> {
         fn sub_assign(&mut self, other: Self) {
             let mut array = self.array;
             let overflow = sub_impl(&mut array, &other.array);
@@ -170,7 +170,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst core::ops::SubAssign<&'_ Self> for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::SubAssign<&'_ Self> for FixedUInt<T, N, P> {
         fn sub_assign(&mut self, other: &Self) {
             let mut array = self.array;
             let overflow = sub_impl(&mut array, &other.array);

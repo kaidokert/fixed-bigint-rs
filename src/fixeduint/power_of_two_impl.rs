@@ -22,7 +22,7 @@ use crate::machineword::ConstMachineWord;
 use crate::personality::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstPowerOfTwo for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstPowerOfTwo for FixedUInt<T, N, P> {
         fn is_power_of_two(&self) -> bool {
             match P::TAG {
                 PersonalityTag::Nct => {

@@ -20,7 +20,7 @@ use crate::machineword::ConstMachineWord;
 use crate::personality::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstAbsDiff for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstAbsDiff for FixedUInt<T, N, P> {
         fn abs_diff(self, other: Self) -> Self {
             match P::TAG {
                 PersonalityTag::Nct => {

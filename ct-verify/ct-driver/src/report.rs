@@ -11,7 +11,14 @@ pub struct Report {
     pub target: String,
     pub fixtures_checked: usize,
     pub negative_controls_checked: usize,
+    pub helpers_scanned: usize,
+    pub helpers_allowlisted: usize,
     pub ct_violations: Vec<ViolationOut>,
+    /// Violations found in helpers (functions called transitively from
+    /// fixtures, not the fixture wrappers themselves). Kept separate so
+    /// reviewers can see at a glance whether a regression is in a Ct
+    /// primitive's own body or in a helper it pulls in.
+    pub helper_violations: Vec<ViolationOut>,
     pub negative_controls_failed_to_trip: Vec<String>,
 }
 
@@ -36,7 +43,10 @@ impl From<Violation> for ViolationOut {
 
 impl Report {
     pub fn exit_code(&self) -> i32 {
-        if !self.ct_violations.is_empty() || !self.negative_controls_failed_to_trip.is_empty() {
+        if !self.ct_violations.is_empty()
+            || !self.helper_violations.is_empty()
+            || !self.negative_controls_failed_to_trip.is_empty()
+        {
             1
         } else {
             0
@@ -53,14 +63,32 @@ impl Report {
             "  nct_fix__neg__* controls checked: {}",
             self.negative_controls_checked
         );
+        println!(
+            "  helpers scanned (reachable):      {} ({} allowlisted)",
+            self.helpers_scanned, self.helpers_allowlisted
+        );
         if self.ct_violations.is_empty() {
-            println!("  Ct violations:                    0  ✓");
+            println!("  Ct violations (fixture):          0  ✓");
         } else {
             println!(
-                "  Ct violations:                    {}  ✗",
+                "  Ct violations (fixture):          {}  ✗",
                 self.ct_violations.len()
             );
             for v in &self.ct_violations {
+                println!("    [{}] {} {}", v.offset, v.symbol, v.insn);
+                for ctx in &v.context {
+                    println!("        | {}", ctx.trim());
+                }
+            }
+        }
+        if self.helper_violations.is_empty() {
+            println!("  Ct violations (helper):           0  ✓");
+        } else {
+            println!(
+                "  Ct violations (helper):           {}  ✗",
+                self.helper_violations.len()
+            );
+            for v in &self.helper_violations {
                 println!("    [{}] {} {}", v.offset, v.symbol, v.insn);
                 for ctx in &v.context {
                     println!("        | {}", ctx.trim());

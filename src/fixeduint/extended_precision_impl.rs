@@ -26,14 +26,14 @@ use crate::patch_num_traits::{CarryingMul, WideningMul};
 use crate::personality::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + MachineWord, const N: usize, P: Personality> c0nst ConstCarryingAdd for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + MachineWord, const N: usize, P: Personality> ConstCarryingAdd for FixedUInt<T, N, P> {
         fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
             let (array, carry_out) = add_with_carry(&self.array, &rhs.array, carry);
             (Self::from_array(array), carry_out)
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstBorrowingSub + MachineWord, const N: usize, P: Personality> c0nst ConstBorrowingSub for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] ConstBorrowingSub + MachineWord, const N: usize, P: Personality> ConstBorrowingSub for FixedUInt<T, N, P> {
         fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
             let (array, borrow_out) = sub_with_borrow(&self.array, &rhs.array, borrow);
             (Self::from_array(array), borrow_out)
@@ -54,7 +54,7 @@ c0nst::c0nst! {
         if pos < N { lo[pos] = val; } else if pos < 2 * N { hi[pos - N] = val; }
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize, P: Personality> c0nst ConstWideningMul for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize, P: Personality> ConstWideningMul for FixedUInt<T, N, P> {
         fn widening_mul(self, rhs: Self) -> (Self, Self) {
             // Schoolbook multiplication: for each (i,j), add the 2-word product a[i]*b[j]
             // to result[i+j : i+j+2], propagating any carry upward.
@@ -118,7 +118,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize, P: Personality> c0nst ConstCarryingMul for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] ConstCarryingAdd + [c0nst] ConstBorrowingSub + MachineWord, const N: usize, P: Personality> ConstCarryingMul for FixedUInt<T, N, P> {
         fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
             // widening_mul + add carry to result
             let (lo, hi) = ConstWideningMul::widening_mul(self, rhs);

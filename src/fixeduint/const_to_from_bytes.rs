@@ -35,33 +35,35 @@ pub struct ConstBytesHolder<const SIZE: usize> {
     bytes: [u8; SIZE],
 }
 
-impl<const SIZE: usize> const Default for ConstBytesHolder<SIZE> {
-    fn default() -> Self {
-        Self { bytes: [0u8; SIZE] }
+c0nst::c0nst! {
+    c0nst impl<const SIZE: usize> Default for ConstBytesHolder<SIZE> {
+        fn default() -> Self {
+            Self { bytes: [0u8; SIZE] }
+        }
     }
-}
 
-impl<const SIZE: usize> const From<[u8; SIZE]> for ConstBytesHolder<SIZE> {
-    fn from(bytes: [u8; SIZE]) -> Self {
-        Self { bytes }
+    c0nst impl<const SIZE: usize> From<[u8; SIZE]> for ConstBytesHolder<SIZE> {
+        fn from(bytes: [u8; SIZE]) -> Self {
+            Self { bytes }
+        }
     }
-}
 
-impl<const SIZE: usize> const From<ConstBytesHolder<SIZE>> for [u8; SIZE] {
-    fn from(holder: ConstBytesHolder<SIZE>) -> Self {
-        holder.bytes
+    c0nst impl<const SIZE: usize> From<ConstBytesHolder<SIZE>> for [u8; SIZE] {
+        fn from(holder: ConstBytesHolder<SIZE>) -> Self {
+            holder.bytes
+        }
     }
-}
 
-impl<const SIZE: usize> const AsRef<[u8]> for ConstBytesHolder<SIZE> {
-    fn as_ref(&self) -> &[u8] {
-        &self.bytes
+    c0nst impl<const SIZE: usize> AsRef<[u8]> for ConstBytesHolder<SIZE> {
+        fn as_ref(&self) -> &[u8] {
+            &self.bytes
+        }
     }
-}
 
-impl<const SIZE: usize> const AsMut<[u8]> for ConstBytesHolder<SIZE> {
-    fn as_mut(&mut self) -> &mut [u8] {
-        &mut self.bytes
+    c0nst impl<const SIZE: usize> AsMut<[u8]> for ConstBytesHolder<SIZE> {
+        fn as_mut(&mut self) -> &mut [u8] {
+            &mut self.bytes
+        }
     }
 }
 
@@ -78,7 +80,7 @@ impl<const SIZE: usize> core::borrow::BorrowMut<[u8]> for ConstBytesHolder<SIZE>
 }
 
 c0nst::c0nst! {
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstToBytes for FixedUInt<T, N, P>
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstToBytes for FixedUInt<T, N, P>
     where
         [(); byte_len::<T, N>()]:,
     {
@@ -121,7 +123,7 @@ c0nst::c0nst! {
         }
     }
 
-    impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> c0nst ConstFromBytes for FixedUInt<T, N, P>
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstFromBytes for FixedUInt<T, N, P>
     where
         [(); byte_len::<T, N>()]:,
     {
