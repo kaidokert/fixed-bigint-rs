@@ -5,11 +5,11 @@
 //!   (u8, 16), (u16, 16), (u32, 4), (u32, 16), (u64, 4)
 
 use const_num_traits::Ct;
+use fixed_bigint::FixedUInt;
 use fixed_bigint::const_numtraits::{
     AbsDiff, IsPowerOfTwo, NextPowerOfTwo, One, PrimBits, SaturatingAdd, SaturatingMul,
     SaturatingSub, UnboundedShl, UnboundedShr, Zero,
 };
-use fixed_bigint::FixedUInt;
 
 use crate::{ct_fix_bin, ct_fix_count, ct_fix_pred, ct_fix_shift, ct_fix_un};
 
@@ -230,7 +230,7 @@ macro_rules! emit_is_zero {
     ($name:ident, $T:ty, $N:literal) => {
         ct_fix_pred!($name, $T, $N, |a| {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
-            <FixedUInt::<$T, $N, Ct> as Zero>::is_zero(&x) as u8
+            <FixedUInt<$T, $N, Ct> as Zero>::is_zero(&x) as u8
         });
     };
 }
@@ -244,7 +244,7 @@ macro_rules! emit_is_one {
     ($name:ident, $T:ty, $N:literal) => {
         ct_fix_pred!($name, $T, $N, |a| {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
-            <FixedUInt::<$T, $N, Ct> as One>::is_one(&x) as u8
+            <FixedUInt<$T, $N, Ct> as One>::is_one(&x) as u8
         });
     };
 }

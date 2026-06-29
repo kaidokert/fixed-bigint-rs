@@ -1,4 +1,6 @@
-use super::{const_is_one, const_is_one_ct, const_is_zero, const_is_zero_ct, FixedUInt, MachineWord};
+use super::{
+    FixedUInt, MachineWord, const_is_one, const_is_one_ct, const_is_zero, const_is_zero_ct,
+};
 use crate::const_numtraits::{Bounded, ConstOne, ConstZero, One, Zero};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{Personality, PersonalityTag};
@@ -62,11 +64,15 @@ c0nst::c0nst! {
 // rejects mixing const-trait impls with non-const-trait impls in the
 // same block, so these two impls live outside the c0nst! block above.
 
-impl<T: ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstZero for FixedUInt<T, N, P> {
+impl<T: ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstZero
+    for FixedUInt<T, N, P>
+{
     const ZERO: Self = FixedUInt::from_array([<T as ConstZero>::ZERO; N]);
 }
 
-impl<T: ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstOne for FixedUInt<T, N, P> {
+impl<T: ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstOne
+    for FixedUInt<T, N, P>
+{
     const ONE: Self = {
         // Construct array with T::ONE in slot 0, T::ZERO elsewhere.
         let mut a = [<T as ConstZero>::ZERO; N];
@@ -112,8 +118,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::Bounded for Fix
 // short-circuit-vs-OR-fold choice for the `bool`-returning version,
 // but for the `Choice` return we always do the full AND-fold to avoid
 // branching on the limb-by-limb result.
-impl<T, const N: usize, P: Personality> const_num_traits::ops::ct::CtIsZero
-    for FixedUInt<T, N, P>
+impl<T, const N: usize, P: Personality> const_num_traits::ops::ct::CtIsZero for FixedUInt<T, N, P>
 where
     T: MachineWord + subtle::ConstantTimeEq,
 {
@@ -232,8 +237,8 @@ mod tests {
 
     #[test]
     fn ct_is_zero_matches_is_zero() {
-        use const_num_traits::ops::ct::CtIsZero;
         use const_num_traits::Ct;
+        use const_num_traits::ops::ct::CtIsZero;
         type U16Nct = FixedUInt<u8, 2>;
         type U16Ct = FixedUInt<u8, 2, Ct>;
         // Nct
@@ -241,7 +246,9 @@ mod tests {
         assert!(!bool::from(CtIsZero::ct_is_zero(&U16Nct::from(1u8))));
         assert!(!bool::from(CtIsZero::ct_is_zero(&U16Nct::from(0xFFFFu16))));
         // Non-zero in the high limb only (catches a per-limb-AND bug)
-        assert!(!bool::from(CtIsZero::ct_is_zero(&FixedUInt::<u8, 2>::from_array([0, 1]))));
+        assert!(!bool::from(CtIsZero::ct_is_zero(
+            &FixedUInt::<u8, 2>::from_array([0, 1])
+        )));
         // Ct
         let z_ct: U16Ct = U16Nct::from(0u8).into();
         let nz_ct: U16Ct = U16Nct::from(42u8).into();

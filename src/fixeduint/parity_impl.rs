@@ -27,8 +27,8 @@
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::Parity;
 use crate::machineword::ConstMachineWord;
-use const_num_traits::ops::ct::CtParity;
 use const_num_traits::Personality;
+use const_num_traits::ops::ct::CtParity;
 use subtle::{Choice, ConstantTimeEq};
 
 c0nst::c0nst! {
@@ -178,7 +178,9 @@ mod tests {
         // The masked-return and plain forms must agree on truth value
         // for every input. Sweep a handful of representative values
         // (full 16-bit sweep is overkill but cheap).
-        for v in [0u16, 1, 2, 3, 7, 8, 0xFE, 0xFF, 0x100, 0x101, 0xFFFE, 0xFFFF] {
+        for v in [
+            0u16, 1, 2, 3, 7, 8, 0xFE, 0xFF, 0x100, 0x101, 0xFFFE, 0xFFFF,
+        ] {
             let nct = U16Nct::from(v);
             let ct: U16Ct = U16Nct::from(v).into();
             assert_eq!(
@@ -209,7 +211,10 @@ mod tests {
         let p_odd = Odd::<U16Ct>::new_ct(odd_ct);
         let p_even = Odd::<U16Ct>::new_ct(even_ct);
 
-        assert!(bool::from(p_odd.is_some()), "Odd::new_ct(7) should mask Some");
+        assert!(
+            bool::from(p_odd.is_some()),
+            "Odd::new_ct(7) should mask Some"
+        );
         assert!(
             !bool::from(p_even.is_some()),
             "Odd::new_ct(8) should mask None"

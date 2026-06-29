@@ -18,7 +18,11 @@ use num_traits::{ToPrimitive, Zero};
 use core::convert::TryFrom;
 use core::fmt::Write;
 
-pub use crate::const_numtraits::{AbsDiff, BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedPow, ConstOne, ConstZero, DivCeil, Ilog, IsPowerOfTwo, Isqrt, MultipleOf, NextMultipleOf, NextPowerOfTwo, PrimBits, PrimInt, WideningMul};
+pub use crate::const_numtraits::{
+    AbsDiff, BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedPow, ConstOne, ConstZero,
+    DivCeil, Ilog, IsPowerOfTwo, Isqrt, MultipleOf, NextMultipleOf, NextPowerOfTwo, PrimBits,
+    PrimInt, WideningMul,
+};
 use crate::machineword::{ConstMachineWord, MachineWord};
 
 #[cfg(feature = "num-traits")]
@@ -30,30 +34,30 @@ mod add_sub_impl;
 mod bit_ops_impl;
 mod byte_conversion_panic_free;
 mod checked_pow_impl;
+#[cfg(feature = "cios")]
+mod cios_row_ops_impl;
 mod div_ceil_impl;
 mod euclid;
 mod extended_precision_impl;
+pub mod has_nonzero_impl;
 mod ilog_impl;
 mod isqrt_impl;
 mod iter_impl;
 mod midpoint_impl;
-#[cfg(feature = "cios")]
-mod cios_row_ops_impl;
 mod mul_div_impl;
 mod multiple_impl;
 #[cfg(feature = "num-traits")]
 mod num_integer_impl;
-pub mod has_nonzero_impl;
-mod parity_impl;
-mod strict_impl;
 #[cfg(feature = "num-traits")]
 mod num_traits_casts;
 mod num_traits_identity;
+mod parity_impl;
 mod power_of_two_impl;
 mod power_of_two_ops_impl;
 mod prim_int_impl;
 #[cfg(feature = "num-traits")]
 mod roots_impl;
+mod strict_impl;
 #[cfg(feature = "num-traits")]
 mod string_conversion;
 // ToBytes trait (nightly only, uses generic_const_exprs)
@@ -217,8 +221,10 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
         let leading = <Self as crate::const_numtraits::PrimBits>::leading_zeros(m_one);
         let bits = Self::BIT_SIZE as u32 - leading;
         let shifted = one << (bits as usize);
-        let is_zero_choice =
-            <Self as subtle::ConstantTimeEq>::ct_eq(&self, &<Self as crate::const_numtraits::Zero>::zero());
+        let is_zero_choice = <Self as subtle::ConstantTimeEq>::ct_eq(
+            &self,
+            &<Self as crate::const_numtraits::Zero>::zero(),
+        );
         // result = is_zero ? 1 : shifted
         let result = <Self as subtle::ConditionallySelectable>::conditional_select(
             &shifted,
@@ -252,7 +258,8 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
             // recognize the XOR-select as a cmov-on-secret-flag — see
             // `const_ct_select` for the load-bearing explanation.
             let bit = core::hint::black_box((e & 1) as u8);
-            let (candidate, mul_ov) = <Self as crate::const_numtraits::OverflowingMul>::overflowing_mul(result, base);
+            let (candidate, mul_ov) =
+                <Self as crate::const_numtraits::OverflowingMul>::overflowing_mul(result, base);
             // Multiply overflow matters iff bit_k is set.
             any_overflow |= (mul_ov as u8) & bit;
             // Per-limb CT-select of result vs candidate.
@@ -264,7 +271,8 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
                 result.array[i] ^= mask & diff;
             }
             e >>= 1;
-            let (new_base, base_ov) = <Self as crate::const_numtraits::OverflowingMul>::overflowing_mul(base, base);
+            let (new_base, base_ov) =
+                <Self as crate::const_numtraits::OverflowingMul>::overflowing_mul(base, base);
             // Square overflow matters iff there are remaining set bits in e.
             let any_remaining: u8 = core::hint::black_box((e != 0) as u8);
             any_overflow |= (base_ov as u8) & any_remaining;
@@ -408,8 +416,8 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Nct> {
             // remainder < radix <= 16, so it fits in the low limb's low byte;
             // pull it via the MachineWord ToPrimitive supertrait instead of
             // going through the (optional) `num_traits::ToPrimitive for FixedUInt`.
-            let digit = <T as const_num_traits::ToPrimitive>::to_u8(&remainder.array[0])
-                .unwrap_or(0);
+            let digit =
+                <T as const_num_traits::ToPrimitive>::to_u8(&remainder.array[0]).unwrap_or(0);
             result[idx] = match digit {
                 0..=9 => b'0' + digit,          // digits
                 10..=16 => b'a' + (digit - 10), // alphabetic digits for bases > 10
@@ -2411,7 +2419,9 @@ mod tests {
         #[cfg(feature = "nightly")]
         {
             const D: FixedUInt<u8, 2> = <FixedUInt<u8, 2> as Default>::default();
-            assert!(<FixedUInt<u8, 2> as crate::const_numtraits::Zero>::is_zero(&D));
+            assert!(<FixedUInt<u8, 2> as crate::const_numtraits::Zero>::is_zero(
+                &D
+            ));
         }
     }
 

@@ -16,7 +16,9 @@
 // turning this into a const trait
 
 pub use crate::const_numtraits::PrimInt;
-use crate::const_numtraits::{BorrowingSub, CarryingAdd, OverflowingAdd, OverflowingSub, ToBytes, WideningMul};
+use crate::const_numtraits::{
+    BorrowingSub, CarryingAdd, OverflowingAdd, OverflowingSub, ToBytes, WideningMul,
+};
 
 c0nst::c0nst! {
     /// A const-friendly trait for MachineWord operations.

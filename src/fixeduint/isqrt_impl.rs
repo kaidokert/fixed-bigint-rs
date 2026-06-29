@@ -14,7 +14,7 @@
 
 //! Integer square root for FixedUInt.
 
-use super::{const_set_bit, FixedUInt, MachineWord};
+use super::{FixedUInt, MachineWord, const_set_bit};
 use crate::const_numtraits::{ConstZero, Isqrt, One, PrimBits, Zero};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
@@ -118,9 +118,18 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         // For unsigned, checked_isqrt always returns Some
-        assert_eq!(FixedUInt::checked_isqrt(U16::from(0u8)), Some(U16::from(0u8)));
-        assert_eq!(FixedUInt::checked_isqrt(U16::from(16u8)), Some(U16::from(4u8)));
-        assert_eq!(FixedUInt::checked_isqrt(U16::from(17u8)), Some(U16::from(4u8)));
+        assert_eq!(
+            FixedUInt::checked_isqrt(U16::from(0u8)),
+            Some(U16::from(0u8))
+        );
+        assert_eq!(
+            FixedUInt::checked_isqrt(U16::from(16u8)),
+            Some(U16::from(4u8))
+        );
+        assert_eq!(
+            FixedUInt::checked_isqrt(U16::from(17u8)),
+            Some(U16::from(4u8))
+        );
     }
 
     #[test]
@@ -179,7 +188,12 @@ mod tests {
             // (r+1)^2 > n
             if let Some(r_plus_1) = r.checked_add(&U32x2::from(1u8)) {
                 if let Some(square) = r_plus_1.checked_mul(&r_plus_1) {
-                    assert!(square > n_int, "Failed: {:?}^2 <= {} for U32x2", r_plus_1, n);
+                    assert!(
+                        square > n_int,
+                        "Failed: {:?}^2 <= {} for U32x2",
+                        r_plus_1,
+                        n
+                    );
                 }
             }
         }

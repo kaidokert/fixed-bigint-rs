@@ -1,6 +1,9 @@
-use super::{const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl, FixedUInt, MachineWord};
+use super::{FixedUInt, MachineWord, const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl};
 
-use crate::const_numtraits::{CheckedShl, CheckedShr, ConstZero, One, OverflowingShl, OverflowingShr, UnboundedShl, UnboundedShr, WrappingShl, WrappingShr, Zero};
+use crate::const_numtraits::{
+    CheckedShl, CheckedShr, ConstZero, One, OverflowingShl, OverflowingShr, UnboundedShl,
+    UnboundedShr, WrappingShl, WrappingShr, Zero,
+};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{Nct, Personality, PersonalityTag};
 
@@ -1097,15 +1100,9 @@ mod tests {
         // Normal shifts (within bounds)
         assert_eq!(UnboundedShl::unbounded_shl(one, 0), one);
         assert_eq!(UnboundedShl::unbounded_shl(one, 4), U16::from(16u8));
-        assert_eq!(
-            UnboundedShl::unbounded_shl(one, 15),
-            U16::from(0x8000u16)
-        );
+        assert_eq!(UnboundedShl::unbounded_shl(one, 15), U16::from(0x8000u16));
 
-        assert_eq!(
-            UnboundedShr::unbounded_shr(U16::from(0x8000u16), 15),
-            one
-        );
+        assert_eq!(UnboundedShr::unbounded_shr(U16::from(0x8000u16), 15), one);
         assert_eq!(UnboundedShr::unbounded_shr(U16::from(16u8), 4), one);
 
         // At boundary (shift by bit width) - returns 0
@@ -1140,10 +1137,7 @@ mod tests {
             UnboundedShl::unbounded_shl(one32, 31),
             U32::from(0x80000000u32)
         );
-        assert_eq!(
-            UnboundedShl::unbounded_shl(one32, 32),
-            U32::from(0u8)
-        );
+        assert_eq!(UnboundedShl::unbounded_shl(one32, 32), U32::from(0u8));
         assert_eq!(
             UnboundedShr::unbounded_shr(U32::from(0x80000000u32), 31),
             one32
@@ -1255,10 +1249,7 @@ mod tests {
             ShlExact::shl_exact(U16::from(1u8), 4),
             Some(U16::from(16u8))
         );
-        assert_eq!(
-            ShlExact::shl_exact(U16::from(0u8), 8),
-            Some(U16::from(0u8))
-        );
+        assert_eq!(ShlExact::shl_exact(U16::from(0u8), 8), Some(U16::from(0u8)));
         // dropping a high bit → None
         assert_eq!(ShlExact::shl_exact(U16::from(0x8000u16), 1), None);
         // rhs >= BIT_SIZE → None
@@ -1269,10 +1260,7 @@ mod tests {
             ShrExact::shr_exact(U16::from(16u8), 4),
             Some(U16::from(1u8))
         );
-        assert_eq!(
-            ShrExact::shr_exact(U16::from(0u8), 8),
-            Some(U16::from(0u8))
-        );
+        assert_eq!(ShrExact::shr_exact(U16::from(0u8), 8), Some(U16::from(0u8)));
         // dropping a low bit → None
         assert_eq!(ShrExact::shr_exact(U16::from(0b0001u8), 1), None);
         assert_eq!(ShrExact::shr_exact(U16::from(0b0011u8), 1), None);

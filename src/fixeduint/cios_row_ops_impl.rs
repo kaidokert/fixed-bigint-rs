@@ -74,10 +74,7 @@ use const_num_traits::Personality;
 
 impl<T, const N: usize, P: Personality> modmath_cios::CiosRowOps for FixedUInt<T, N, P>
 where
-    T: MachineWord
-        + CarryingMul<Unsigned = T>
-        + CarryingAdd
-        + core::ops::Mul<T, Output = T>,
+    T: MachineWord + CarryingMul<Unsigned = T> + CarryingAdd + core::ops::Mul<T, Output = T>,
 {
     type Word = T;
 
@@ -95,10 +92,7 @@ where
     /// public, the bounds check is value-independent.
     #[inline]
     fn word(&self, i: usize) -> T {
-        self.array
-            .get(i)
-            .copied()
-            .unwrap_or(<T as ConstZero>::ZERO)
+        self.array.get(i).copied().unwrap_or(<T as ConstZero>::ZERO)
     }
 
     /// Phase 1 row: `acc += scalar * multiplicand`. Returns the

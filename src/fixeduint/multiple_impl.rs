@@ -78,18 +78,9 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         assert!(MultipleOf::is_multiple_of(U16::from(0u8), U16::from(5u8)));
-        assert!(MultipleOf::is_multiple_of(
-            U16::from(10u8),
-            U16::from(5u8)
-        ));
-        assert!(MultipleOf::is_multiple_of(
-            U16::from(15u8),
-            U16::from(5u8)
-        ));
-        assert!(!MultipleOf::is_multiple_of(
-            U16::from(11u8),
-            U16::from(5u8)
-        ));
+        assert!(MultipleOf::is_multiple_of(U16::from(10u8), U16::from(5u8)));
+        assert!(MultipleOf::is_multiple_of(U16::from(15u8), U16::from(5u8)));
+        assert!(!MultipleOf::is_multiple_of(U16::from(11u8), U16::from(5u8)));
         assert!(MultipleOf::is_multiple_of(
             U16::from(100u8),
             U16::from(10u8)
@@ -100,10 +91,7 @@ mod tests {
         ));
 
         // rhs == 0 returns false
-        assert!(!MultipleOf::is_multiple_of(
-            U16::from(10u8),
-            U16::from(0u8)
-        ));
+        assert!(!MultipleOf::is_multiple_of(U16::from(10u8), U16::from(0u8)));
     }
 
     #[test]

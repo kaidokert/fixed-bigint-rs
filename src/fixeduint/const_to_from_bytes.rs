@@ -17,7 +17,7 @@
 //! This module requires the `nightly` feature and uses `generic_const_exprs`
 //! to compute byte array sizes at compile time without unsafe code.
 
-use super::{impl_from_be_bytes_slice, impl_from_le_bytes_slice, FixedUInt, MachineWord};
+use super::{FixedUInt, MachineWord, impl_from_be_bytes_slice, impl_from_le_bytes_slice};
 use crate::const_numtraits::{FromBytes, One, ToBytes, Zero};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Personality;
@@ -35,31 +35,31 @@ pub struct ConstBytesHolder<const SIZE: usize> {
     bytes: [u8; SIZE],
 }
 
-const impl<const SIZE: usize> Default for ConstBytesHolder<SIZE> {
+impl<const SIZE: usize> const Default for ConstBytesHolder<SIZE> {
     fn default() -> Self {
         Self { bytes: [0u8; SIZE] }
     }
 }
 
-const impl<const SIZE: usize> From<[u8; SIZE]> for ConstBytesHolder<SIZE> {
+impl<const SIZE: usize> const From<[u8; SIZE]> for ConstBytesHolder<SIZE> {
     fn from(bytes: [u8; SIZE]) -> Self {
         Self { bytes }
     }
 }
 
-const impl<const SIZE: usize> From<ConstBytesHolder<SIZE>> for [u8; SIZE] {
+impl<const SIZE: usize> const From<ConstBytesHolder<SIZE>> for [u8; SIZE] {
     fn from(holder: ConstBytesHolder<SIZE>) -> Self {
         holder.bytes
     }
 }
 
-const impl<const SIZE: usize> AsRef<[u8]> for ConstBytesHolder<SIZE> {
+impl<const SIZE: usize> const AsRef<[u8]> for ConstBytesHolder<SIZE> {
     fn as_ref(&self) -> &[u8] {
         &self.bytes
     }
 }
 
-const impl<const SIZE: usize> AsMut<[u8]> for ConstBytesHolder<SIZE> {
+impl<const SIZE: usize> const AsMut<[u8]> for ConstBytesHolder<SIZE> {
     fn as_mut(&mut self) -> &mut [u8] {
         &mut self.bytes
     }

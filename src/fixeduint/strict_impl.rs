@@ -159,7 +159,10 @@ mod tests {
 
     #[test]
     fn strict_add_ok() {
-        assert_eq!(StrictAdd::strict_add(U16::from(10u8), U16::from(20u8)), U16::from(30u8));
+        assert_eq!(
+            StrictAdd::strict_add(U16::from(10u8), U16::from(20u8)),
+            U16::from(30u8)
+        );
     }
 
     #[test]
@@ -170,7 +173,10 @@ mod tests {
 
     #[test]
     fn strict_sub_ok() {
-        assert_eq!(StrictSub::strict_sub(U16::from(30u8), U16::from(10u8)), U16::from(20u8));
+        assert_eq!(
+            StrictSub::strict_sub(U16::from(30u8), U16::from(10u8)),
+            U16::from(20u8)
+        );
     }
 
     #[test]
@@ -181,7 +187,10 @@ mod tests {
 
     #[test]
     fn strict_mul_ok() {
-        assert_eq!(StrictMul::strict_mul(U16::from(7u8), U16::from(13u8)), U16::from(91u8));
+        assert_eq!(
+            StrictMul::strict_mul(U16::from(7u8), U16::from(13u8)),
+            U16::from(91u8)
+        );
     }
 
     #[test]
@@ -256,8 +265,14 @@ mod tests {
     #[test]
     fn nightly_const_eval_strict() {
         // runtime smoke
-        assert_eq!(const_strict_add(U16::from(10u8), U16::from(20u8)), U16::from(30u8));
-        assert_eq!(const_strict_mul(U16::from(6u8), U16::from(7u8)), U16::from(42u8));
+        assert_eq!(
+            const_strict_add(U16::from(10u8), U16::from(20u8)),
+            U16::from(30u8)
+        );
+        assert_eq!(
+            const_strict_mul(U16::from(6u8), U16::from(7u8)),
+            U16::from(42u8)
+        );
         assert_eq!(const_strict_shl(U16::from(1u8), 4), U16::from(16u8));
         assert_eq!(const_strict_pow(U16::from(2u8), 8), U16::from(256u16));
 

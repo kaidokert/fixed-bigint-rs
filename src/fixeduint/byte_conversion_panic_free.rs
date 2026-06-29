@@ -90,7 +90,7 @@
 //! Equal-size buffers (`M == BYTE_WIDTH`) are the common case and read
 //! identically in either convention.
 
-use super::{impl_from_be_bytes_slice, impl_from_le_bytes_slice, FixedUInt, MachineWord};
+use super::{FixedUInt, MachineWord, impl_from_be_bytes_slice, impl_from_le_bytes_slice};
 use const_num_traits::Personality;
 
 /// Type-level compile-time assertion that buffer-of-length-`M` fits a

@@ -24,10 +24,7 @@ use fixed_bigint::FixedUInt;
 type U256 = FixedUInt<u32, 8>; // 32-byte / 256-bit, Curve25519-shaped
 
 #[no_mangle]
-pub extern "C" fn panic_audit__to_le_bytes_fixed(
-    seed: u32,
-    out: *mut [u8; 32],
-) {
+pub extern "C" fn panic_audit__to_le_bytes_fixed(seed: u32, out: *mut [u8; 32]) {
     // `from_array` is pub(crate), so we construct via the public `From<u32>`
     // and let the value live in only the low limb. This still routes through
     // `to_le_bytes_fixed`'s full body — the byte-width math doesn't depend
@@ -39,10 +36,7 @@ pub extern "C" fn panic_audit__to_le_bytes_fixed(
 }
 
 #[no_mangle]
-pub extern "C" fn panic_audit__to_be_bytes_fixed(
-    seed: u32,
-    out: *mut [u8; 32],
-) {
+pub extern "C" fn panic_audit__to_be_bytes_fixed(seed: u32, out: *mut [u8; 32]) {
     let v = U256::from(black_box(seed));
     let buf = unsafe { &mut *out };
     let written = v.to_be_bytes_fixed(buf);
@@ -50,10 +44,7 @@ pub extern "C" fn panic_audit__to_be_bytes_fixed(
 }
 
 #[no_mangle]
-pub extern "C" fn panic_audit__from_le_bytes_fixed(
-    bytes: *const [u8; 32],
-    out: *mut [u32; 8],
-) {
+pub extern "C" fn panic_audit__from_le_bytes_fixed(bytes: *const [u8; 32], out: *mut [u32; 8]) {
     let buf = black_box(unsafe { &*bytes });
     let v: U256 = U256::from_le_bytes_fixed(buf);
     let arr = black_box(*v.words());
@@ -61,10 +52,7 @@ pub extern "C" fn panic_audit__from_le_bytes_fixed(
 }
 
 #[no_mangle]
-pub extern "C" fn panic_audit__from_be_bytes_fixed(
-    bytes: *const [u8; 32],
-    out: *mut [u32; 8],
-) {
+pub extern "C" fn panic_audit__from_be_bytes_fixed(bytes: *const [u8; 32], out: *mut [u32; 8]) {
     let buf = black_box(unsafe { &*bytes });
     let v: U256 = U256::from_be_bytes_fixed(buf);
     let arr = black_box(*v.words());
@@ -86,11 +74,7 @@ use fixed_bigint::NonZeroFixedUInt;
 type U256Nct = FixedUInt<u32, 8, Nct>;
 
 #[no_mangle]
-pub extern "C" fn panic_audit__div_nonzero(
-    seed_a: u32,
-    seed_m: u32,
-    out: *mut [u32; 8],
-) {
+pub extern "C" fn panic_audit__div_nonzero(seed_a: u32, seed_m: u32, out: *mut [u32; 8]) {
     let a = U256Nct::from(black_box(seed_a));
     let m = U256Nct::from(black_box(seed_m));
     // `into_nonzero().unwrap()` retains a panic site on its own, but
@@ -113,11 +97,7 @@ pub extern "C" fn panic_audit__div_nonzero(
 }
 
 #[no_mangle]
-pub extern "C" fn panic_audit__rem_nonzero(
-    seed_a: u32,
-    seed_m: u32,
-    out: *mut [u32; 8],
-) {
+pub extern "C" fn panic_audit__rem_nonzero(seed_a: u32, seed_m: u32, out: *mut [u32; 8]) {
     let a = U256Nct::from(black_box(seed_a));
     let m = U256Nct::from(black_box(seed_m));
     let nz: NonZeroFixedUInt<u32, 8, Nct> = match m.into_nonzero() {

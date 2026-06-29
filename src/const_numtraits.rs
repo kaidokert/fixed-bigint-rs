@@ -39,7 +39,7 @@ pub use ::const_num_traits::Euclid;
 pub use ::const_num_traits::{IsPowerOfTwo, NextPowerOfTwo};
 
 // Logs / sqrt — split.
-pub use ::const_num_traits::{Ilog, Ilog10, Ilog2, Isqrt};
+pub use ::const_num_traits::{Ilog, Ilog2, Ilog10, Isqrt};
 
 // Rounding / multiples / midpoint / div-ceil.
 pub use ::const_num_traits::{DivCeil, Midpoint, MultipleOf, NextMultipleOf};

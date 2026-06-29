@@ -15,7 +15,9 @@
 //! Power-of-two operations for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{Bounded, ConstOne, ConstZero, IsPowerOfTwo, NextPowerOfTwo, One, PrimBits, WrappingSub, Zero};
+use crate::const_numtraits::{
+    Bounded, ConstOne, ConstZero, IsPowerOfTwo, NextPowerOfTwo, One, PrimBits, WrappingSub, Zero,
+};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{Personality, PersonalityTag};
 
@@ -286,7 +288,9 @@ mod tests {
         use const_num_traits::ops::ct::CtIsPowerOfTwo;
         type U16 = FixedUInt<u8, 2>;
         // Zero is NOT a power of two
-        assert!(!bool::from(CtIsPowerOfTwo::ct_is_power_of_two(&U16::from(0u8))));
+        assert!(!bool::from(CtIsPowerOfTwo::ct_is_power_of_two(&U16::from(
+            0u8
+        ))));
         // Powers of two
         for v in [1u16, 2, 4, 8, 16, 128, 256, 32768] {
             assert!(

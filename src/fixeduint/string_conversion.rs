@@ -1,7 +1,7 @@
 use core::fmt::Write;
 use num_traits::{Num, ToPrimitive, Zero};
 
-use super::{make_empty_error, make_overflow_err, make_parse_int_err, FixedUInt, MachineWord};
+use super::{FixedUInt, MachineWord, make_empty_error, make_overflow_err, make_parse_int_err};
 use const_num_traits::Nct;
 
 #[cfg(feature = "num-traits")]

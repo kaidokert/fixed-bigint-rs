@@ -15,7 +15,7 @@
 //! Integer logarithm implementations for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstZero, Ilog, Ilog10, Ilog2, One, PrimBits, Zero};
+use crate::const_numtraits::{ConstZero, Ilog, Ilog2, Ilog10, One, PrimBits, Zero};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
 

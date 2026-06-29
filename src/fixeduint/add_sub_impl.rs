@@ -1,5 +1,10 @@
-use super::{add_impl, const_ct_select, maybe_panic_if, sub_impl, FixedUInt, MachineWord, PanicReason};
-use crate::const_numtraits::{Bounded, CheckedAdd, CheckedSub, ConstZero, One, OverflowingAdd, OverflowingSub, SaturatingAdd, SaturatingSub, WrappingAdd, WrappingSub, Zero};
+use super::{
+    FixedUInt, MachineWord, PanicReason, add_impl, const_ct_select, maybe_panic_if, sub_impl,
+};
+use crate::const_numtraits::{
+    Bounded, CheckedAdd, CheckedSub, ConstZero, One, OverflowingAdd, OverflowingSub, SaturatingAdd,
+    SaturatingSub, WrappingAdd, WrappingSub, Zero,
+};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{Personality, PersonalityTag};
 
@@ -348,9 +353,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::const_numtraits::{CheckedAdd, CheckedSub, One, OverflowingAdd, OverflowingSub, WrappingAdd, WrappingSub, Zero};
-    use crate::machineword::ConstMachineWord;
     use crate::const_numtraits::Bounded;
+    use crate::const_numtraits::{
+        CheckedAdd, CheckedSub, One, OverflowingAdd, OverflowingSub, WrappingAdd, WrappingSub, Zero,
+    };
+    use crate::machineword::ConstMachineWord;
 
     c0nst::c0nst! {
         /// Test wrapper for OverflowingAdd
