@@ -10,7 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: ["1.86", stable, nightly]
+        # Nightly is pinned because the `c0nst::c0nst!` macro tripped on
+        # a const-trait-syntax change in nightly toolchains shipped after
+        # ~2026-06-19. PR #123 fixed the earlier 06-19 break; the current
+        # break needs its own follow-up. Until then, hold at the last
+        # known-good nightly.
+        rust: ["1.86", stable, nightly-2026-06-19]
 
     steps:
     - uses: actions/checkout@v4
@@ -25,12 +30,12 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Run tests with nightly feature
-      if: matrix.rust == 'nightly'
+      if: startsWith(matrix.rust, 'nightly')
       run: cargo test --verbose --features nightly
     - name: Run tests with zeroize
       run: cargo test --verbose --features zeroize
     - name: Run tests with use-unsafe
       run: cargo test --verbose --features use-unsafe
     - name: Run tests with all features
-      if: matrix.rust == 'nightly'
+      if: startsWith(matrix.rust, 'nightly')
       run: cargo test --verbose --all-features
