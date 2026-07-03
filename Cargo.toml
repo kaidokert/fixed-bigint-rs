@@ -21,7 +21,7 @@ incremental = false
 
 [package]
 name = "fixed-bigint"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 documentation = "https://docs.rs/fixed-bigint"
 edition = "2018"
