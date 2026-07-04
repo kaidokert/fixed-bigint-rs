@@ -13,12 +13,11 @@
 //! test that proves it (and freezes the composition against future
 //! regressions in either crate).
 //!
-//! Why this matters: downstream modmath wants
-//! `Field::from_odd_modulus(odd: Odd<T>) -> Self` as the infallible
-//! constructor that replaces `Field::new(p).unwrap()` — see
-//! `modmath-rs/PANIC_FREE_REQUESTS.md`. The unlock is on the modmath side;
-//! this test only certifies that the *upstream* typestate composes with
-//! our type, which is the prerequisite.
+//! Downstream consumers use `Odd<T>` as a proof witness to build
+//! infallible constructors (`fn new(odd: Odd<T>) -> Self`) that
+//! replace `Foo::new(p).unwrap()`; this test only certifies that the
+//! *upstream* typestate composes with our type, which is the
+//! prerequisite.
 
 use const_num_traits::{Even, Odd};
 use fixed_bigint::FixedUInt;
@@ -113,9 +112,9 @@ fn ct_personality_composes_too() {
 
 /// Sanity-shaped consumer: a generic function that *requires* an
 /// `Odd<FixedUInt>` proof. The point is to demonstrate the call-site
-/// pattern downstream consumers (modmath) will use to express
-/// "this constructor cannot fail at runtime."
-fn requires_odd<T: Copy, const N: usize, P: const_num_traits::Personality>(
+/// pattern downstream consumers use to express "this constructor
+/// cannot fail at runtime."
+fn requires_odd<T, const N: usize, P: const_num_traits::Personality>(
     _proof: Odd<FixedUInt<T, N, P>>,
 ) -> &'static str
 where

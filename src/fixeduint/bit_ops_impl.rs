@@ -1,8 +1,8 @@
 use super::{FixedUInt, MachineWord, const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl};
 
 use crate::const_numtraits::{
-    CheckedShl, CheckedShr, ConstZero, One, OverflowingShl, OverflowingShr, UnboundedShl,
-    UnboundedShr, WrappingShl, WrappingShr, Zero,
+    CheckedShl, CheckedShr, ConstZero, OverflowingShl, OverflowingShr, UnboundedShl, UnboundedShr,
+    WrappingShl, WrappingShr,
 };
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{Nct, Personality, PersonalityTag};
@@ -753,7 +753,7 @@ c0nst::c0nst! {
                 // Lowest set bit of `remaining` via `x & -x`.
                 let lowest = <Self as crate::const_numtraits::IsolateLowestOne>::isolate_lowest_one(remaining);
                 if !<Self as crate::const_numtraits::Zero>::is_zero(&(self & bb)) {
-                    result = result | lowest;
+                    result |= lowest;
                 }
                 // Clear that lowest bit and advance the source-side bit.
                 remaining = remaining & <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(
@@ -777,7 +777,7 @@ c0nst::c0nst! {
             while !<Self as crate::const_numtraits::Zero>::is_zero(&remaining) {
                 let lowest = <Self as crate::const_numtraits::IsolateLowestOne>::isolate_lowest_one(remaining);
                 if !<Self as crate::const_numtraits::Zero>::is_zero(&(self & lowest)) {
-                    result = result | bb;
+                    result |= bb;
                 }
                 remaining = remaining & <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(
                     remaining,
@@ -841,6 +841,9 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedShr for 
 }
 
 #[cfg(test)]
+// Coverage tests deliberately exercise every ref/value combination of
+// the bitwise/shift operators (see `test_*_combinations`).
+#[allow(clippy::op_ref)]
 mod tests {
     use super::*;
 
@@ -1269,6 +1272,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_ref_receivers_compile_through() {
         use crate::const_numtraits::{
             BitWidth, IsolateHighestOne, IsolateLowestOne, ShlExact, ShrExact,

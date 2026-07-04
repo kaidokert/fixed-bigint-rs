@@ -97,7 +97,7 @@ emit_cond_select!(ct_fix__B__cond_select__u32__N16, u32, 16);
 emit_cond_select!(ct_fix__B__cond_select__u64__N4, u64, 4);
 
 // =============================================================================
-// ct_checked_add / sub / mul (Phase 3j)
+// ct_checked_add / sub / mul
 // =============================================================================
 
 macro_rules! emit_ct_checked_add {
@@ -155,7 +155,7 @@ emit_ct_checked_mul!(ct_fix__B__ct_checked_mul__u32__N16, u32, 16);
 emit_ct_checked_mul!(ct_fix__B__ct_checked_mul__u64__N4, u64, 4);
 
 // =============================================================================
-// ct_checked_shl / shr / pow (Phase 3k / 3l)
+// ct_checked_shl / shr / pow
 // =============================================================================
 
 macro_rules! emit_ct_checked_shl {
@@ -210,7 +210,7 @@ emit_ct_checked_pow!(ct_fix__B__ct_checked_pow__u32__N16, u32, 16);
 emit_ct_checked_pow!(ct_fix__B__ct_checked_pow__u64__N4, u64, 4);
 
 // =============================================================================
-// ct_checked_next_power_of_two (Phase 3m)
+// ct_checked_next_power_of_two
 // =============================================================================
 
 macro_rules! emit_ct_checked_npot {

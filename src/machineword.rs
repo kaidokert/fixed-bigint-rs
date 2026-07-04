@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Note: in the future, #![feature(const_trait_impl)] should allow
-// turning this into a const trait
-
 pub use crate::const_numtraits::PrimInt;
 use crate::const_numtraits::{
     BorrowingSub, CarryingAdd, OverflowingAdd, OverflowingSub, ToBytes, WideningMul,

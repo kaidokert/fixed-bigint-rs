@@ -22,7 +22,7 @@ panic-handler = []
 
 [dependencies]
 fixed-bigint = { path = "../.." }
-const-num-traits = { git = "https://github.com/kaidokert/num-traits", tag = "v0.1.0-alpha.0", default-features = false, features = ["ct"] }
+const-num-traits = { version = "0.1", default-features = false, features = ["ct"] }
 subtle = { version = "2.6", default-features = false }
 
 # Profile settings live at the workspace root (cargo only honors them there).

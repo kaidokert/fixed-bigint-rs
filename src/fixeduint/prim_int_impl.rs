@@ -2,7 +2,9 @@ use super::{
     FixedUInt, MachineWord, const_leading_zeros, const_leading_zeros_ct, const_trailing_zeros,
     const_trailing_zeros_ct,
 };
-use crate::const_numtraits::{One, PrimBits, PrimInt, Zero};
+#[cfg(feature = "num-traits")]
+use crate::const_numtraits::One;
+use crate::const_numtraits::PrimBits;
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{Nct, Personality, PersonalityTag};
 

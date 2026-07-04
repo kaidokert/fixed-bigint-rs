@@ -95,10 +95,9 @@ Several traits the local crate didn't carry are now implemented:
   - `DivNonZero for FixedUInt<T, N, Nct>` — Nct only. `FixedUInt`'s
     `core::ops::Div` is Nct-only (long division is value-dependent),
     so the divide-by-proven-nonzero op inherits the same constraint.
-    Consumers with secret moduli route through `modmath::Field<T,
-    Ct>` (Montgomery, no division), constructed via `Odd::new_ct`
-    or `Field::try_new_odd_ct`. There is intentionally no `*_nz_ct`
-    surface in modmath because there's no meaningful consumer.
+    Constant-time reduction against a secret modulus needs a
+    Montgomery-based `Field`-style wrapper (no division), which lives
+    outside this crate.
 
   **API contract: deletes the divide-by-zero `panic_fmt` from the
   linked binary** — audit-verified. A `cargo nm
@@ -138,10 +137,7 @@ Several traits the local crate didn't carry are now implemented:
   the accessor and no `match P::TAG` dispatch. The two row kernels
   (`mul_acc_row`, `mul_acc_shift_row`) carry the same algorithm
   byte-identically from the retired `mul_acc_ops_common!` macro.
-  The trait lives in `modmath-cios` — a leaf crate with no deps —
-  rather than in `modmath` itself; see `CIOS_TRAIT_MOVED.md` for
-  why (trait-identity duplication across rustc compile units when
-  modmath dev-deps fixed-bigint to test).
+  The trait lives in the leaf `modmath-cios` crate (no deps).
 
 * **Fixed-size byte conversion at the API boundary** — four inherent
   methods on `FixedUInt`:
@@ -171,11 +167,10 @@ Several traits the local crate didn't carry are now implemented:
   crate's `use-unsafe` feature is scoped specifically to the
   ToBytes/FromBytes `BytesHolder` path where const-generics had no
   other option, not as a general license; without a safe fix from
-  upstream, the residual `panic_fmt` stays. Downstream embedded
-  crypto consumers that *require* a fully panic-clean binary (e.g.
-  `ed25519_heapless`'s AVR linkage gate) cannot rely on these
-  methods alone to satisfy that — the upstream
-  `slice::copy_from_slice` body limits us.
+  upstream, the residual `panic_fmt` stays. Consumers that require
+  a fully panic-clean binary cannot rely on these methods alone to
+  satisfy that — the upstream `slice::copy_from_slice` body limits
+  us.
 
   Compile-time size check is implemented as a private trait
   (`AssertBufferFits<M>`) with a `const CHECK: () = assert!(...)`
@@ -250,9 +245,8 @@ Several traits the local crate didn't carry are now implemented:
   regression by `tests/odd_even_typestate.rs` (8 tests covering
   owned/borrowed construction, both personalities, narrow + wide
   carriers, and a proof-consumer call-site pattern). Downstream
-  consumers (notably `modmath`'s `Field::from_odd_modulus` plan in
-  `PANIC_FREE_REQUESTS.md`) get the typestate-based infallible
-  constructor pattern with no fixed-bigint-side glue.
+  consumers get the typestate-based infallible constructor pattern
+  with no fixed-bigint-side glue.
 * `Parity` (`is_odd`, `is_even`) — both personalities.
 * `HighestOne` / `LowestOne` — both personalities; index of the
   highest/lowest set bit, `None` for zero.
@@ -282,14 +276,12 @@ the explicit deref litter.
 ### Removed
 
 * **`fixed_bigint::MulAccOps` trait and impls — gone.** The CIOS row-op
-  surface moves to modmath as `modmath_cios::CiosRowOps` (under the
-  `cios` feature; see "Added"). Single-step cut across the three
-  crates per `CIOS_MIGRATION.md`: modmath rewrote its `cios.rs` body
-  against the new trait, fixed-bigint deleted the old trait + impls,
-  no deprecation window. Concrete deletions: `src/mul_acc_ops.rs`,
-  `src/fixeduint/mul_acc_ops_impl.rs`, the `pub mod mul_acc_ops;`
-  declaration and `pub use ... MulAccOps;` re-export from `lib.rs`,
-  the two MulAccOps-shaped tests in `tests/personality_integration.rs`.
+  surface moves to `modmath_cios::CiosRowOps` (under the `cios`
+  feature; see "Added"). No deprecation window. Concrete deletions:
+  `src/mul_acc_ops.rs`, `src/fixeduint/mul_acc_ops_impl.rs`, the
+  `pub mod mul_acc_ops;` declaration and `pub use ... MulAccOps;`
+  re-export from `lib.rs`, the two MulAccOps-shaped tests in
+  `tests/personality_integration.rs`.
 * `Truncate` checked/saturating variants and `CastSigned`/`CastUnsigned`
   checked/saturating variants — these were exact duplicates of the
   generic cast traits. Use `CheckedCast::<T>`, `SaturatingCast::<T>`,

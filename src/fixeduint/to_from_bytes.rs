@@ -108,9 +108,8 @@ impl<T: MachineWord, const N: usize> Drop for BytesHolder<T, N> {
 // ── num_traits::ToBytes/FromBytes (upstream by-ref shape) ────────────
 //
 // Only built when `feature = "num-traits"` is enabled; downstream
-// consumers that have dropped num-traits entirely (e.g. ed25519 /
-// rsa with `default-features = false, features = ["use-unsafe"]`)
-// don't need or want these impls.
+// consumers that have dropped num-traits don't need or want these
+// impls.
 
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ToBytes for FixedUInt<T, N, P>

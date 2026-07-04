@@ -12,83 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Fixed-size byte conversion: typed buffers + compile-time size check.
+//! Fixed-size byte conversion: typed buffers, compile-time size check.
 //!
-//! These are the *API-boundary panic-free* counterparts to the existing
-//! slice-based `FixedUInt::{to,from}_{le,be}_bytes`. The shape change is
-//! the buffer parameter: instead of an untyped `&[u8]` / `&mut [u8]`
-//! that returns `Result<_, bool>` (and forces a `.unwrap()` site at every
-//! call site, which synthesises `panic_fmt`), the fixed variants take a
-//! typed `&[u8; M]` / `&mut [u8; M]` and verify `M >= BYTE_WIDTH` at
-//! monomorphization via an `AssertBufferFits<M>` associated-const
-//! assertion. Wrong-size callers fail at compile time with a clear
-//! diagnostic.
+//! Panic-free-signature counterparts to the slice-based
+//! `FixedUInt::{to,from}_{le,be}_bytes`. Take `&[u8; M]` / `&mut [u8; M]`
+//! and verify `M >= BYTE_WIDTH` at monomorphization; wrong-size callers
+//! fail at compile time. The signature guarantee is "no `Result`, no
+//! `.unwrap()` at the boundary" — not "no `panic_fmt` in the linked
+//! binary": `copy_from_slice` still carries a length check LLVM can't
+//! elide through the trait boundary.
 //!
-//! ## API contract: "no panic at the API boundary"
-//!
-//! These methods have no `Result`, no `.unwrap()`, no runtime length
-//! validation in their *signatures*. That is the contract. They are
-//! **not** "no `panic_fmt` survives DCE in the linked binary."
-//!
-//! A `cargo nm --release --target thumbv7em-none-eabi` audit
-//! (`ct-verify/panic-free-audit`) confirms the produced `.a` still
-//! contains:
-//!
-//! - `core::slice::copy_from_slice_impl::len_mismatch_fail`
-//! - `core::panicking::panic_fmt`
-//!
-//! Origin: the `to_*` bodies do
-//! `chunk.copy_from_slice(word.to_le_bytes().as_ref())`. Both sides of
-//! the copy have length `WORD_SIZE` by construction, but LLVM cannot
-//! statically equate them — they're opaque trait-associated lengths it
-//! treats as runtime values, so it cannot elide
-//! `slice::copy_from_slice`'s internal length-mismatch check, which
-//! ultimately calls `panic_fmt`.
-//!
-//! A `core::ptr::copy_nonoverlapping` with a SAFETY proof would
-//! eliminate this — but the crate's `use-unsafe` feature is scoped
-//! specifically to the ToBytes/FromBytes `BytesHolder` path where
-//! const-generics had no other option, not as a general license, so
-//! that fix is not adopted here. The crate-local trade-off is to keep
-//! safe Rust and document the residual `panic_fmt` honestly.
-//!
-//! Downstream consumers that need the linked binary to be fully panic-
-//! clean (e.g. `ed25519_heapless`'s AVR linkage gate) cannot rely on
-//! these methods alone to satisfy that — the upstream
-//! `slice::copy_from_slice` body limits us. They can:
-//! 1. Wrap calls in a way that the optimizer can fold (e.g. force
-//!    inlining and provide a const `WORD_SIZE` constant the optimizer
-//!    can see through), or
-//! 2. Maintain a downstream `unsafe { ptr::copy_nonoverlapping }`
-//!    shim of their own keyed to their specific instantiations, or
-//! 3. Wait for upstream `slice::copy_from_slice` to learn const-elision
-//!    of the length check (unlikely soon).
-//!
-//! ## Body cleanliness
-//!
-//! `to_*` uses `chunks_exact_mut(WORD_SIZE).take(N)` paired against
-//! `self.array.iter()` (rev for BE). Each chunk has length `WORD_SIZE`
-//! by `chunks_exact_mut`'s contract, the primitive's `to_*_bytes`
-//! returns `[u8; size_of::<T>()]`, and `WORD_SIZE = size_of::<T>()` —
-//! so the copy is length-equal by construction, but see the audit
-//! note above: LLVM can't see that through the trait, so the check
-//! survives DCE anyway.
-//!
-//! `from_*` reuses the existing `impl_from_{le,be}_bytes_slice` helpers
-//! which loop on `min(bytes.len(), capacity)` — when we pass a buffer
-//! with `M >= BYTE_WIDTH` the loop bound is exactly `BYTE_WIDTH` and
-//! every indexed access is in range.
-//!
-//! ## Truncation convention for `from_*` with `M > BYTE_WIDTH`
-//!
-//! Mirrors the existing slice-based methods:
-//! - `from_le_bytes_fixed` reads the first `BYTE_WIDTH` bytes (LE
-//!   low-order bytes are at the front).
-//! - `from_be_bytes_fixed` reads the last `BYTE_WIDTH` bytes (BE
-//!   low-order bytes are at the end).
-//!
-//! Equal-size buffers (`M == BYTE_WIDTH`) are the common case and read
-//! identically in either convention.
+//! Truncation convention when `M > BYTE_WIDTH` matches the slice-based
+//! methods: LE reads the first `BYTE_WIDTH` bytes, BE reads the last.
+
+// `let _ = <T as AssertBufferFits<M>>::CHECK;` forces the const to
+// evaluate at monomorphization; a bare path-statement isn't a reliable
+// substitute across rustc versions.
+#![allow(clippy::let_unit_value)]
 
 use super::{FixedUInt, MachineWord, impl_from_be_bytes_slice, impl_from_le_bytes_slice};
 use const_num_traits::Personality;

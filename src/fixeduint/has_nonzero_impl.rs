@@ -14,49 +14,21 @@
 
 //! `HasNonZero` + `DivNonZero` carrier impls for `FixedUInt`.
 //!
-//! `core::num::NonZero` is sealed to primitives, so `HasNonZero::NonZero`
-//! has to be a backend-defined newtype for `FixedUInt`. The newtype
-//! ([`NonZeroFixedUInt`]) is `#[repr(transparent)]` over `FixedUInt`, so
-//! `Zeroize` or `Drop` semantics on the inner value flow through if a
-//! consumer adds them downstream.
+//! `core::num::NonZero` is sealed to primitives, so [`NonZeroFixedUInt`]
+//! is the `HasNonZero::NonZero` newtype for `FixedUInt`; it is
+//! `#[repr(transparent)]` over the inner value.
 //!
-//! ## Personality matrix
+//! `HasNonZero` covers both personalities (the `!= 0` check is
+//! value-level and CT-uniform). `DivNonZero` is `Nct`-only, matching
+//! `FixedUInt`'s own `Div`: long division is value-dependent and does
+//! not fit constant-time semantics.
 //!
-//! - `HasNonZero for FixedUInt<T, N, P>` — both personalities. The
-//!   `!= 0` check is value-level and CT-uniform.
-//! - `DivNonZero for FixedUInt<T, N, Nct>` — Nct only. `FixedUInt`'s
-//!   `core::ops::Div` is `Nct`-only because long division is
-//!   value-dependent and doesn't fit constant-time semantics. Consumers
-//!   with secret moduli should route through `modmath::Field<T, Ct>`
-//!   (Montgomery, no division), constructed via `Odd::new_ct` or
-//!   `Field::try_new_odd_ct`. There is no `*_nz_ct` because there is no
-//!   meaningful CT consumer for one.
-//!
-//! ## API-boundary panic contract
-//!
-//! `div_nonzero` / `rem_nonzero` discharge the *type-level* divide-by-zero
-//! invariant — the divisor proof guarantees `d != 0`, so the caller's
-//! `Result`/`unwrap` site goes away.
-//!
-//! **Audit-verified:** `cargo nm --release --target thumbv7em-none-eabi`
-//! shows the underlying `FixedUInt::Div`'s runtime zero check is elided
-//! through the `NonZeroFixedUInt` wrapper. A `div_nonzero(a, nz)`
-//! fixture produces no `panic_fmt` symbol; a bare `a / b` fixture does.
-//! The wrapper successfully proves the check unreachable. See
-//! `CHANGELOG.md` for the full isolation ladder.
-//!
-//! ## CT note on `into_nonzero`
-//!
-//! `into_nonzero(self) -> Option<Self::NonZero>` is branchful at the
-//! call site (the caller's `match Some/None` on the discriminant). For
-//! public moduli — the common case for `*_nz` — that's fine and
-//! intended. For secret-derived non-zero proofs, callers should use a
-//! `CtOption`-returning sibling if/when one ships; `modmath::Field<T,
-//! Ct>::try_new_odd_ct` already exists for the modular-arithmetic
-//! consumer site.
+//! `into_nonzero` returns `Option`, which is branchful at the call
+//! site. Fine for public moduli; secret-derived proofs need a
+//! `CtOption`-returning path that lives above this crate.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstZero, Zero};
+use crate::const_numtraits::Zero;
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{DivNonZero, HasNonZero, Nct, Personality};
 

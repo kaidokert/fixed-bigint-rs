@@ -12,59 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! `modmath_cios::CiosRowOps` implementation for `FixedUInt`.
+//! `modmath_cios::CiosRowOps` implementation for `FixedUInt`. Gated
+//! behind the `cios` cargo feature.
 //!
-//! Gated behind the `cios` cargo feature so a default build of
-//! `fixed-bigint` does not pull `modmath-cios` in. Enabled by downstream
-//! crates that want to drive CIOS-style Montgomery multiplication
-//! through `modmath`'s algorithm body (which deps `modmath-cios` and
-//! is generic over `CiosRowOps`).
-//!
-//! ## Why the trait lives in `modmath-cios` (a leaf crate)
-//!
-//! An earlier iteration (commit `af832a9`) put `CiosRowOps` in
-//! `modmath` itself with `modmath` dev-deping `fixed-bigint` to test
-//! the `FixedUInt` impl. That doesn't work: `cargo test` compiles
-//! `modmath` twice — once normally (the library `fixed-bigint` links
-//! against through its `modmath` dep) and once with `--test` (the
-//! `modmath` test binary). Same source, two distinct metadata hashes,
-//! two distinct `CiosRowOps` identities. The impl satisfies one;
-//! `modmath`'s own tests reference the other. The bound never
-//! resolves. Cargo-level dedup ≠ rustc-level dedup. See
-//! `CIOS_TRAIT_MOVED.md`.
-//!
-//! Moving the trait to its own leaf crate (`modmath-cios`, no deps,
-//! `#![no_std]`) closes the duplication: both `modmath` (in both
-//! normal and `--test` mode) and `fixed-bigint` see exactly one
-//! `modmath_cios::CiosRowOps`.
-//!
-//! `modmath` does not re-export `CiosRowOps`. Consumers import from
-//! `modmath_cios` directly (per the maintainer's "API moved, path
-//! moves with it" policy — no compatibility shim).
-//!
-//! ## One impl, both personalities
-//!
-//! `CiosRowOps`'s trait contract documents that the `word(&self, i)`
-//! accessor is only ever called with a public `i < self.word_count()`.
-//! Under that precondition, infallible direct indexing is CT-safe — `i`
-//! is never operand-dependent, so the bounds check doesn't leak. There
-//! is no `Nct`/`Ct` discriminant on this trait (unlike the retired
-//! `MulAccOps`, whose `GetWordOutput = Option<T>` / `CtOption<T>` split
-//! was the personality marker). So one impl block covers both.
-//!
-//! ## Replaces `MulAccOps`
-//!
-//! `fixed_bigint::MulAccOps` and its impls are deleted in the same
-//! commit. The two row kernels are byte-identical (same loop, same
-//! `CarryingMul::carrying_mul_add` calls, same overflow handling); only
-//! the trait shape changed. The two callsite-visible breaks vs
-//! `MulAccOps`:
-//!
-//! - `fn word_count() -> usize` → `fn word_count(&self) -> usize`.
-//!   Instance method now, admits heap bigint backends.
-//! - `fn get_word(&self, i) -> Self::GetWordOutput` → `fn word(&self, i)
-//!   -> Self::Word`. Infallible; the personality-discriminant
-//!   associated type is gone.
+//! One impl block covers both personalities: `word(&self, i)`'s trait
+//! contract guarantees `i` is public and in-range, so infallible
+//! indexing doesn't leak — no `Nct`/`Ct` split needed on the accessor.
 
 #![cfg(feature = "cios")]
 
@@ -83,22 +36,15 @@ where
         N
     }
 
-    /// Panic-free, CT-safe under the trait precondition (`i` is public,
-    /// `i < N`). `array.get(i).copied().unwrap_or(ZERO)` instead of
-    /// `array[i]` — the `unwrap_or` fallback is dead code at the
-    /// algorithm level (the trait contract forbids an out-of-bounds
-    /// `i`), but the safe-slice form keeps `panic_bounds_check` out of
-    /// the linked binary. Same body for both personalities: `i` is
-    /// public, the bounds check is value-independent.
+    /// `get().unwrap_or(ZERO)` rather than `array[i]` so no
+    /// `panic_bounds_check` reaches the linked binary. Fallback is
+    /// unreachable per the trait's public-`i < N` precondition.
     #[inline]
     fn word(&self, i: usize) -> T {
         self.array.get(i).copied().unwrap_or(<T as ConstZero>::ZERO)
     }
 
-    /// Phase 1 row: `acc += scalar * multiplicand`. Returns the
-    /// carry-out word.
-    ///
-    /// Byte-identical body to the retired `MulAccOps::mul_acc_row`.
+    /// `acc += scalar * multiplicand`. Returns the carry-out word.
     fn mul_acc_row(scalar: T, multiplicand: &Self, acc: &mut Self, carry_in: T) -> T {
         let mut carry = carry_in;
         let mut j = 0;
@@ -112,11 +58,8 @@ where
         carry
     }
 
-    /// Phase 2 row: `[acc, acc_hi] = ([acc, acc_hi] + scalar *
-    /// multiplicand) >> word_bits`. Returns the carry word (0 or 1)
-    /// from the fold.
-    ///
-    /// Byte-identical body to the retired `MulAccOps::mul_acc_shift_row`.
+    /// `[acc, acc_hi] = ([acc, acc_hi] + scalar * multiplicand) >>
+    /// word_bits`. Returns the carry word (0 or 1) from the fold.
     fn mul_acc_shift_row(scalar: T, multiplicand: &Self, acc: &mut Self, acc_hi: T) -> T {
         debug_assert!(N > 0, "CiosRowOps requires at least one word");
         // First word: discarded (zero by CIOS construction).

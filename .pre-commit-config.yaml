@@ -31,5 +31,14 @@ repos:
     rev: v1.0
     hooks:
     -   id: fmt
+        # Override the upstream default which appends filenames after
+        # `--`, causing rustfmt to run per-file without the workspace's
+        # edition context — it then reorders imports differently than
+        # `cargo fmt --all` does and, on some files, mis-parses the
+        # `c0nst!` macro and writes empty output. `--all -- --check`
+        # runs across the workspace and fails without modifying, so
+        # devs fix by running `cargo fmt --all` locally.
+        pass_filenames: false
+        args: ["--all", "--", "--check"]
     -   id: cargo-check
     -   id: clippy

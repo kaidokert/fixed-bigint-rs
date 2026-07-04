@@ -42,10 +42,8 @@ fn test_divides() {
     fn divides<T: num_integer::Integer + From<u8>>() {
         let tests = [(6u8, 3u8, true), (8, 2, true), (8, 1, true), (17, 2, false)];
         for &(multiple, multiplier, expected) in &tests {
-            assert_eq!(
-                num_integer::Integer::is_multiple_of(&multiple, &multiplier),
-                expected
-            );
+            let multiple = T::from(multiple);
+            let multiplier = T::from(multiplier);
             assert_eq!(
                 num_integer::Integer::is_multiple_of(&multiple, &multiplier),
                 expected
@@ -58,12 +56,22 @@ fn test_divides() {
             (89, 13, 6, 11),
         ];
         for &(multiple, divider, div, rem) in &divrem {
+            let multiple = T::from(multiple);
+            let divider = T::from(divider);
+            let div = T::from(div);
+            let rem = T::from(rem);
             let (divres, remres) = multiple.div_rem(&divider);
-            assert_eq!(divres, div);
-            assert_eq!(remres, rem);
+            assert!(divres == div, "div_rem: unexpected quotient");
+            assert!(remres == rem, "div_rem: unexpected remainder");
 
-            assert_eq!(num_integer::Integer::div_floor(&multiple, &divider), divres);
-            assert_eq!(num_integer::Integer::mod_floor(&multiple, &divider), remres);
+            assert!(
+                num_integer::Integer::div_floor(&multiple, &divider) == divres,
+                "div_floor disagrees with div_rem"
+            );
+            assert!(
+                num_integer::Integer::mod_floor(&multiple, &divider) == remres,
+                "mod_floor disagrees with div_rem"
+            );
         }
     }
     divides::<u8>();
@@ -84,7 +92,10 @@ fn test_gcd_lcm() {
             (99, 90, 9),
         ];
         for &(a, b, expected) in &gcd_tests {
-            assert_eq!(a.gcd(&b), expected);
+            let a = T::from(a);
+            let b = T::from(b);
+            let expected = T::from(expected);
+            assert!(a.gcd(&b) == expected);
         }
         let lcm_tests = [
             (10u8, 2u8, 10u8),
@@ -95,7 +106,10 @@ fn test_gcd_lcm() {
             (255, 255, 255),
         ];
         for &(a, b, expected) in &lcm_tests {
-            assert_eq!(a.lcm(&b), expected);
+            let a = T::from(a);
+            let b = T::from(b);
+            let expected = T::from(expected);
+            assert!(a.lcm(&b) == expected);
         }
     }
     gcd_lcm::<u8>();
