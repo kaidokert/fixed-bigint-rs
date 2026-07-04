@@ -13,9 +13,6 @@
 // limitations under the License.
 
 #[cfg(feature = "num-traits")]
-use num_traits::{ToPrimitive, Zero};
-
-use core::convert::TryFrom;
 use core::fmt::Write;
 
 pub use crate::const_numtraits::{
@@ -158,9 +155,9 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Ct> {
     /// Drop the CT guarantee and convert to the `Nct` variant.
     ///
     /// **This is an explicit downgrade.** The caller is asserting that the
-    /// value is no longer secret — typically because the CT-handling phase
-    /// has ended (e.g. a finalized signature, a published key, a post-
-    /// reduction modular value about to be serialized).
+    /// value is no longer secret — typically because the CT-handling
+    /// window has ended (e.g. a finalized signature, a published key, a
+    /// post-reduction modular value about to be serialized).
     pub const fn forget_ct(self) -> FixedUInt<T, N, Nct> {
         FixedUInt::from_array(self.array)
     }
@@ -248,7 +245,6 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
         T: subtle::ConstantTimeEq + subtle::ConstantTimeGreater,
         for<'a> &'a Self: core::ops::Mul<&'a Self, Output = Self>,
     {
-        use crate::const_numtraits::OverflowingMul;
         let mut result = <Self as crate::const_numtraits::One>::one();
         let mut base = self;
         let mut e = exp;
@@ -601,6 +597,7 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
         FixedUInt::<T, N2, P>::from_array(array)
     }
 
+    #[cfg(feature = "num-traits")]
     fn hex_fmt(
         &self,
         formatter: &mut core::fmt::Formatter<'_>,
@@ -1545,9 +1542,11 @@ c0nst::c0nst! {
 fn make_parse_int_err() -> core::num::ParseIntError {
     <u8>::from_str_radix("-", 2).err().unwrap()
 }
+#[cfg(feature = "num-traits")]
 fn make_overflow_err() -> core::num::ParseIntError {
     <u8>::from_str_radix("101", 16).err().unwrap()
 }
+#[cfg(feature = "num-traits")]
 fn make_empty_error() -> core::num::ParseIntError {
     <u8>::from_str_radix("", 8).err().unwrap()
 }
@@ -1650,6 +1649,7 @@ mod tests {
     use super::FixedUInt as Bn;
     use super::*;
     use crate::const_numtraits::{One, Zero};
+    use num_traits::ToPrimitive;
 
     type Bn8 = Bn<u8, 8>;
     type Bn16 = Bn<u16, 4>;
@@ -2160,7 +2160,7 @@ mod tests {
         assert_eq!(f.array, [1, 0, 0, 0]);
         let f = Bn::<u8, 4>::from(257u32);
         assert_eq!(f.array, [1, 1, 0, 0]);
-        let f = Bn::<u8, 4>::from(u32::max_value());
+        let f = Bn::<u8, 4>::from(u32::MAX);
         assert_eq!(f.array, [255, 255, 255, 255]);
 
         let f = Bn::<u8, 1>::from(1u32);
@@ -2179,7 +2179,7 @@ mod tests {
         let f = Bn::<u32, 1>::from(65537u32);
         assert_eq!(f.array, [65537]);
 
-        let f = Bn::<u32, 1>::from(u32::max_value());
+        let f = Bn::<u32, 1>::from(u32::MAX);
         assert_eq!(f.array, [4294967295]);
 
         #[cfg(feature = "nightly")]
@@ -2428,7 +2428,7 @@ mod tests {
     #[test]
     fn test_clone() {
         let a: Bn8 = 42u8.into();
-        let b = a.clone();
+        let b = a;
         assert_eq!(a, b);
 
         #[cfg(feature = "nightly")]

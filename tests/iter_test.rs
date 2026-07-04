@@ -5,7 +5,7 @@ fn test_sum() {
     type TestInt = FixedUInt<u32, 2>;
 
     // Test sum of values
-    let values = vec![
+    let values = [
         TestInt::from(1u8),
         TestInt::from(2u8),
         TestInt::from(3u8),
@@ -31,7 +31,7 @@ fn test_product() {
     type TestInt = FixedUInt<u32, 2>;
 
     // Test product of values
-    let values = vec![TestInt::from(2u8), TestInt::from(3u8), TestInt::from(4u8)];
+    let values = [TestInt::from(2u8), TestInt::from(3u8), TestInt::from(4u8)];
 
     let product: TestInt = values.iter().cloned().product();
     assert_eq!(product, TestInt::from(24u8));
@@ -50,7 +50,7 @@ fn test_product() {
 fn test_sum_large_numbers() {
     type TestInt = FixedUInt<u64, 2>;
 
-    let values = vec![
+    let values = [
         TestInt::from(1000000u32),
         TestInt::from(2000000u32),
         TestInt::from(3000000u32),
@@ -64,7 +64,7 @@ fn test_sum_large_numbers() {
 fn test_product_large_numbers() {
     type TestInt = FixedUInt<u64, 2>;
 
-    let values = vec![
+    let values = [
         TestInt::from(10u8),
         TestInt::from(20u8),
         TestInt::from(30u8),
@@ -82,7 +82,7 @@ fn test_sum_different_types() {
     type TestInt8 = FixedUInt<u8, 4>;
     type TestInt16 = FixedUInt<u16, 2>;
 
-    let values8 = vec![
+    let values8 = [
         TestInt8::from(10u8),
         TestInt8::from(20u8),
         TestInt8::from(30u8),
@@ -90,7 +90,7 @@ fn test_sum_different_types() {
     let sum8: TestInt8 = values8.iter().cloned().sum();
     assert_eq!(sum8, TestInt8::from(60u8));
 
-    let values16 = vec![
+    let values16 = [
         TestInt16::from(100u8),
         TestInt16::from(200u8),
         TestInt16::from(255u8),
@@ -103,7 +103,7 @@ fn test_sum_different_types() {
 fn test_chained_operations() {
     type TestInt = FixedUInt<u32, 2>;
 
-    let values = vec![
+    let values = [
         TestInt::from(1u8),
         TestInt::from(2u8),
         TestInt::from(3u8),

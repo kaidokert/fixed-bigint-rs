@@ -15,7 +15,7 @@
 //! Checked power implementation for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{CheckedMul, CheckedPow, ConstOne, One, Zero};
+use crate::const_numtraits::{CheckedMul, CheckedPow, One};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
 

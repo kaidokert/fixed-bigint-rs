@@ -2,8 +2,7 @@ use super::{
     FixedUInt, MachineWord, PanicReason, const_ct_select, const_div_rem, const_mul, maybe_panic_if,
 };
 use crate::const_numtraits::{
-    Bounded, CheckedDiv, CheckedMul, CheckedRem, ConstZero, One, OverflowingMul, SaturatingMul,
-    WrappingMul, Zero,
+    Bounded, CheckedDiv, CheckedMul, CheckedRem, OverflowingMul, SaturatingMul, WrappingMul, Zero,
 };
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{Nct, Personality, PersonalityTag};
@@ -363,6 +362,9 @@ where
 }
 
 #[cfg(test)]
+// Coverage tests deliberately exercise every ref/value combination of
+// `Mul`/`Div` (see `test_*_combinations`).
+#[allow(clippy::op_ref)]
 mod tests {
     use super::*;
 

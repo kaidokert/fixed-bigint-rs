@@ -15,50 +15,21 @@
 //! `PowerOfTwoOps` for `FixedUInt`, plus the round-trip helper
 //! [`FixedUInt::from_power_of_two`].
 //!
-//! Construction of the typestate proof is **not** in this file. The
-//! safe generic constructor `PowerOfTwo::new_checked` lives in
-//! `const-num-traits` and is bounded on `T: IsPowerOfTwo + PrimBits`,
-//! both of which `FixedUInt` implements — so callers construct via
+//! Construct the `PowerOfTwo<FixedUInt<...>>` proof via the upstream
+//! safe constructor `PowerOfTwo::new_checked` (in `const-num-traits`,
+//! bounded on `T: IsPowerOfTwo + PrimBits`, both of which `FixedUInt`
+//! implements) — no glue on this side, no caller-side unsafe.
 //!
-//! ```ignore
-//! use const_num_traits::PowerOfTwo;
-//! let p = PowerOfTwo::<FixedUInt<u8, 2>>::new_checked(value);
-//! ```
+//! One impl block covers both personalities: every body is a shift, a
+//! mask, or an addition, so there is no `match P::TAG`.
+//! `next_multiple_of_pow2` inherits the `+` semantic (panic under Nct,
+//! wrap under Ct); untrusted inputs should use
+//! `checked_next_multiple_of_pow2`.
 //!
-//! without any glue method on this side and without any caller-side
-//! unsafe. This file existed in an earlier shape (commit `143e4c5`)
-//! that wrapped the upstream `unsafe const fn from_exp_unchecked`
-//! constructor inside a `FixedUInt::as_power_of_two` method; that
-//! shape was reverted because the crate's `use-unsafe` feature is
-//! scoped narrowly to the `BytesHolder` byte-cast path and not a
-//! general license. Upstream `new_checked` (const-num-traits PR #7,
-//! commit `410cfac`) made the unsafe unnecessary by recovering the
-//! exponent from `PrimBits::leading_zeros` + `T::ZERO.count_zeros()`
-//! — both available on `FixedUInt`.
-//!
-//! ## Consuming ops
-//!
-//! The five `PowerOfTwoOps` methods (`div_pow2`, `rem_pow2`,
-//! `is_multiple_of_pow2`, `next_multiple_of_pow2`,
-//! `checked_next_multiple_of_pow2`) are implemented uniformly across
-//! both personalities — every body is a shift, a mask, or an addition
-//! with no value-dependent branch, so there is no `match P::TAG`
-//! dispatch and `Ct` / `Nct` collapse to the same code.
-//!
-//! `next_multiple_of_pow2` inherits the personality-specific `+`
-//! semantic (panic-on-overflow under `Nct`, wrap under `Ct`).
-//! Untrusted-input callers should use `checked_next_multiple_of_pow2`
-//! instead — it's the explicit no-panic sibling.
-//!
-//! ## No `impl PowerOfTwoOps for &FixedUInt<...>`
-//!
-//! The trait fixes `p: PowerOfTwo<Self>`, so for `Self = &FixedUInt<...>`
-//! the parameter would have to be `PowerOfTwo<&FixedUInt<...>>` — a
-//! distinct type from `PowerOfTwo<FixedUInt<...>>` despite carrying
-//! the same `u32` inside. Forcing callers to manufacture a separate
-//! proof for the borrowed shape adds noise without saving anything,
-//! since `FixedUInt: Copy` makes deref free. Use
-//! `PowerOfTwoOps::div_pow2(*v, p)` or `(*v).div_pow2(p)`.
+//! There is no `impl PowerOfTwoOps for &FixedUInt<...>`: the trait
+//! fixes `p: PowerOfTwo<Self>`, so `&FixedUInt<...>` would need a
+//! separate proof-typed parameter. `FixedUInt: Copy` makes deref free;
+//! use `PowerOfTwoOps::div_pow2(*v, p)`.
 
 use super::{FixedUInt, MachineWord};
 use crate::const_numtraits::{CheckedAdd, ConstOne, One, Zero};

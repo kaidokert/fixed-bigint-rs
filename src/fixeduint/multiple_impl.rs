@@ -15,7 +15,7 @@
 //! Multiple-of operations for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{CheckedAdd, ConstZero, MultipleOf, NextMultipleOf, One, Zero};
+use crate::const_numtraits::{CheckedAdd, MultipleOf, NextMultipleOf, Zero};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
 

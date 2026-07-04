@@ -15,7 +15,7 @@
 //! Ceiling division for FixedUInt.
 
 use super::{FixedUInt, MachineWord, const_div, const_is_zero};
-use crate::const_numtraits::{CheckedAdd, ConstOne, DivCeil, One, Zero};
+use crate::const_numtraits::{CheckedAdd, DivCeil, One};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
 

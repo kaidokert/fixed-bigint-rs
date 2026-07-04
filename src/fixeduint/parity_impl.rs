@@ -111,6 +111,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_borrows_for_generic_args)]
     fn parity_ref() {
         let v = U16Nct::from(7u8);
         assert!(Parity::is_odd(&v));
@@ -196,11 +197,8 @@ mod tests {
         }
     }
 
-    /// Phase-0 deliverable: `Odd::<FixedUInt<_, _, Ct>>::new_ct(n)` round-trips.
-    /// This is the contract the request quoted from the modmath agent's
-    /// plan ("verify `Field::<FixedUInt, Ct>::try_new_odd_ct(n)`
-    /// round-trips"); on this side we exercise the upstream construction
-    /// path that `Field::try_new_odd_ct` will call into.
+    /// `Odd::<FixedUInt<_, _, Ct>>::new_ct(n)` round-trips — exercises the
+    /// upstream typestate construction path on the Ct personality.
     #[test]
     fn odd_new_ct_round_trips_for_ct_carrier() {
         use const_num_traits::Odd;

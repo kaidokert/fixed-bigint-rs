@@ -39,6 +39,9 @@ fn test_evenodd() {
 
 #[test]
 fn test_divides() {
+    // TODO: body only exercises u8; the `T` param and the `<FixedUInt<...>>`
+    // call sites below don't actually reach the assertions.
+    #[allow(clippy::extra_unused_type_parameters)]
     fn divides<T: num_integer::Integer + From<u8>>() {
         let tests = [(6u8, 3u8, true), (8, 2, true), (8, 1, true), (17, 2, false)];
         for &(multiple, multiplier, expected) in &tests {
@@ -75,6 +78,8 @@ fn test_divides() {
 // TODO: Test GCD / LCM
 #[test]
 fn test_gcd_lcm() {
+    // Same shape as `divides`: body only exercises u8.
+    #[allow(clippy::extra_unused_type_parameters)]
     fn gcd_lcm<T: num_integer::Integer + From<u8>>() {
         let gcd_tests = [
             (8u8, 12u8, 4u8),

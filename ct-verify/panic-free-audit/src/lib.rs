@@ -8,9 +8,9 @@
 //! `panic_*` / `unwind` symbols traced back to these methods.
 //!
 //! Picks a real-world-shaped instantiation: `FixedUInt<u32, 8>` ⇒
-//! 32 bytes (a Curve25519-shaped scalar). The buffer size matches
-//! `BYTE_WIDTH` exactly to exercise the equal-size hot path that
-//! downstream `ed25519_heapless` cares about.
+//! 32 bytes (a 256-bit scalar). The buffer size matches `BYTE_WIDTH`
+//! exactly to exercise the equal-size hot path that downstream
+//! consumers care about.
 //!
 //! `black_box` at every boundary so the optimizer can't fold inputs
 //! through and DCE the body wholesale (same hygiene as ct-fixtures).

@@ -2,8 +2,8 @@ use super::{
     FixedUInt, MachineWord, PanicReason, add_impl, const_ct_select, maybe_panic_if, sub_impl,
 };
 use crate::const_numtraits::{
-    Bounded, CheckedAdd, CheckedSub, ConstZero, One, OverflowingAdd, OverflowingSub, SaturatingAdd,
-    SaturatingSub, WrappingAdd, WrappingSub, Zero,
+    Bounded, CheckedAdd, CheckedSub, ConstZero, OverflowingAdd, OverflowingSub, SaturatingAdd,
+    SaturatingSub, WrappingAdd, WrappingSub,
 };
 use crate::machineword::ConstMachineWord;
 use const_num_traits::{Personality, PersonalityTag};
@@ -351,11 +351,14 @@ where
 }
 
 #[cfg(test)]
+// Coverage tests deliberately exercise every ref/value combination of
+// `Add`/`Sub` (see `test_add_combinations`, `test_sub_combinations`).
+#[allow(clippy::op_ref)]
 mod tests {
     use super::*;
     use crate::const_numtraits::Bounded;
     use crate::const_numtraits::{
-        CheckedAdd, CheckedSub, One, OverflowingAdd, OverflowingSub, WrappingAdd, WrappingSub, Zero,
+        CheckedAdd, CheckedSub, OverflowingAdd, OverflowingSub, WrappingAdd, WrappingSub,
     };
     use crate::machineword::ConstMachineWord;
 

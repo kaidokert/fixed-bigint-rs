@@ -265,7 +265,7 @@ fn test_rotate() {
         assert_eq!(b.rotate_right(full_shift), b);
 
         // Rotations larger than the bit width should wrap around
-        let bit_width = INT::BIT_SIZE as u32;
+        let bit_width = INT::BIT_SIZE;
         let overflow_shift = full_shift + 5;
         let expected_left = a.rotate_left(overflow_shift % bit_width);
         assert_eq!(a.rotate_left(overflow_shift), expected_left);

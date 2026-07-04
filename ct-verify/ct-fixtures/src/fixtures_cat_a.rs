@@ -1,15 +1,15 @@
-//! Category A: methods migrated via `match P::TAG` where the Ct arm is a
-//! distinct body. Phase 3c–g + 3i–m in the original migration commits.
+//! Category A: methods dispatched via `match P::TAG` where the Ct arm
+//! is a distinct body.
 //!
 //! Each op is exercised at five (T, N) diagonals:
 //!   (u8, 16), (u16, 16), (u32, 4), (u32, 16), (u64, 4)
 
 use const_num_traits::Ct;
-use fixed_bigint::FixedUInt;
 use fixed_bigint::const_numtraits::{
     AbsDiff, IsPowerOfTwo, NextPowerOfTwo, One, PrimBits, SaturatingAdd, SaturatingMul,
     SaturatingSub, UnboundedShl, UnboundedShr, Zero,
 };
+use fixed_bigint::FixedUInt;
 
 use crate::{ct_fix_bin, ct_fix_count, ct_fix_pred, ct_fix_shift, ct_fix_un};
 
@@ -66,7 +66,7 @@ emit_sat_mul!(ct_fix__A__sat_mul__u32__N16, u32, 16);
 emit_sat_mul!(ct_fix__A__sat_mul__u64__N4, u64, 4);
 
 // =============================================================================
-// core::ops::Shl<usize> / Shr<usize> (Phase 3e barrel shifter)
+// core::ops::Shl<usize> / Shr<usize> — barrel shifter
 // =============================================================================
 
 macro_rules! emit_shl_usize {
@@ -100,7 +100,7 @@ emit_shr_usize!(ct_fix__A__shr_usize__u32__N16, u32, 16);
 emit_shr_usize!(ct_fix__A__shr_usize__u64__N4, u64, 4);
 
 // =============================================================================
-// UnboundedShl::unbounded_shl / UnboundedShr::unbounded_shr (Phase 3i)
+// UnboundedShl::unbounded_shl / UnboundedShr::unbounded_shr
 // =============================================================================
 
 macro_rules! emit_unbounded_shl {
@@ -134,7 +134,7 @@ emit_unbounded_shr!(ct_fix__A__unbounded_shr__u32__N16, u32, 16);
 emit_unbounded_shr!(ct_fix__A__unbounded_shr__u64__N4, u64, 4);
 
 // =============================================================================
-// AbsDiff::abs_diff (Phase 3l)
+// AbsDiff::abs_diff
 // =============================================================================
 
 macro_rules! emit_abs_diff {
@@ -154,7 +154,7 @@ emit_abs_diff!(ct_fix__A__abs_diff__u32__N16, u32, 16);
 emit_abs_diff!(ct_fix__A__abs_diff__u64__N4, u64, 4);
 
 // =============================================================================
-// IsPowerOfTwo::is_power_of_two (Phase 3f) — predicate
+// IsPowerOfTwo::is_power_of_two — predicate
 // =============================================================================
 
 macro_rules! emit_is_pow2 {
@@ -172,7 +172,7 @@ emit_is_pow2!(ct_fix__A__is_pow2__u32__N16, u32, 16);
 emit_is_pow2!(ct_fix__A__is_pow2__u64__N4, u64, 4);
 
 // =============================================================================
-// NextPowerOfTwo::next_power_of_two (Phase 3m)
+// NextPowerOfTwo::next_power_of_two
 // =============================================================================
 
 macro_rules! emit_next_pow2 {
@@ -191,7 +191,7 @@ emit_next_pow2!(ct_fix__A__next_pow2__u32__N16, u32, 16);
 emit_next_pow2!(ct_fix__A__next_pow2__u64__N4, u64, 4);
 
 // =============================================================================
-// PrimBits::leading_zeros / trailing_zeros (Phase 3c/3d)
+// PrimBits::leading_zeros / trailing_zeros
 // =============================================================================
 
 macro_rules! emit_lz {
@@ -223,7 +223,7 @@ emit_tz!(ct_fix__A__trailing_zeros__u32__N16, u32, 16);
 emit_tz!(ct_fix__A__trailing_zeros__u64__N4, u64, 4);
 
 // =============================================================================
-// Zero::is_zero / One::is_one (Phase 2 / 3a)
+// Zero::is_zero / One::is_one
 // =============================================================================
 
 macro_rules! emit_is_zero {
