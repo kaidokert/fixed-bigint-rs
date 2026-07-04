@@ -52,12 +52,8 @@ version = "0.1.45"
 optional = true
 default-features = false
 
-# Experimental: the in-tree const-friendly fork of num-traits. Used to
-# replace the local `src/const_numtraits.rs` module on this branch and
-# see what (if anything) breaks in the API/contract.
 [dependencies.const-num-traits]
-git = "https://github.com/kaidokert/num-traits"
-tag = "v0.1.0-alpha.0"
+version = "0.1"
 default-features = false
 features = ["ct"]
 
