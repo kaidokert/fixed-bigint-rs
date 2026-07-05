@@ -26,10 +26,6 @@ c0nst::c0nst! {
         fn isqrt(self) -> Self {
             // Bit-by-bit algorithm for integer square root.
             // Returns the largest r such that r * r <= self.
-            // (External `CheckedIsqrt` is signed-only; unsigned isqrt
-            // can never fail, so we don't implement that trait. A
-            // backwards-compatible inherent `checked_isqrt` returning
-            // `Option<Self>` is provided below for downstream callers.)
             if <Self as Zero>::is_zero(&self) {
                 return <Self as Zero>::zero();
             }
@@ -65,9 +61,7 @@ c0nst::c0nst! {
 }
 
 impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
-    /// Backwards-compatible inherent shim for `checked_isqrt`. External
-    /// `CheckedIsqrt` is signed-only; for unsigned types the operation
-    /// can never fail, so we always return `Some`.
+    /// Unsigned isqrt cannot fail; always returns `Some`.
     pub fn checked_isqrt(self) -> Option<Self> {
         Some(<Self as Isqrt>::isqrt(self))
     }

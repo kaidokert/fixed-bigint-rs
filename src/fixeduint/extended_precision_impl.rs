@@ -229,10 +229,8 @@ mod tests {
             BorrowingSub::borrowing_sub(a, b, borrow)
         }
 
-        /// Backwards-compatible test shim: returns the full `(low, high)`
-        /// product. `FixedUInt` no longer implements `WideningMul`; this
-        /// routes through `CarryingMul` with a zero carry, which produces
-        /// the same value.
+        /// Full `(low, high)` product via `CarryingMul` with a zero
+        /// carry — `FixedUInt` doesn't implement `WideningMul`.
         pub c0nst fn const_widening_mul<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality>(
             a: FixedUInt<T, N, P>,
             b: FixedUInt<T, N, P>,
