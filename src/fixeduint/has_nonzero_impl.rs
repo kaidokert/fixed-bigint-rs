@@ -247,20 +247,15 @@ mod tests {
         assert_eq!(<U128 as DivNonZero>::rem_nonzero(a, nz), a % m);
     }
 
-    #[test]
-    fn divnonzero_not_impld_for_ct() {
-        // Compile-time guard: `DivNonZero for FixedUInt<_, _, Ct>` does
-        // NOT exist (Div on FixedUInt is Nct-only). The following SHOULD
-        // fail to compile if uncommented:
-        //
-        //     let a: U32Ct = U32Ct::from(100u32);
-        //     let nz: NonZeroFixedUInt<u8, 4, Ct> = a.into_nonzero().unwrap();
-        //     let _ = <U32Ct as DivNonZero>::div_nonzero(a, nz);
-        //
-        // The HasNonZero impl is still generic in P (see
-        // `into_nonzero_works_under_ct_too`), so the proof type still
-        // exists for Ct carriers — it just can't be divided.
-    }
+    // Compile-time guard: `DivNonZero for FixedUInt<_, _, Ct>` does NOT
+    // exist (Div on FixedUInt is Nct-only). The `HasNonZero` impl stays
+    // generic in P — the proof type exists for Ct, it just can't be
+    // divided by. `static_assertions::assert_not_impl_any!` fires at
+    // compile time if a future `impl DivNonZero for FixedUInt<_, _, Ct>`
+    // sneaks in.
+    static_assertions::assert_not_impl_any!(
+        FixedUInt<u32, 4, const_num_traits::Ct>: DivNonZero
+    );
 
     #[test]
     fn into_nonzero_ct_masks_zero() {

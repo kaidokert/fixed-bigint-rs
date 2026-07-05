@@ -1292,7 +1292,7 @@ mod tests {
         use const_num_traits::{FunnelShl, FunnelShr};
         type U16 = FixedUInt<u8, 2>;
 
-        // 0x0180 << 1 = 0x0300 -> high half (16 bits) = 0x0003
+        // 0x0001_8000 << 1 = 0x0003_0000; high half = 0x0003.
         assert_eq!(
             FunnelShl::funnel_shl(U16::from(0x0001u16), U16::from(0x8000u16), 1),
             U16::from(0x0003u16),
@@ -1302,9 +1302,7 @@ mod tests {
             FunnelShl::funnel_shl(U16::from(0xABCDu16), U16::from(0xFFFFu16), 0),
             U16::from(0xABCDu16),
         );
-        // 0x0180 >> 1 = 0x00C0 -> low half (16 bits) = 0x00C0... wait
-        // hi=0x0001 lo=0x8000, double = 0x00018000.
-        // funnel_shr n=1 → low half of (>> 1) = 0x0001_8000 >> 1 = 0x0000_C000, low = 0xC000.
+        // 0x0001_8000 >> 1 = 0x0000_C000; low half = 0xC000.
         assert_eq!(
             FunnelShr::funnel_shr(U16::from(0x0001u16), U16::from(0x8000u16), 1),
             U16::from(0xC000u16),
@@ -1508,7 +1506,8 @@ mod tests {
             // Sanity-check a representative subset of the const results.
             assert_eq!(OSHL.0.array, [16, 0]);
             assert!(!OSHL.1);
-            assert!(OSHR.1 || !OSHR.1); // shape check; value 0x0F shifted right by 4 is 0
+            assert_eq!(OSHR.0.array, [0x0F, 0]);
+            assert!(!OSHR.1);
             assert_eq!(WSHL.array, [16, 0]);
             assert_eq!(WSHR.array, [0x0F, 0]);
             assert!(CSHL.is_none());
