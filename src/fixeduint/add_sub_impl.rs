@@ -181,15 +181,12 @@ c0nst::c0nst! {
 
     // --- Reference-receiver impls ------------------------------------------
     //
-    // MIGRATION.md §2.3 introduces the `type Output` associated type so the
-    // by-value trait surface can also be implemented for `&Self`. For Copy
-    // types like FixedUInt the body just dereferences and delegates to the
-    // owned impl above, but the ergonomic payoff is real: call sites can
-    // write `(&x).checked_add(&y)` (or call generically through a `T:
-    // CheckedAdd` bound where T is `&FixedUInt`) without sprinkling derefs
-    // through arithmetic helpers. The `Add<&FixedUInt> for &FixedUInt`
-    // impls in this file (lines 96+) supply the `Output = FixedUInt<T,N,P>`
-    // that the operator-backed supertrait expects.
+    // Mirror the by-value trait surface for `&Self` via the trait's
+    // `type Output` — for Copy carriers like FixedUInt the body just
+    // dereferences and delegates. Call sites can write
+    // `(&x).checked_add(&y)` (or use a `T: CheckedAdd` bound where T is
+    // `&FixedUInt`) without sprinkling derefs. The `Add<&FixedUInt> for
+    // &FixedUInt` impls above supply `Output = FixedUInt<T,N,P>`.
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::ops::overflowing::OverflowingAdd for &FixedUInt<T, N, P> {
         fn overflowing_add(self, other: Self) -> (FixedUInt<T, N, P>, bool) {
