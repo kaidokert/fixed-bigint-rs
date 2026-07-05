@@ -51,13 +51,12 @@ c0nst::c0nst! {
         if pos < N { lo[pos] = val; } else if pos < 2 * N { hi[pos - N] = val; }
     }
 
-    // `WideningMul` for FixedUInt is intentionally NOT implemented. Per
-    // MIGRATION.md §2.4, `WideningMul::Wide` is a single double-width
-    // primitive (`Wide = u16` for `u8` etc.). Arbitrary-precision /
-    // fixed-width-generic types like `FixedUInt<N>` have no
-    // `FixedUInt<2N>` to be `Wide` without `generic_const_exprs`. The
-    // schoolbook full product is exposed through `CarryingMul` below,
-    // which returns `(low, high)` natively — exactly the shape needed.
+    // `WideningMul` for FixedUInt is intentionally NOT implemented.
+    // `WideningMul::Wide` is a single double-width primitive (e.g.
+    // `Wide = u16` for `u8`); fixed-width-generic `FixedUInt<N>` has
+    // no `FixedUInt<2N>` to be `Wide` without `generic_const_exprs`.
+    // The schoolbook full product is exposed through `CarryingMul`
+    // below, which returns `(low, high)` natively.
 
     /// Schoolbook full product `self * rhs` returning the 2N-word result
     /// split into two N-word halves `(low, high)`. Private helper shared
@@ -235,9 +234,9 @@ mod tests {
         }
 
         /// Backwards-compatible test shim: returns the full `(low, high)`
-        /// product. `FixedUInt` no longer implements `WideningMul` (per
-        /// MIGRATION.md §2.4); this routes through `CarryingMul` with a
-        /// zero carry, which produces the same value.
+        /// product. `FixedUInt` no longer implements `WideningMul`; this
+        /// routes through `CarryingMul` with a zero carry, which produces
+        /// the same value.
         pub c0nst fn const_widening_mul<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality>(
             a: FixedUInt<T, N, P>,
             b: FixedUInt<T, N, P>,
@@ -584,9 +583,8 @@ mod tests {
         assert_eq!(hi, U16::from(0xFFFEu16));
 
         // Sanity: CarryingMul on FixedUInt produces deterministic results.
-        // (The original `WideningMul`-vs-`WideningMul` self-check is
-        // retired now that `FixedUInt` no longer implements `WideningMul`
-        // per MIGRATION.md §2.4.)
+        // (FixedUInt no longer implements `WideningMul`, so the earlier
+        // `WideningMul`-vs-`WideningMul` self-check doesn't apply.)
         let b = U32::from(0x1234_5678u32);
         let c = U32::from(0x9ABC_DEF0u32);
         let zero32 = <U32 as Zero>::zero();
@@ -642,11 +640,6 @@ mod tests {
     }
 
     /// Sanity check: CarryingMul is deterministic on primitives + FixedUInt.
-    ///
-    /// (Originally a "ref-based vs value-based" check that became
-    /// redundant once MIGRATION.md §2.1 unified everything to by-value,
-    /// and lost its FixedUInt half once §2.4 ruled out
-    /// `impl WideningMul for FixedUInt`.)
     #[test]
     fn test_ref_based_mul_traits() {
         assert_eq!(

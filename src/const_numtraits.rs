@@ -1,13 +1,6 @@
-//! EXPERIMENT (branch `experiment/external-const-num-traits`):
-//!
-//! Curated re-export of the external `const-num-traits` crate. The
-//! previous in-tree `Const*` trait surface was bundled (one trait per
-//! concept); on this branch we follow the external crate's
-//! capability-split design (see `MIGRATION.md` in that crate). This
-//! module re-exports the external names so internal code can write
-//! `use crate::const_numtraits::Zero` etc. without spelling the
-//! external crate path, and downstream consumers see a stable
-//! re-export surface during the experiment.
+//! Curated re-export of the external `const-num-traits` crate.
+//! Internal code writes `use crate::const_numtraits::Zero` etc.
+//! without spelling the external crate path.
 
 #![allow(unused_imports)]
 
