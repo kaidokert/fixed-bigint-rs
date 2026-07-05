@@ -10,8 +10,6 @@ resolver = "2"
 
 [patch.crates-io]
 modmath-cios = { git = "https://github.com/kaidokert/modmath-rs", tag = "v0.4.0-alpha.0" }
-# Temporary until const-num-traits 0.1.1 is published; drop then.
-const-num-traits = { git = "https://github.com/kaidokert/num-traits", branch = "feat/has-personality" }
 
 # Pinned release profile: deterministic codegen so a passing PR locks
 # the inspection output.
