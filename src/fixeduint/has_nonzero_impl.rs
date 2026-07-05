@@ -129,6 +129,11 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> HasNonZero for FixedUInt<T, N, P> {
         type NonZero = NonZeroFixedUInt<T, N, P>;
 
+        // `Option` shape is branchful at the call site — fine for
+        // public inputs, but a secret-derived `self` leaks the "is
+        // zero" bit through the `Some`/`None` discriminant. Ct callers
+        // route through `CtNonZero::into_nonzero_ct` (below) which
+        // returns a masked `CtOption`.
         #[inline]
         fn into_nonzero(self) -> Option<Self::NonZero> {
             if <Self as Zero>::is_zero(&self) {
@@ -147,6 +152,15 @@ c0nst::c0nst! {
     // `DivNonZero` is `Nct`-only because `core::ops::Div for FixedUInt` is
     // `Nct`-only (the long-division body is value-dependent — `if remainder
     // >= divisor` etc. — and doesn't fit `Ct` semantics).
+    //
+    // Panic-freeness: the API contract ("no `Result` or `.unwrap()` at
+    // the caller boundary") is met — the `NonZeroFixedUInt` proof-type
+    // discharges the divide-by-zero check statically. But the produced
+    // binary still contains a `panic_fmt` symbol because `self / d.0`
+    // routes through `const_div_rem`, which retains a runtime
+    // divisor-non-zero check whose branch LLVM can't prove unreachable
+    // through the `#[repr(transparent)]` wrapper. Consumers who need
+    // a *binary-level* panic-free divide should audit downstream.
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> DivNonZero for FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
 

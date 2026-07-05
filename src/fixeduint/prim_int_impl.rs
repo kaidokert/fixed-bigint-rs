@@ -8,6 +8,11 @@ use const_num_traits::{Nct, Personality, PersonalityTag};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> PrimBits for FixedUInt<T, N, P> {
+        // count_ones / count_zeros: no `match P::TAG` — the fixed
+        // N-limb loop + primitive `T::count_ones()` is uniform under
+        // both personalities. On a target where `T::count_ones()`
+        // itself is not constant-time (e.g. SWAR fallback without
+        // POPCNT), that CT weakness is inherited by both variants.
         fn count_ones(self) -> u32 {
             let mut count = 0u32;
             let mut i = 0;

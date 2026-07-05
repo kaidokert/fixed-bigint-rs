@@ -1496,6 +1496,12 @@ impl<T: MachineWord, const N: usize> num_traits::Unsigned for FixedUInt<T, N, Nc
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::cmp::PartialEq for FixedUInt<T, N, P> {
+        // Ct arm is branchless (XOR-fold), but the return type is still
+        // a plain `bool`. A caller that branches on the result of `==`
+        // — e.g. `if a == b { … } else { … }` — leaks the equality bit.
+        // Ct-secure equality on secret operands should route through
+        // `subtle::ConstantTimeEq::ct_eq` and consume the resulting
+        // `Choice` via `CtOption` / `ConditionallySelectable`.
         fn eq(&self, other: &Self) -> bool {
             match P::TAG {
                 PersonalityTag::Nct => self.array == other.array,
