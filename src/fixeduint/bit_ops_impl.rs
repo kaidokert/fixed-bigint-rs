@@ -596,6 +596,13 @@ c0nst::c0nst! {
     //   (which yields 0 for 0 input automatically) — and uses arithmetic
     //   already implemented uniformly across personalities.
 
+    // NOTE: `isolate_highest_one` is NOT constant-time for FixedUInt under
+    // Ct. The `if lz as usize == Self::BIT_SIZE` branch is value-dependent
+    // (it leaks whether `self == 0`), and the `pos`-parameterized shift's
+    // bit-count is value-dependent too. `IsolateLowestOne` below uses the
+    // `self & (0 - self)` trick and IS branchless; callers needing a
+    // constant-time highest-bit isolation on a Ct carrier should mask
+    // through a different path.
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::IsolateHighestOne for FixedUInt<T, N, P> {
         type Output = Self;
         fn isolate_highest_one(self) -> Self {

@@ -42,17 +42,29 @@ c0nst::c0nst! {
         type Output = Self;
 
         fn wrapping_next_power_of_two(self) -> Self {
-            // For unsigned: on Nct, the value-dependent overflow case
-            // (`next_power_of_two` would exceed MAX) panics; here we
-            // wrap to ZERO instead, matching std's primitive
-            // `wrapping_next_power_of_two`. For Ct we reuse the
-            // saturating `next_power_of_two` (overflow → MAX).
+            // Overflow wraps to ZERO under both personalities, matching
+            // std's primitive `wrapping_next_power_of_two`. The Ct arm
+            // is the same branchless body as `next_power_of_two` below,
+            // but selects ZERO on overflow instead of MAX.
             match P::TAG {
                 PersonalityTag::Nct => match self.checked_next_power_of_two() {
                     Some(v) => v,
                     None => <Self as ConstZero>::ZERO,
                 },
-                PersonalityTag::Ct => self.next_power_of_two(),
+                PersonalityTag::Ct => {
+                    let m_one = <Self as WrappingSub>::wrapping_sub(self, Self::one());
+                    let leading = PrimBits::leading_zeros(m_one);
+                    let bits = Self::BIT_SIZE as u32 - leading;
+                    let shifted = Self::one() << (bits as usize);
+                    let is_zero = <Self as Zero>::is_zero(&self) as u8;
+                    let overflow = ((bits >= Self::BIT_SIZE as u32) as u8) & (1u8 ^ is_zero);
+                    let wrapped = crate::fixeduint::const_ct_select(
+                        shifted,
+                        <Self as ConstZero>::ZERO,
+                        overflow,
+                    );
+                    crate::fixeduint::const_ct_select(wrapped, Self::one(), is_zero)
+                }
             }
         }
 
@@ -281,6 +293,41 @@ mod tests {
             assert!(!IS_POW2_FALSE);
             assert_eq!(NEXT_POW2, FixedUInt::from_array([8, 0]));
         }
+    }
+
+    #[test]
+    fn wrapping_next_power_of_two_wraps_to_zero_under_both_personalities() {
+        use const_num_traits::{Ct, Nct};
+        type U16Nct = FixedUInt<u8, 2, Nct>;
+        type U16Ct = FixedUInt<u8, 2, Ct>;
+        // 32769 > 2^15; next power of two is 2^16 = 0x1_0000, doesn't fit u16.
+        // std's `u16::wrapping_next_power_of_two(32769) == 0`.
+        assert_eq!(
+            U16Nct::from(32769u16).wrapping_next_power_of_two(),
+            U16Nct::from_array([0, 0])
+        );
+        assert_eq!(
+            U16Ct::from(32769u16).wrapping_next_power_of_two(),
+            U16Ct::from_array([0, 0])
+        );
+        // MAX-input overflow behaves the same way.
+        assert_eq!(
+            U16Nct::from(0xFFFFu16).wrapping_next_power_of_two(),
+            U16Nct::from_array([0, 0])
+        );
+        assert_eq!(
+            U16Ct::from(0xFFFFu16).wrapping_next_power_of_two(),
+            U16Ct::from_array([0, 0])
+        );
+        // Non-overflow: both personalities agree on the same real result.
+        assert_eq!(
+            U16Nct::from(100u8).wrapping_next_power_of_two(),
+            U16Nct::from(128u8)
+        );
+        assert_eq!(
+            U16Ct::from(100u8).wrapping_next_power_of_two(),
+            U16Ct::from(128u8)
+        );
     }
 
     #[test]

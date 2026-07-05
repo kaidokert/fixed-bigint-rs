@@ -211,9 +211,30 @@ mod tests {
     }
 
     #[test]
+    fn strict_shr_ok() {
+        assert_eq!(StrictShr::strict_shr(U16::from(256u16), 4), U16::from(16u8));
+    }
+
+    #[test]
     #[should_panic(expected = "strict_shr shift exceeds bit width")]
     fn strict_shr_too_wide() {
         let _ = StrictShr::strict_shr(U16::from(1u8), 16);
+    }
+
+    #[test]
+    fn strict_div_ok() {
+        assert_eq!(
+            StrictDiv::strict_div(U16::from(100u8), U16::from(10u8)),
+            U16::from(10u8)
+        );
+    }
+
+    #[test]
+    fn strict_rem_ok() {
+        assert_eq!(
+            StrictRem::strict_rem(U16::from(100u8), U16::from(7u8)),
+            U16::from(2u8)
+        );
     }
 
     #[test]

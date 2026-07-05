@@ -27,6 +27,12 @@
 //! site. Fine for public moduli; secret-derived proofs need a
 //! `CtOption`-returning path that lives above this crate.
 
+// `let _ = <T as AssertNonzeroCarrier>::CHECK;` in `Default::default()`
+// binds a unit-typed associated const to force monomorphization-time
+// evaluation of the `N > 0` assertion. Same idiom as
+// `byte_conversion_panic_free.rs`.
+#![allow(clippy::let_unit_value)]
+
 use super::{FixedUInt, MachineWord};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Zero;
@@ -94,6 +100,24 @@ where
     }
 }
 
+// Type-level compile-time assertion `N > 0`. `const { assert!(N > 0) }`
+// inside a fn body is rejected on nightly with `generic_const_exprs` as
+// "overly complex generic constant" (blocks aren't supported there).
+// Moving the assertion to an associated const on a trait impl sidesteps
+// that — same pattern as `AssertBufferFits` in
+// `byte_conversion_panic_free.rs`.
+trait AssertNonzeroCarrier {
+    const CHECK: ();
+}
+impl<T: MachineWord, const N: usize, P: Personality> AssertNonzeroCarrier
+    for NonZeroFixedUInt<T, N, P>
+{
+    const CHECK: () = assert!(
+        N > 0,
+        "NonZeroFixedUInt::default() requires N > 0 (an N=0 carrier can only represent zero)"
+    );
+}
+
 // `Default` returns the smallest non-zero value (1). Convention: the
 // "default non-zero" is the multiplicative identity, the same shape
 // `core::num::NonZero` uses (`NonZero::<u32>::new(1).unwrap()`). Needed
@@ -104,7 +128,10 @@ where
     T: MachineWord,
 {
     fn default() -> Self {
-        // SAFETY: `FixedUInt::from(1u8)` is statically non-zero.
+        // Fires at monomorphization when N == 0.
+        let _ = <Self as AssertNonzeroCarrier>::CHECK;
+        // SAFETY: `FixedUInt::<T, N, _>::from(1u8)` places `1u8` in the low
+        // limb, which under the N > 0 assertion above is non-zero.
         unsafe { NonZeroFixedUInt::new_unchecked(FixedUInt::from(1u8)) }
     }
 }

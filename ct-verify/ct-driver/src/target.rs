@@ -244,7 +244,7 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // `ct_eq` against ZERO, or delegation to existing branchless
     // ops). Same shape as the predicate / arithmetic impls already
     // allowlisted.
-    r"const_num_traits\.\.ops\.\.ct\.\.Ct[A-Z][a-zA-Z]+.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    r"const_num_traits\.\.ops\.\.ct\.\.Ct(?:IsZero|Parity|IsPowerOfTwo|CheckedAdd|CheckedSub|CheckedMul)\b.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
     // CtNonZero lives at `const_num_traits::typestate::CtNonZero`
     // (not in `ops::ct`); body is `ct_is_zero() + new_unchecked` so
     // covered by the CtIsZero allowance above, but spell it out so

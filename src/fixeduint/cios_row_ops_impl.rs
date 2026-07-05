@@ -156,6 +156,33 @@ mod tests {
     }
 
     #[test]
+    fn mul_acc_shift_row_hand_checked() {
+        // (scalar * mult + [acc, acc_hi * B^N]) shifted right by one word.
+        // scalar=1, mult=1, acc=2, acc_hi=3 → the low byte (=3) is
+        // discarded by the shift, acc becomes [0, acc_hi + carry] with
+        // carry = 0 from the tiny product.
+        let mult = U16Nct::from(1u8);
+        let mut acc = U16Nct::from(2u8);
+        let overflow = <U16Nct as CiosRowOps>::mul_acc_shift_row(1, &mult, &mut acc, 3);
+        assert_eq!(acc.array, [0, 3]);
+        assert_eq!(overflow, 0);
+    }
+
+    #[test]
+    fn mul_acc_shift_row_ct_matches_nct() {
+        let mult_n = U16Nct::from(0xABCDu16);
+        let mut acc_n = U16Nct::from(0x1234u16);
+        let ov_n = <U16Nct as CiosRowOps>::mul_acc_shift_row(0x7, &mult_n, &mut acc_n, 0x11);
+
+        let mult_c = U16Ct::from(0xABCDu16);
+        let mut acc_c = U16Ct::from(0x1234u16);
+        let ov_c = <U16Ct as CiosRowOps>::mul_acc_shift_row(0x7, &mult_c, &mut acc_c, 0x11);
+
+        assert_eq!(acc_n.array, acc_c.array);
+        assert_eq!(ov_n, ov_c);
+    }
+
+    #[test]
     fn ct_personality_uses_same_body() {
         // Both personalities must produce identical numeric results —
         // the impl is uniform and this pins that invariant.

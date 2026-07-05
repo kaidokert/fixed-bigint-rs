@@ -22,8 +22,12 @@
 //! binary": `copy_from_slice` still carries a length check LLVM can't
 //! elide through the trait boundary.
 //!
-//! Truncation convention when `M > BYTE_WIDTH` matches the slice-based
-//! methods: LE reads the first `BYTE_WIDTH` bytes, BE reads the last.
+//! Oversized-buffer convention when `M > BYTE_WIDTH`, matching the
+//! slice-based methods: LE uses the leading `BYTE_WIDTH` bytes and BE
+//! uses the trailing `BYTE_WIDTH` bytes. `to_*_bytes_fixed` writes into
+//! that window and returns it; `from_*_bytes_fixed` reads from it. So
+//! a `to_be`/`from_be` (or `to_le`/`from_le`) round-trip through an
+//! oversized buffer is symmetric.
 
 // `let _ = <T as AssertBufferFits<M>>::CHECK;` forces the const to
 // evaluate at monomorphization; a bare path-statement isn't a reliable
@@ -93,6 +97,11 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
     /// Big-endian counterpart of [`to_le_bytes_fixed`](Self::to_le_bytes_fixed);
     /// same const-asserted size guarantee and same panic-free intent.
     ///
+    /// Returns the written window `&out[M - BYTE_WIDTH ..]`. If
+    /// `M > BYTE_WIDTH`, the leading bytes of `out` are left untouched
+    /// — mirror image of `to_le_bytes_fixed`, aligning the value with
+    /// the trailing window that `from_be_bytes_fixed` reads.
+    ///
     /// ```
     /// use fixed_bigint::FixedUInt;
     /// type U16 = FixedUInt<u8, 2>;
@@ -105,15 +114,18 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
     pub fn to_be_bytes_fixed<'a, const M: usize>(&self, out: &'a mut [u8; M]) -> &'a [u8] {
         let _ = <Self as AssertBufferFits<M>>::CHECK;
         let word_size = Self::WORD_SIZE;
-        // Walk words from MSB to LSB so the output is BE.
-        for (chunk, word) in out
+        let start = M - Self::BYTE_WIDTH;
+        // Walk words from MSB to LSB so the output is BE. Align to the
+        // trailing window so oversized buffers round-trip through
+        // `from_be_bytes_fixed`.
+        for (chunk, word) in out[start..]
             .chunks_exact_mut(word_size)
             .take(N)
             .zip(self.array.iter().rev())
         {
             chunk.copy_from_slice(word.to_be_bytes().as_ref());
         }
-        &out[..Self::BYTE_WIDTH]
+        &out[start..]
     }
 
     /// Deserialize from a fixed-size little-endian buffer. The const
@@ -221,12 +233,24 @@ mod tests {
     }
 
     #[test]
-    fn to_be_bytes_fixed_oversized_leaves_trailing_untouched() {
+    fn to_be_bytes_fixed_oversized_writes_trailing_window() {
         let v = U16::from(0x1234u16);
         let mut buf = [0xFFu8; 4];
         let written = v.to_be_bytes_fixed(&mut buf);
         assert_eq!(written, &[0x12, 0x34]);
-        assert_eq!(buf, [0x12, 0x34, 0xFF, 0xFF]);
+        assert_eq!(buf, [0xFF, 0xFF, 0x12, 0x34]);
+    }
+
+    #[test]
+    fn to_be_fixed_from_be_fixed_round_trip_oversized() {
+        // The window `to_be_bytes_fixed` writes must match the window
+        // `from_be_bytes_fixed` reads, or oversized BE round-trips
+        // decode the untouched leading bytes.
+        let v = U16::from(0x1234u16);
+        let mut buf = [0u8; 4];
+        let _ = v.to_be_bytes_fixed(&mut buf);
+        let back: U16 = U16::from_be_bytes_fixed(&buf);
+        assert_eq!(back, v);
     }
 
     // ─── from_le_bytes_fixed ──────────────────────────────────────────
