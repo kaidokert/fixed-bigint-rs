@@ -104,7 +104,17 @@ where
     T: MachineWord,
 {
     fn default() -> Self {
-        // SAFETY: `FixedUInt::from(1u8)` is statically non-zero.
+        // `FixedUInt::<T, 0>::from(1u8)` truncates to an empty array,
+        // which represents zero — the non-zero invariant would fail
+        // silently. Refuse the degenerate case at monomorphization.
+        const {
+            assert!(
+                N > 0,
+                "NonZeroFixedUInt::default() requires N > 0 (an N=0 carrier can only represent zero)"
+            );
+        };
+        // SAFETY: `FixedUInt::<T, N, _>::from(1u8)` places `1u8` in the low
+        // limb, which under the N > 0 assertion above is non-zero.
         unsafe { NonZeroFixedUInt::new_unchecked(FixedUInt::from(1u8)) }
     }
 }

@@ -8,9 +8,6 @@ members = [
 ]
 resolver = "2"
 
-[patch.crates-io]
-modmath-cios = { git = "https://github.com/kaidokert/modmath-rs", tag = "v0.4.0-alpha.0" }
-
 # Pinned release profile: deterministic codegen so a passing PR locks
 # the inspection output.
 [profile.release]
@@ -70,7 +67,8 @@ version = "2.6"
 default-features = false
 
 [dependencies.modmath-cios]
-version = "0.1"
+git = "https://github.com/kaidokert/modmath-rs"
+tag = "v0.4.0-alpha.0"
 optional = true
 default-features = false
 
