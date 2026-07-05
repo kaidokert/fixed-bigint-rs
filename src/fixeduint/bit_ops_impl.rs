@@ -314,12 +314,9 @@ c0nst::c0nst! {
         }
     }
 
-    // Shared body for `Shl<u32>` and `UnboundedShl::unbounded_shl`.
-    // Both want the same semantics — shift by a u32 amount, with values
-    // outside [0, BIT_SIZE) collapsing to zero — and previously had
-    // parallel implementations. The Ct fix in PR #120 was applied to
-    // `unbounded_shl` but missed the `Shl<u32>` copy; centralizing here
-    // makes that class of drift impossible.
+    // Shared body for `Shl<u32>` and `UnboundedShl::unbounded_shl`:
+    // shift by a u32 amount, with values outside [0, BIT_SIZE) collapsing
+    // to zero. Centralizing keeps the two entry points in sync.
     pub(crate) c0nst fn const_unbounded_shl_u32<
         T: [c0nst] ConstMachineWord + MachineWord,
         const N: usize,
@@ -479,10 +476,9 @@ c0nst::c0nst! {
 
     // --- Reference-receiver shift impls (see add_sub_impl.rs for rationale) ---
     //
-    // The shift Output comes from the operator supertrait
-    // (`Shl<u32>` / `Shr<u32>`); both `Shl<u32> for &FixedUInt` and
-    // `Shr<u32> for &FixedUInt` are defined above (lines 235, 242),
-    // so Output resolves to `FixedUInt<T,N,P>`.
+    // Output comes from the operator supertrait (`Shl<u32>` / `Shr<u32>`
+    // for `&FixedUInt`, defined earlier in this c0nst! block), so
+    // Output resolves to `FixedUInt<T,N,P>`.
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingShl for &FixedUInt<T, N, P> {
         fn overflowing_shl(self, bits: u32) -> (FixedUInt<T, N, P>, bool) {
@@ -755,7 +751,6 @@ c0nst::c0nst! {
                 if !<Self as const_num_traits::Zero>::is_zero(&(self & bb)) {
                     result |= lowest;
                 }
-                // Clear that lowest bit and advance the source-side bit.
                 remaining = remaining & <Self as const_num_traits::WrappingSub>::wrapping_sub(
                     remaining,
                     <Self as const_num_traits::ConstOne>::ONE,

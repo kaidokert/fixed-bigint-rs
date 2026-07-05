@@ -110,18 +110,12 @@ c0nst::c0nst! {
             self
         }
     }
-    // External `PrimInt` requires `Num + NumCast + Saturating` (among
-    // other things). Implementing those on FixedUInt is real follow-up
-    // work — for the experiment we leave `pow` as an inherent method
-    // on FixedUInt below so callers can still use it without the bundle.
 }
 
 c0nst::c0nst! {
-    /// Standalone const-fn body for `pow`, exposed for nightly users who
-    /// want the const-callable path (the inherent `FixedUInt::pow`
-    /// method shim below delegates here). Kept free-floating because the
-    /// c0nst macro doesn't translate `[c0nst]` trait bounds on inherent
-    /// `impl` blocks — only on c0nst-fn items directly.
+    /// Const-callable `pow` body. Free-floating because the c0nst macro
+    /// only accepts `[c0nst]` bounds on trait-impl headers and
+    /// standalone `const fn` items, not on inherent `impl` blocks.
     pub(crate) c0nst fn pow_impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
         v: FixedUInt<T, N, Nct>, exp: u32,
     ) -> FixedUInt<T, N, Nct> {
@@ -145,12 +139,10 @@ c0nst::c0nst! {
 }
 
 impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
-    /// Inherent `pow` retained while the external `PrimInt` bundle is
-    /// not yet implementable on `FixedUInt` (it requires `Num`,
-    /// `NumCast`, and `Saturating` — out of scope for this experiment).
-    /// For const-callable use on nightly, call the free `pow_impl`
-    /// function above directly (the c0nst-macro limitation on inherent
-    /// `impl` blocks means we can't make this method itself `const`).
+    /// Inherent `pow`. `FixedUInt` does not implement external `PrimInt`
+    /// (which supertrait-bundles `Num + NumCast + Saturating`), so this
+    /// stays on the type itself. For const-callable use on nightly, call
+    /// the free `pow_impl` function above directly.
     pub fn pow(self, exp: u32) -> Self {
         pow_impl(self, exp)
     }
@@ -377,8 +369,8 @@ mod tests {
             const THREE_TO_THE_FIVE: U16 = super::pow_impl(THREE, 5);
             const ZERO_EXP: U16 = super::pow_impl(TWO, 0);
             assert_eq!(TWO_TO_THE_EIGHT, FixedUInt::from_array([0, 1])); // 256
-            assert_eq!(THREE_TO_THE_FIVE, FixedUInt::from_array([243, 0])); // 243
-            assert_eq!(ZERO_EXP, FixedUInt::from_array([1, 0])); // pow(x, 0) = 1
+            assert_eq!(THREE_TO_THE_FIVE, FixedUInt::from_array([243, 0]));
+            assert_eq!(ZERO_EXP, FixedUInt::from_array([1, 0]));
         }
     }
 }

@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(StrictAdd::strict_add(&a, &b), U16::from(30u8));
     }
 
-    // --- Empirical const-evaluability proofs --------------------------------
+    // --- Const-eval smoke ---------------------------------------------------
     c0nst::c0nst! {
         pub c0nst fn const_strict_add<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(a: FixedUInt<T, N, Nct>, b: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
             StrictAdd::strict_add(a, b)
@@ -264,7 +264,6 @@ mod tests {
 
     #[test]
     fn nightly_const_eval_strict() {
-        // runtime smoke
         assert_eq!(
             const_strict_add(U16::from(10u8), U16::from(20u8)),
             U16::from(30u8)
@@ -300,7 +299,7 @@ mod tests {
             assert_eq!(SUB, FixedUInt::from_array([20, 0]));
             assert_eq!(MUL, FixedUInt::from_array([20, 0]));
             assert_eq!(DIV, FixedUInt::from_array([20, 0]));
-            assert_eq!(REM, FixedUInt::from_array([4, 0])); // 200 % 7 = 4
+            assert_eq!(REM, FixedUInt::from_array([4, 0]));
             assert_eq!(SHL, FixedUInt::from_array([16, 0]));
             assert_eq!(SHR, FixedUInt::from_array([4, 0]));
             assert_eq!(POW, TWO_FIFTY_SIX);

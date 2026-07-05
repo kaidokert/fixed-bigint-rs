@@ -84,7 +84,8 @@ where
         let (sum, overflow) = <T as CarryingAdd>::carrying_add(acc_hi, carry, false);
         acc.array[N - 1] = sum;
 
-        // Branchless: convert overflow bool to word via carrying_add(0, 0, overflow).
+        // No `bool as T` cast is generically available; convert the
+        // overflow bool to a T-word via `carrying_add(0, 0, overflow)`.
         let (overflow_word, _) = <T as CarryingAdd>::carrying_add(
             <T as ConstZero>::ZERO,
             <T as ConstZero>::ZERO,
@@ -126,10 +127,8 @@ mod tests {
 
     #[test]
     fn word_returns_zero_on_out_of_bounds() {
-        // Documented dead-code branch: the trait contract forbids
-        // `i >= word_count()`, but the body avoids panic_bounds_check
-        // by returning ZERO instead. Exercising it just confirms the
-        // safe-slice path is wired correctly.
+        // Trait contract forbids `i >= word_count()`; the safe-slice
+        // fallback keeps `panic_bounds_check` out of the binary.
         let v = U16Nct::from(0x1234u16);
         assert_eq!(CiosRowOps::word(&v, 2), 0);
         assert_eq!(CiosRowOps::word(&v, 999), 0);
@@ -158,9 +157,8 @@ mod tests {
 
     #[test]
     fn ct_personality_uses_same_body() {
-        // Same numeric result regardless of personality (the trait body
-        // is uniform). If a future change accidentally introduces a
-        // `match P::TAG` split that diverges, this catches it.
+        // Both personalities must produce identical numeric results —
+        // the impl is uniform and this pins that invariant.
         let mult_n = U16Nct::from(0x10u16);
         let mut acc_n = U16Nct::from(0x20u16);
         let c_n = <U16Nct as CiosRowOps>::mul_acc_row(0x3, &mult_n, &mut acc_n, 0);
