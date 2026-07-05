@@ -75,19 +75,21 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictShl for FixedUInt<T, N, Nct> {
         fn strict_shl(self, rhs: u32) -> Self {
-            if (rhs as usize) >= Self::BIT_SIZE {
+            let shift = rhs as usize;
+            if shift >= Self::BIT_SIZE {
                 panic!("FixedUInt: strict_shl shift exceeds bit width");
             }
-            self << (rhs as usize)
+            self << shift
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictShr for FixedUInt<T, N, Nct> {
         fn strict_shr(self, rhs: u32) -> Self {
-            if (rhs as usize) >= Self::BIT_SIZE {
+            let shift = rhs as usize;
+            if shift >= Self::BIT_SIZE {
                 panic!("FixedUInt: strict_shr shift exceeds bit width");
             }
-            self >> (rhs as usize)
+            self >> shift
         }
     }
 

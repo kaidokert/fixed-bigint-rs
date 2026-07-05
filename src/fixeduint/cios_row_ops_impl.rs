@@ -27,7 +27,7 @@ use const_num_traits::{CarryingAdd, CarryingMul, ConstZero};
 
 impl<T, const N: usize, P: Personality> modmath_cios::CiosRowOps for FixedUInt<T, N, P>
 where
-    T: MachineWord + CarryingMul<Unsigned = T> + CarryingAdd + core::ops::Mul<T, Output = T>,
+    T: MachineWord + CarryingMul<Unsigned = T> + CarryingAdd,
 {
     type Word = T;
 
@@ -39,6 +39,10 @@ where
     /// `get().unwrap_or(ZERO)` rather than `array[i]` so no
     /// `panic_bounds_check` reaches the linked binary. Fallback is
     /// unreachable per the trait's public-`i < N` precondition.
+    ///
+    /// CT invariant: `i` is a public shape parameter of the caller
+    /// (`0..word_count()`), never derived from a secret value. Under
+    /// that contract the safe-slice check is CT-uniform.
     #[inline]
     fn word(&self, i: usize) -> T {
         self.array.get(i).copied().unwrap_or(<T as ConstZero>::ZERO)
@@ -61,8 +65,9 @@ where
     /// `[acc, acc_hi] = ([acc, acc_hi] + scalar * multiplicand) >>
     /// word_bits`. Returns the carry word (0 or 1) from the fold.
     fn mul_acc_shift_row(scalar: T, multiplicand: &Self, acc: &mut Self, acc_hi: T) -> T {
-        debug_assert!(N > 0, "CiosRowOps requires at least one word");
         // First word: discarded (zero by CIOS construction).
+        // (N > 0 is a trait-contract precondition; the array indexing
+        // below would panic on N=0 regardless.)
         let (_, mut carry) = CarryingMul::carrying_mul_add(
             scalar,
             multiplicand.array[0],
@@ -86,12 +91,7 @@ where
 
         // No `bool as T` cast is generically available; convert the
         // overflow bool to a T-word via `carrying_add(0, 0, overflow)`.
-        let (overflow_word, _) = <T as CarryingAdd>::carrying_add(
-            <T as ConstZero>::ZERO,
-            <T as ConstZero>::ZERO,
-            overflow,
-        );
-        overflow_word
+        <T as CarryingAdd>::carrying_add(<T as ConstZero>::ZERO, <T as ConstZero>::ZERO, overflow).0
     }
 }
 

@@ -29,7 +29,10 @@ c0nst::c0nst! {
                     !<Self as Zero>::is_zero(&self) && <Self as Zero>::is_zero(&(self & (self - <Self as One>::one())))
                 }
                 PersonalityTag::Ct => {
-                    let a = !<Self as Zero>::is_zero(&self);
+                    // Opacify `a` so LLVM can't rewrite `a & b` back into
+                    // a short-circuit `if a { b } else { false }` — same
+                    // defence as `const_ct_select` at `fixeduint.rs`.
+                    let a = core::hint::black_box(!<Self as Zero>::is_zero(&self));
                     let b = <Self as Zero>::is_zero(&(self & <Self as WrappingSub>::wrapping_sub(self, <Self as One>::one())));
                     a & b
                 }

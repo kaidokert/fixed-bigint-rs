@@ -85,11 +85,7 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
     pub fn to_le_bytes_fixed<'a, const M: usize>(&self, out: &'a mut [u8; M]) -> &'a [u8] {
         let _ = <Self as AssertBufferFits<M>>::CHECK;
         let word_size = Self::WORD_SIZE;
-        for (chunk, word) in out
-            .chunks_exact_mut(word_size)
-            .take(N)
-            .zip(self.array.iter())
-        {
+        for (chunk, word) in out.chunks_exact_mut(word_size).zip(self.array.iter()) {
             chunk.copy_from_slice(word.to_le_bytes().as_ref());
         }
         &out[..Self::BYTE_WIDTH]
@@ -121,7 +117,6 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
         // `from_be_bytes_fixed`.
         for (chunk, word) in out[start..]
             .chunks_exact_mut(word_size)
-            .take(N)
             .zip(self.array.iter().rev())
         {
             chunk.copy_from_slice(word.to_be_bytes().as_ref());

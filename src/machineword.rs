@@ -18,8 +18,9 @@ use const_num_traits::{
 };
 
 c0nst::c0nst! {
-    /// A const-friendly trait for MachineWord operations.
-    /// Extends WideningMul to provide widening multiplication.
+    /// Const-friendly aggregate trait bundling the arithmetic, bit,
+    /// shift, and byte-conversion capabilities every limb type has to
+    /// carry to serve as a `FixedUInt`'s `T`.
     ///
     /// `*Assign` bounds are added explicitly: external `PrimBits` /
     /// `PrimInt` cover the by-value bit/shift ops (the CT-friendly

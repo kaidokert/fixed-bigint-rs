@@ -74,11 +74,9 @@ c0nst::c0nst! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::machineword::ConstMachineWord;
 
     #[test]
     fn test_div_euclid() {
-        use const_num_traits::Euclid;
         let a = FixedUInt::<u8, 2>::from(100u8);
         let b = FixedUInt::<u8, 2>::from(30u8);
         assert_eq!(Euclid::div_euclid(a, b), 3u8.into());
@@ -87,7 +85,6 @@ mod tests {
 
     #[test]
     fn test_checked_div_euclid() {
-        use const_num_traits::CheckedEuclid;
         let a = FixedUInt::<u8, 2>::from(100u8);
         let b = FixedUInt::<u8, 2>::from(30u8);
         assert_eq!(CheckedEuclid::checked_div_euclid(a, b), Some(3u8.into()));

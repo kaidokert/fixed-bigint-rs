@@ -68,9 +68,9 @@ impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
 }
 
 #[cfg(test)]
-#[cfg(feature = "num-traits")]
 mod tests {
     use super::*;
+    #[cfg(feature = "num-traits")]
     use num_traits::{CheckedAdd, CheckedMul};
 
     #[test]
@@ -126,6 +126,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "num-traits")]
     #[test]
     fn test_isqrt_correctness() {
         type U16 = FixedUInt<u8, 2>;
@@ -149,6 +150,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "num-traits")]
     #[test]
     fn test_isqrt_wider_types() {
         // Test with wider word type to exercise cross-word bit-setting

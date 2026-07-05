@@ -142,10 +142,11 @@ c0nst::c0nst! {
 }
 
 impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
-    /// Inherent `pow`. `FixedUInt` does not implement external `PrimInt`
-    /// (which supertrait-bundles `Num + NumCast + Saturating`), so this
-    /// stays on the type itself. For const-callable use on nightly, call
-    /// the free `pow_impl` function above directly.
+    /// Inherent `pow`. `FixedUInt` does not implement external
+    /// `const_num_traits::PrimInt` (which supertrait-bundles `Num`,
+    /// `NumCast`, `Saturating`, and others), so this stays on the type
+    /// itself. For const-callable use on nightly, call the free
+    /// `pow_impl` function above directly.
     pub fn pow(self, exp: u32) -> Self {
         pow_impl(self, exp)
     }

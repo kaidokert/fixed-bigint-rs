@@ -26,9 +26,8 @@
 
 use super::{FixedUInt, MachineWord};
 use crate::machineword::ConstMachineWord;
-use const_num_traits::Parity;
-use const_num_traits::Personality;
 use const_num_traits::ops::ct::CtParity;
+use const_num_traits::{ConstOne, ConstZero, Parity, Personality};
 use subtle::{Choice, ConstantTimeEq};
 
 c0nst::c0nst! {
@@ -39,8 +38,8 @@ c0nst::c0nst! {
             if N == 0 {
                 false
             } else {
-                (self.array[0] & <T as const_num_traits::ConstOne>::ONE)
-                    != <T as const_num_traits::ConstZero>::ZERO
+                (self.array[0] & <T as ConstOne>::ONE)
+                    != <T as ConstZero>::ZERO
             }
         }
         fn is_even(self) -> bool {
@@ -71,8 +70,8 @@ where
             // Degenerate (zero-word) configuration; treat as even.
             return Choice::from(0);
         }
-        let lsb = self.array[0] & <T as const_num_traits::ConstOne>::ONE;
-        !lsb.ct_eq(&<T as const_num_traits::ConstZero>::ZERO)
+        let lsb = self.array[0] & <T as ConstOne>::ONE;
+        !lsb.ct_eq(&<T as ConstZero>::ZERO)
     }
 
     fn ct_is_even(&self) -> Choice {
@@ -117,10 +116,7 @@ mod tests {
         assert!(!Parity::is_even(&v));
     }
 
-    // --- Empirical const-evaluability proofs --------------------------------
-    use crate::machineword::ConstMachineWord;
-    use const_num_traits::Personality;
-
+    // --- Const-eval smoke --------------------------------------------------
     c0nst::c0nst! {
         pub c0nst fn const_is_odd<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> bool {
             Parity::is_odd(v)

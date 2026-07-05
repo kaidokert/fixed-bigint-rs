@@ -1,10 +1,8 @@
-use super::MachineWord;
-
 use core::borrow::{Borrow, BorrowMut};
-
 use core::hash::Hash;
 
-use super::FixedUInt;
+use super::{FixedUInt, MachineWord};
+use crate::machineword::ConstMachineWord;
 use const_num_traits::Personality;
 
 // Helper, holds an owned copy of returned bytes.
@@ -26,7 +24,7 @@ c0nst::c0nst! {
     // no behavior change. Body uses the `[<T as ConstZero>::ZERO; N]`
     // initializer rather than `core::array::from_fn(...)` because the
     // closure-based helper isn't const-callable.
-    c0nst impl<T: [c0nst] crate::machineword::ConstMachineWord + MachineWord, const N: usize> Default for BytesHolder<T, N> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Default for BytesHolder<T, N> {
         fn default() -> Self {
             Self::from_array([<T as const_num_traits::ConstZero>::ZERO; N])
         }
