@@ -37,6 +37,7 @@ mod div_ceil_impl;
 mod euclid;
 mod extended_precision_impl;
 pub mod has_nonzero_impl;
+mod has_personality_impl;
 mod ilog_impl;
 mod isqrt_impl;
 mod iter_impl;
