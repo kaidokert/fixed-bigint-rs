@@ -162,7 +162,7 @@ fn ct_variant_supports_eq_via_partialeq() {
 
 #[test]
 fn is_zero_works_correctly_under_both_personalities() {
-    use fixed_bigint::const_numtraits::Zero;
+    use const_num_traits::Zero;
 
     let z_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
     let nz_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(42u8);
@@ -187,7 +187,7 @@ fn is_zero_works_correctly_under_both_personalities() {
 
 #[test]
 fn is_one_works_correctly_under_both_personalities() {
-    use fixed_bigint::const_numtraits::One;
+    use const_num_traits::One;
 
     let one_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(1u8);
     let zero_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
@@ -463,7 +463,7 @@ fn shr_works_under_both_personalities() {
 
 #[test]
 fn is_power_of_two_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::IsPowerOfTwo;
+    use const_num_traits::IsPowerOfTwo;
 
     // Zero is not a power of two — exercises the `n == 0` short-circuit path
     // on Nct and the unconditional fallback on Ct.
@@ -658,7 +658,7 @@ fn ct_checked_mul_returns_ctoption() {
 
 #[test]
 fn abs_diff_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::AbsDiff;
+    use const_num_traits::AbsDiff;
 
     let cases: [(u8, u8, u8); 6] = [
         (10, 3, 7), // a > b
@@ -777,7 +777,7 @@ fn ct_debug_redacts_limb_values() {
 
 #[test]
 fn next_power_of_two_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::NextPowerOfTwo;
+    use const_num_traits::NextPowerOfTwo;
     for (input, expected) in [
         (0u16, 1u16),
         (1, 1),
@@ -1041,7 +1041,7 @@ fn ord_on_ct_agrees_with_nct() {
 
 #[test]
 fn next_power_of_two_saturates_to_max_on_ct_overflow() {
-    use fixed_bigint::const_numtraits::{Bounded, NextPowerOfTwo};
+    use const_num_traits::{Bounded, NextPowerOfTwo};
 
     // u16 type with Ct personality. Inputs whose next_power_of_two exceeds
     // u16::MAX should saturate to MAX, not silently return 0.

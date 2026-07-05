@@ -1,6 +1,6 @@
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{One, Zero};
 use const_num_traits::Personality;
+use const_num_traits::{One, Zero};
 
 impl<T: MachineWord, const N: usize, P: Personality> core::iter::Sum for FixedUInt<T, N, P> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {

@@ -13,9 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use const_num_traits::{OverflowingShl, OverflowingShr};
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
-use fixed_bigint::const_numtraits::{OverflowingShl, OverflowingShr};
 
 trait BitSize {
     const BIT_SIZE: u32;

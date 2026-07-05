@@ -15,10 +15,10 @@
 //! Power-of-two operations for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{
+use crate::machineword::ConstMachineWord;
+use const_num_traits::{
     Bounded, ConstOne, ConstZero, IsPowerOfTwo, NextPowerOfTwo, One, PrimBits, WrappingSub, Zero,
 };
-use crate::machineword::ConstMachineWord;
 use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {

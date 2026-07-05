@@ -1,10 +1,10 @@
 use super::{
     FixedUInt, MachineWord, PanicReason, const_ct_select, const_div_rem, const_mul, maybe_panic_if,
 };
-use crate::const_numtraits::{
+use crate::machineword::ConstMachineWord;
+use const_num_traits::{
     Bounded, CheckedDiv, CheckedMul, CheckedRem, OverflowingMul, SaturatingMul, WrappingMul, Zero,
 };
-use crate::machineword::ConstMachineWord;
 use const_num_traits::{Nct, Personality, PersonalityTag};
 
 #[cfg(feature = "num-traits")]

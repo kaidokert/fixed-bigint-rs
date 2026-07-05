@@ -28,8 +28,8 @@
 //! `CtOption`-returning path that lives above this crate.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::Zero;
 use crate::machineword::ConstMachineWord;
+use const_num_traits::Zero;
 use const_num_traits::{DivNonZero, HasNonZero, Nct, Personality};
 
 /// Non-zero `FixedUInt`. Constructed via [`HasNonZero::into_nonzero`].

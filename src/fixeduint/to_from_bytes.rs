@@ -28,7 +28,7 @@ c0nst::c0nst! {
     // closure-based helper isn't const-callable.
     c0nst impl<T: [c0nst] crate::machineword::ConstMachineWord + MachineWord, const N: usize> Default for BytesHolder<T, N> {
         fn default() -> Self {
-            Self::from_array([<T as crate::const_numtraits::ConstZero>::ZERO; N])
+            Self::from_array([<T as const_num_traits::ConstZero>::ZERO; N])
         }
     }
 }

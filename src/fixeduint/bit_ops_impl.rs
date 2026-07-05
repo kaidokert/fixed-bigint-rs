@@ -1,10 +1,10 @@
 use super::{FixedUInt, MachineWord, const_shl_ct, const_shl_impl, const_shr_ct, const_shr_impl};
 
-use crate::const_numtraits::{
+use crate::machineword::ConstMachineWord;
+use const_num_traits::{
     CheckedShl, CheckedShr, ConstZero, OverflowingShl, OverflowingShr, UnboundedShl, UnboundedShr,
     WrappingShl, WrappingShr,
 };
-use crate::machineword::ConstMachineWord;
 use const_num_traits::{Nct, Personality, PersonalityTag};
 
 c0nst::c0nst! {
@@ -541,9 +541,9 @@ c0nst::c0nst! {
     // value-dependent branch — fine on Nct, and on Ct the caller has to
     // know they're consuming an Option in a value-aware way regardless.
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::HighestOne for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::HighestOne for FixedUInt<T, N, P> {
         fn highest_one(self) -> Option<u32> {
-            let lz = <Self as crate::const_numtraits::PrimBits>::leading_zeros(self);
+            let lz = <Self as const_num_traits::PrimBits>::leading_zeros(self);
             if lz as usize == Self::BIT_SIZE {
                 None
             } else {
@@ -552,9 +552,9 @@ c0nst::c0nst! {
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::LowestOne for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::LowestOne for FixedUInt<T, N, P> {
         fn lowest_one(self) -> Option<u32> {
-            let tz = <Self as crate::const_numtraits::PrimBits>::trailing_zeros(self);
+            let tz = <Self as const_num_traits::PrimBits>::trailing_zeros(self);
             if tz as usize == Self::BIT_SIZE {
                 None
             } else {
@@ -563,15 +563,15 @@ c0nst::c0nst! {
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::HighestOne for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::HighestOne for &FixedUInt<T, N, P> {
         fn highest_one(self) -> Option<u32> {
-            <FixedUInt<T, N, P> as crate::const_numtraits::HighestOne>::highest_one(*self)
+            <FixedUInt<T, N, P> as const_num_traits::HighestOne>::highest_one(*self)
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::LowestOne for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::LowestOne for &FixedUInt<T, N, P> {
         fn lowest_one(self) -> Option<u32> {
-            <FixedUInt<T, N, P> as crate::const_numtraits::LowestOne>::lowest_one(*self)
+            <FixedUInt<T, N, P> as const_num_traits::LowestOne>::lowest_one(*self)
         }
     }
 
@@ -580,15 +580,15 @@ c0nst::c0nst! {
     // Minimum bits to represent self: `BIT_SIZE - leading_zeros(self)`.
     // Returns 0 for 0. Mirrors std's `u32::BITS - n.leading_zeros()`.
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::BitWidth for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::BitWidth for FixedUInt<T, N, P> {
         fn bit_width(self) -> u32 {
-            Self::BIT_SIZE as u32 - <Self as crate::const_numtraits::PrimBits>::leading_zeros(self)
+            Self::BIT_SIZE as u32 - <Self as const_num_traits::PrimBits>::leading_zeros(self)
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::BitWidth for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::BitWidth for &FixedUInt<T, N, P> {
         fn bit_width(self) -> u32 {
-            <FixedUInt<T, N, P> as crate::const_numtraits::BitWidth>::bit_width(*self)
+            <FixedUInt<T, N, P> as const_num_traits::BitWidth>::bit_width(*self)
         }
     }
 
@@ -600,44 +600,44 @@ c0nst::c0nst! {
     //   (which yields 0 for 0 input automatically) — and uses arithmetic
     //   already implemented uniformly across personalities.
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::IsolateHighestOne for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::IsolateHighestOne for FixedUInt<T, N, P> {
         type Output = Self;
         fn isolate_highest_one(self) -> Self {
-            let lz = <Self as crate::const_numtraits::PrimBits>::leading_zeros(self);
+            let lz = <Self as const_num_traits::PrimBits>::leading_zeros(self);
             if lz as usize == Self::BIT_SIZE {
                 // self == 0; preserve the zero.
-                <Self as crate::const_numtraits::ConstZero>::ZERO
+                <Self as const_num_traits::ConstZero>::ZERO
             } else {
                 let pos = Self::BIT_SIZE as u32 - 1 - lz;
-                <Self as crate::const_numtraits::ConstOne>::ONE << (pos as usize)
+                <Self as const_num_traits::ConstOne>::ONE << (pos as usize)
             }
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::IsolateLowestOne for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::IsolateLowestOne for FixedUInt<T, N, P> {
         type Output = Self;
         fn isolate_lowest_one(self) -> Self {
             // `self & (-self)`. For unsigned `-x` is `wrapping_neg(x) =
             // (0).wrapping_sub(x)`. Works for `self == 0` (0 & 0 = 0).
-            let neg = <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(
-                <Self as crate::const_numtraits::ConstZero>::ZERO,
+            let neg = <Self as const_num_traits::WrappingSub>::wrapping_sub(
+                <Self as const_num_traits::ConstZero>::ZERO,
                 self,
             );
             self & neg
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::IsolateHighestOne for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::IsolateHighestOne for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn isolate_highest_one(self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as crate::const_numtraits::IsolateHighestOne>::isolate_highest_one(*self)
+            <FixedUInt<T, N, P> as const_num_traits::IsolateHighestOne>::isolate_highest_one(*self)
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::IsolateLowestOne for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::IsolateLowestOne for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn isolate_lowest_one(self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as crate::const_numtraits::IsolateLowestOne>::isolate_lowest_one(*self)
+            <FixedUInt<T, N, P> as const_num_traits::IsolateLowestOne>::isolate_lowest_one(*self)
         }
     }
 
@@ -647,10 +647,10 @@ c0nst::c0nst! {
     // shifted out, or `rhs >= BIT_SIZE`. Mirrors core's primitive impls
     // exactly (compare `rhs` against `leading_zeros` / `trailing_zeros`).
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::ShlExact for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::ShlExact for FixedUInt<T, N, P> {
         fn shl_exact(self, rhs: u32) -> Option<Self> {
             if (rhs as usize) < Self::BIT_SIZE
-                && rhs <= <Self as crate::const_numtraits::PrimBits>::leading_zeros(self)
+                && rhs <= <Self as const_num_traits::PrimBits>::leading_zeros(self)
             {
                 Some(self << (rhs as usize))
             } else {
@@ -659,10 +659,10 @@ c0nst::c0nst! {
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::ShrExact for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::ShrExact for FixedUInt<T, N, P> {
         fn shr_exact(self, rhs: u32) -> Option<Self> {
             if (rhs as usize) < Self::BIT_SIZE
-                && rhs <= <Self as crate::const_numtraits::PrimBits>::trailing_zeros(self)
+                && rhs <= <Self as const_num_traits::PrimBits>::trailing_zeros(self)
             {
                 Some(self >> (rhs as usize))
             } else {
@@ -671,15 +671,15 @@ c0nst::c0nst! {
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::ShlExact for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::ShlExact for &FixedUInt<T, N, P> {
         fn shl_exact(self, rhs: u32) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as crate::const_numtraits::ShlExact>::shl_exact(*self, rhs)
+            <FixedUInt<T, N, P> as const_num_traits::ShlExact>::shl_exact(*self, rhs)
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::ShrExact for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::ShrExact for &FixedUInt<T, N, P> {
         fn shr_exact(self, rhs: u32) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as crate::const_numtraits::ShrExact>::shr_exact(*self, rhs)
+            <FixedUInt<T, N, P> as const_num_traits::ShrExact>::shr_exact(*self, rhs)
         }
     }
 
@@ -692,7 +692,7 @@ c0nst::c0nst! {
     // ops dispatched by `<<` / `>>` are personality-aware (Ct uses the
     // mask-AND-XOR variant), so the funnel impl inherits that.
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::FunnelShl for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::FunnelShl for FixedUInt<T, N, P> {
         type Output = Self;
         fn funnel_shl(self, rhs: Self, n: u32) -> Self {
             assert!((n as usize) < Self::BIT_SIZE, "FixedUInt::funnel_shl: n out of range");
@@ -705,7 +705,7 @@ c0nst::c0nst! {
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::FunnelShr for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::FunnelShr for FixedUInt<T, N, P> {
         type Output = Self;
         fn funnel_shr(self, rhs: Self, n: u32) -> Self {
             assert!((n as usize) < Self::BIT_SIZE, "FixedUInt::funnel_shr: n out of range");
@@ -718,17 +718,17 @@ c0nst::c0nst! {
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::FunnelShl for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::FunnelShl for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn funnel_shl(self, rhs: Self, n: u32) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as crate::const_numtraits::FunnelShl>::funnel_shl(*self, *rhs, n)
+            <FixedUInt<T, N, P> as const_num_traits::FunnelShl>::funnel_shl(*self, *rhs, n)
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> crate::const_numtraits::FunnelShr for &FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::FunnelShr for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn funnel_shr(self, rhs: Self, n: u32) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as crate::const_numtraits::FunnelShr>::funnel_shr(*self, *rhs, n)
+            <FixedUInt<T, N, P> as const_num_traits::FunnelShr>::funnel_shr(*self, *rhs, n)
         }
     }
 
@@ -741,65 +741,65 @@ c0nst::c0nst! {
     // gate on `P = Nct`, matching how `CheckedDiv`/`CheckedRem` and the
     // `Strict*` family are gated.
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> crate::const_numtraits::DepositBits for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> const_num_traits::DepositBits for FixedUInt<T, N, Nct> {
         type Output = Self;
         fn deposit_bits(self, mask: Self) -> Self {
             // Scatter contiguous low bits of `self` into positions of the
             // one-bits of `mask`. Iterates once per set bit of `mask`.
-            let mut result = <Self as crate::const_numtraits::ConstZero>::ZERO;
+            let mut result = <Self as const_num_traits::ConstZero>::ZERO;
             let mut remaining = mask;
-            let mut bb = <Self as crate::const_numtraits::ConstOne>::ONE;
-            while !<Self as crate::const_numtraits::Zero>::is_zero(&remaining) {
+            let mut bb = <Self as const_num_traits::ConstOne>::ONE;
+            while !<Self as const_num_traits::Zero>::is_zero(&remaining) {
                 // Lowest set bit of `remaining` via `x & -x`.
-                let lowest = <Self as crate::const_numtraits::IsolateLowestOne>::isolate_lowest_one(remaining);
-                if !<Self as crate::const_numtraits::Zero>::is_zero(&(self & bb)) {
+                let lowest = <Self as const_num_traits::IsolateLowestOne>::isolate_lowest_one(remaining);
+                if !<Self as const_num_traits::Zero>::is_zero(&(self & bb)) {
                     result |= lowest;
                 }
                 // Clear that lowest bit and advance the source-side bit.
-                remaining = remaining & <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(
+                remaining = remaining & <Self as const_num_traits::WrappingSub>::wrapping_sub(
                     remaining,
-                    <Self as crate::const_numtraits::ConstOne>::ONE,
+                    <Self as const_num_traits::ConstOne>::ONE,
                 );
-                bb = <Self as crate::const_numtraits::WrappingShl>::wrapping_shl(bb, 1);
+                bb = <Self as const_num_traits::WrappingShl>::wrapping_shl(bb, 1);
             }
             result
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> crate::const_numtraits::ExtractBits for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> const_num_traits::ExtractBits for FixedUInt<T, N, Nct> {
         type Output = Self;
         fn extract_bits(self, mask: Self) -> Self {
             // Gather the bits of `self` selected by `mask` into the low end
             // of the result. Mirror of `deposit_bits`.
-            let mut result = <Self as crate::const_numtraits::ConstZero>::ZERO;
+            let mut result = <Self as const_num_traits::ConstZero>::ZERO;
             let mut remaining = mask;
-            let mut bb = <Self as crate::const_numtraits::ConstOne>::ONE;
-            while !<Self as crate::const_numtraits::Zero>::is_zero(&remaining) {
-                let lowest = <Self as crate::const_numtraits::IsolateLowestOne>::isolate_lowest_one(remaining);
-                if !<Self as crate::const_numtraits::Zero>::is_zero(&(self & lowest)) {
+            let mut bb = <Self as const_num_traits::ConstOne>::ONE;
+            while !<Self as const_num_traits::Zero>::is_zero(&remaining) {
+                let lowest = <Self as const_num_traits::IsolateLowestOne>::isolate_lowest_one(remaining);
+                if !<Self as const_num_traits::Zero>::is_zero(&(self & lowest)) {
                     result |= bb;
                 }
-                remaining = remaining & <Self as crate::const_numtraits::WrappingSub>::wrapping_sub(
+                remaining = remaining & <Self as const_num_traits::WrappingSub>::wrapping_sub(
                     remaining,
-                    <Self as crate::const_numtraits::ConstOne>::ONE,
+                    <Self as const_num_traits::ConstOne>::ONE,
                 );
-                bb = <Self as crate::const_numtraits::WrappingShl>::wrapping_shl(bb, 1);
+                bb = <Self as const_num_traits::WrappingShl>::wrapping_shl(bb, 1);
             }
             result
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> crate::const_numtraits::DepositBits for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> const_num_traits::DepositBits for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn deposit_bits(self, mask: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as crate::const_numtraits::DepositBits>::deposit_bits(*self, *mask)
+            <FixedUInt<T, N, Nct> as const_num_traits::DepositBits>::deposit_bits(*self, *mask)
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> crate::const_numtraits::ExtractBits for &FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> const_num_traits::ExtractBits for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn extract_bits(self, mask: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as crate::const_numtraits::ExtractBits>::extract_bits(*self, *mask)
+            <FixedUInt<T, N, Nct> as const_num_traits::ExtractBits>::extract_bits(*self, *mask)
         }
     }
 }
@@ -1189,7 +1189,7 @@ mod tests {
 
     #[test]
     fn test_bit_width() {
-        use crate::const_numtraits::BitWidth;
+        use const_num_traits::BitWidth;
         type U16 = FixedUInt<u8, 2>;
         assert_eq!(BitWidth::bit_width(U16::from(0u8)), 0);
         assert_eq!(BitWidth::bit_width(U16::from(1u8)), 1);
@@ -1202,7 +1202,7 @@ mod tests {
 
     #[test]
     fn test_highest_lowest_one() {
-        use crate::const_numtraits::{HighestOne, LowestOne};
+        use const_num_traits::{HighestOne, LowestOne};
         type U16 = FixedUInt<u8, 2>;
         assert_eq!(HighestOne::highest_one(U16::from(0u8)), None);
         assert_eq!(HighestOne::highest_one(U16::from(1u8)), Some(0));
@@ -1217,7 +1217,7 @@ mod tests {
 
     #[test]
     fn test_isolate_highest_lowest_one() {
-        use crate::const_numtraits::{IsolateHighestOne, IsolateLowestOne};
+        use const_num_traits::{IsolateHighestOne, IsolateLowestOne};
         type U16 = FixedUInt<u8, 2>;
         // zero → zero
         assert_eq!(
@@ -1245,7 +1245,7 @@ mod tests {
 
     #[test]
     fn test_shl_shr_exact() {
-        use crate::const_numtraits::{ShlExact, ShrExact};
+        use const_num_traits::{ShlExact, ShrExact};
         type U16 = FixedUInt<u8, 2>;
         // shl_exact: must not lose bits
         assert_eq!(
@@ -1274,9 +1274,7 @@ mod tests {
     #[test]
     #[allow(clippy::needless_borrows_for_generic_args)]
     fn test_ref_receivers_compile_through() {
-        use crate::const_numtraits::{
-            BitWidth, IsolateHighestOne, IsolateLowestOne, ShlExact, ShrExact,
-        };
+        use const_num_traits::{BitWidth, IsolateHighestOne, IsolateLowestOne, ShlExact, ShrExact};
         type U16 = FixedUInt<u8, 2>;
         let v = U16::from(0b0010_1000u8);
         assert_eq!(BitWidth::bit_width(&v), 6);
@@ -1294,7 +1292,7 @@ mod tests {
 
     #[test]
     fn test_funnel_shifts() {
-        use crate::const_numtraits::{FunnelShl, FunnelShr};
+        use const_num_traits::{FunnelShl, FunnelShr};
         type U16 = FixedUInt<u8, 2>;
 
         // 0x0180 << 1 = 0x0300 -> high half (16 bits) = 0x0003
@@ -1330,15 +1328,15 @@ mod tests {
     #[test]
     #[should_panic(expected = "funnel_shl: n out of range")]
     fn test_funnel_shl_panics_at_bit_size() {
-        use crate::const_numtraits::FunnelShl;
+        use const_num_traits::FunnelShl;
         type U16 = FixedUInt<u8, 2>;
         let _ = FunnelShl::funnel_shl(U16::from(1u8), U16::from(0u8), 16);
     }
 
     #[test]
     fn test_deposit_extract_bits() {
-        use crate::const_numtraits::{DepositBits, ExtractBits};
         use const_num_traits::Nct;
+        use const_num_traits::{DepositBits, ExtractBits};
         type U16 = FixedUInt<u8, 2, Nct>;
 
         // Mirror of the primitive doctest:
@@ -1430,37 +1428,37 @@ mod tests {
             UnboundedShr::unbounded_shr(v, bits)
         }
         pub c0nst fn const_highest_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> Option<u32> {
-            crate::const_numtraits::HighestOne::highest_one(v)
+            const_num_traits::HighestOne::highest_one(v)
         }
         pub c0nst fn const_lowest_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> Option<u32> {
-            crate::const_numtraits::LowestOne::lowest_one(v)
+            const_num_traits::LowestOne::lowest_one(v)
         }
         pub c0nst fn const_bit_width<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> u32 {
-            crate::const_numtraits::BitWidth::bit_width(v)
+            const_num_traits::BitWidth::bit_width(v)
         }
         pub c0nst fn const_isolate_highest_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
-            crate::const_numtraits::IsolateHighestOne::isolate_highest_one(v)
+            const_num_traits::IsolateHighestOne::isolate_highest_one(v)
         }
         pub c0nst fn const_isolate_lowest_one<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>) -> FixedUInt<T, N, P> {
-            crate::const_numtraits::IsolateLowestOne::isolate_lowest_one(v)
+            const_num_traits::IsolateLowestOne::isolate_lowest_one(v)
         }
         pub c0nst fn const_shl_exact<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> Option<FixedUInt<T, N, P>> {
-            crate::const_numtraits::ShlExact::shl_exact(v, bits)
+            const_num_traits::ShlExact::shl_exact(v, bits)
         }
         pub c0nst fn const_shr_exact<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(v: FixedUInt<T, N, P>, bits: u32) -> Option<FixedUInt<T, N, P>> {
-            crate::const_numtraits::ShrExact::shr_exact(v, bits)
+            const_num_traits::ShrExact::shr_exact(v, bits)
         }
         pub c0nst fn const_funnel_shl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(hi: FixedUInt<T, N, P>, lo: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
-            crate::const_numtraits::FunnelShl::funnel_shl(hi, lo, n)
+            const_num_traits::FunnelShl::funnel_shl(hi, lo, n)
         }
         pub c0nst fn const_funnel_shr<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(hi: FixedUInt<T, N, P>, lo: FixedUInt<T, N, P>, n: u32) -> FixedUInt<T, N, P> {
-            crate::const_numtraits::FunnelShr::funnel_shr(hi, lo, n)
+            const_num_traits::FunnelShr::funnel_shr(hi, lo, n)
         }
         pub c0nst fn const_deposit_bits<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: FixedUInt<T, N, Nct>, mask: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
-            crate::const_numtraits::DepositBits::deposit_bits(v, mask)
+            const_num_traits::DepositBits::deposit_bits(v, mask)
         }
         pub c0nst fn const_extract_bits<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(v: FixedUInt<T, N, Nct>, mask: FixedUInt<T, N, Nct>) -> FixedUInt<T, N, Nct> {
-            crate::const_numtraits::ExtractBits::extract_bits(v, mask)
+            const_num_traits::ExtractBits::extract_bits(v, mask)
         }
     }
 
