@@ -805,9 +805,6 @@ c0nst::c0nst! {
 }
 
 // num_traits wrappers - delegate to const impls
-// (OverflowingShl/OverflowingShr legacy shim impls retired — the const
-// impls above ARE the OverflowingShl/Shr impls now that we depend on
-// the external const-num-traits crate directly.)
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingShl
     for FixedUInt<T, N, P>

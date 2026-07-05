@@ -1,9 +1,4 @@
 /target
 Cargo.lock
 *~
-/CLAUDE.md
-/CT_VERIFY.md
-/PANIC_FREE_REQUESTS.md
-/CIOS_MIGRATION.md
-/CIOS_TRAIT_MOVED.md
-/HASNONZERO_REQUEST.md
+notes/

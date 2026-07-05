@@ -205,10 +205,6 @@ c0nst::c0nst! {
     }
 }
 
-// (Legacy non-const WideningMul / CarryingMul shim impls retired —
-// the `c0nst WideningMul` / `c0nst CarryingMul` impls above are now
-// the impls of the external traits.)
-
 #[cfg(test)]
 mod tests {
     use super::*;
