@@ -28,8 +28,8 @@ pub const fn byte_len<T, const N: usize>() -> usize {
     N * size_of::<T>()
 }
 
-/// Byte array type for FixedUInt<T, N> with computed size.
-/// Size = N * size_of::<T>() bytes.
+/// Byte array type for `FixedUInt<T, N>` with computed size.
+/// Size = `N * size_of::<T>()` bytes.
 #[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Debug, Hash)]
 pub struct ConstBytesHolder<const SIZE: usize> {
     bytes: [u8; SIZE],

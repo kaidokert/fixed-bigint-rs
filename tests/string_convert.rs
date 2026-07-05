@@ -16,9 +16,9 @@
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
 
-use fixed_bigint::num_traits::Num;
-use fixed_bigint::num_traits::{FromPrimitive, ToPrimitive};
-use fixed_bigint::num_traits::{One, Zero};
+use num_traits::Num;
+use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::{One, Zero};
 
 mod helper;
 use helper::WriteWrapper;

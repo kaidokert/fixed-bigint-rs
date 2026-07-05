@@ -1,6 +1,6 @@
 #![cfg(feature = "num-traits")]
 use fixed_bigint::FixedUInt;
-use fixed_bigint::num_traits::{self, FromPrimitive};
+use num_traits::FromPrimitive;
 
 #[test]
 fn test_from_le_bytes() {

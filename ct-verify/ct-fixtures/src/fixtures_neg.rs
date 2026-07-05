@@ -76,7 +76,7 @@ pub extern "C" fn nct_fix__neg__nct_ilog10__u32__N4(a_ptr: *const [u32; 4]) -> u
 macro_rules! emit_nct_gcd {
     ($name:ident, $T:ty, $N:literal) => {
         ct_fix_bin!($name, $T, $N, |a, b| {
-            use fixed_bigint::num_integer::Integer;
+            use num_integer::Integer;
             // Guard the gcd(0, _) case AND emit a data-dependent branch
             // inside the fixture body itself. Integer::gcd's actual
             // implementation lives in a separate helper symbol; this

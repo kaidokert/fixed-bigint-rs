@@ -282,7 +282,7 @@ fn nct_variant_does_not_have_ct_gt() {
 
 #[test]
 fn leading_zeros_works_under_both_personalities() {
-    use fixed_bigint::PrimBits;
+    use const_num_traits::PrimBits;
 
     // Zero: full word_bits * N leading zeros.
     let z_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
@@ -312,7 +312,7 @@ fn leading_zeros_works_under_both_personalities() {
 
 #[test]
 fn trailing_zeros_works_under_both_personalities() {
-    use fixed_bigint::PrimBits;
+    use const_num_traits::PrimBits;
 
     // Zero: full width.
     let z_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
@@ -886,7 +886,7 @@ fn ct_shr_by_trailing_zeros_pattern() {
     // The motivating modular-inverse use case: shr by tz(x), where
     // tz is a secret count. Both halves of the operation are CT under
     // Ct personality. Verifies the pieces compose correctly.
-    use fixed_bigint::PrimBits;
+    use const_num_traits::PrimBits;
 
     // Pick a value with a known trailing-zero count.
     // 0x10000000 = bit 28 set, so trailing_zeros == 28.

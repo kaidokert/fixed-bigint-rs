@@ -16,11 +16,7 @@
 use core::fmt::Write;
 
 use crate::machineword::{ConstMachineWord, MachineWord};
-pub use const_num_traits::{
-    AbsDiff, BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedPow, ConstOne, ConstZero,
-    DivCeil, Ilog, IsPowerOfTwo, Isqrt, MultipleOf, NextMultipleOf, NextPowerOfTwo, PrimBits,
-    PrimInt, WideningMul,
-};
+use const_num_traits::{BorrowingSub, Bounded, CarryingAdd, ConstOne, ConstZero, PrimBits};
 
 #[cfg(feature = "num-traits")]
 #[allow(unused_imports)]
@@ -36,7 +32,8 @@ mod cios_row_ops_impl;
 mod div_ceil_impl;
 mod euclid;
 mod extended_precision_impl;
-pub mod has_nonzero_impl;
+mod has_nonzero_impl;
+pub use has_nonzero_impl::NonZeroFixedUInt;
 mod has_personality_impl;
 mod ilog_impl;
 mod isqrt_impl;

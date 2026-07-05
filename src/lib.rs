@@ -53,21 +53,11 @@
 //! assert_eq!( a.lcm( &(440u16.into() )) , 4400u16.into() );
 //! ```
 
-/// Re-export num_traits crate
-#[cfg(feature = "num-traits")]
-pub use num_traits;
-
-/// Re-export num_integer crate
-#[cfg(feature = "num-traits")]
-pub use num_integer;
-
 /// Fixed-size big integer implementation
 pub mod fixeduint;
 
 /// Machine word and doubleword
 mod machineword;
 
-pub use crate::fixeduint::FixedUInt;
-pub use crate::fixeduint::has_nonzero_impl::NonZeroFixedUInt;
+pub use crate::fixeduint::{FixedUInt, NonZeroFixedUInt};
 pub use crate::machineword::MachineWord;
-pub use const_num_traits::{PrimBits, PrimInt};
