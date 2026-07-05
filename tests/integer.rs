@@ -39,7 +39,7 @@ fn test_evenodd() {
 
 #[test]
 fn test_divides() {
-    fn divides<T: num_integer::Integer + From<u8>>() {
+    fn divides<T: num_integer::Integer + From<u8> + core::fmt::Debug>() {
         let tests = [(6u8, 3u8, true), (8, 2, true), (8, 1, true), (17, 2, false)];
         for &(multiple, multiplier, expected) in &tests {
             let multiple = T::from(multiple);
@@ -61,15 +61,17 @@ fn test_divides() {
             let div = T::from(div);
             let rem = T::from(rem);
             let (divres, remres) = multiple.div_rem(&divider);
-            assert!(divres == div, "div_rem: unexpected quotient");
-            assert!(remres == rem, "div_rem: unexpected remainder");
+            assert_eq!(divres, div, "div_rem: unexpected quotient");
+            assert_eq!(remres, rem, "div_rem: unexpected remainder");
 
-            assert!(
-                num_integer::Integer::div_floor(&multiple, &divider) == divres,
+            assert_eq!(
+                num_integer::Integer::div_floor(&multiple, &divider),
+                divres,
                 "div_floor disagrees with div_rem"
             );
-            assert!(
-                num_integer::Integer::mod_floor(&multiple, &divider) == remres,
+            assert_eq!(
+                num_integer::Integer::mod_floor(&multiple, &divider),
+                remres,
                 "mod_floor disagrees with div_rem"
             );
         }
@@ -83,7 +85,7 @@ fn test_divides() {
 // TODO: Test GCD / LCM
 #[test]
 fn test_gcd_lcm() {
-    fn gcd_lcm<T: num_integer::Integer + From<u8>>() {
+    fn gcd_lcm<T: num_integer::Integer + From<u8> + core::fmt::Debug>() {
         let gcd_tests = [
             (8u8, 12u8, 4u8),
             (1, 1, 1),
@@ -95,7 +97,7 @@ fn test_gcd_lcm() {
             let a = T::from(a);
             let b = T::from(b);
             let expected = T::from(expected);
-            assert!(a.gcd(&b) == expected);
+            assert_eq!(a.gcd(&b), expected);
         }
         let lcm_tests = [
             (10u8, 2u8, 10u8),
@@ -109,7 +111,7 @@ fn test_gcd_lcm() {
             let a = T::from(a);
             let b = T::from(b);
             let expected = T::from(expected);
-            assert!(a.lcm(&b) == expected);
+            assert_eq!(a.lcm(&b), expected);
         }
     }
     gcd_lcm::<u8>();
