@@ -15,8 +15,8 @@
 //! Absolute difference implementation for FixedUInt.
 
 use super::{FixedUInt, MachineWord, const_ct_select};
-use crate::const_numtraits::{AbsDiff, ConstZero, OverflowingSub, WrappingSub};
 use crate::machineword::ConstMachineWord;
+use const_num_traits::{AbsDiff, ConstZero, OverflowingSub, WrappingSub};
 use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {

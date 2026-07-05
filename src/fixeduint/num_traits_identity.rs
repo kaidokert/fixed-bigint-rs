@@ -1,8 +1,8 @@
 use super::{
     FixedUInt, MachineWord, const_is_one, const_is_one_ct, const_is_zero, const_is_zero_ct,
 };
-use crate::const_numtraits::{Bounded, ConstOne, ConstZero, One, Zero};
 use crate::machineword::ConstMachineWord;
+use const_num_traits::{Bounded, ConstOne, ConstZero, One, Zero};
 use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {

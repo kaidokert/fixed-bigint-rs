@@ -7,7 +7,7 @@
 use core::ops::{BitAnd, BitOr, BitXor, Not};
 
 use const_num_traits::Ct;
-use fixed_bigint::const_numtraits::{CarryingAdd, Midpoint, OverflowingAdd, PrimBits, WrappingMul};
+use const_num_traits::{CarryingAdd, Midpoint, OverflowingAdd, PrimBits, WrappingMul};
 use fixed_bigint::FixedUInt;
 
 use crate::{ct_fix_bin, ct_fix_count, ct_fix_un};

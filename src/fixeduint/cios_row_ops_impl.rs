@@ -22,8 +22,8 @@
 #![cfg(feature = "cios")]
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{CarryingAdd, CarryingMul, ConstZero};
 use const_num_traits::Personality;
+use const_num_traits::{CarryingAdd, CarryingMul, ConstZero};
 
 impl<T, const N: usize, P: Personality> modmath_cios::CiosRowOps for FixedUInt<T, N, P>
 where

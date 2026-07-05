@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::const_numtraits::PrimInt;
-use crate::const_numtraits::{
+pub use const_num_traits::PrimInt;
+use const_num_traits::{
     BorrowingSub, CarryingAdd, OverflowingAdd, OverflowingSub, ToBytes, WideningMul,
 };
 

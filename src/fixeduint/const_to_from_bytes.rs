@@ -18,9 +18,9 @@
 //! to compute byte array sizes at compile time without unsafe code.
 
 use super::{FixedUInt, MachineWord, impl_from_be_bytes_slice, impl_from_le_bytes_slice};
-use crate::const_numtraits::{FromBytes, One, ToBytes, Zero};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Personality;
+use const_num_traits::{FromBytes, One, ToBytes, Zero};
 use core::mem::size_of;
 
 /// Compute byte length for FixedUInt<T, N>.

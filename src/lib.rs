@@ -64,13 +64,10 @@ pub use num_integer;
 /// Fixed-size big integer implementation
 pub mod fixeduint;
 
-/// Curated re-export shim onto the external `const-num-traits` crate.
-pub mod const_numtraits;
-
 /// Machine word and doubleword
 mod machineword;
 
-pub use crate::const_numtraits::{PrimBits, PrimInt};
 pub use crate::fixeduint::FixedUInt;
 pub use crate::fixeduint::has_nonzero_impl::NonZeroFixedUInt;
 pub use crate::machineword::MachineWord;
+pub use const_num_traits::{PrimBits, PrimInt};

@@ -32,8 +32,8 @@
 //! use `PowerOfTwoOps::div_pow2(*v, p)`.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{CheckedAdd, ConstOne, One, Zero};
 use crate::machineword::ConstMachineWord;
+use const_num_traits::{CheckedAdd, ConstOne, One, Zero};
 use const_num_traits::{Personality, PowerOfTwo, PowerOfTwoOps};
 
 impl<T: ConstMachineWord + MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {

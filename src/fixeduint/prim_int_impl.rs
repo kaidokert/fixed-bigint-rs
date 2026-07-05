@@ -2,10 +2,10 @@ use super::{
     FixedUInt, MachineWord, const_leading_zeros, const_leading_zeros_ct, const_trailing_zeros,
     const_trailing_zeros_ct,
 };
-#[cfg(feature = "num-traits")]
-use crate::const_numtraits::One;
-use crate::const_numtraits::PrimBits;
 use crate::machineword::ConstMachineWord;
+#[cfg(feature = "num-traits")]
+use const_num_traits::One;
+use const_num_traits::PrimBits;
 use const_num_traits::{Nct, Personality, PersonalityTag};
 
 c0nst::c0nst! {
@@ -41,7 +41,7 @@ c0nst::c0nst! {
             }
         }
         fn swap_bytes(self) -> Self {
-            let mut ret = <Self as crate::const_numtraits::ConstZero>::ZERO;
+            let mut ret = <Self as const_num_traits::ConstZero>::ZERO;
             let mut i = 0;
             while i < N {
                 ret.array[i] = self.array[N - 1 - i].swap_bytes();
@@ -88,7 +88,7 @@ c0nst::c0nst! {
             core::ops::Shr::<u32>::shr(self, n)
         }
         fn reverse_bits(self) -> Self {
-            let mut ret = <Self as crate::const_numtraits::ConstZero>::ZERO;
+            let mut ret = <Self as const_num_traits::ConstZero>::ZERO;
             let mut i = 0;
             while i < N {
                 ret.array[N - 1 - i] = self.array[i].reverse_bits();
@@ -126,9 +126,9 @@ c0nst::c0nst! {
         v: FixedUInt<T, N, Nct>, exp: u32,
     ) -> FixedUInt<T, N, Nct> {
         if exp == 0 {
-            return <FixedUInt<T, N, Nct> as crate::const_numtraits::ConstOne>::ONE;
+            return <FixedUInt<T, N, Nct> as const_num_traits::ConstOne>::ONE;
         }
-        let mut result = <FixedUInt<T, N, Nct> as crate::const_numtraits::ConstOne>::ONE;
+        let mut result = <FixedUInt<T, N, Nct> as const_num_traits::ConstOne>::ONE;
         let mut base = v;
         let mut e = exp;
         while e > 0 {
@@ -247,7 +247,7 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N, Nct
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::const_numtraits::PrimBits;
+    use const_num_traits::PrimBits;
 
     type U16 = FixedUInt<u8, 2, Nct>;
 

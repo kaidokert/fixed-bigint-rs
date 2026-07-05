@@ -18,8 +18,8 @@
 //! multiplication, useful for implementing arbitrary-precision arithmetic.
 
 use super::{FixedUInt, MachineWord, add_with_carry, sub_with_borrow};
-use crate::const_numtraits::{BorrowingSub, Bounded, CarryingAdd, CarryingMul, Zero};
 use crate::machineword::ConstMachineWord;
+use const_num_traits::{BorrowingSub, Bounded, CarryingAdd, CarryingMul, Zero};
 use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {

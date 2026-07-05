@@ -15,8 +15,8 @@
 //! Midpoint (average) implementation for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::Midpoint;
 use crate::machineword::ConstMachineWord;
+use const_num_traits::Midpoint;
 use const_num_traits::Personality;
 
 c0nst::c0nst! {

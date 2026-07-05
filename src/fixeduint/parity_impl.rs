@@ -25,8 +25,8 @@
 //! its `CtOption`-shaped construction path for free.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::Parity;
 use crate::machineword::ConstMachineWord;
+use const_num_traits::Parity;
 use const_num_traits::Personality;
 use const_num_traits::ops::ct::CtParity;
 use subtle::{Choice, ConstantTimeEq};
@@ -39,8 +39,8 @@ c0nst::c0nst! {
             if N == 0 {
                 false
             } else {
-                (self.array[0] & <T as crate::const_numtraits::ConstOne>::ONE)
-                    != <T as crate::const_numtraits::ConstZero>::ZERO
+                (self.array[0] & <T as const_num_traits::ConstOne>::ONE)
+                    != <T as const_num_traits::ConstZero>::ZERO
             }
         }
         fn is_even(self) -> bool {
@@ -71,9 +71,9 @@ where
             // Degenerate (zero-word) configuration; treat as even.
             return Choice::from(0);
         }
-        let lsb = self.array[0] & <T as crate::const_numtraits::ConstOne>::ONE;
+        let lsb = self.array[0] & <T as const_num_traits::ConstOne>::ONE;
         // `Choice::TRUE` when `lsb != 0`.
-        !lsb.ct_eq(&<T as crate::const_numtraits::ConstZero>::ZERO)
+        !lsb.ct_eq(&<T as const_num_traits::ConstZero>::ZERO)
     }
 
     fn ct_is_even(&self) -> Choice {

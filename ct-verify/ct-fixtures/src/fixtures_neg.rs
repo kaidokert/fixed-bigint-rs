@@ -56,7 +56,7 @@ emit_nct_div!(nct_fix__neg__nct_div__u32__N16, u32, 16);
 
 #[no_mangle]
 pub extern "C" fn nct_fix__neg__nct_ilog10__u32__N4(a_ptr: *const [u32; 4]) -> u32 {
-    use fixed_bigint::const_numtraits::Ilog10;
+    use const_num_traits::Ilog10;
     let a_arr = core::hint::black_box(unsafe { *a_ptr });
     let x = FixedUInt::<u32, 4, Nct>::from(a_arr);
     // ilog10 panics on zero — guard with a safe value.

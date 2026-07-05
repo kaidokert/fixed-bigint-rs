@@ -21,12 +21,12 @@
 //! convert the overflow flag into a `panic!`.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{
+use crate::machineword::ConstMachineWord;
+use const_num_traits::Nct;
+use const_num_traits::{
     CheckedPow, OverflowingAdd, OverflowingMul, OverflowingSub, StrictAdd, StrictDiv, StrictMul,
     StrictPow, StrictRem, StrictShl, StrictShr, StrictSub,
 };
-use crate::machineword::ConstMachineWord;
-use const_num_traits::Nct;
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictAdd for FixedUInt<T, N, Nct> {

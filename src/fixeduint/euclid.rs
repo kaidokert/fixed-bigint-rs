@@ -1,7 +1,7 @@
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{CheckedEuclid, Euclid, Zero};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
+use const_num_traits::{CheckedEuclid, Euclid, Zero};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Euclid for FixedUInt<T, N, Nct> {
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_div_euclid() {
-        use crate::const_numtraits::Euclid;
+        use const_num_traits::Euclid;
         let a = FixedUInt::<u8, 2>::from(100u8);
         let b = FixedUInt::<u8, 2>::from(30u8);
         assert_eq!(Euclid::div_euclid(a, b), 3u8.into());
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_checked_div_euclid() {
-        use crate::const_numtraits::CheckedEuclid;
+        use const_num_traits::CheckedEuclid;
         let a = FixedUInt::<u8, 2>::from(100u8);
         let b = FixedUInt::<u8, 2>::from(30u8);
         assert_eq!(CheckedEuclid::checked_div_euclid(a, b), Some(3u8.into()));

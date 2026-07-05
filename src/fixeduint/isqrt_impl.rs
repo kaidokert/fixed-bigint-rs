@@ -15,9 +15,9 @@
 //! Integer square root for FixedUInt.
 
 use super::{FixedUInt, MachineWord, const_set_bit};
-use crate::const_numtraits::{Isqrt, PrimBits, Zero};
 use crate::machineword::ConstMachineWord;
 use const_num_traits::Nct;
+use const_num_traits::{Isqrt, PrimBits, Zero};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Isqrt for FixedUInt<T, N, Nct> {
