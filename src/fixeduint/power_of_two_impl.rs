@@ -99,6 +99,12 @@ c0nst::c0nst! {
             }
         }
 
+        // NOTE: This impl is NOT constant-time on a `FixedUInt<_, _, Ct>`
+        // carrier — the `Option` shape leaks whether the input was zero
+        // and whether `next_power_of_two` overflowed, both of which are
+        // range predicates on the secret. Ct callers should use the
+        // inherent `FixedUInt::<_, _, Ct>::ct_checked_next_power_of_two`
+        // instead, which returns `CtOption` with a value-masked flag.
         fn checked_next_power_of_two(self) -> Option<Self> {
             if self.is_zero() {
                 return Some(Self::one());

@@ -533,9 +533,13 @@ c0nst::c0nst! {
     // Indices of the highest / lowest set bit. Both reduce to the leading-
     // and trailing-zero counts we already compute (Nct fast-path through
     // `const_leading_zeros` / `const_trailing_zeros`; Ct path through the
-    // mask-select `_ct` variants). Returning `None` for zero is the only
-    // value-dependent branch — fine on Nct, and on Ct the caller has to
-    // know they're consuming an Option in a value-aware way regardless.
+    // mask-select `_ct` variants).
+    //
+    // NOTE: NOT constant-time on a `FixedUInt<_, _, Ct>` carrier — the
+    // `Option` return shape leaks whether `self == 0` regardless of what
+    // the caller does with the value. Ct callers whose input might be
+    // zero should mask it separately (`CtIsZero::ct_is_zero`) before
+    // consulting these methods, or avoid them entirely.
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::HighestOne for FixedUInt<T, N, P> {
         fn highest_one(self) -> Option<u32> {
@@ -649,6 +653,12 @@ c0nst::c0nst! {
     // Reversible (lossless) shifts: return `None` if any one-bit would be
     // shifted out, or `rhs >= BIT_SIZE`. Mirrors core's primitive impls
     // exactly (compare `rhs` against `leading_zeros` / `trailing_zeros`).
+    //
+    // NOTE: NOT constant-time on a `FixedUInt<_, _, Ct>` carrier — the
+    // `Option` return shape leaks a range predicate on
+    // `leading_zeros(self)` / `trailing_zeros(self)`, i.e. the bit-width
+    // of the secret. Ct callers wanting exact shifts should either avoid
+    // this trait or gate on their own precondition before calling.
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::ShlExact for FixedUInt<T, N, P> {
         fn shl_exact(self, rhs: u32) -> Option<Self> {

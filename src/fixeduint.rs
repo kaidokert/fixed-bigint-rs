@@ -161,6 +161,25 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Ct> {
     }
 }
 
+/// Branchless "shift amount is in range" flag for the `ct_checked_sh{l,r}`
+/// path. Returns `Choice::from(1)` iff `bits < bit_size`, without a
+/// runtime branch on `bits`. Handles `bit_size == 0` (empty carrier) by
+/// always returning invalid.
+#[inline]
+fn ct_checked_shift_valid(bits: u32, bit_size: usize) -> subtle::Choice {
+    if bit_size == 0 {
+        // N == 0 is a compile-time property, not a secret; the branch
+        // resolves at monomorphization for every real carrier.
+        return subtle::Choice::from(0);
+    }
+    let bit_size_u32 = bit_size as u32;
+    // (BIT_SIZE - 1 - bits) has its high bit set iff bits > BIT_SIZE - 1,
+    // i.e. iff the shift would overflow.
+    let diff = bit_size_u32.wrapping_sub(1).wrapping_sub(bits);
+    let overflow = ((diff >> 31) & 1) as u8;
+    subtle::Choice::from(1 ^ overflow)
+}
+
 impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt<T, N, Ct> {
     /// CT-friendly counterpart to `num_traits::CheckedAdd::checked_add`.
     /// Returns `CtOption::new(res, Choice::from(!overflow))` — the result is
@@ -197,26 +216,32 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     }
 
     /// CT-friendly counterpart to `CheckedShl::checked_shl`.
+    ///
+    /// The value is computed via `const_unbounded_shl_u32`, which under
+    /// `Ct` uses a branchless barrel shifter and a CT-safe `min(bits,
+    /// BIT_SIZE)` clamp. The overflow flag (`bits >= BIT_SIZE`) is
+    /// derived branchlessly here — never going through
+    /// `OverflowingShl::overflowing_shl` which routes through
+    /// `normalize_shift_amount`'s tainted branch + variable-time modulo.
     pub fn ct_checked_shl(&self, bits: u32) -> subtle::CtOption<Self> {
-        let (res, overflow) =
-            <Self as const_num_traits::ops::overflowing::OverflowingShl>::overflowing_shl(
-                *self, bits,
-            );
-        let valid = subtle::Choice::from((!overflow) as u8);
-        subtle::CtOption::new(res, valid)
+        subtle::CtOption::new(
+            bit_ops_impl::const_unbounded_shl_u32::<T, N, Ct>(*self, bits),
+            ct_checked_shift_valid(bits, Self::BIT_SIZE),
+        )
     }
 
     /// CT-friendly counterpart to `CheckedShr::checked_shr`.
+    ///
+    /// Symmetric to [`Self::ct_checked_shl`]: value through
+    /// `const_unbounded_shr_u32`, validity flag derived branchlessly.
     pub fn ct_checked_shr(&self, bits: u32) -> subtle::CtOption<Self> {
-        let (res, overflow) =
-            <Self as const_num_traits::ops::overflowing::OverflowingShr>::overflowing_shr(
-                *self, bits,
-            );
-        let valid = subtle::Choice::from((!overflow) as u8);
-        subtle::CtOption::new(res, valid)
+        subtle::CtOption::new(
+            bit_ops_impl::const_unbounded_shr_u32::<T, N, Ct>(*self, bits),
+            ct_checked_shift_valid(bits, Self::BIT_SIZE),
+        )
     }
 
-    /// CT-friendly counterpart to `ConstPowerOfTwo::checked_next_power_of_two`.
+    /// CT-friendly counterpart to `NextPowerOfTwo::checked_next_power_of_two`.
     pub fn ct_checked_next_power_of_two(self) -> subtle::CtOption<Self>
     where
         T: subtle::ConstantTimeEq,
