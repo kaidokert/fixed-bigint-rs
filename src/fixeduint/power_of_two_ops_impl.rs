@@ -15,21 +15,9 @@
 //! `PowerOfTwoOps` for `FixedUInt`, plus the round-trip helper
 //! [`FixedUInt::from_power_of_two`].
 //!
-//! Construct the `PowerOfTwo<FixedUInt<...>>` proof via the upstream
-//! safe constructor `PowerOfTwo::new_checked` (in `const-num-traits`,
-//! bounded on `T: IsPowerOfTwo + PrimBits`, both of which `FixedUInt`
-//! implements) — no glue on this side, no caller-side unsafe.
-//!
-//! One impl block covers both personalities: every body is a shift, a
-//! mask, or an addition, so there is no `match P::TAG`.
-//! `next_multiple_of_pow2` inherits the `+` semantic (panic under Nct,
-//! wrap under Ct); untrusted inputs should use
+//! `next_multiple_of_pow2` inherits the `+` semantic: panic under Nct,
+//! wrap under Ct on overflow. Untrusted inputs should route through
 //! `checked_next_multiple_of_pow2`.
-//!
-//! There is no `impl PowerOfTwoOps for &FixedUInt<...>`: the trait
-//! fixes `p: PowerOfTwo<Self>`, so `&FixedUInt<...>` would need a
-//! separate proof-typed parameter. `FixedUInt: Copy` makes deref free;
-//! use `PowerOfTwoOps::div_pow2(*v, p)`.
 
 use super::{FixedUInt, MachineWord};
 use crate::machineword::ConstMachineWord;
