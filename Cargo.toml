@@ -53,7 +53,7 @@ optional = true
 default-features = false
 
 [dependencies.const-num-traits]
-version = "0.1"
+version = "0.1.1"
 default-features = false
 features = ["ct"]
 
