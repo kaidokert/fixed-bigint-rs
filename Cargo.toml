@@ -86,8 +86,7 @@ codegen-units = 16
 
 [features]
 use-unsafe = []
-1_87 = []
-nightly = ["c0nst/nightly", "const-num-traits/nightly", "1_87"]
+nightly = ["c0nst/nightly", "const-num-traits/nightly"]
 cios = ["dep:modmath-cios"]
 num-traits = ["dep:num-traits", "dep:num-integer"]
 default = ["num-traits"]
