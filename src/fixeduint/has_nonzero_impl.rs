@@ -32,9 +32,11 @@ use const_num_traits::{DivNonZero, HasNonZero, Nct, Personality};
 
 /// Non-zero `FixedUInt`. Constructed via [`HasNonZero::into_nonzero`].
 ///
-/// `#[repr(transparent)]` over `FixedUInt<T, N, P>` so any
-/// `Zeroize` / `Drop` semantics added to `FixedUInt` downstream flow
-/// through. Always `Copy` (matches `HasNonZero::NonZero: Copy`).
+/// `#[repr(transparent)]` over `FixedUInt<T, N, P>` — the layout is
+/// identical, so `NonZeroFixedUInt` can round-trip through FFI at the
+/// same ABI as the inner. Always `Copy` (matches
+/// `HasNonZero::NonZero: Copy`); the drop of the inner runs because
+/// the field is owned, not because of the repr.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct NonZeroFixedUInt<T, const N: usize, P: Personality>(FixedUInt<T, N, P>)

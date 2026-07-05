@@ -105,7 +105,35 @@ impl<T: MachineWord, const N: usize> Drop for BytesHolder<T, N> {
     }
 }
 
-// ── num_traits::ToBytes/FromBytes (upstream by-ref shape) ────────────
+// ── num_traits + const_num_traits ToBytes/FromBytes ──────────────────
+//
+// The two `ToBytes` traits differ only in receiver (`&self` vs `self`)
+// and the two `FromBytes` traits do the same. Delegate through
+// crate-private helpers on `FixedUInt` to keep them in lockstep. Both
+// use `BytesHolder<T, N>` as the associated `Bytes` type; the
+// const-num-traits variants are `#[cfg(not(feature = "nightly"))]`
+// because `const_to_from_bytes.rs` provides better nightly impls via
+// `ConstBytesHolder` + `generic_const_exprs`.
+
+#[cfg(any(feature = "num-traits", not(feature = "nightly")))]
+impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P>
+where
+    T: core::fmt::Debug,
+{
+    #[inline]
+    fn holder_be(&self) -> BytesHolder<T, N> {
+        let mut ret = BytesHolder::from_array(self.array);
+        let _ = self.to_be_bytes(ret.as_byte_slice_mut());
+        ret
+    }
+
+    #[inline]
+    fn holder_le(&self) -> BytesHolder<T, N> {
+        let mut ret = BytesHolder::from_array(self.array);
+        let _ = self.to_le_bytes(ret.as_byte_slice_mut());
+        ret
+    }
+}
 
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ToBytes for FixedUInt<T, N, P>
@@ -113,17 +141,11 @@ where
     T: core::fmt::Debug,
 {
     type Bytes = BytesHolder<T, N>;
-
     fn to_be_bytes(&self) -> Self::Bytes {
-        let mut ret = Self::Bytes::from_array(self.array);
-        let _ = self.to_be_bytes(ret.as_byte_slice_mut());
-        ret
+        self.holder_be()
     }
-
     fn to_le_bytes(&self) -> Self::Bytes {
-        let mut ret = Self::Bytes::from_array(self.array);
-        let _ = self.to_le_bytes(ret.as_byte_slice_mut());
-        ret
+        self.holder_le()
     }
 }
 
@@ -133,23 +155,13 @@ where
     T: core::fmt::Debug,
 {
     type Bytes = BytesHolder<T, N>;
-
     fn from_be_bytes(bytes: &Self::Bytes) -> Self {
         Self::from_be_bytes(bytes.as_ref())
     }
-
     fn from_le_bytes(bytes: &Self::Bytes) -> Self {
         Self::from_le_bytes(bytes.as_ref())
     }
 }
-
-// ── const_num_traits::ToBytes/FromBytes (stable, by-value shape) ─────
-//
-// Provides the const-num-traits byte-conversion surface for stable
-// callers (including those who've dropped num-traits entirely). On
-// nightly, `const_to_from_bytes.rs` provides better impls via
-// `ConstBytesHolder` + generic_const_exprs, so these stable impls are
-// disabled to avoid the duplicate-impl conflict.
 
 #[cfg(not(feature = "nightly"))]
 impl<T: MachineWord, const N: usize, P: Personality> const_num_traits::ToBytes
@@ -158,17 +170,11 @@ where
     T: core::fmt::Debug,
 {
     type Bytes = BytesHolder<T, N>;
-
     fn to_be_bytes(self) -> Self::Bytes {
-        let mut ret = Self::Bytes::from_array(self.array);
-        let _ = FixedUInt::<T, N, P>::to_be_bytes(&self, ret.as_byte_slice_mut());
-        ret
+        self.holder_be()
     }
-
     fn to_le_bytes(self) -> Self::Bytes {
-        let mut ret = Self::Bytes::from_array(self.array);
-        let _ = FixedUInt::<T, N, P>::to_le_bytes(&self, ret.as_byte_slice_mut());
-        ret
+        self.holder_le()
     }
 }
 

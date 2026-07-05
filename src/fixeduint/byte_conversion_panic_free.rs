@@ -22,12 +22,13 @@
 //! binary": `copy_from_slice` still carries a length check LLVM can't
 //! elide through the trait boundary.
 //!
-//! Oversized-buffer convention when `M > BYTE_WIDTH`, matching the
-//! slice-based methods: LE uses the leading `BYTE_WIDTH` bytes and BE
-//! uses the trailing `BYTE_WIDTH` bytes. `to_*_bytes_fixed` writes into
-//! that window and returns it; `from_*_bytes_fixed` reads from it. So
-//! a `to_be`/`from_be` (or `to_le`/`from_le`) round-trip through an
-//! oversized buffer is symmetric.
+//! Oversized-buffer convention when `M > BYTE_WIDTH`: LE uses the
+//! leading `BYTE_WIDTH` bytes and BE uses the trailing `BYTE_WIDTH`
+//! bytes. `to_*_bytes_fixed` writes into that window and returns it;
+//! `from_*_bytes_fixed` reads from it. The pair is designed to round-
+//! trip against itself — matches the slice-based `from_*_bytes` window
+//! choice, but *not* the slice-based `to_be_bytes`, which writes to
+//! the leading window on oversized input.
 
 // `let _ = <T as AssertBufferFits<M>>::CHECK;` forces the const to
 // evaluate at monomorphization; a bare path-statement isn't a reliable

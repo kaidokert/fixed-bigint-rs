@@ -3,8 +3,6 @@ use super::{
     const_trailing_zeros_ct,
 };
 use crate::machineword::ConstMachineWord;
-#[cfg(feature = "num-traits")]
-use const_num_traits::One;
 use const_num_traits::PrimBits;
 use const_num_traits::{Nct, Personality, PersonalityTag};
 
@@ -216,23 +214,7 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N, Nct
         self
     }
     fn pow(self, exp: u32) -> Self {
-        if exp == 0 {
-            return Self::one();
-        }
-        // Exponentiation by squaring: O(log exp) instead of O(exp)
-        let mut result = Self::one();
-        let mut base = self;
-        let mut e = exp;
-        while e > 0 {
-            if (e & 1) == 1 {
-                result *= base;
-            }
-            e >>= 1;
-            if e > 0 {
-                base *= base;
-            }
-        }
-        result
+        pow_impl(self, exp)
     }
 }
 
