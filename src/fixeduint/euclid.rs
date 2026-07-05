@@ -71,10 +71,6 @@ c0nst::c0nst! {
     }
 }
 
-// (legacy num_traits::Euclid / CheckedEuclid shim impls retired — the
-// `c0nst Euclid` / `c0nst CheckedEuclid` impls above ARE the impls
-// of the external traits now.)
-
 #[cfg(test)]
 mod tests {
     use super::*;

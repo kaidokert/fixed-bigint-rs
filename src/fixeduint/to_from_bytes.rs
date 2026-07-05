@@ -106,10 +106,6 @@ impl<T: MachineWord, const N: usize> Drop for BytesHolder<T, N> {
 }
 
 // ── num_traits::ToBytes/FromBytes (upstream by-ref shape) ────────────
-//
-// Only built when `feature = "num-traits"` is enabled; downstream
-// consumers that have dropped num-traits don't need or want these
-// impls.
 
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::ToBytes for FixedUInt<T, N, P>
@@ -281,18 +277,8 @@ mod tests {
         );
     }
 
-    // --- Empirical const-evaluability of `Default` -------------------------
-    //
-    // `core::default::Default` becomes a `const trait` on nightly under
-    // `feature(const_default)`, which our `nightly` feature enables. The
-    // `impl c0nst Default for BytesHolder` above is rendered as
-    // `impl const Default for BytesHolder` on nightly and as the plain
-    // impl on stable. This test binds the result of `Default::default()`
-    // to a `const` item, proving the const path is real on nightly.
-
     #[test]
     fn nightly_const_eval_default() {
-        // runtime smoke (works on stable + nightly).
         let h: BytesHolder<u8, 4> = Default::default();
         assert_eq!(h.array, [0u8; 4]);
 

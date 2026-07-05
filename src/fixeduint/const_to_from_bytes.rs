@@ -128,11 +128,9 @@ c0nst::c0nst! {
     where
         [(); byte_len::<T, N>()]:,
     {
-        // External `FromBytes::Bytes` is `?Sized` + `NumBytes`-bounded.
-        // We keep using the sized `ConstBytesHolder` (the c0nst const
-        // generic path needs a concrete return type for `ToBytes`
-        // anyway); `from_*_bytes` takes it by reference per the
-        // reverted-in upstream signature.
+        // `FromBytes::Bytes` is `?Sized + NumBytes` upstream; we pin it
+        // to `ConstBytesHolder` here so the c0nst const-generic path
+        // sees the same concrete return type as `ToBytes`.
         type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
 
         fn from_le_bytes(bytes: &Self::Bytes) -> Self {
@@ -240,10 +238,8 @@ mod tests {
         assert_eq!(CONST_FROM_LE.array, [0x01, 0x02, 0x03, 0x04]);
     }
 
-    // Empirical const-eval proofs for the big-endian half too — completes
-    // the audit coverage of `ToBytes` / `FromBytes`. (This module is
-    // already `#[cfg(feature = "nightly")]`, so these consts only exist
-    // under that feature.)
+    // BE const-eval round-trip; the LE half is `CONST_LE_BYTES` /
+    // `CONST_FROM_LE` above.
     const CONST_BE_BYTES: [u8; 4] = {
         let val: FixedUInt<u8, 4> = FixedUInt::from_array([0x01, 0x02, 0x03, 0x04]);
         let holder = ToBytes::to_be_bytes(val);

@@ -74,7 +74,6 @@ impl<T: ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstOne
     for FixedUInt<T, N, P>
 {
     const ONE: Self = {
-        // Construct array with T::ONE in slot 0, T::ZERO elsewhere.
         let mut a = [<T as ConstZero>::ZERO; N];
         if N > 0 {
             a[0] = <T as ConstOne>::ONE;

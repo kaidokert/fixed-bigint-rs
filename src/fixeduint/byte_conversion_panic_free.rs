@@ -183,11 +183,9 @@ mod tests {
     #[test]
     fn to_le_bytes_fixed_oversized_leaves_trailing_untouched() {
         let v = U16::from(0x1234u16);
-        let mut buf = [0xFFu8; 4]; // BYTE_WIDTH == 2; M == 4
+        let mut buf = [0xFFu8; 4];
         let written = v.to_le_bytes_fixed(&mut buf);
-        // Returned slice is the written prefix.
         assert_eq!(written, &[0x34, 0x12]);
-        // Trailing bytes left as 0xFF.
         assert_eq!(buf, [0x34, 0x12, 0xFF, 0xFF]);
     }
 
@@ -306,7 +304,7 @@ mod tests {
     #[test]
     fn u32_single_limb_le() {
         let v = U32::from(0x12345678u32);
-        let mut buf = [0u8; U32::BYTE_WIDTH]; // 4
+        let mut buf = [0u8; U32::BYTE_WIDTH];
         let written = v.to_le_bytes_fixed(&mut buf);
         assert_eq!(written, &[0x78, 0x56, 0x34, 0x12]);
         let back: U32 = U32::from_le_bytes_fixed(&buf);
@@ -323,21 +321,12 @@ mod tests {
         assert_eq!(back, v);
     }
 
-    // ─── const-context callability (the whole point) ──────────────────
-    //
-    // These are NOT c0nst — the bodies use `chunks_exact_mut` which
-    // isn't const-fn — but exercising them in #[test] form alongside
-    // the inherent-const `BYTE_WIDTH` confirms the buffer-sizing
-    // pattern downstream callers want.
-
     #[test]
     fn byte_width_is_usable_as_array_length() {
-        // The whole API ergonomic ask: `[0u8; T::BYTE_WIDTH]` works.
         const BUF_LEN: usize = U64::BYTE_WIDTH;
         let mut buf = [0u8; BUF_LEN];
         let v = U64::from(42u32);
         let _ = v.to_le_bytes_fixed(&mut buf);
-        // First byte of the value is the LE low byte.
         assert_eq!(buf[0], 42);
     }
 }

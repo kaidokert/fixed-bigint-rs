@@ -205,10 +205,6 @@ c0nst::c0nst! {
     }
 }
 
-// (Legacy non-const WideningMul / CarryingMul shim impls retired —
-// the `c0nst WideningMul` / `c0nst CarryingMul` impls above are now
-// the impls of the external traits.)
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -233,10 +229,8 @@ mod tests {
             BorrowingSub::borrowing_sub(a, b, borrow)
         }
 
-        /// Backwards-compatible test shim: returns the full `(low, high)`
-        /// product. `FixedUInt` no longer implements `WideningMul`; this
-        /// routes through `CarryingMul` with a zero carry, which produces
-        /// the same value.
+        /// Full `(low, high)` product via `CarryingMul` with a zero
+        /// carry — `FixedUInt` doesn't implement `WideningMul`.
         pub c0nst fn const_widening_mul<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality>(
             a: FixedUInt<T, N, P>,
             b: FixedUInt<T, N, P>,
@@ -558,10 +552,9 @@ mod tests {
         );
     }
 
-    /// Test the non-const WideningMul trait for primitives and FixedUInt.
+    /// `CarryingMul::carrying_mul` full-product on primitives and FixedUInt.
     #[test]
-    fn test_widening_mul_trait() {
-        // Test primitive types via WideningMul trait
+    fn test_carrying_mul_full_product() {
         assert_eq!(CarryingMul::carrying_mul(255u8, 255u8, 0u8), (1, 254)); // 0xFE01
         assert_eq!(
             CarryingMul::carrying_mul(0xFFFFu16, 0xFFFFu16, 0u16),
@@ -576,103 +569,46 @@ mod tests {
             (0xFFFF_FFFF_FFFF_FFFE, 1)
         );
 
-        // Test FixedUInt via WideningMul trait
         let a = U16::from(0xFFFFu16);
         let (lo, hi) = CarryingMul::carrying_mul(a, a, <U16 as Zero>::zero());
         assert_eq!(lo, U16::from(0x0001u16));
         assert_eq!(hi, U16::from(0xFFFEu16));
-
-        // Sanity: CarryingMul on FixedUInt produces deterministic results.
-        // (FixedUInt no longer implements `WideningMul`, so the earlier
-        // `WideningMul`-vs-`WideningMul` self-check doesn't apply.)
-        let b = U32::from(0x1234_5678u32);
-        let c = U32::from(0x9ABC_DEF0u32);
-        let zero32 = <U32 as Zero>::zero();
-        let (lo_a, hi_a) = CarryingMul::carrying_mul(b, c, zero32);
-        let (lo_b, hi_b) = CarryingMul::carrying_mul(b, c, zero32);
-        assert_eq!(lo_a, lo_b);
-        assert_eq!(hi_a, hi_b);
     }
 
-    /// Test the non-const CarryingMul trait for primitives and FixedUInt.
+    /// `CarryingMul::carrying_mul` / `carrying_mul_add` for primitives and
+    /// FixedUInt, cross-checked against the free const-fn path.
     #[test]
     fn test_carrying_mul_trait() {
-        // Test primitive types via CarryingMul trait
-        // 10 * 10 + 5 = 105
         assert_eq!(CarryingMul::carrying_mul(10u8, 10u8, 5u8), (105, 0));
-        // 255 * 255 + 255 = 65280 = 0xFF00
         assert_eq!(CarryingMul::carrying_mul(255u8, 255u8, 255u8), (0, 255));
-
-        // Test carrying_mul_add: 10 * 10 + 3 + 2 = 105
         assert_eq!(
             CarryingMul::carrying_mul_add(10u8, 10u8, 3u8, 2u8),
             (105, 0)
         );
-        // 255 * 255 + 255 + 255 = 65535 = 0xFFFF
         assert_eq!(
             CarryingMul::carrying_mul_add(255u8, 255u8, 255u8, 255u8),
             (255, 255)
         );
 
-        // Test FixedUInt via CarryingMul trait
         let a = U16::from(100u8);
         let b = U16::from(100u8);
         let carry = U16::from(5u8);
         let (lo, hi) = CarryingMul::carrying_mul(a, b, carry);
-        assert_eq!(lo, U16::from(10005u16)); // 100 * 100 + 5 = 10005
+        assert_eq!(lo, U16::from(10005u16));
         assert_eq!(hi, U16::from(0u8));
 
-        // Verify CarryingMul produces same result as CarryingMul
+        // Trait method and free const-fn must agree on FixedUInt.
         let x = U32::from(0x1234u32);
         let y = U32::from(0x5678u32);
         let c = U32::from(0xABCDu32);
-        let (lo_trait, hi_trait) = CarryingMul::carrying_mul(x, y, c);
-        let (lo_const, hi_const) = CarryingMul::carrying_mul(x, y, c);
-        assert_eq!(lo_trait, lo_const);
-        assert_eq!(hi_trait, hi_const);
-
-        // Test carrying_mul_add for FixedUInt
+        assert_eq!(
+            CarryingMul::carrying_mul(x, y, c),
+            const_carrying_mul(x, y, c),
+        );
         let addend = U32::from(0x9999u32);
-        let (lo_trait, hi_trait) = CarryingMul::carrying_mul_add(x, y, addend, c);
-        let (lo_const, hi_const) = CarryingMul::carrying_mul_add(x, y, addend, c);
-        assert_eq!(lo_trait, lo_const);
-        assert_eq!(hi_trait, hi_const);
-    }
-
-    /// Sanity check: CarryingMul is deterministic on primitives + FixedUInt.
-    #[test]
-    fn test_ref_based_mul_traits() {
         assert_eq!(
-            CarryingMul::carrying_mul(0xFFFFu16, 0xFFFFu16, 0u16),
-            CarryingMul::carrying_mul(0xFFFFu16, 0xFFFFu16, 0u16),
-        );
-        assert_eq!(
-            CarryingMul::carrying_mul(255u8, 255u8, 255u8),
-            CarryingMul::carrying_mul(255u8, 255u8, 255u8),
-        );
-        assert_eq!(
-            CarryingMul::carrying_mul_add(10u8, 10u8, 3u8, 2u8),
-            CarryingMul::carrying_mul_add(10u8, 10u8, 3u8, 2u8),
-        );
-
-        let a = U32::from(0x1234_5678u32);
-        let b = U32::from(0x9ABC_DEF0u32);
-        let zero32 = <U32 as Zero>::zero();
-        assert_eq!(
-            CarryingMul::carrying_mul(a, b, zero32),
-            CarryingMul::carrying_mul(a, b, zero32),
-        );
-
-        let carry = U16::from(5u8);
-        let x = U16::from(100u8);
-        assert_eq!(
-            CarryingMul::carrying_mul(x, x, carry),
-            CarryingMul::carrying_mul(x, x, carry),
-        );
-        let addend = U16::from(10u8);
-        assert_eq!(
-            CarryingMul::carrying_mul_add(x, x, addend, carry),
-            CarryingMul::carrying_mul_add(x, x, addend, carry),
+            CarryingMul::carrying_mul_add(x, y, addend, c),
+            const_carrying_mul_add(x, y, addend, c),
         );
     }
 }

@@ -49,8 +49,8 @@ c0nst::c0nst! {
     }
 
     // The reference-receiver impl is provided by const_num_traits's blanket
-    // `impl<T: Parity + Copy> Parity for &T` (the D1 fix from the typestate
-    // synthesis). Manually impl'ing it here now conflicts (E0119).
+    // `impl<T: Parity + Copy> Parity for &T`; a manual impl here would
+    // conflict (E0119).
 }
 
 // `CtParity` is **not** a `c0nst trait` upstream — `subtle::Choice`
@@ -72,7 +72,6 @@ where
             return Choice::from(0);
         }
         let lsb = self.array[0] & <T as const_num_traits::ConstOne>::ONE;
-        // `Choice::TRUE` when `lsb != 0`.
         !lsb.ct_eq(&<T as const_num_traits::ConstZero>::ZERO)
     }
 
@@ -218,8 +217,6 @@ mod tests {
             "Odd::new_ct(8) should mask None"
         );
 
-        // Round-trip: unwrap the masked Some, then check the inner value
-        // matches the input.
         let recovered = p_odd.unwrap();
         assert_eq!(recovered.get(), odd_ct);
     }

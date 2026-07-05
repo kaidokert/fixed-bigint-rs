@@ -144,7 +144,6 @@ mod tests {
             PowerOfTwoOps::div_pow2(U16::from(1000u16), p4),
             U16::from(62u8)
         );
-        // exp == 0 (divisor == 1) is identity.
         let p0 = pow2_from_value(U16::from(1u8)).unwrap();
         assert_eq!(
             PowerOfTwoOps::div_pow2(U16::from(12345u16), p0),
@@ -212,16 +211,12 @@ mod tests {
     #[test]
     fn checked_next_multiple_of_pow2_is_the_no_panic_sibling() {
         let p4 = pow2_from_value(U16::from(16u8)).unwrap();
-        // Already aligned.
         assert_eq!(
             PowerOfTwoOps::checked_next_multiple_of_pow2(U16::from(65520u16), p4),
             Some(U16::from(65520u16))
         );
-        // 65521 → next multiple of 16 = 65536 = 2^16, doesn't fit U16.
-        // mask = 15, 65521 + 15 = 65536 overflows U16's MAX (65535).
-        // This is the case where `next_multiple_of_pow2` would panic under
-        // Nct; the checked sibling returns None instead — the design
-        // principle "every panicking API ships a Try* sibling" applied.
+        // 65521 + mask (15) = 65536, overflows U16::MAX. Under Nct that
+        // would panic; the checked variant returns None.
         assert_eq!(
             PowerOfTwoOps::checked_next_multiple_of_pow2(U16::from(65521u16), p4),
             None
@@ -276,10 +271,9 @@ mod tests {
         assert_eq!(const_div_pow2(U16::from(100u8), p), U16::from(6u8));
         assert_eq!(const_rem_pow2(U16::from(100u8), p), U16::from(4u8));
 
-        // Empirical const-eval proof on nightly: `new_checked` is
-        // `pub c0nst fn` upstream and our `IsPowerOfTwo` + `PrimBits`
-        // impls are c0nst-bounded, so the full construction-and-
-        // consumption chain is const-callable.
+        // Full construct-and-consume chain in const context: upstream
+        // `new_checked` is `c0nst fn` and our `IsPowerOfTwo` + `PrimBits`
+        // impls carry `[c0nst]` bounds.
         #[cfg(feature = "nightly")]
         {
             const HUNDRED: U16 = FixedUInt::from_array([100, 0]);

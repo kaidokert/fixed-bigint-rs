@@ -314,12 +314,9 @@ c0nst::c0nst! {
         }
     }
 
-    // Shared body for `Shl<u32>` and `UnboundedShl::unbounded_shl`.
-    // Both want the same semantics — shift by a u32 amount, with values
-    // outside [0, BIT_SIZE) collapsing to zero — and previously had
-    // parallel implementations. The Ct fix in PR #120 was applied to
-    // `unbounded_shl` but missed the `Shl<u32>` copy; centralizing here
-    // makes that class of drift impossible.
+    // Shared body for `Shl<u32>` and `UnboundedShl::unbounded_shl`:
+    // shift by a u32 amount, with values outside [0, BIT_SIZE) collapsing
+    // to zero. Centralizing keeps the two entry points in sync.
     pub(crate) c0nst fn const_unbounded_shl_u32<
         T: [c0nst] ConstMachineWord + MachineWord,
         const N: usize,
@@ -479,10 +476,9 @@ c0nst::c0nst! {
 
     // --- Reference-receiver shift impls (see add_sub_impl.rs for rationale) ---
     //
-    // The shift Output comes from the operator supertrait
-    // (`Shl<u32>` / `Shr<u32>`); both `Shl<u32> for &FixedUInt` and
-    // `Shr<u32> for &FixedUInt` are defined above (lines 235, 242),
-    // so Output resolves to `FixedUInt<T,N,P>`.
+    // Output comes from the operator supertrait (`Shl<u32>` / `Shr<u32>`
+    // for `&FixedUInt`, defined earlier in this c0nst! block), so
+    // Output resolves to `FixedUInt<T,N,P>`.
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingShl for &FixedUInt<T, N, P> {
         fn overflowing_shl(self, bits: u32) -> (FixedUInt<T, N, P>, bool) {
@@ -755,7 +751,6 @@ c0nst::c0nst! {
                 if !<Self as const_num_traits::Zero>::is_zero(&(self & bb)) {
                     result |= lowest;
                 }
-                // Clear that lowest bit and advance the source-side bit.
                 remaining = remaining & <Self as const_num_traits::WrappingSub>::wrapping_sub(
                     remaining,
                     <Self as const_num_traits::ConstOne>::ONE,
@@ -805,9 +800,6 @@ c0nst::c0nst! {
 }
 
 // num_traits wrappers - delegate to const impls
-// (OverflowingShl/OverflowingShr legacy shim impls retired — the const
-// impls above ARE the OverflowingShl/Shr impls now that we depend on
-// the external const-num-traits crate directly.)
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingShl
     for FixedUInt<T, N, P>
@@ -1295,7 +1287,7 @@ mod tests {
         use const_num_traits::{FunnelShl, FunnelShr};
         type U16 = FixedUInt<u8, 2>;
 
-        // 0x0180 << 1 = 0x0300 -> high half (16 bits) = 0x0003
+        // 0x0001_8000 << 1 = 0x0003_0000; high half = 0x0003.
         assert_eq!(
             FunnelShl::funnel_shl(U16::from(0x0001u16), U16::from(0x8000u16), 1),
             U16::from(0x0003u16),
@@ -1305,9 +1297,7 @@ mod tests {
             FunnelShl::funnel_shl(U16::from(0xABCDu16), U16::from(0xFFFFu16), 0),
             U16::from(0xABCDu16),
         );
-        // 0x0180 >> 1 = 0x00C0 -> low half (16 bits) = 0x00C0... wait
-        // hi=0x0001 lo=0x8000, double = 0x00018000.
-        // funnel_shr n=1 → low half of (>> 1) = 0x0001_8000 >> 1 = 0x0000_C000, low = 0xC000.
+        // 0x0001_8000 >> 1 = 0x0000_C000; low half = 0xC000.
         assert_eq!(
             FunnelShr::funnel_shr(U16::from(0x0001u16), U16::from(0x8000u16), 1),
             U16::from(0xC000u16),
@@ -1511,7 +1501,8 @@ mod tests {
             // Sanity-check a representative subset of the const results.
             assert_eq!(OSHL.0.array, [16, 0]);
             assert!(!OSHL.1);
-            assert!(OSHR.1 || !OSHR.1); // shape check; value 0x0F shifted right by 4 is 0
+            assert_eq!(OSHR.0.array, [0x0F, 0]);
+            assert!(!OSHR.1);
             assert_eq!(WSHL.array, [16, 0]);
             assert_eq!(WSHR.array, [0x0F, 0]);
             assert!(CSHL.is_none());

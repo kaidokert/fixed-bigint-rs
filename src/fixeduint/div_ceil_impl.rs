@@ -63,19 +63,12 @@ c0nst::c0nst! {
 }
 
 impl<T: ConstMachineWord + MachineWord, const N: usize> FixedUInt<T, N, Nct> {
-    /// Backwards-compatible inherent `checked_div_ceil`. External
-    /// `DivCeil` doesn't surface a checked variant; we keep this so
-    /// downstream callers can still get `None` on division-by-zero or
-    /// overflow rather than a panic.
+    /// `div_ceil` variant returning `None` on divide-by-zero or overflow.
     ///
-    /// Note on const-callability: this inherent shim is **not** itself
-    /// `const fn`, because the `c0nst` macro does not translate
-    /// `[c0nst]` trait bounds on inherent `impl` blocks (Rust syntax
-    /// only allows `[const]` bounds in trait-impl headers and standalone
-    /// `const fn` items). Nightly callers who need the const path can
-    /// call `checked_div_ceil_impl(a, b)` directly — it's a free
-    /// `pub(crate) c0nst fn` defined above, exercised in const context
-    /// by the existing `test_const_div_ceil` test.
+    /// Not itself `const fn` — the `c0nst!` macro can't emit `[c0nst]`
+    /// bounds on inherent impls. Nightly callers wanting the const path
+    /// call `checked_div_ceil_impl` (the free `pub(crate) c0nst fn`
+    /// above) directly.
     pub fn checked_div_ceil(self, rhs: Self) -> Option<Self> {
         checked_div_ceil_impl(self, rhs)
     }
