@@ -1,5 +1,6 @@
-use fixed_bigint::personality::{Ct, Nct};
-use fixed_bigint::{FixedUInt, MulAccOps};
+#![cfg(feature = "num-traits")]
+use const_num_traits::{Ct, Nct};
+use fixed_bigint::FixedUInt;
 use num_traits::Zero;
 use subtle::{
     Choice, ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess,
@@ -86,39 +87,6 @@ fn nct_variant_does_not_have_constant_time_eq() {
 }
 
 // ---------------------------------------------------------------------------
-// MulAccOps demo migration: get_word returns Option for Nct, CtOption for Ct.
-// ---------------------------------------------------------------------------
-
-#[test]
-fn mul_acc_ops_get_word_nct_returns_option() {
-    let val: FixedUInt<u8, 4, Nct> = FixedUInt::from([0x78u8, 0x56, 0x34, 0x12]);
-    let w0 = <FixedUInt<u8, 4, Nct> as MulAccOps>::get_word(&val, 0);
-    let w3 = <FixedUInt<u8, 4, Nct> as MulAccOps>::get_word(&val, 3);
-    let oob = <FixedUInt<u8, 4, Nct> as MulAccOps>::get_word(&val, 4);
-    // Plain Option — Some/None.
-    assert_eq!(w0, Some(0x78u8));
-    assert_eq!(w3, Some(0x12u8));
-    assert_eq!(oob, None);
-}
-
-#[test]
-fn mul_acc_ops_get_word_ct_returns_ctoption() {
-    let val: FixedUInt<u8, 4, Ct> =
-        FixedUInt::<u8, 4, Nct>::from([0x78u8, 0x56, 0x34, 0x12]).into();
-    let w0 = <FixedUInt<u8, 4, Ct> as MulAccOps>::get_word(&val, 0);
-    let w3 = <FixedUInt<u8, 4, Ct> as MulAccOps>::get_word(&val, 3);
-    let oob = <FixedUInt<u8, 4, Ct> as MulAccOps>::get_word(&val, 4);
-    // CtOption — validity is a Choice, not an enum discriminant.
-    assert!(bool::from(w0.is_some()));
-    assert!(bool::from(w3.is_some()));
-    assert!(!bool::from(oob.is_some()));
-    assert_eq!(w0.unwrap_or(0u8), 0x78u8);
-    assert_eq!(w3.unwrap_or(0u8), 0x12u8);
-    // Out-of-range gives the default; validity bit says don't use it.
-    assert_eq!(oob.unwrap_or(0xAAu8), 0xAAu8);
-}
-
-// ---------------------------------------------------------------------------
 // Combined-binary scenario: Nct and Ct in the same test.
 // ---------------------------------------------------------------------------
 
@@ -127,17 +95,13 @@ fn nct_and_ct_coexist_as_distinct_types() {
     type FastU32 = FixedUInt<u8, 4, Nct>;
     type CtU32 = FixedUInt<u8, 4, Ct>;
 
-    let fast: FastU32 = FixedUInt::from([0x01u8, 0x02, 0x03, 0x04]);
-    let ct: CtU32 = FixedUInt::<u8, 4, Nct>::from([0x01u8, 0x02, 0x03, 0x04]).into();
-
-    // Each gets the right MulAccOps::get_word return type.
-    let _w_fast: Option<u8> = <FastU32 as MulAccOps>::get_word(&fast, 0);
-    let _w_ct: subtle::CtOption<u8> = <CtU32 as MulAccOps>::get_word(&ct, 0);
+    let _fast: FastU32 = FixedUInt::from([0x01u8, 0x02, 0x03, 0x04]);
+    let _ct: CtU32 = FixedUInt::<u8, 4, Nct>::from([0x01u8, 0x02, 0x03, 0x04]).into();
 
     // They're distinct types — no accidental interchange. The following
     // SHOULD fail to compile if uncommented:
-    //     let _: FastU32 = ct;  // mismatched types
-    //     let _: CtU32 = fast;  // mismatched types
+    //     let _: FastU32 = _ct;  // mismatched types
+    //     let _: CtU32 = _fast;  // mismatched types
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +162,7 @@ fn ct_variant_supports_eq_via_partialeq() {
 
 #[test]
 fn is_zero_works_correctly_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstZero;
+    use const_num_traits::Zero;
 
     let z_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
     let nz_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(42u8);
@@ -206,9 +170,9 @@ fn is_zero_works_correctly_under_both_personalities() {
     // short-circuit (Nct) and OR-fold (Ct) bodies.
     let high_nz_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from([0u8, 0, 0, 1]);
 
-    assert!(<FixedUInt<u8, 4, Nct> as ConstZero>::is_zero(&z_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstZero>::is_zero(&nz_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstZero>::is_zero(&high_nz_nct));
+    assert!(<FixedUInt<u8, 4, Nct> as Zero>::is_zero(&z_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as Zero>::is_zero(&nz_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as Zero>::is_zero(&high_nz_nct));
 
     let z_ct: FixedUInt<u8, 4, Ct> = z_nct.into();
     let nz_ct: FixedUInt<u8, 4, Ct> = nz_nct.into();
@@ -216,14 +180,14 @@ fn is_zero_works_correctly_under_both_personalities() {
 
     // Same answers as Nct — different code path under the hood
     // (`match P::TAG` selects `const_is_zero_ct` here).
-    assert!(<FixedUInt<u8, 4, Ct> as ConstZero>::is_zero(&z_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstZero>::is_zero(&nz_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstZero>::is_zero(&high_nz_ct));
+    assert!(<FixedUInt<u8, 4, Ct> as Zero>::is_zero(&z_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as Zero>::is_zero(&nz_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as Zero>::is_zero(&high_nz_ct));
 }
 
 #[test]
 fn is_one_works_correctly_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstOne;
+    use const_num_traits::One;
 
     let one_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(1u8);
     let zero_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
@@ -231,10 +195,10 @@ fn is_one_works_correctly_under_both_personalities() {
     // High-limb-set distinguishes short-circuit from OR-fold timing.
     let high_set_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from([1u8, 0, 0, 1]);
 
-    assert!(<FixedUInt<u8, 4, Nct> as ConstOne>::is_one(&one_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstOne>::is_one(&zero_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstOne>::is_one(&two_nct));
-    assert!(!<FixedUInt<u8, 4, Nct> as ConstOne>::is_one(&high_set_nct));
+    assert!(<FixedUInt<u8, 4, Nct> as One>::is_one(&one_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as One>::is_one(&zero_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as One>::is_one(&two_nct));
+    assert!(!<FixedUInt<u8, 4, Nct> as One>::is_one(&high_set_nct));
 
     let one_ct: FixedUInt<u8, 4, Ct> = one_nct.into();
     let zero_ct: FixedUInt<u8, 4, Ct> = zero_nct.into();
@@ -243,10 +207,10 @@ fn is_one_works_correctly_under_both_personalities() {
 
     // Same answers as Nct — different code path under the hood
     // (`match P::TAG` selects `const_is_one_ct` here).
-    assert!(<FixedUInt<u8, 4, Ct> as ConstOne>::is_one(&one_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstOne>::is_one(&zero_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstOne>::is_one(&two_ct));
-    assert!(!<FixedUInt<u8, 4, Ct> as ConstOne>::is_one(&high_set_ct));
+    assert!(<FixedUInt<u8, 4, Ct> as One>::is_one(&one_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as One>::is_one(&zero_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as One>::is_one(&two_ct));
+    assert!(!<FixedUInt<u8, 4, Ct> as One>::is_one(&high_set_ct));
 }
 
 #[test]
@@ -318,7 +282,7 @@ fn nct_variant_does_not_have_ct_gt() {
 
 #[test]
 fn leading_zeros_works_under_both_personalities() {
-    use fixed_bigint::ConstBitPrimInt;
+    use const_num_traits::PrimBits;
 
     // Zero: full word_bits * N leading zeros.
     let z_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
@@ -348,7 +312,7 @@ fn leading_zeros_works_under_both_personalities() {
 
 #[test]
 fn trailing_zeros_works_under_both_personalities() {
-    use fixed_bigint::ConstBitPrimInt;
+    use const_num_traits::PrimBits;
 
     // Zero: full width.
     let z_nct: FixedUInt<u8, 4, Nct> = FixedUInt::from(0u8);
@@ -499,7 +463,7 @@ fn shr_works_under_both_personalities() {
 
 #[test]
 fn is_power_of_two_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstPowerOfTwo;
+    use const_num_traits::IsPowerOfTwo;
 
     // Zero is not a power of two — exercises the `n == 0` short-circuit path
     // on Nct and the unconditional fallback on Ct.
@@ -694,7 +658,7 @@ fn ct_checked_mul_returns_ctoption() {
 
 #[test]
 fn abs_diff_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstAbsDiff;
+    use const_num_traits::AbsDiff;
 
     let cases: [(u8, u8, u8); 6] = [
         (10, 3, 7), // a > b
@@ -712,7 +676,7 @@ fn abs_diff_works_under_both_personalities() {
         let bc: FixedUInt<u8, 2, Ct> = bn.into();
         let want: FixedUInt<u8, 2, Nct> = FixedUInt::from(expected);
         assert_eq!(
-            ConstAbsDiff::abs_diff(an, bn),
+            AbsDiff::abs_diff(an, bn),
             want,
             "Nct abs_diff({}, {}) = {}",
             a,
@@ -720,7 +684,7 @@ fn abs_diff_works_under_both_personalities() {
             expected
         );
         assert_eq!(
-            ConstAbsDiff::abs_diff(ac, bc).forget_ct(),
+            AbsDiff::abs_diff(ac, bc).forget_ct(),
             want,
             "Ct abs_diff({}, {}) = {}",
             a,
@@ -813,7 +777,7 @@ fn ct_debug_redacts_limb_values() {
 
 #[test]
 fn next_power_of_two_works_under_both_personalities() {
-    use fixed_bigint::const_numtraits::ConstPowerOfTwo;
+    use const_num_traits::NextPowerOfTwo;
     for (input, expected) in [
         (0u16, 1u16),
         (1, 1),
@@ -826,14 +790,14 @@ fn next_power_of_two_works_under_both_personalities() {
         let n: FixedUInt<u8, 2, Nct> = FixedUInt::from(input);
         let c: FixedUInt<u8, 2, Ct> = n.into();
         assert_eq!(
-            ConstPowerOfTwo::next_power_of_two(n),
+            NextPowerOfTwo::next_power_of_two(n),
             FixedUInt::from(expected),
             "Nct next_power_of_two({}) = {}",
             input,
             expected,
         );
         assert_eq!(
-            ConstPowerOfTwo::next_power_of_two(c).forget_ct(),
+            NextPowerOfTwo::next_power_of_two(c).forget_ct(),
             FixedUInt::from(expected),
             "Ct next_power_of_two({}) = {}",
             input,
@@ -922,7 +886,7 @@ fn ct_shr_by_trailing_zeros_pattern() {
     // The motivating modular-inverse use case: shr by tz(x), where
     // tz is a secret count. Both halves of the operation are CT under
     // Ct personality. Verifies the pieces compose correctly.
-    use fixed_bigint::ConstBitPrimInt;
+    use const_num_traits::PrimBits;
 
     // Pick a value with a known trailing-zero count.
     // 0x10000000 = bit 28 set, so trailing_zeros == 28.
@@ -1077,15 +1041,15 @@ fn ord_on_ct_agrees_with_nct() {
 
 #[test]
 fn next_power_of_two_saturates_to_max_on_ct_overflow() {
-    use fixed_bigint::const_numtraits::{ConstBounded, ConstPowerOfTwo};
+    use const_num_traits::{Bounded, NextPowerOfTwo};
 
     // u16 type with Ct personality. Inputs whose next_power_of_two exceeds
     // u16::MAX should saturate to MAX, not silently return 0.
-    let max_u16: FixedUInt<u8, 2, Ct> = <FixedUInt<u8, 2, Ct> as ConstBounded>::max_value();
+    let max_u16: FixedUInt<u8, 2, Ct> = <FixedUInt<u8, 2, Ct> as Bounded>::max_value();
 
     for input in [0x8001u16, 0xC000, 0xFFFF] {
         let v: FixedUInt<u8, 2, Ct> = FixedUInt::<u8, 2, Nct>::from(input).into();
-        let r = ConstPowerOfTwo::next_power_of_two(v);
+        let r = NextPowerOfTwo::next_power_of_two(v);
         assert_eq!(
             r.forget_ct(),
             max_u16.forget_ct(),
@@ -1099,13 +1063,13 @@ fn next_power_of_two_saturates_to_max_on_ct_overflow() {
         let n: FixedUInt<u8, 2, Nct> = FixedUInt::from(input);
         let c: FixedUInt<u8, 2, Ct> = n.into();
         assert_eq!(
-            ConstPowerOfTwo::next_power_of_two(n),
+            NextPowerOfTwo::next_power_of_two(n),
             FixedUInt::from(expected),
             "Nct next_power_of_two({})",
             input
         );
         assert_eq!(
-            ConstPowerOfTwo::next_power_of_two(c).forget_ct(),
+            NextPowerOfTwo::next_power_of_two(c).forget_ct(),
             FixedUInt::from(expected),
             "Ct next_power_of_two({})",
             input

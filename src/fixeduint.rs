@@ -12,50 +12,63 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use num_traits::{ToPrimitive, Zero};
-
-use core::convert::TryFrom;
+#[cfg(feature = "num-traits")]
 use core::fmt::Write;
 
-pub use crate::const_numtraits::{
-    ConstAbsDiff, ConstBitPrimInt, ConstBorrowingSub, ConstBounded, ConstCarryingAdd,
-    ConstCarryingMul, ConstCheckedPow, ConstDivCeil, ConstIlog, ConstIsqrt, ConstMultiple,
-    ConstOne, ConstPowerOfTwo, ConstPrimInt, ConstWideningMul, ConstZero,
-};
 use crate::machineword::{ConstMachineWord, MachineWord};
-
-#[allow(unused_imports)]
-use num_traits::{FromPrimitive, Num};
+use const_num_traits::ops::overflowing::{OverflowingAdd, OverflowingMul, OverflowingSub};
+use const_num_traits::{
+    BorrowingSub, Bounded, CarryingAdd, ConstOne, ConstZero, One, PrimBits, Zero,
+};
 
 mod abs_diff_impl;
 mod add_sub_impl;
 mod bit_ops_impl;
+mod byte_conversion_panic_free;
 mod checked_pow_impl;
+#[cfg(feature = "cios")]
+mod cios_row_ops_impl;
 mod div_ceil_impl;
 mod euclid;
 mod extended_precision_impl;
+mod has_nonzero_impl;
+mod has_personality_impl;
 mod ilog_impl;
 mod isqrt_impl;
 mod iter_impl;
 mod midpoint_impl;
-mod mul_acc_ops_impl;
 mod mul_div_impl;
 mod multiple_impl;
+#[cfg(feature = "num-traits")]
 mod num_integer_impl;
+#[cfg(feature = "num-traits")]
 mod num_traits_casts;
 mod num_traits_identity;
+mod parity_impl;
 mod power_of_two_impl;
+mod power_of_two_ops_impl;
 mod prim_int_impl;
+#[cfg(feature = "num-traits")]
 mod roots_impl;
+mod strict_impl;
+#[cfg(feature = "num-traits")]
 mod string_conversion;
-// ConstToBytes trait (nightly only, uses generic_const_exprs)
+// ToBytes trait (nightly only, uses generic_const_exprs)
 #[cfg(feature = "nightly")]
 mod const_to_from_bytes;
-// num_traits::ToBytes/FromBytes (stable impl, no generic_const_exprs viral bounds)
+// BytesHolder + num_traits::ToBytes/FromBytes + (stable) const_num_traits::ToBytes/FromBytes
+// impls. Stable impl: no generic_const_exprs viral bounds, uses unsafe
+// `from_raw_parts` to reinterpret the limb array as bytes. The num_traits impls
+// inside are additionally gated on `feature = "num-traits"`. The
+// const_num_traits impls inside are additionally gated on
+// `not(feature = "nightly")` since `const_to_from_bytes.rs` provides better
+// impls (via `ConstBytesHolder` + generic_const_exprs) on nightly.
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]
 mod to_from_bytes;
 
-use crate::personality::{Ct, Nct, Personality, PersonalityMarker, PersonalityTag};
+pub use has_nonzero_impl::NonZeroFixedUInt;
+
+use const_num_traits::{Ct, Nct, Personality, PersonalityMarker, PersonalityTag};
 #[cfg(feature = "zeroize")]
 use zeroize::DefaultIsZeroes;
 
@@ -64,10 +77,10 @@ use zeroize::DefaultIsZeroes;
 /// The optional `P: Personality` parameter selects which implementations of
 /// operation primitives are used at each call site. Defaults to [`Nct`]
 /// (non-constant-time). Use `FixedUInt<T, N, Ct>` for
-/// values that must be handled in constant time. See [`crate::personality`].
+/// values that must be handled in constant time. See [`const_num_traits::personality`].
 ///
-/// [`Nct`]: crate::personality::Nct
-/// [`Ct`]: crate::personality::Ct
+/// [`Nct`]: const_num_traits::Nct
+/// [`Ct`]: const_num_traits::Ct
 #[derive(Copy)]
 pub struct FixedUInt<T, const N: usize, P: Personality = Nct>
 where
@@ -140,12 +153,31 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Ct> {
     /// Drop the CT guarantee and convert to the `Nct` variant.
     ///
     /// **This is an explicit downgrade.** The caller is asserting that the
-    /// value is no longer secret — typically because the CT-handling phase
-    /// has ended (e.g. a finalized signature, a published key, a post-
-    /// reduction modular value about to be serialized).
+    /// value is no longer secret — typically because the CT-handling
+    /// window has ended (e.g. a finalized signature, a published key, a
+    /// post-reduction modular value about to be serialized).
     pub const fn forget_ct(self) -> FixedUInt<T, N, Nct> {
         FixedUInt::from_array(self.array)
     }
+}
+
+/// Branchless "shift amount is in range" flag for the `ct_checked_sh{l,r}`
+/// path. Returns `Choice::from(1)` iff `bits < bit_size`, without a
+/// runtime branch on `bits`. Handles `bit_size == 0` (empty carrier) by
+/// always returning invalid.
+#[inline]
+fn ct_checked_shift_valid(bits: u32, bit_size: usize) -> subtle::Choice {
+    if bit_size == 0 {
+        // N == 0 is a compile-time property, not a secret; the branch
+        // resolves at monomorphization for every real carrier.
+        return subtle::Choice::from(0);
+    }
+    let bit_size_u32 = bit_size as u32;
+    // (BIT_SIZE - 1 - bits) has its high bit set iff bits > BIT_SIZE - 1,
+    // i.e. iff the shift would overflow.
+    let diff = bit_size_u32.wrapping_sub(1).wrapping_sub(bits);
+    let overflow = ((diff >> 31) & 1) as u8;
+    subtle::Choice::from(1 ^ overflow)
 }
 
 impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt<T, N, Ct> {
@@ -155,56 +187,63 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     /// validity Choice carries the overflow flag without exposing it as
     /// a control-flow signal.
     pub fn ct_checked_add(&self, other: &Self) -> subtle::CtOption<Self> {
-        let (res, overflow) =
-            <Self as crate::const_numtraits::ConstOverflowingAdd>::overflowing_add(self, other);
+        let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(*self, *other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
 
     /// CT-friendly counterpart to `num_traits::CheckedSub::checked_sub`.
     pub fn ct_checked_sub(&self, other: &Self) -> subtle::CtOption<Self> {
-        let (res, overflow) =
-            <Self as crate::const_numtraits::ConstOverflowingSub>::overflowing_sub(self, other);
+        let (res, overflow) = <Self as OverflowingSub>::overflowing_sub(*self, *other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
 
     /// CT-friendly counterpart to `num_traits::CheckedMul::checked_mul`.
     pub fn ct_checked_mul(&self, other: &Self) -> subtle::CtOption<Self> {
-        let (res, overflow) =
-            <Self as crate::const_numtraits::ConstOverflowingMul>::overflowing_mul(self, other);
+        let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(*self, *other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
 
-    /// CT-friendly counterpart to `ConstCheckedShl::checked_shl`.
+    /// CT-friendly counterpart to `CheckedShl::checked_shl`.
+    ///
+    /// The value is computed via `const_unbounded_shl_u32`, which under
+    /// `Ct` uses a branchless barrel shifter and a CT-safe `min(bits,
+    /// BIT_SIZE)` clamp. The overflow flag (`bits >= BIT_SIZE`) is
+    /// derived branchlessly here — never going through
+    /// `OverflowingShl::overflowing_shl` which routes through
+    /// `normalize_shift_amount`'s tainted branch + variable-time modulo.
     pub fn ct_checked_shl(&self, bits: u32) -> subtle::CtOption<Self> {
-        let (res, overflow) =
-            <Self as crate::const_numtraits::ConstOverflowingShl>::overflowing_shl(self, bits);
-        let valid = subtle::Choice::from((!overflow) as u8);
-        subtle::CtOption::new(res, valid)
+        subtle::CtOption::new(
+            bit_ops_impl::const_unbounded_shl_u32::<T, N, Ct>(*self, bits),
+            ct_checked_shift_valid(bits, Self::BIT_SIZE),
+        )
     }
 
-    /// CT-friendly counterpart to `ConstCheckedShr::checked_shr`.
+    /// CT-friendly counterpart to `CheckedShr::checked_shr`.
+    ///
+    /// Symmetric to [`Self::ct_checked_shl`]: value through
+    /// `const_unbounded_shr_u32`, validity flag derived branchlessly.
     pub fn ct_checked_shr(&self, bits: u32) -> subtle::CtOption<Self> {
-        let (res, overflow) =
-            <Self as crate::const_numtraits::ConstOverflowingShr>::overflowing_shr(self, bits);
-        let valid = subtle::Choice::from((!overflow) as u8);
-        subtle::CtOption::new(res, valid)
+        subtle::CtOption::new(
+            bit_ops_impl::const_unbounded_shr_u32::<T, N, Ct>(*self, bits),
+            ct_checked_shift_valid(bits, Self::BIT_SIZE),
+        )
     }
 
-    /// CT-friendly counterpart to `ConstPowerOfTwo::checked_next_power_of_two`.
+    /// CT-friendly counterpart to `NextPowerOfTwo::checked_next_power_of_two`.
     pub fn ct_checked_next_power_of_two(self) -> subtle::CtOption<Self>
     where
         T: subtle::ConstantTimeEq,
     {
-        let one = <Self as num_traits::One>::one();
-        let m_one = <Self as crate::const_numtraits::ConstWrappingSub>::wrapping_sub(&self, &one);
-        let leading = <Self as crate::const_numtraits::ConstBitPrimInt>::leading_zeros(m_one);
+        let one = <Self as One>::one();
+        let m_one = <Self as const_num_traits::WrappingSub>::wrapping_sub(self, one);
+        let leading = <Self as PrimBits>::leading_zeros(m_one);
         let bits = Self::BIT_SIZE as u32 - leading;
         let shifted = one << (bits as usize);
         let is_zero_choice =
-            <Self as subtle::ConstantTimeEq>::ct_eq(&self, &<Self as num_traits::Zero>::zero());
+            <Self as subtle::ConstantTimeEq>::ct_eq(&self, &<Self as Zero>::zero());
         // result = is_zero ? 1 : shifted
         let result = <Self as subtle::ConditionallySelectable>::conditional_select(
             &shifted,
@@ -228,8 +267,7 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
         T: subtle::ConstantTimeEq + subtle::ConstantTimeGreater,
         for<'a> &'a Self: core::ops::Mul<&'a Self, Output = Self>,
     {
-        use num_traits::ops::overflowing::OverflowingMul;
-        let mut result = <Self as num_traits::One>::one();
+        let mut result = <Self as One>::one();
         let mut base = self;
         let mut e = exp;
         let mut any_overflow: u8 = 0;
@@ -238,20 +276,18 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
             // recognize the XOR-select as a cmov-on-secret-flag — see
             // `const_ct_select` for the load-bearing explanation.
             let bit = core::hint::black_box((e & 1) as u8);
-            let (candidate, mul_ov) = OverflowingMul::overflowing_mul(&result, &base);
+            let (candidate, mul_ov) = <Self as OverflowingMul>::overflowing_mul(result, base);
             // Multiply overflow matters iff bit_k is set.
             any_overflow |= (mul_ov as u8) & bit;
             // Per-limb CT-select of result vs candidate.
             let bit_t = <T as core::convert::From<u8>>::from(bit);
-            let mask = core::hint::black_box(
-                bit_t * <T as crate::const_numtraits::ConstBounded>::max_value(),
-            );
+            let mask = core::hint::black_box(bit_t * <T as Bounded>::max_value());
             for i in 0..N {
                 let diff = result.array[i] ^ candidate.array[i];
                 result.array[i] ^= mask & diff;
             }
             e >>= 1;
-            let (new_base, base_ov) = OverflowingMul::overflowing_mul(&base, &base);
+            let (new_base, base_ov) = <Self as OverflowingMul>::overflowing_mul(base, base);
             // Square overflow matters iff there are remaining set bits in e.
             let any_remaining: u8 = core::hint::black_box((e != 0) as u8);
             any_overflow |= (base_ov as u8) & any_remaining;
@@ -325,6 +361,14 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
     const BYTE_SIZE: usize = Self::WORD_SIZE * N;
     const BIT_SIZE: usize = Self::BYTE_SIZE * 8;
 
+    /// The serialized byte width of this `FixedUInt` type, `N * size_of::<T>()`.
+    ///
+    /// Public alias of the internal `BYTE_SIZE` for callers sizing buffers
+    /// to feed the `*_bytes_fixed` panic-free byte conversion methods. Use
+    /// as `const BUF_LEN: usize = MyFixed::BYTE_WIDTH;` then
+    /// `let mut buf = [0u8; BUF_LEN];`.
+    pub const BYTE_WIDTH: usize = Self::BYTE_SIZE;
+
     /// Creates and zero-initializes a FixedUInt.
     pub fn new() -> FixedUInt<T, N, P> {
         FixedUInt::from_array([T::zero(); N])
@@ -337,7 +381,7 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
 
     /// Returns number of used bits.
     pub fn bit_length(&self) -> u32 {
-        Self::BIT_SIZE as u32 - ConstBitPrimInt::leading_zeros(*self)
+        Self::BIT_SIZE as u32 - PrimBits::leading_zeros(*self)
     }
 }
 
@@ -362,7 +406,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Nct> {
         for byte in result.iter_mut() {
             *byte = b'0';
         }
-        if Zero::is_zero(self) {
+        if <Self as Zero>::is_zero(self) {
             if !result.is_empty() {
                 result[0] = b'0';
                 return core::str::from_utf8(&result[0..1]).map_err(|_| Error {});
@@ -376,7 +420,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Nct> {
 
         let radix_t = Self::from(radix);
 
-        while !Zero::is_zero(&number) {
+        while !<Self as Zero>::is_zero(&number) {
             if idx == 0 {
                 return Err(Error {}); // not enough space in result...
             }
@@ -384,7 +428,11 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Nct> {
             idx -= 1;
             let (quotient, remainder) = number.div_rem(&radix_t);
 
-            let digit = remainder.to_u8().unwrap();
+            // remainder < radix <= 16, so it fits in the low limb's low byte;
+            // pull it via the MachineWord ToPrimitive supertrait instead of
+            // going through the (optional) `num_traits::ToPrimitive for FixedUInt`.
+            let digit =
+                <T as const_num_traits::ToPrimitive>::to_u8(&remainder.array[0]).unwrap_or(0);
             result[idx] = match digit {
                 0..=9 => b'0' + digit,          // digits
                 10..=16 => b'a' + (digit - 10), // alphabetic digits for bases > 10
@@ -417,7 +465,7 @@ c0nst::c0nst! {
             let word_index = byte_index / word_size;
             let byte_in_word = byte_index % word_size;
 
-            let byte_value: T = T::from(bytes[byte_index]);
+            let byte_value: T = <T as core::convert::From<u8>>::from(bytes[byte_index]);
             let shifted_value = byte_value.shl(byte_in_word * 8);
             ret[word_index] = ret[word_index].bitor(shifted_value);
             byte_index += 1;
@@ -450,7 +498,7 @@ c0nst::c0nst! {
             let word_index = byte_index / word_size;
             let byte_in_word = byte_index % word_size;
 
-            let byte_value: T = T::from(bytes[be_byte_index]);
+            let byte_value: T = <T as core::convert::From<u8>>::from(bytes[be_byte_index]);
             let shifted_value = byte_value.shl(byte_in_word * 8);
             ret[word_index] = ret[word_index].bitor(shifted_value);
             byte_index += 1;
@@ -459,7 +507,7 @@ c0nst::c0nst! {
     }
 }
 
-// Inherent from_bytes methods (not const - use ConstFromBytes trait for const access)
+// Inherent from_bytes methods (not const - use FromBytes trait for const access)
 impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
     /// Create a little-endian integer value from its representation as a byte array in little endian.
     pub fn from_le_bytes(bytes: &[u8]) -> Self {
@@ -568,6 +616,7 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
         FixedUInt::<T, N2, P>::from_array(array)
     }
 
+    #[cfg(feature = "num-traits")]
     fn hex_fmt(
         &self,
         formatter: &mut core::fmt::Formatter<'_>,
@@ -616,7 +665,7 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
 c0nst::c0nst! {
     /// Single canonical limb-wise add-with-carry over a fixed-width array.
     /// CT under `Ct`-personality callers: iteration count is `N`, the inner
-    /// `ConstCarryingAdd::carrying_add` lowers to a hardware ADC, and no
+    /// `CarryingAdd::carrying_add` lowers to a hardware ADC, and no
     /// step branches on the data.
     pub(crate) c0nst fn add_with_carry<T: [c0nst] ConstMachineWord, const N: usize>(
         a: &[T; N],
@@ -627,7 +676,7 @@ c0nst::c0nst! {
         let mut carry = carry_in;
         let mut i = 0usize;
         while i < N {
-            let (sum, c) = ConstCarryingAdd::carrying_add(a[i], b[i], carry);
+            let (sum, c) = CarryingAdd::carrying_add(a[i], b[i], carry);
             result[i] = sum;
             carry = c;
             i += 1;
@@ -645,7 +694,7 @@ c0nst::c0nst! {
         let mut borrow = borrow_in;
         let mut i = 0usize;
         while i < N {
-            let (diff, br) = ConstBorrowingSub::borrowing_sub(a[i], b[i], borrow);
+            let (diff, br) = BorrowingSub::borrowing_sub(a[i], b[i], borrow);
             result[i] = diff;
             borrow = br;
             i += 1;
@@ -654,7 +703,7 @@ c0nst::c0nst! {
     }
 
     /// In-place limb-wise add, no carry-in. Same per-limb primitive
-    /// (`ConstCarryingAdd::carrying_add`) as `add_with_carry`, just writing
+    /// (`CarryingAdd::carrying_add`) as `add_with_carry`, just writing
     /// directly to `target` to avoid a stack-allocated temp array that
     /// LLVM might not always elide on embedded builds.
     pub(crate) c0nst fn add_impl<T: [c0nst] ConstMachineWord, const N: usize>(
@@ -664,7 +713,7 @@ c0nst::c0nst! {
         let mut carry = false;
         let mut i = 0usize;
         while i < N {
-            let (sum, c) = ConstCarryingAdd::carrying_add(target[i], other[i], carry);
+            let (sum, c) = CarryingAdd::carrying_add(target[i], other[i], carry);
             target[i] = sum;
             carry = c;
             i += 1;
@@ -680,7 +729,7 @@ c0nst::c0nst! {
         let mut borrow = false;
         let mut i = 0usize;
         while i < N {
-            let (diff, br) = ConstBorrowingSub::borrowing_sub(target[i], other[i], borrow);
+            let (diff, br) = BorrowingSub::borrowing_sub(target[i], other[i], borrow);
             target[i] = diff;
             borrow = br;
             i += 1;
@@ -823,7 +872,7 @@ c0nst::c0nst! {
             // address-select rewrite it defeats.
             let bit_k = core::hint::black_box(((bits >> k) & 1) as u8);
             let bit_k_t = <T as core::convert::From<u8>>::from(bit_k);
-            let mask = <T as core::ops::Mul>::mul(bit_k_t, <T as ConstBounded>::max_value());
+            let mask = <T as core::ops::Mul>::mul(bit_k_t, <T as Bounded>::max_value());
             // CT-select per limb: target[i] ^= mask & (target[i] ^ shifted[i])
             let mut i = 0;
             while i < N {
@@ -861,7 +910,7 @@ c0nst::c0nst! {
             // See `const_shl_ct` / `const_ct_select` for why `black_box` is here.
             let bit_k = core::hint::black_box(((bits >> k) & 1) as u8);
             let bit_k_t = <T as core::convert::From<u8>>::from(bit_k);
-            let mask = <T as core::ops::Mul>::mul(bit_k_t, <T as ConstBounded>::max_value());
+            let mask = <T as core::ops::Mul>::mul(bit_k_t, <T as Bounded>::max_value());
             let mut i = 0;
             while i < N {
                 let diff =
@@ -888,10 +937,10 @@ c0nst::c0nst! {
         op2: &[T; N],
         word_bits: usize,
     ) -> ([T; N], bool) {
-        let mut result: [T; N] = [<T as ConstZero>::zero(); N];
+        let mut result: [T; N] = [<T as ConstZero>::ZERO; N];
         let mut overflowed = false;
-        let t_max = <T as ConstMachineWord>::to_double(<T as ConstBounded>::max_value());
-        let dw_zero = <<T as ConstMachineWord>::ConstDoubleWord as ConstZero>::zero();
+        let t_max = <T as ConstMachineWord>::to_double(<T as Bounded>::max_value());
+        let dw_zero = <<T as ConstMachineWord>::ConstDoubleWord as ConstZero>::ZERO;
 
         let mut i = 0;
         while i < N {
@@ -963,8 +1012,8 @@ c0nst::c0nst! {
         while index > 0 {
             index -= 1;
             let v = array[index];
-            ret += <T as ConstBitPrimInt>::leading_zeros(v);
-            if !<T as ConstZero>::is_zero(&v) {
+            ret += <T as PrimBits>::leading_zeros(v);
+            if !<T as Zero>::is_zero(&v) {
                 break;
             }
         }
@@ -975,7 +1024,7 @@ c0nst::c0nst! {
     /// short-circuiting. A bitmask tracks whether we're still in the
     /// leading-zero region; once a non-zero limb is seen, subsequent
     /// limbs contribute 0 to the total. Used by the `Ct`-personality
-    /// arm of `ConstBitPrimInt::leading_zeros`. Branchless apart from a
+    /// arm of `PrimBits::leading_zeros`. Branchless apart from a
     /// `bool -> u32` cast that rustc compiles to a setne.
     pub(crate) c0nst fn const_leading_zeros_ct<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
@@ -987,14 +1036,14 @@ c0nst::c0nst! {
         while index > 0 {
             index -= 1;
             let v = array[index];
-            let v_lz = <T as ConstBitPrimInt>::leading_zeros(v);
+            let v_lz = <T as PrimBits>::leading_zeros(v);
             // Add this limb's lz contribution iff we haven't decided yet.
             // `black_box` defeats the LLVM XOR/AND-select → cmov rewrite —
             // see `const_ct_select` for the load-bearing explanation.
             let undecided = core::hint::black_box(!decided);
             total += undecided & v_lz;
             // Lock the decision the moment we see a non-zero limb.
-            let v_nz_bit = (!<T as ConstZero>::is_zero(&v)) as u32;
+            let v_nz_bit = (!<T as Zero>::is_zero(&v)) as u32;
             let v_nz_mask = core::hint::black_box(v_nz_bit.wrapping_neg());
             decided |= v_nz_mask;
         }
@@ -1009,8 +1058,8 @@ c0nst::c0nst! {
         let mut index = 0;
         while index < N {
             let v = array[index];
-            ret += <T as ConstBitPrimInt>::trailing_zeros(v);
-            if !<T as ConstZero>::is_zero(&v) {
+            ret += <T as PrimBits>::trailing_zeros(v);
+            if !<T as Zero>::is_zero(&v) {
                 break;
             }
             index += 1;
@@ -1021,7 +1070,7 @@ c0nst::c0nst! {
     /// CT variant of `const_trailing_zeros`: scans LSB-to-MSB without
     /// short-circuiting. Mirror of `const_leading_zeros_ct` — see that
     /// helper for the rationale. Used by the `Ct`-personality arm of
-    /// `ConstBitPrimInt::trailing_zeros`.
+    /// `PrimBits::trailing_zeros`.
     pub(crate) c0nst fn const_trailing_zeros_ct<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
     ) -> u32 {
@@ -1031,12 +1080,12 @@ c0nst::c0nst! {
         let mut index = 0;
         while index < N {
             let v = array[index];
-            let v_tz = <T as ConstBitPrimInt>::trailing_zeros(v);
+            let v_tz = <T as PrimBits>::trailing_zeros(v);
             // See `const_leading_zeros_ct` / `const_ct_select` for why
             // `black_box` is here.
             let undecided = core::hint::black_box(!decided);
             total += undecided & v_tz;
-            let v_nz_bit = (!<T as ConstZero>::is_zero(&v)) as u32;
+            let v_nz_bit = (!<T as Zero>::is_zero(&v)) as u32;
             let v_nz_mask = core::hint::black_box(v_nz_bit.wrapping_neg());
             decided |= v_nz_mask;
             index += 1;
@@ -1059,7 +1108,7 @@ c0nst::c0nst! {
     ) -> bool {
         let mut index = 0;
         while index < N {
-            if !<T as ConstZero>::is_zero(&array[index]) {
+            if !<T as Zero>::is_zero(&array[index]) {
                 return false;
             }
             index += 1;
@@ -1074,13 +1123,13 @@ c0nst::c0nst! {
     pub(crate) c0nst fn const_is_zero_ct<T: [c0nst] ConstMachineWord, const N: usize>(
         array: &[T; N],
     ) -> bool {
-        let mut acc = <T as ConstZero>::zero();
+        let mut acc = <T as ConstZero>::ZERO;
         let mut index = 0;
         while index < N {
             acc = <T as core::ops::BitOr>::bitor(acc, array[index]);
             index += 1;
         }
-        <T as ConstZero>::is_zero(&acc)
+        <T as Zero>::is_zero(&acc)
     }
 
     /// Check if array is one. Short-circuits as soon as a non-matching limb
@@ -1095,7 +1144,7 @@ c0nst::c0nst! {
         }
         let mut i = 1;
         while i < N {
-            if !<T as ConstZero>::is_zero(&array[i]) {
+            if !<T as Zero>::is_zero(&array[i]) {
                 return false;
             }
             i += 1;
@@ -1113,13 +1162,13 @@ c0nst::c0nst! {
         if N == 0 {
             return false;
         }
-        let mut acc = <T as core::ops::BitXor>::bitxor(array[0], <T as ConstOne>::one());
+        let mut acc = <T as core::ops::BitXor>::bitxor(array[0], <T as ConstOne>::ONE);
         let mut index = 1;
         while index < N {
             acc = <T as core::ops::BitOr>::bitor(acc, array[index]);
             index += 1;
         }
-        <T as ConstZero>::is_zero(&acc)
+        <T as Zero>::is_zero(&acc)
     }
 
     /// Set a specific bit in the array.
@@ -1137,7 +1186,7 @@ c0nst::c0nst! {
             return;
         }
         let bit_idx = pos % word_bits;
-        array[word_idx] |= <T as ConstOne>::one() << bit_idx;
+        array[word_idx] |= <T as ConstOne>::ONE << bit_idx;
     }
 
     /// Compare two arrays in a const-compatible way.
@@ -1205,11 +1254,11 @@ c0nst::c0nst! {
 
         // Guard against invalid bit_shift that would cause UB
         if bit_shift >= word_bits {
-            return <T as ConstZero>::zero();
+            return <T as ConstZero>::ZERO;
         }
 
         if word_idx < word_shift {
-            return <T as ConstZero>::zero();
+            return <T as ConstZero>::ZERO;
         }
 
         let source_idx = word_idx - word_shift;
@@ -1218,10 +1267,10 @@ c0nst::c0nst! {
             if source_idx < N {
                 array[source_idx]
             } else {
-                <T as ConstZero>::zero()
+                <T as ConstZero>::ZERO
             }
         } else {
-            let mut result = <T as ConstZero>::zero();
+            let mut result = <T as ConstZero>::ZERO;
 
             // Get bits from the primary source word
             if source_idx < N {
@@ -1308,8 +1357,8 @@ c0nst::c0nst! {
         let mut index = 0;
         while index < N {
             let other_word = const_get_shifted_word::<T, N>(other, index, word_shift, bit_shift);
-            let (res, borrow1) = array[index].overflowing_sub(&other_word);
-            let (res, borrow2) = res.overflowing_sub(&borrow);
+            let (res, borrow1) = array[index].overflowing_sub(other_word);
+            let (res, borrow2) = res.overflowing_sub(borrow);
             borrow = if borrow1 || borrow2 { T::one() } else { T::zero() };
             array[index] = res;
             index += 1;
@@ -1331,7 +1380,7 @@ c0nst::c0nst! {
                 let remainder = *dividend;
                 let mut i = 0;
                 while i < N {
-                    dividend[i] = <T as ConstZero>::zero();
+                    dividend[i] = <T as ConstZero>::ZERO;
                     i += 1;
                 }
                 return remainder;
@@ -1340,18 +1389,18 @@ c0nst::c0nst! {
             Ordering::Equal => {
                 let mut i = 0;
                 while i < N {
-                    dividend[i] = <T as ConstZero>::zero();
+                    dividend[i] = <T as ConstZero>::ZERO;
                     i += 1;
                 }
                 if N > 0 {
-                    dividend[0] = <T as ConstOne>::one();
+                    dividend[0] = <T as ConstOne>::ONE;
                 }
-                return [<T as ConstZero>::zero(); N];
+                return [<T as ConstZero>::ZERO; N];
             }
             Ordering::Greater => {}
         }
 
-        let mut quotient = [<T as ConstZero>::zero(); N];
+        let mut quotient = [<T as ConstZero>::ZERO; N];
 
         // Calculate initial bit position
         let dividend_bits = const_bit_length::<T, N>(dividend);
@@ -1410,7 +1459,7 @@ c0nst::c0nst! {
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> Default for FixedUInt<T, N, P> {
         fn default() -> Self {
-            FixedUInt::from_array([<T as ConstZero>::zero(); N])
+            FixedUInt::from_array([<T as ConstZero>::ZERO; N])
         }
     }
 
@@ -1423,24 +1472,31 @@ c0nst::c0nst! {
 
 // num_traits::Unsigned requires Num as a supertrait; Num is Nct-only,
 // so Unsigned is Nct-only too.
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize> num_traits::Unsigned for FixedUInt<T, N, Nct> {}
 
 // #region Equality and Ordering
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::cmp::PartialEq for FixedUInt<T, N, P> {
+        // Ct arm is branchless (XOR-fold), but the return type is still
+        // a plain `bool`. A caller that branches on the result of `==`
+        // — e.g. `if a == b { … } else { … }` — leaks the equality bit.
+        // Ct-secure equality on secret operands should route through
+        // `subtle::ConstantTimeEq::ct_eq` and consume the resulting
+        // `Choice` via `CtOption` / `ConditionallySelectable`.
         fn eq(&self, other: &Self) -> bool {
             match P::TAG {
                 PersonalityTag::Nct => self.array == other.array,
                 PersonalityTag::Ct => {
-                    let mut diff = <T as crate::const_numtraits::ConstZero>::zero();
+                    let mut diff = <T as ConstZero>::ZERO;
                     let mut i = 0;
                     while i < N {
                         let x = <T as core::ops::BitXor>::bitxor(self.array[i], other.array[i]);
                         diff = <T as core::ops::BitOr>::bitor(diff, x);
                         i += 1;
                     }
-                    <T as crate::const_numtraits::ConstZero>::is_zero(&diff)
+                    <T as Zero>::is_zero(&diff)
                 }
             }
         }
@@ -1511,9 +1567,11 @@ c0nst::c0nst! {
 fn make_parse_int_err() -> core::num::ParseIntError {
     <u8>::from_str_radix("-", 2).err().unwrap()
 }
+#[cfg(feature = "num-traits")]
 fn make_overflow_err() -> core::num::ParseIntError {
     <u8>::from_str_radix("101", 16).err().unwrap()
 }
+#[cfg(feature = "num-traits")]
 fn make_empty_error() -> core::num::ParseIntError {
     <u8>::from_str_radix("", 8).err().unwrap()
 }
@@ -1578,7 +1636,7 @@ c0nst::c0nst! {
     ) -> FixedUInt<T, N, P> {
         let choice = core::hint::black_box(choice);
         let bit_t = <T as core::convert::From<u8>>::from(choice);
-        let mask = <T as core::ops::Mul>::mul(bit_t, <T as ConstBounded>::max_value());
+        let mask = <T as core::ops::Mul>::mul(bit_t, <T as Bounded>::max_value());
         let mut result = if_zero;
         let mut i = 0;
         while i < N {
@@ -1611,10 +1669,12 @@ c0nst::c0nst! {
 // #endregion helpers
 
 #[cfg(test)]
+#[cfg(feature = "num-traits")]
 mod tests {
     use super::FixedUInt as Bn;
     use super::*;
-    use num_traits::One;
+    use const_num_traits::{One, Zero};
+    use num_traits::{FromPrimitive, Num, ToPrimitive};
 
     type Bn8 = Bn<u8, 8>;
     type Bn16 = Bn<u16, 4>;
@@ -1640,7 +1700,7 @@ mod tests {
             b: &[T; N],
             word_bits: usize,
         ) -> ([T; N], bool) {
-            const_mul::<T, N, true, crate::personality::Nct>(a, b, word_bits)
+            const_mul::<T, N, true, const_num_traits::Nct>(a, b, word_bits)
         }
 
         pub c0nst fn arr_leading_zeros<T: [c0nst] ConstMachineWord, const N: usize>(
@@ -2125,7 +2185,7 @@ mod tests {
         assert_eq!(f.array, [1, 0, 0, 0]);
         let f = Bn::<u8, 4>::from(257u32);
         assert_eq!(f.array, [1, 1, 0, 0]);
-        let f = Bn::<u8, 4>::from(u32::max_value());
+        let f = Bn::<u8, 4>::from(u32::MAX);
         assert_eq!(f.array, [255, 255, 255, 255]);
 
         let f = Bn::<u8, 1>::from(1u32);
@@ -2144,7 +2204,7 @@ mod tests {
         let f = Bn::<u32, 1>::from(65537u32);
         assert_eq!(f.array, [65537]);
 
-        let f = Bn::<u32, 1>::from(u32::max_value());
+        let f = Bn::<u32, 1>::from(u32::MAX);
         assert_eq!(f.array, [4294967295]);
 
         #[cfg(feature = "nightly")]
@@ -2379,19 +2439,19 @@ mod tests {
     #[test]
     fn test_default() {
         let d: Bn8 = Default::default();
-        assert!(Zero::is_zero(&d));
+        assert!(<Bn8 as const_num_traits::Zero>::is_zero(&d));
 
         #[cfg(feature = "nightly")]
         {
             const D: FixedUInt<u8, 2> = <FixedUInt<u8, 2> as Default>::default();
-            assert!(Zero::is_zero(&D));
+            assert!(<FixedUInt<u8, 2> as const_num_traits::Zero>::is_zero(&D));
         }
     }
 
     #[test]
     fn test_clone() {
         let a: Bn8 = 42u8.into();
-        let b = a.clone();
+        let b = a;
         assert_eq!(a, b);
 
         #[cfg(feature = "nightly")]

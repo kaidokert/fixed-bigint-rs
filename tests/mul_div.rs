@@ -1,3 +1,4 @@
+#![cfg(feature = "num-traits")]
 // Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -264,12 +265,13 @@ fn test_overflowing_mul() {
 
 #[test]
 fn test_key_range_mul() {
-    fn test_key_values<
-        REF: num_traits::PrimInt + num_traits::ops::overflowing::OverflowingMul + core::fmt::Debug,
-        INT: num_traits::PrimInt + num_traits::ops::overflowing::OverflowingMul + core::fmt::Debug,
-    >()
+    fn test_key_values<REF, INT>()
     where
-        INT: core::convert::From<REF>,
+        REF: num_traits::PrimInt + num_traits::ops::overflowing::OverflowingMul + core::fmt::Debug,
+        INT: num_traits::PrimInt
+            + num_traits::ops::overflowing::OverflowingMul
+            + core::fmt::Debug
+            + core::convert::From<REF>,
     {
         // Generate key test values: edge cases and some representative samples
         let mut test_values = Vec::new();

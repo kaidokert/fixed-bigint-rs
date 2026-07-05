@@ -1,3 +1,4 @@
+#![cfg(feature = "num-traits")]
 // Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -85,6 +86,10 @@ fn test_add_variants() {
 
 #[test]
 fn test_subtract() {
+    // `REF` labels each call site with the native primitive whose subtract
+    // behavior the `INT` under test should mirror; parallel to
+    // `test_add_variant`'s `REF` even though the body here doesn't touch it.
+    #[allow(clippy::extra_unused_type_parameters)]
     fn test_subtract_variant<
         INT: num_traits::PrimInt
             + num_traits::ops::overflowing::OverflowingSub

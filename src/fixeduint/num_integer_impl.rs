@@ -1,6 +1,6 @@
 use super::{FixedUInt, MachineWord};
 
-use crate::personality::Nct;
+use const_num_traits::Nct;
 use num_traits::{PrimInt, Zero};
 
 // Most code here from num_integer crate, unsigned implementation
@@ -50,7 +50,7 @@ impl<T: MachineWord, const N: usize> num_integer::Integer for FixedUInt<T, N, Nc
         self.is_multiple_of(other)
     }
     fn is_multiple_of(&self, other: &Self) -> bool {
-        (*self) % other == Self::zero()
+        (*self) % *other == Self::zero()
     }
     fn is_even(&self) -> bool {
         // O(1): only check LSB of first word, not full-width AND + compare

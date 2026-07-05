@@ -14,13 +14,14 @@
 
 //! Absolute difference implementation for FixedUInt.
 
-use super::{const_ct_select, FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstAbsDiff, ConstOverflowingSub, ConstWrappingSub, ConstZero};
+use super::{FixedUInt, MachineWord, const_ct_select};
 use crate::machineword::ConstMachineWord;
-use crate::personality::{Personality, PersonalityTag};
+use const_num_traits::{AbsDiff, ConstZero, OverflowingSub, WrappingSub};
+use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ConstAbsDiff for FixedUInt<T, N, P> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> AbsDiff for FixedUInt<T, N, P> {
+        type Output = Self;
         fn abs_diff(self, other: Self) -> Self {
             match P::TAG {
                 PersonalityTag::Nct => {
@@ -32,12 +33,19 @@ c0nst::c0nst! {
                 }
                 PersonalityTag::Ct => {
                     let (diff, borrow) =
-                        <Self as ConstOverflowingSub>::overflowing_sub(&self, &other);
+                        <Self as OverflowingSub>::overflowing_sub(self, other);
                     let neg_diff =
-                        <Self as ConstWrappingSub>::wrapping_sub(&<Self as ConstZero>::zero(), &diff);
+                        <Self as WrappingSub>::wrapping_sub(<Self as ConstZero>::ZERO, diff);
                     const_ct_select(diff, neg_diff, borrow as u8)
                 }
             }
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> AbsDiff for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
+        fn abs_diff(self, other: Self) -> FixedUInt<T, N, P> {
+            <FixedUInt<T, N, P> as AbsDiff>::abs_diff(*self, *other)
         }
     }
 }
@@ -51,23 +59,23 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         assert_eq!(
-            ConstAbsDiff::abs_diff(U16::from(10u8), U16::from(3u8)),
+            AbsDiff::abs_diff(U16::from(10u8), U16::from(3u8)),
             U16::from(7u8)
         );
         assert_eq!(
-            ConstAbsDiff::abs_diff(U16::from(3u8), U16::from(10u8)),
+            AbsDiff::abs_diff(U16::from(3u8), U16::from(10u8)),
             U16::from(7u8)
         );
         assert_eq!(
-            ConstAbsDiff::abs_diff(U16::from(5u8), U16::from(5u8)),
+            AbsDiff::abs_diff(U16::from(5u8), U16::from(5u8)),
             U16::from(0u8)
         );
         assert_eq!(
-            ConstAbsDiff::abs_diff(U16::from(0u8), U16::from(100u8)),
+            AbsDiff::abs_diff(U16::from(0u8), U16::from(100u8)),
             U16::from(100u8)
         );
         assert_eq!(
-            ConstAbsDiff::abs_diff(U16::from(255u8), U16::from(0u8)),
+            AbsDiff::abs_diff(U16::from(255u8), U16::from(0u8)),
             U16::from(255u8)
         );
     }
@@ -77,7 +85,7 @@ mod tests {
             a: FixedUInt<T, N, P>,
             b: FixedUInt<T, N, P>,
         ) -> FixedUInt<T, N, P> {
-            ConstAbsDiff::abs_diff(a, b)
+            AbsDiff::abs_diff(a, b)
         }
     }
 

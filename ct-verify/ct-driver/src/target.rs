@@ -230,9 +230,43 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // identity, subtle's ConditionallySelectable / ConstantTime*. All
     // per-limb N-bounded loops.
     r"core\.\.ops\.\.bit\.\.(?:Not|BitOr|BitAnd|BitXor).*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    // const-num-traits trait impls on FixedUInt. The v0.4 migration
+    // moved these to the external `const-num-traits` crate (path:
+    // `const_num_traits::{int,identities,bounds,sign}::TraitName`).
+    // The body shape is unchanged: all-N-bounded limb loops.
+    r"const_num_traits\.\.int\.\.PrimBits.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    r"const_num_traits\.\.identities\.\.(?:Const)?(?:Zero|One).*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    r"const_num_traits\.\.bounds\.\.Bounded.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    r"const_num_traits\.\.sign\.\.Unsigned.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    // const-num-traits' Ct* trait wrappers (`ops::ct::Ct{IsZero,Parity,
+    // IsPowerOfTwo,CheckedAdd,CheckedSub,CheckedMul}`) impl'd on
+    // FixedUInt. The body is an N-bounded limb loop (AND-fold of
+    // `ct_eq` against ZERO, or delegation to existing branchless
+    // ops). Same shape as the predicate / arithmetic impls already
+    // allowlisted.
+    r"const_num_traits\.\.ops\.\.ct\.\.Ct(?:IsZero|Parity|IsPowerOfTwo|CheckedAdd|CheckedSub|CheckedMul)\b.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    // CtNonZero lives at `const_num_traits::typestate::CtNonZero`
+    // (not in `ops::ct`); body is `ct_is_zero() + new_unchecked` so
+    // covered by the CtIsZero allowance above, but spell it out so
+    // a future move of the impl block isn't a silent regression.
+    r"const_num_traits\.\.(?:ops\.\.typestate|typestate)\.\.CtNonZero.*fixed_bigint\.\.fixeduint",
+    // Pre-migration mangled paths (kept for any vestigial codegen path
+    // we haven't proven gone — comment out if a regex audit confirms
+    // they're now dead).
     r"fixed_bigint\.\.const_numtraits\.\.ConstBitPrimInt.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
     r"fixed_bigint\.\.const_numtraits\.\.ConstZero.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
     r"fixed_bigint\.\.const_numtraits\.\.ConstBounded.*fixed_bigint\.\.fixeduint\.\.FixedUInt",
+    // FixedUInt's own from-byte-slice helpers (called from `From<[T; N]>`
+    // through the byte-conversion path). Loop bound is `byte_index <
+    // min(bytes.len(), N * WORD_SIZE)` — bytes.len() is the public
+    // slice length, same shape as the per-limb helpers.
+    r"fixed_bigint9fixeduint24impl_from_(?:le|be)_bytes_slice",
+    // ARM EABI runtime helpers for 64-bit shifts (`__aeabi_ll{sl,sr}`).
+    // Reached transitively from u64-backed `FixedUInt` shift/multiply
+    // paths. Branchful on the shift amount, which we always pass as a
+    // public counter (`1 << k` from a fixed iteration). Same shape as
+    // the `__ashl{di,ti}3` family already allowlisted below.
+    r"^_?__aeabi_l(?:lsl|lsr|asr)$",
     // Subtle impls use `<Self as Trait>` mangling (Self first, then
     // `as`, then trait) rather than the `<impl Trait for Self>`
     // mangling the bitwise / num_traits impls above use.
@@ -288,12 +322,20 @@ const HELPER_ALLOWLIST: &[&str] = &[
 const THUMBV6M_EXTRA_HELPERS: &[&str] = &[
     // `<u8/u16/u32/u64 as ConstBitPrimInt>::leading_zeros` /
     // `trailing_zeros`: forward to `core`'s intrinsic. Branchful on
-    // armv6m (no CLZ).
+    // armv6m (no CLZ). v0.4 path:
+    // `const_num_traits::int::PrimBits`.
+    r"\$LT\$u(?:8|16|32|64)\$.*const_num_traits\.\.int\.\.PrimBits.*(?:leading|trailing)_zeros",
     r"\$LT\$u(?:8|16|32|64)\$.*fixed_bigint\.\.const_numtraits\.\.ConstBitPrimInt.*(?:leading|trailing)_zeros",
-    // `<u8/u16/u32/u64 as ConstBorrowingSub>::borrowing_sub`: the
+    // `<u8/u16/u32/u64 as BorrowingSub>::borrowing_sub`: the
     // `||` over two overflow flags compiles to a short conditional
     // branch on armv6m. CT-safe everywhere with IT or cmov.
+    r"\$LT\$u(?:8|16|32|64)\$.*const_num_traits\.\.ops\.\.carrying\.\.BorrowingSub.*13borrowing_sub",
     r"\$LT\$u(?:8|16|32|64)\$.*fixed_bigint\.\.const_numtraits\.\.ConstBorrowingSub.*13borrowing_sub",
+    // `OverflowingShl` / `OverflowingShr` for FixedUInt: the per-limb
+    // shift body uses `<core::ops::Shl<usize>>` via a generic helper
+    // whose innermost operation on armv6m is a primitive
+    // `leading_zeros` inline (same root cause as the others above).
+    r"const_num_traits\.\.ops\.\.overflowing\.\.OverflowingSh(?:l|r).*fixed_bigint\.\.fixeduint\.\.FixedUInt",
     // subtle's primitive `<u{8,16,32,64} as ConstantTimeEq>::ct_eq` —
     // upstream impl, branchful on armv6m for the same IT/cmov reason.
     r"\$LT\$u(?:8|16|32|64)\$.*subtle\.\.ConstantTimeEq.*5ct_eq",

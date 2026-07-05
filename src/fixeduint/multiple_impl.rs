@@ -15,20 +15,22 @@
 //! Multiple-of operations for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstCheckedAdd, ConstMultiple, ConstZero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::Nct;
+use const_num_traits::Nct;
+use const_num_traits::{CheckedAdd, MultipleOf, NextMultipleOf, Zero};
 
 c0nst::c0nst! {
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstMultiple for FixedUInt<T, N, Nct> {
-        fn is_multiple_of(&self, rhs: &Self) -> bool {
-            if rhs.is_zero() {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> MultipleOf for FixedUInt<T, N, Nct> {
+        fn is_multiple_of(self, rhs: Self) -> bool {
+            if <Self as Zero>::is_zero(&rhs) {
                 false
             } else {
-                (*self % *rhs).is_zero()
+                <Self as Zero>::is_zero(&(self % rhs))
             }
         }
+    }
 
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> NextMultipleOf for FixedUInt<T, N, Nct> {
         fn next_multiple_of(self, rhs: Self) -> Self {
             match self.checked_next_multiple_of(rhs) {
                 Some(v) => v,
@@ -46,8 +48,23 @@ c0nst::c0nst! {
             } else {
                 // self + (rhs - rem)
                 let add = rhs - rem;
-                ConstCheckedAdd::checked_add(&self, &add)
+                CheckedAdd::checked_add(self, add)
             }
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> MultipleOf for &FixedUInt<T, N, Nct> {
+        fn is_multiple_of(self, rhs: Self) -> bool {
+            <FixedUInt<T, N, Nct> as MultipleOf>::is_multiple_of(*self, *rhs)
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> NextMultipleOf for &FixedUInt<T, N, Nct> {
+        fn next_multiple_of(self, rhs: Self) -> FixedUInt<T, N, Nct> {
+            <FixedUInt<T, N, Nct> as NextMultipleOf>::next_multiple_of(*self, *rhs)
+        }
+        fn checked_next_multiple_of(self, rhs: Self) -> Option<FixedUInt<T, N, Nct>> {
+            <FixedUInt<T, N, Nct> as NextMultipleOf>::checked_next_multiple_of(*self, *rhs)
         }
     }
 }
@@ -60,36 +77,21 @@ mod tests {
     fn test_is_multiple_of() {
         type U16 = FixedUInt<u8, 2>;
 
-        assert!(ConstMultiple::is_multiple_of(
-            &U16::from(0u8),
-            &U16::from(5u8)
+        assert!(MultipleOf::is_multiple_of(U16::from(0u8), U16::from(5u8)));
+        assert!(MultipleOf::is_multiple_of(U16::from(10u8), U16::from(5u8)));
+        assert!(MultipleOf::is_multiple_of(U16::from(15u8), U16::from(5u8)));
+        assert!(!MultipleOf::is_multiple_of(U16::from(11u8), U16::from(5u8)));
+        assert!(MultipleOf::is_multiple_of(
+            U16::from(100u8),
+            U16::from(10u8)
         ));
-        assert!(ConstMultiple::is_multiple_of(
-            &U16::from(10u8),
-            &U16::from(5u8)
-        ));
-        assert!(ConstMultiple::is_multiple_of(
-            &U16::from(15u8),
-            &U16::from(5u8)
-        ));
-        assert!(!ConstMultiple::is_multiple_of(
-            &U16::from(11u8),
-            &U16::from(5u8)
-        ));
-        assert!(ConstMultiple::is_multiple_of(
-            &U16::from(100u8),
-            &U16::from(10u8)
-        ));
-        assert!(!ConstMultiple::is_multiple_of(
-            &U16::from(101u8),
-            &U16::from(10u8)
+        assert!(!MultipleOf::is_multiple_of(
+            U16::from(101u8),
+            U16::from(10u8)
         ));
 
         // rhs == 0 returns false
-        assert!(!ConstMultiple::is_multiple_of(
-            &U16::from(10u8),
-            &U16::from(0u8)
-        ));
+        assert!(!MultipleOf::is_multiple_of(U16::from(10u8), U16::from(0u8)));
     }
 
     #[test]
@@ -98,31 +100,31 @@ mod tests {
 
         // Already a multiple
         assert_eq!(
-            ConstMultiple::next_multiple_of(U16::from(10u8), U16::from(5u8)),
+            NextMultipleOf::next_multiple_of(U16::from(10u8), U16::from(5u8)),
             U16::from(10u8)
         );
         assert_eq!(
-            ConstMultiple::next_multiple_of(U16::from(0u8), U16::from(5u8)),
+            NextMultipleOf::next_multiple_of(U16::from(0u8), U16::from(5u8)),
             U16::from(0u8)
         );
 
         // Not a multiple
         assert_eq!(
-            ConstMultiple::next_multiple_of(U16::from(11u8), U16::from(5u8)),
+            NextMultipleOf::next_multiple_of(U16::from(11u8), U16::from(5u8)),
             U16::from(15u8)
         );
         assert_eq!(
-            ConstMultiple::next_multiple_of(U16::from(12u8), U16::from(5u8)),
+            NextMultipleOf::next_multiple_of(U16::from(12u8), U16::from(5u8)),
             U16::from(15u8)
         );
         assert_eq!(
-            ConstMultiple::next_multiple_of(U16::from(14u8), U16::from(5u8)),
+            NextMultipleOf::next_multiple_of(U16::from(14u8), U16::from(5u8)),
             U16::from(15u8)
         );
 
         // Larger values
         assert_eq!(
-            ConstMultiple::next_multiple_of(U16::from(101u8), U16::from(10u8)),
+            NextMultipleOf::next_multiple_of(U16::from(101u8), U16::from(10u8)),
             U16::from(110u8)
         );
     }
@@ -133,27 +135,27 @@ mod tests {
 
         // Normal cases
         assert_eq!(
-            ConstMultiple::checked_next_multiple_of(U16::from(11u8), U16::from(5u8)),
+            NextMultipleOf::checked_next_multiple_of(U16::from(11u8), U16::from(5u8)),
             Some(U16::from(15u8))
         );
 
         // rhs == 0
         assert_eq!(
-            ConstMultiple::checked_next_multiple_of(U16::from(10u8), U16::from(0u8)),
+            NextMultipleOf::checked_next_multiple_of(U16::from(10u8), U16::from(0u8)),
             None
         );
 
         // Already a multiple (no overflow)
         let large = U16::from(65530u16);
         assert_eq!(
-            ConstMultiple::checked_next_multiple_of(large, U16::from(10u8)),
+            NextMultipleOf::checked_next_multiple_of(large, U16::from(10u8)),
             Some(large)
         ); // 65530 % 10 = 0, so returns itself
 
         // Overflow case
         let large2 = U16::from(65531u16);
         assert_eq!(
-            ConstMultiple::checked_next_multiple_of(large2, U16::from(10u8)),
+            NextMultipleOf::checked_next_multiple_of(large2, U16::from(10u8)),
             None
         ); // 65531 + 9 = 65540 > 65535, overflow
     }
@@ -163,14 +165,14 @@ mod tests {
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> bool {
-            ConstMultiple::is_multiple_of(a, b)
+            MultipleOf::is_multiple_of(*a, *b)
         }
 
         pub c0nst fn const_next_multiple_of<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             a: FixedUInt<T, N, Nct>,
             b: FixedUInt<T, N, Nct>,
         ) -> FixedUInt<T, N, Nct> {
-            ConstMultiple::next_multiple_of(a, b)
+            NextMultipleOf::next_multiple_of(a, b)
         }
     }
 

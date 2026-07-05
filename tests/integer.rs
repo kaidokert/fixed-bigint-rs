@@ -1,3 +1,4 @@
+#![cfg(feature = "num-traits")]
 // Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,13 +39,11 @@ fn test_evenodd() {
 
 #[test]
 fn test_divides() {
-    fn divides<T: num_integer::Integer + From<u8>>() {
+    fn divides<T: num_integer::Integer + From<u8> + core::fmt::Debug>() {
         let tests = [(6u8, 3u8, true), (8, 2, true), (8, 1, true), (17, 2, false)];
         for &(multiple, multiplier, expected) in &tests {
-            assert_eq!(
-                num_integer::Integer::is_multiple_of(&multiple, &multiplier),
-                expected
-            );
+            let multiple = T::from(multiple);
+            let multiplier = T::from(multiplier);
             assert_eq!(
                 num_integer::Integer::is_multiple_of(&multiple, &multiplier),
                 expected
@@ -57,12 +56,24 @@ fn test_divides() {
             (89, 13, 6, 11),
         ];
         for &(multiple, divider, div, rem) in &divrem {
+            let multiple = T::from(multiple);
+            let divider = T::from(divider);
+            let div = T::from(div);
+            let rem = T::from(rem);
             let (divres, remres) = multiple.div_rem(&divider);
-            assert_eq!(divres, div);
-            assert_eq!(remres, rem);
+            assert_eq!(divres, div, "div_rem: unexpected quotient");
+            assert_eq!(remres, rem, "div_rem: unexpected remainder");
 
-            assert_eq!(num_integer::Integer::div_floor(&multiple, &divider), divres);
-            assert_eq!(num_integer::Integer::mod_floor(&multiple, &divider), remres);
+            assert_eq!(
+                num_integer::Integer::div_floor(&multiple, &divider),
+                divres,
+                "div_floor disagrees with div_rem"
+            );
+            assert_eq!(
+                num_integer::Integer::mod_floor(&multiple, &divider),
+                remres,
+                "mod_floor disagrees with div_rem"
+            );
         }
     }
     divides::<u8>();
@@ -74,7 +85,7 @@ fn test_divides() {
 // TODO: Test GCD / LCM
 #[test]
 fn test_gcd_lcm() {
-    fn gcd_lcm<T: num_integer::Integer + From<u8>>() {
+    fn gcd_lcm<T: num_integer::Integer + From<u8> + core::fmt::Debug>() {
         let gcd_tests = [
             (8u8, 12u8, 4u8),
             (1, 1, 1),
@@ -83,6 +94,9 @@ fn test_gcd_lcm() {
             (99, 90, 9),
         ];
         for &(a, b, expected) in &gcd_tests {
+            let a = T::from(a);
+            let b = T::from(b);
+            let expected = T::from(expected);
             assert_eq!(a.gcd(&b), expected);
         }
         let lcm_tests = [
@@ -94,6 +108,9 @@ fn test_gcd_lcm() {
             (255, 255, 255),
         ];
         for &(a, b, expected) in &lcm_tests {
+            let a = T::from(a);
+            let b = T::from(b);
+            let expected = T::from(expected);
             assert_eq!(a.lcm(&b), expected);
         }
     }

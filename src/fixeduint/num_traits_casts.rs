@@ -1,5 +1,5 @@
 use super::{FixedUInt, MachineWord};
-use crate::personality::Personality;
+use const_num_traits::Personality;
 use num_traits::{Bounded, FromPrimitive, ToPrimitive};
 
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::NumCast for FixedUInt<T, N, P> {

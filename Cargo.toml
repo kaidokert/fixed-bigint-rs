@@ -4,6 +4,7 @@ members = [
     "ct-verify/ct-fixtures",
     "ct-verify/ct-driver",
     "ct-verify/ct-ctgrind",
+    "ct-verify/panic-free-audit",
 ]
 resolver = "2"
 
@@ -21,10 +22,10 @@ incremental = false
 
 [package]
 name = "fixed-bigint"
-version = "0.3.2"
+version = "0.4.0"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 documentation = "https://docs.rs/fixed-bigint"
-edition = "2018"
+edition = "2024"
 rust-version = "1.86"
 description = """
 Fixed-size big integer implementation for Rust
@@ -40,11 +41,18 @@ exclude = ["/.github/*"]
 
 [dependencies.num-traits]
 version = "0.2.19"
+optional = true
 default-features = false
 
 [dependencies.num-integer]
 version = "0.1.45"
+optional = true
 default-features = false
+
+[dependencies.const-num-traits]
+version = "0.1.1"
+default-features = false
+features = ["ct"]
 
 [dependencies.c0nst]
 version = "0.2"
@@ -56,6 +64,11 @@ default-features = false
 
 [dependencies.subtle]
 version = "2.6"
+default-features = false
+
+[dependencies.modmath-cios]
+version = "0.1"
+optional = true
 default-features = false
 
 [dev-dependencies.static_assertions]
@@ -73,6 +86,7 @@ codegen-units = 16
 
 [features]
 use-unsafe = []
-1_87 = []
-nightly = ["c0nst/nightly", "1_87"]
-default = []
+nightly = ["c0nst/nightly", "const-num-traits/nightly"]
+cios = ["dep:modmath-cios"]
+num-traits = ["dep:num-traits", "dep:num-integer"]
+default = ["num-traits"]

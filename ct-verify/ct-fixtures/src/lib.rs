@@ -27,6 +27,7 @@ mod fixtures_asym;
 mod fixtures_cat_a;
 mod fixtures_cat_b;
 mod fixtures_cat_c;
+mod fixtures_ct_traits;
 mod fixtures_neg;
 
 /// No-op Rust-visible anchor. Host-side consumers (ct-ctgrind) call this

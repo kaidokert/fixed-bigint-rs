@@ -12,28 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Note: in the future, #![feature(const_trait_impl)] should allow
-// turning this into a const trait
-
-pub use crate::const_numtraits::ConstPrimInt;
-use crate::const_numtraits::{
-    ConstBorrowingSub, ConstCarryingAdd, ConstOverflowingAdd, ConstOverflowingSub, ConstToBytes,
-    ConstWideningMul,
+pub use const_num_traits::PrimInt;
+use const_num_traits::{
+    BorrowingSub, CarryingAdd, OverflowingAdd, OverflowingSub, ToBytes, WideningMul,
 };
 
 c0nst::c0nst! {
-    /// A const-friendly trait for MachineWord operations.
-    /// Extends ConstWideningMul to provide widening multiplication.
+    /// Const-friendly aggregate trait bundling the arithmetic, bit,
+    /// shift, and byte-conversion capabilities every limb type has to
+    /// carry to serve as a `FixedUInt`'s `T`.
+    ///
+    /// `*Assign` bounds are added explicitly: external `PrimBits` /
+    /// `PrimInt` cover the by-value bit/shift ops (the CT-friendly
+    /// core) but not their `*Assign` counterparts, which we rely on
+    /// in `fixeduint.rs` (the per-limb loops use `|=` / `^=` / `<<=`
+    /// / `>>=` / `&=` etc. on `T`).
     pub c0nst trait ConstMachineWord:
-        [c0nst] ConstPrimInt +
-        [c0nst] ConstOverflowingAdd +
-        [c0nst] ConstOverflowingSub +
-        [c0nst] ConstCarryingAdd +
-        [c0nst] ConstBorrowingSub +
-        [c0nst] ConstToBytes +
-        [c0nst] ConstWideningMul
+        [c0nst] PrimInt +
+        [c0nst] OverflowingAdd +
+        [c0nst] OverflowingSub +
+        [c0nst] CarryingAdd +
+        [c0nst] BorrowingSub +
+        [c0nst] ToBytes +
+        [c0nst] WideningMul +
+        [c0nst] core::ops::BitAndAssign +
+        [c0nst] core::ops::BitOrAssign +
+        [c0nst] core::ops::BitXorAssign +
+        [c0nst] core::ops::ShlAssign<usize> +
+        [c0nst] core::ops::ShrAssign<usize> +
+        [c0nst] core::ops::AddAssign +
+        [c0nst] core::ops::SubAssign +
+        [c0nst] From<u8>
     {
-        type ConstDoubleWord: [c0nst] ConstPrimInt;
+        type ConstDoubleWord: [c0nst] PrimInt
+            + [c0nst] core::ops::BitAndAssign
+            + [c0nst] core::ops::BitOrAssign
+            + [c0nst] core::ops::AddAssign
+            + [c0nst] core::ops::Mul<Output = Self::ConstDoubleWord>
+            + [c0nst] core::ops::BitAnd<Output = Self::ConstDoubleWord>
+            + [c0nst] core::ops::Shr<usize, Output = Self::ConstDoubleWord>;
         fn to_double(self) -> Self::ConstDoubleWord;
         fn from_double(word: Self::ConstDoubleWord) -> Self;
     }
@@ -66,9 +83,11 @@ c0nst::c0nst! {
 /// This trait is intentionally sealed via the `ConstMachineWord` supertrait,
 /// as custom implementations are not supported.
 pub trait MachineWord:
-    ConstMachineWord<ConstDoubleWord = Self::DoubleWord> + core::hash::Hash + num_traits::ToPrimitive
+    ConstMachineWord<ConstDoubleWord = Self::DoubleWord>
+    + core::hash::Hash
+    + const_num_traits::ToPrimitive
 {
-    type DoubleWord: ConstPrimInt;
+    type DoubleWord: PrimInt;
 }
 
 impl MachineWord for u8 {

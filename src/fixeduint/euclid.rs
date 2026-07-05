@@ -1,90 +1,99 @@
-use num_traits::{CheckedEuclid, Euclid};
-
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstCheckedEuclid, ConstEuclid, ConstZero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::Nct;
+use const_num_traits::Nct;
+use const_num_traits::{CheckedEuclid, Euclid, Zero};
 
 c0nst::c0nst! {
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstEuclid for FixedUInt<T, N, Nct> {
-        fn div_euclid(&self, v: &Self) -> Self {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Euclid for FixedUInt<T, N, Nct> {
+        fn div_euclid(self, v: Self) -> Self {
             // For unsigned integers, Euclidean division is the same as regular division
-            *self / *v
+            self / v
         }
 
-        fn rem_euclid(&self, v: &Self) -> Self {
+        fn rem_euclid(self, v: Self) -> Self {
             // For unsigned integers, Euclidean remainder is the same as regular remainder
-            *self % *v
+            self % v
+        }
+
+        fn div_rem_euclid(self, v: Self) -> (Self, Self) {
+            (self / v, self % v)
         }
     }
 
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstCheckedEuclid for FixedUInt<T, N, Nct> {
-        fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
-            if v.is_zero() {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedEuclid for FixedUInt<T, N, Nct> {
+        fn checked_div_euclid(self, v: Self) -> Option<Self> {
+            if <Self as Zero>::is_zero(&v) {
                 None
             } else {
-                Some(*self / *v)
+                Some(self / v)
             }
         }
 
-        fn checked_rem_euclid(&self, v: &Self) -> Option<Self> {
-            if v.is_zero() {
+        fn checked_rem_euclid(self, v: Self) -> Option<Self> {
+            if <Self as Zero>::is_zero(&v) {
                 None
             } else {
-                Some(*self % *v)
+                Some(self % v)
+            }
+        }
+
+        fn checked_div_rem_euclid(self, v: Self) -> Option<(Self, Self)> {
+            if <Self as Zero>::is_zero(&v) {
+                None
+            } else {
+                Some((self / v, self % v))
             }
         }
     }
-}
 
-// num_traits::Euclid — Nct only.
-impl<T: MachineWord, const N: usize> Euclid for FixedUInt<T, N, Nct> {
-    fn div_euclid(&self, v: &Self) -> Self {
-        self / v
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Euclid for &FixedUInt<T, N, Nct> {
+        fn div_euclid(self, v: Self) -> FixedUInt<T, N, Nct> {
+            <FixedUInt<T, N, Nct> as Euclid>::div_euclid(*self, *v)
+        }
+        fn rem_euclid(self, v: Self) -> FixedUInt<T, N, Nct> {
+            <FixedUInt<T, N, Nct> as Euclid>::rem_euclid(*self, *v)
+        }
+        fn div_rem_euclid(self, v: Self) -> (FixedUInt<T, N, Nct>, FixedUInt<T, N, Nct>) {
+            <FixedUInt<T, N, Nct> as Euclid>::div_rem_euclid(*self, *v)
+        }
     }
 
-    fn rem_euclid(&self, v: &Self) -> Self {
-        self % v
-    }
-}
-
-// num_traits::CheckedEuclid — Nct only.
-impl<T: MachineWord, const N: usize> CheckedEuclid for FixedUInt<T, N, Nct> {
-    fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
-        num_traits::CheckedDiv::checked_div(self, v)
-    }
-
-    fn checked_rem_euclid(&self, v: &Self) -> Option<Self> {
-        num_traits::CheckedRem::checked_rem(self, v)
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedEuclid for &FixedUInt<T, N, Nct> {
+        fn checked_div_euclid(self, v: Self) -> Option<FixedUInt<T, N, Nct>> {
+            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_div_euclid(*self, *v)
+        }
+        fn checked_rem_euclid(self, v: Self) -> Option<FixedUInt<T, N, Nct>> {
+            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_rem_euclid(*self, *v)
+        }
+        fn checked_div_rem_euclid(self, v: Self) -> Option<(FixedUInt<T, N, Nct>, FixedUInt<T, N, Nct>)> {
+            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_div_rem_euclid(*self, *v)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::machineword::ConstMachineWord;
 
     #[test]
     fn test_div_euclid() {
-        use num_traits::Euclid;
         let a = FixedUInt::<u8, 2>::from(100u8);
         let b = FixedUInt::<u8, 2>::from(30u8);
-        assert_eq!(Euclid::div_euclid(&a, &b), 3u8.into());
-        assert_eq!(Euclid::rem_euclid(&a, &b), 10u8.into());
+        assert_eq!(Euclid::div_euclid(a, b), 3u8.into());
+        assert_eq!(Euclid::rem_euclid(a, b), 10u8.into());
     }
 
     #[test]
     fn test_checked_div_euclid() {
-        use num_traits::CheckedEuclid;
         let a = FixedUInt::<u8, 2>::from(100u8);
         let b = FixedUInt::<u8, 2>::from(30u8);
-        assert_eq!(CheckedEuclid::checked_div_euclid(&a, &b), Some(3u8.into()));
-        assert_eq!(CheckedEuclid::checked_rem_euclid(&a, &b), Some(10u8.into()));
+        assert_eq!(CheckedEuclid::checked_div_euclid(a, b), Some(3u8.into()));
+        assert_eq!(CheckedEuclid::checked_rem_euclid(a, b), Some(10u8.into()));
 
         // Test division by zero
         let zero = FixedUInt::<u8, 2>::from(0u8);
-        assert_eq!(CheckedEuclid::checked_div_euclid(&a, &zero), None);
-        assert_eq!(CheckedEuclid::checked_rem_euclid(&a, &zero), None);
+        assert_eq!(CheckedEuclid::checked_div_euclid(a, zero), None);
+        assert_eq!(CheckedEuclid::checked_rem_euclid(a, zero), None);
     }
 
     c0nst::c0nst! {
@@ -92,28 +101,28 @@ mod tests {
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> FixedUInt<T, N, Nct> {
-            ConstEuclid::div_euclid(a, b)
+            Euclid::div_euclid(*a, *b)
         }
 
         pub c0nst fn const_rem_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> FixedUInt<T, N, Nct> {
-            ConstEuclid::rem_euclid(a, b)
+            Euclid::rem_euclid(*a, *b)
         }
 
         pub c0nst fn const_checked_div_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> Option<FixedUInt<T, N, Nct>> {
-            ConstCheckedEuclid::checked_div_euclid(a, b)
+            CheckedEuclid::checked_div_euclid(*a, *b)
         }
 
         pub c0nst fn const_checked_rem_euclid<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             a: &FixedUInt<T, N, Nct>,
             b: &FixedUInt<T, N, Nct>,
         ) -> Option<FixedUInt<T, N, Nct>> {
-            ConstCheckedEuclid::checked_rem_euclid(a, b)
+            CheckedEuclid::checked_rem_euclid(*a, *b)
         }
     }
 

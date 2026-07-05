@@ -1,3 +1,4 @@
+#![cfg(feature = "num-traits")]
 // Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use fixed_bigint::patch_num_traits::{OverflowingShl, OverflowingShr};
+use const_num_traits::{OverflowingShl, OverflowingShr};
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
 
@@ -264,7 +265,7 @@ fn test_rotate() {
         assert_eq!(b.rotate_right(full_shift), b);
 
         // Rotations larger than the bit width should wrap around
-        let bit_width = INT::BIT_SIZE as u32;
+        let bit_width = INT::BIT_SIZE;
         let overflow_shift = full_shift + 5;
         let expected_left = a.rotate_left(overflow_shift % bit_width);
         assert_eq!(a.rotate_left(overflow_shift), expected_left);

@@ -1,11 +1,9 @@
-use super::MachineWord;
-
 use core::borrow::{Borrow, BorrowMut};
-
 use core::hash::Hash;
 
-use super::FixedUInt;
-use crate::personality::Personality;
+use super::{FixedUInt, MachineWord};
+use crate::machineword::ConstMachineWord;
+use const_num_traits::Personality;
 
 // Helper, holds an owned copy of returned bytes.
 //
@@ -18,14 +16,23 @@ pub struct BytesHolder<T: MachineWord, const N: usize> {
     array: [T; N],
 }
 
-impl<T: MachineWord, const N: usize> Default for BytesHolder<T, N> {
-    fn default() -> Self {
-        Self::from_array(core::array::from_fn(|_| T::default()))
+c0nst::c0nst! {
+    // `c0nst Default` so this is callable from a `const` context on
+    // nightly (the `nightly` feature pulls in `feature(const_default)`).
+    // On stable the c0nst macro renders the same impl as plain
+    // `impl Default`, so downstream `BytesHolder::default()` callers see
+    // no behavior change. Body uses the `[<T as ConstZero>::ZERO; N]`
+    // initializer rather than `core::array::from_fn(...)` because the
+    // closure-based helper isn't const-callable.
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Default for BytesHolder<T, N> {
+        fn default() -> Self {
+            Self::from_array([<T as const_num_traits::ConstZero>::ZERO; N])
+        }
     }
 }
 
 impl<T: MachineWord, const N: usize> BytesHolder<T, N> {
-    pub(crate) fn from_array(array: [T; N]) -> Self {
+    pub(crate) const fn from_array(array: [T; N]) -> Self {
         Self { array }
     }
     // Converts internal storage to a mutable byte slice
@@ -96,26 +103,82 @@ impl<T: MachineWord, const N: usize> Drop for BytesHolder<T, N> {
     }
 }
 
-impl<T: MachineWord, const N: usize, P: Personality> num_traits::ToBytes for FixedUInt<T, N, P>
+// ── num_traits + const_num_traits ToBytes/FromBytes ──────────────────
+//
+// The two `ToBytes` traits differ only in receiver (`&self` vs `self`)
+// and the two `FromBytes` traits do the same. Delegate through
+// crate-private helpers on `FixedUInt` to keep them in lockstep. Both
+// use `BytesHolder<T, N>` as the associated `Bytes` type; the
+// const-num-traits variants are `#[cfg(not(feature = "nightly"))]`
+// because `const_to_from_bytes.rs` provides better nightly impls via
+// `ConstBytesHolder` + `generic_const_exprs`.
+
+#[cfg(any(feature = "num-traits", not(feature = "nightly")))]
+impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {
-    type Bytes = BytesHolder<T, N>;
-
-    fn to_be_bytes(&self) -> Self::Bytes {
-        let mut ret = Self::Bytes::from_array(self.array);
+    #[inline]
+    fn holder_be(&self) -> BytesHolder<T, N> {
+        let mut ret = BytesHolder::from_array(self.array);
         let _ = self.to_be_bytes(ret.as_byte_slice_mut());
         ret
     }
 
-    fn to_le_bytes(&self) -> Self::Bytes {
-        let mut ret = Self::Bytes::from_array(self.array);
+    #[inline]
+    fn holder_le(&self) -> BytesHolder<T, N> {
+        let mut ret = BytesHolder::from_array(self.array);
         let _ = self.to_le_bytes(ret.as_byte_slice_mut());
         ret
     }
 }
 
+#[cfg(feature = "num-traits")]
+impl<T: MachineWord, const N: usize, P: Personality> num_traits::ToBytes for FixedUInt<T, N, P>
+where
+    T: core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, N>;
+    fn to_be_bytes(&self) -> Self::Bytes {
+        self.holder_be()
+    }
+    fn to_le_bytes(&self) -> Self::Bytes {
+        self.holder_le()
+    }
+}
+
+#[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::FromBytes for FixedUInt<T, N, P>
+where
+    T: core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, N>;
+    fn from_be_bytes(bytes: &Self::Bytes) -> Self {
+        Self::from_be_bytes(bytes.as_ref())
+    }
+    fn from_le_bytes(bytes: &Self::Bytes) -> Self {
+        Self::from_le_bytes(bytes.as_ref())
+    }
+}
+
+#[cfg(not(feature = "nightly"))]
+impl<T: MachineWord, const N: usize, P: Personality> const_num_traits::ToBytes
+    for FixedUInt<T, N, P>
+where
+    T: core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, N>;
+    fn to_be_bytes(self) -> Self::Bytes {
+        self.holder_be()
+    }
+    fn to_le_bytes(self) -> Self::Bytes {
+        self.holder_le()
+    }
+}
+
+#[cfg(not(feature = "nightly"))]
+impl<T: MachineWord, const N: usize, P: Personality> const_num_traits::FromBytes
+    for FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {
@@ -131,6 +194,7 @@ where
 }
 
 #[cfg(test)]
+#[cfg(feature = "num-traits")]
 mod tests {
     use super::*;
     use num_traits::FromPrimitive;
@@ -215,5 +279,21 @@ mod tests {
             &[0x12, 0x34, 0x56, 0x78],
             FixedUInt::<u32, 1>::from_u32(0x12345678).unwrap(),
         );
+    }
+
+    #[test]
+    fn nightly_const_eval_default() {
+        let h: BytesHolder<u8, 4> = Default::default();
+        assert_eq!(h.array, [0u8; 4]);
+
+        #[cfg(feature = "nightly")]
+        {
+            const DEFAULT_U8X4: BytesHolder<u8, 4> = Default::default();
+            const DEFAULT_U16X2: BytesHolder<u16, 2> = Default::default();
+            const DEFAULT_U32X1: BytesHolder<u32, 1> = Default::default();
+            assert_eq!(DEFAULT_U8X4.array, [0u8; 4]);
+            assert_eq!(DEFAULT_U16X2.array, [0u16; 2]);
+            assert_eq!(DEFAULT_U32X1.array, [0u32; 1]);
+        }
     }
 }

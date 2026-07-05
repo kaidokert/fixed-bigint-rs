@@ -20,7 +20,8 @@
 //! All three are guaranteed to emit conditional branches on any target
 //! we care about. If any of them passes the gate, fix the gate.
 
-use fixed_bigint::{FixedUInt, Nct};
+use const_num_traits::Nct;
+use fixed_bigint::FixedUInt;
 
 use crate::ct_fix_bin;
 
@@ -55,7 +56,7 @@ emit_nct_div!(nct_fix__neg__nct_div__u32__N16, u32, 16);
 
 #[no_mangle]
 pub extern "C" fn nct_fix__neg__nct_ilog10__u32__N4(a_ptr: *const [u32; 4]) -> u32 {
-    use fixed_bigint::const_numtraits::ConstIlog;
+    use const_num_traits::Ilog10;
     let a_arr = core::hint::black_box(unsafe { *a_ptr });
     let x = FixedUInt::<u32, 4, Nct>::from(a_arr);
     // ilog10 panics on zero — guard with a safe value.
@@ -64,7 +65,7 @@ pub extern "C" fn nct_fix__neg__nct_ilog10__u32__N4(a_ptr: *const [u32; 4]) -> u
     } else {
         x
     };
-    let result = ConstIlog::ilog10(safe);
+    let result = Ilog10::ilog10(safe);
     core::hint::black_box(result)
 }
 
@@ -75,7 +76,7 @@ pub extern "C" fn nct_fix__neg__nct_ilog10__u32__N4(a_ptr: *const [u32; 4]) -> u
 macro_rules! emit_nct_gcd {
     ($name:ident, $T:ty, $N:literal) => {
         ct_fix_bin!($name, $T, $N, |a, b| {
-            use fixed_bigint::num_integer::Integer;
+            use num_integer::Integer;
             // Guard the gcd(0, _) case AND emit a data-dependent branch
             // inside the fixture body itself. Integer::gcd's actual
             // implementation lives in a separate helper symbol; this

@@ -15,44 +15,39 @@
 //! Integer logarithm implementations for FixedUInt.
 
 use super::{FixedUInt, MachineWord};
-use crate::const_numtraits::{ConstBitPrimInt, ConstIlog, ConstZero};
 use crate::machineword::ConstMachineWord;
-use crate::personality::Nct;
+use const_num_traits::Nct;
+use const_num_traits::{Ilog, Ilog2, Ilog10, PrimBits, Zero};
 
 c0nst::c0nst! {
-    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> ConstIlog for FixedUInt<T, N, Nct> {
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog2 for FixedUInt<T, N, Nct> {
         fn ilog2(self) -> u32 {
-            match self.checked_ilog2() {
+            match <Self as Ilog2>::checked_ilog2(self) {
                 Some(v) => v,
                 None => panic!("ilog2: argument is zero"),
             }
         }
 
+        fn checked_ilog2(self) -> Option<u32> {
+            if <Self as Zero>::is_zero(&self) {
+                return None;
+            }
+            // ilog2 = position of highest set bit = BIT_SIZE - 1 - leading_zeros
+            let leading = PrimBits::leading_zeros(self);
+            Some(Self::BIT_SIZE as u32 - 1 - leading)
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog10 for FixedUInt<T, N, Nct> {
         fn ilog10(self) -> u32 {
-            match self.checked_ilog10() {
+            match <Self as Ilog10>::checked_ilog10(self) {
                 Some(v) => v,
                 None => panic!("ilog10: argument is zero"),
             }
         }
 
-        fn ilog(self, base: Self) -> u32 {
-            match self.checked_ilog(base) {
-                Some(v) => v,
-                None => panic!("ilog: argument is zero or base is less than 2"),
-            }
-        }
-
-        fn checked_ilog2(self) -> Option<u32> {
-            if self.is_zero() {
-                return None;
-            }
-            // ilog2 = position of highest set bit = BIT_SIZE - 1 - leading_zeros
-            let leading = ConstBitPrimInt::leading_zeros(self);
-            Some(Self::BIT_SIZE as u32 - 1 - leading)
-        }
-
         fn checked_ilog10(self) -> Option<u32> {
-            if self.is_zero() {
+            if <Self as Zero>::is_zero(&self) {
                 return None;
             }
             // Count how many times we can divide by 10
@@ -65,9 +60,18 @@ c0nst::c0nst! {
             }
             Some(count)
         }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog for FixedUInt<T, N, Nct> {
+        fn ilog(self, base: Self) -> u32 {
+            match <Self as Ilog>::checked_ilog(self, base) {
+                Some(v) => v,
+                None => panic!("ilog: argument is zero or base is less than 2"),
+            }
+        }
 
         fn checked_ilog(self, base: Self) -> Option<u32> {
-            if self.is_zero() {
+            if <Self as Zero>::is_zero(&self) {
                 return None;
             }
             let two: Self = core::convert::From::from(2u8);
@@ -84,6 +88,33 @@ c0nst::c0nst! {
             Some(count)
         }
     }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog2 for &FixedUInt<T, N, Nct> {
+        fn ilog2(self) -> u32 {
+            <FixedUInt<T, N, Nct> as Ilog2>::ilog2(*self)
+        }
+        fn checked_ilog2(self) -> Option<u32> {
+            <FixedUInt<T, N, Nct> as Ilog2>::checked_ilog2(*self)
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog10 for &FixedUInt<T, N, Nct> {
+        fn ilog10(self) -> u32 {
+            <FixedUInt<T, N, Nct> as Ilog10>::ilog10(*self)
+        }
+        fn checked_ilog10(self) -> Option<u32> {
+            <FixedUInt<T, N, Nct> as Ilog10>::checked_ilog10(*self)
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog for &FixedUInt<T, N, Nct> {
+        fn ilog(self, base: Self) -> u32 {
+            <FixedUInt<T, N, Nct> as Ilog>::ilog(*self, *base)
+        }
+        fn checked_ilog(self, base: Self) -> Option<u32> {
+            <FixedUInt<T, N, Nct> as Ilog>::checked_ilog(*self, *base)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -94,30 +125,30 @@ mod tests {
     fn test_ilog2() {
         type U16 = FixedUInt<u8, 2>;
 
-        assert_eq!(ConstIlog::ilog2(U16::from(1u8)), 0);
-        assert_eq!(ConstIlog::ilog2(U16::from(2u8)), 1);
-        assert_eq!(ConstIlog::ilog2(U16::from(3u8)), 1);
-        assert_eq!(ConstIlog::ilog2(U16::from(4u8)), 2);
-        assert_eq!(ConstIlog::ilog2(U16::from(7u8)), 2);
-        assert_eq!(ConstIlog::ilog2(U16::from(8u8)), 3);
-        assert_eq!(ConstIlog::ilog2(U16::from(255u8)), 7);
-        assert_eq!(ConstIlog::ilog2(U16::from(256u16)), 8);
-        assert_eq!(ConstIlog::ilog2(U16::from(32768u16)), 15);
+        assert_eq!(Ilog2::ilog2(U16::from(1u8)), 0);
+        assert_eq!(Ilog2::ilog2(U16::from(2u8)), 1);
+        assert_eq!(Ilog2::ilog2(U16::from(3u8)), 1);
+        assert_eq!(Ilog2::ilog2(U16::from(4u8)), 2);
+        assert_eq!(Ilog2::ilog2(U16::from(7u8)), 2);
+        assert_eq!(Ilog2::ilog2(U16::from(8u8)), 3);
+        assert_eq!(Ilog2::ilog2(U16::from(255u8)), 7);
+        assert_eq!(Ilog2::ilog2(U16::from(256u16)), 8);
+        assert_eq!(Ilog2::ilog2(U16::from(32768u16)), 15);
     }
 
     #[test]
     fn test_ilog10() {
         type U16 = FixedUInt<u8, 2>;
 
-        assert_eq!(ConstIlog::ilog10(U16::from(1u8)), 0);
-        assert_eq!(ConstIlog::ilog10(U16::from(9u8)), 0);
-        assert_eq!(ConstIlog::ilog10(U16::from(10u8)), 1);
-        assert_eq!(ConstIlog::ilog10(U16::from(99u8)), 1);
-        assert_eq!(ConstIlog::ilog10(U16::from(100u8)), 2);
-        assert_eq!(ConstIlog::ilog10(U16::from(999u16)), 2);
-        assert_eq!(ConstIlog::ilog10(U16::from(1000u16)), 3);
-        assert_eq!(ConstIlog::ilog10(U16::from(9999u16)), 3);
-        assert_eq!(ConstIlog::ilog10(U16::from(10000u16)), 4);
+        assert_eq!(Ilog10::ilog10(U16::from(1u8)), 0);
+        assert_eq!(Ilog10::ilog10(U16::from(9u8)), 0);
+        assert_eq!(Ilog10::ilog10(U16::from(10u8)), 1);
+        assert_eq!(Ilog10::ilog10(U16::from(99u8)), 1);
+        assert_eq!(Ilog10::ilog10(U16::from(100u8)), 2);
+        assert_eq!(Ilog10::ilog10(U16::from(999u16)), 2);
+        assert_eq!(Ilog10::ilog10(U16::from(1000u16)), 3);
+        assert_eq!(Ilog10::ilog10(U16::from(9999u16)), 3);
+        assert_eq!(Ilog10::ilog10(U16::from(10000u16)), 4);
     }
 
     #[test]
@@ -125,37 +156,37 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         // Base 2
-        assert_eq!(ConstIlog::ilog(U16::from(8u8), U16::from(2u8)), 3);
-        assert_eq!(ConstIlog::ilog(U16::from(9u8), U16::from(2u8)), 3);
+        assert_eq!(Ilog::ilog(U16::from(8u8), U16::from(2u8)), 3);
+        assert_eq!(Ilog::ilog(U16::from(9u8), U16::from(2u8)), 3);
 
         // Base 3
-        assert_eq!(ConstIlog::ilog(U16::from(1u8), U16::from(3u8)), 0);
-        assert_eq!(ConstIlog::ilog(U16::from(3u8), U16::from(3u8)), 1);
-        assert_eq!(ConstIlog::ilog(U16::from(8u8), U16::from(3u8)), 1);
-        assert_eq!(ConstIlog::ilog(U16::from(9u8), U16::from(3u8)), 2);
-        assert_eq!(ConstIlog::ilog(U16::from(27u8), U16::from(3u8)), 3);
+        assert_eq!(Ilog::ilog(U16::from(1u8), U16::from(3u8)), 0);
+        assert_eq!(Ilog::ilog(U16::from(3u8), U16::from(3u8)), 1);
+        assert_eq!(Ilog::ilog(U16::from(8u8), U16::from(3u8)), 1);
+        assert_eq!(Ilog::ilog(U16::from(9u8), U16::from(3u8)), 2);
+        assert_eq!(Ilog::ilog(U16::from(27u8), U16::from(3u8)), 3);
 
         // Base 16
-        assert_eq!(ConstIlog::ilog(U16::from(255u8), U16::from(16u8)), 1);
-        assert_eq!(ConstIlog::ilog(U16::from(256u16), U16::from(16u8)), 2);
+        assert_eq!(Ilog::ilog(U16::from(255u8), U16::from(16u8)), 1);
+        assert_eq!(Ilog::ilog(U16::from(256u16), U16::from(16u8)), 2);
     }
 
     #[test]
     fn test_checked_ilog2() {
         type U16 = FixedUInt<u8, 2>;
 
-        assert_eq!(ConstIlog::checked_ilog2(U16::from(0u8)), None);
-        assert_eq!(ConstIlog::checked_ilog2(U16::from(1u8)), Some(0));
-        assert_eq!(ConstIlog::checked_ilog2(U16::from(8u8)), Some(3));
+        assert_eq!(Ilog2::checked_ilog2(U16::from(0u8)), None);
+        assert_eq!(Ilog2::checked_ilog2(U16::from(1u8)), Some(0));
+        assert_eq!(Ilog2::checked_ilog2(U16::from(8u8)), Some(3));
     }
 
     #[test]
     fn test_checked_ilog10() {
         type U16 = FixedUInt<u8, 2>;
 
-        assert_eq!(ConstIlog::checked_ilog10(U16::from(0u8)), None);
-        assert_eq!(ConstIlog::checked_ilog10(U16::from(1u8)), Some(0));
-        assert_eq!(ConstIlog::checked_ilog10(U16::from(100u8)), Some(2));
+        assert_eq!(Ilog10::checked_ilog10(U16::from(0u8)), None);
+        assert_eq!(Ilog10::checked_ilog10(U16::from(1u8)), Some(0));
+        assert_eq!(Ilog10::checked_ilog10(U16::from(100u8)), Some(2));
     }
 
     #[test]
@@ -163,37 +194,25 @@ mod tests {
         type U16 = FixedUInt<u8, 2>;
 
         // Zero argument
-        assert_eq!(
-            ConstIlog::checked_ilog(U16::from(0u8), U16::from(2u8)),
-            None
-        );
+        assert_eq!(Ilog::checked_ilog(U16::from(0u8), U16::from(2u8)), None);
         // Invalid base
-        assert_eq!(
-            ConstIlog::checked_ilog(U16::from(10u8), U16::from(0u8)),
-            None
-        );
-        assert_eq!(
-            ConstIlog::checked_ilog(U16::from(10u8), U16::from(1u8)),
-            None
-        );
+        assert_eq!(Ilog::checked_ilog(U16::from(10u8), U16::from(0u8)), None);
+        assert_eq!(Ilog::checked_ilog(U16::from(10u8), U16::from(1u8)), None);
         // Valid
-        assert_eq!(
-            ConstIlog::checked_ilog(U16::from(8u8), U16::from(2u8)),
-            Some(3)
-        );
+        assert_eq!(Ilog::checked_ilog(U16::from(8u8), U16::from(2u8)), Some(3));
     }
 
     c0nst::c0nst! {
         pub c0nst fn const_ilog2<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             v: FixedUInt<T, N, Nct>,
         ) -> u32 {
-            ConstIlog::ilog2(v)
+            Ilog2::ilog2(v)
         }
 
         pub c0nst fn const_ilog10<T: [c0nst] ConstMachineWord + MachineWord, const N: usize>(
             v: FixedUInt<T, N, Nct>,
         ) -> u32 {
-            ConstIlog::ilog10(v)
+            Ilog10::ilog10(v)
         }
     }
 

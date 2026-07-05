@@ -1,8 +1,8 @@
 use crate::fixeduint::FixedUInt;
 use crate::machineword::MachineWord;
-use crate::personality::Nct;
+use const_num_traits::Nct;
 use num_integer::Roots;
-use num_traits::{FromPrimitive, One, PrimInt, Zero};
+use num_traits::{FromPrimitive, One, Zero};
 
 impl<T: MachineWord, const N: usize> Roots for FixedUInt<T, N, Nct> {
     fn nth_root(&self, n: u32) -> Self {
@@ -70,7 +70,7 @@ impl<T: MachineWord, const N: usize> Roots for FixedUInt<T, N, Nct> {
 mod tests {
     use super::*;
     use num_integer::Roots;
-    use num_traits::{One, PrimInt};
+    use num_traits::One;
 
     #[test]
     fn test_sqrt_basic() {

@@ -6,10 +6,9 @@
 
 use core::ops::{BitAnd, BitOr, BitXor, Not};
 
-use fixed_bigint::const_numtraits::{
-    ConstBitPrimInt, ConstCarryingAdd, ConstMidpoint, ConstOverflowingAdd, ConstWrappingMul,
-};
-use fixed_bigint::{Ct, FixedUInt};
+use const_num_traits::Ct;
+use const_num_traits::{CarryingAdd, Midpoint, OverflowingAdd, PrimBits, WrappingMul};
+use fixed_bigint::FixedUInt;
 
 use crate::{ct_fix_bin, ct_fix_count, ct_fix_un};
 
@@ -87,7 +86,7 @@ macro_rules! emit_overflowing_add {
         ct_fix_bin!($name, $T, $N, |a, b| {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
             let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let (r, _ov) = ConstOverflowingAdd::overflowing_add(&x, &y);
+            let (r, _ov) = OverflowingAdd::overflowing_add(&x, &y);
             *r.words()
         });
     };
@@ -102,7 +101,7 @@ macro_rules! emit_wrapping_mul {
         ct_fix_bin!($name, $T, $N, |a, b| {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
             let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = ConstWrappingMul::wrapping_mul(&x, &y);
+            let r = WrappingMul::wrapping_mul(&x, &y);
             *r.words()
         });
     };
@@ -121,7 +120,7 @@ macro_rules! emit_carrying_add {
         // Take `bool` directly in the ABI. Going through `carry_in: u8`
         // and `!= 0` introduces a `cpi/brne` on AVR (no `setne`-style
         // instruction) — but that's a wrapper artifact, not a property
-        // of `ConstCarryingAdd::carrying_add` itself. We pass the bool
+        // of `CarryingAdd::carrying_add` itself. We pass the bool
         // straight through `black_box` so any branch the gate then
         // detects is inside the primitive, where it belongs.
         #[no_mangle]
@@ -136,7 +135,7 @@ macro_rules! emit_carrying_add {
             let c = core::hint::black_box(carry);
             let x = FixedUInt::<$T, $N, Ct>::from(a_arr);
             let y = FixedUInt::<$T, $N, Ct>::from(b_arr);
-            let (r, co) = ConstCarryingAdd::carrying_add(x, y, c);
+            let (r, co) = CarryingAdd::carrying_add(x, y, c);
             let result = core::hint::black_box(*r.words());
             unsafe {
                 *out_ptr = result;
@@ -159,7 +158,7 @@ macro_rules! emit_midpoint {
         ct_fix_bin!($name, $T, $N, |a, b| {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
             let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = ConstMidpoint::midpoint(x, y);
+            let r = Midpoint::midpoint(x, y);
             *r.words()
         });
     };
@@ -177,7 +176,7 @@ macro_rules! emit_count_ones {
     ($name:ident, $T:ty, $N:literal) => {
         ct_fix_count!($name, $T, $N, |a| {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
-            ConstBitPrimInt::count_ones(x)
+            PrimBits::count_ones(x)
         });
     };
 }
@@ -190,7 +189,7 @@ macro_rules! emit_swap_bytes {
     ($name:ident, $T:ty, $N:literal) => {
         ct_fix_un!($name, $T, $N, |a| {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = ConstBitPrimInt::swap_bytes(x);
+            let r = PrimBits::swap_bytes(x);
             *r.words()
         });
     };
@@ -204,7 +203,7 @@ macro_rules! emit_reverse_bits {
     ($name:ident, $T:ty, $N:literal) => {
         ct_fix_un!($name, $T, $N, |a| {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = ConstBitPrimInt::reverse_bits(x);
+            let r = PrimBits::reverse_bits(x);
             *r.words()
         });
     };
