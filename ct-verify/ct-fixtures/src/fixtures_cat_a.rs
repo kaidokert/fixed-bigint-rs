@@ -5,7 +5,7 @@
 //!   (u8, 16), (u16, 16), (u32, 4), (u32, 16), (u64, 4)
 
 use const_num_traits::Ct;
-use fixed_bigint::const_numtraits::{
+use const_num_traits::{
     AbsDiff, IsPowerOfTwo, NextPowerOfTwo, One, PrimBits, SaturatingAdd, SaturatingMul,
     SaturatingSub, UnboundedShl, UnboundedShr, Zero,
 };
