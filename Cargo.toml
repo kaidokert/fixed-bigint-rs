@@ -8,6 +8,13 @@ members = [
 ]
 resolver = "2"
 
+# TEMPORARY: pull the v0.1.2-alpha.0 const-num-traits (adds
+# `FromByteSlice`) from git while the byte-trait alignment is being
+# prototyped across fixed-bigint / rsa/new_reduce / ed25519_heapless.
+# Drop this block once 0.1.2 is on crates.io.
+[patch.crates-io]
+const-num-traits = { git = "https://github.com/kaidokert/num-traits.git", tag = "v0.1.2-alpha.0" }
+
 # Pinned release profile: deterministic codegen so a passing PR locks
 # the inspection output.
 [profile.release]

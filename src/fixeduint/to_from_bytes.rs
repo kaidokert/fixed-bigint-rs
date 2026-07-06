@@ -176,6 +176,27 @@ where
     }
 }
 
+// `ToBytes for &FixedUInt` — needed by CT nonce paths where the value
+// lives behind `Zeroizing<T>` and `(*r).to_le_bytes()` would deref-copy
+// an unwrapped secret onto the stack. `<&T as ToBytes>::to_le_bytes(&*r)`
+// reads through the reference; only the output `BytesHolder` is
+// unwrapped material and the caller can wrap that (or rely on the
+// crate-side `ZeroizeOnDrop` when the feature is on).
+#[cfg(not(feature = "nightly"))]
+impl<T: MachineWord, const N: usize, P: Personality> const_num_traits::ToBytes
+    for &FixedUInt<T, N, P>
+where
+    T: core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, N>;
+    fn to_be_bytes(self) -> Self::Bytes {
+        self.holder_be()
+    }
+    fn to_le_bytes(self) -> Self::Bytes {
+        self.holder_le()
+    }
+}
+
 #[cfg(not(feature = "nightly"))]
 impl<T: MachineWord, const N: usize, P: Personality> const_num_traits::FromBytes
     for FixedUInt<T, N, P>

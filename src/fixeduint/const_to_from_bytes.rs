@@ -141,6 +141,54 @@ c0nst::c0nst! {
             Self::from_array(impl_from_be_bytes_slice::<T, N>(bytes.as_ref()))
         }
     }
+
+    // `ToBytes for &FixedUInt` — CT nonce path counterpart of the owned
+    // impl above. See `to_from_bytes.rs` for the rationale (calling
+    // `.to_le_bytes()` on `Zeroizing<T>` via `(*r)` deref-copies the
+    // secret onto the stack; the by-reference impl reads limbs through
+    // the reference so no owned `FixedUInt` materializes).
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> ToBytes for &FixedUInt<T, N, P>
+    where
+        [(); byte_len::<T, N>()]:,
+        <T as ToBytes>::Bytes: Copy + [c0nst] AsRef<[u8]>,
+    {
+        type Bytes = ConstBytesHolder<{ byte_len::<T, N>() }>;
+
+        fn to_le_bytes(self) -> Self::Bytes {
+            let mut result = ConstBytesHolder { bytes: [0u8; byte_len::<T, N>()] };
+            let word_size = size_of::<T>();
+            let mut i = 0;
+            while i < N {
+                let word_bytes = ToBytes::to_le_bytes(self.array[i]);
+                let src = word_bytes.as_ref();
+                let mut j = 0;
+                while j < word_size {
+                    result.bytes[i * word_size + j] = src[j];
+                    j += 1;
+                }
+                i += 1;
+            }
+            result
+        }
+
+        fn to_be_bytes(self) -> Self::Bytes {
+            let mut result = ConstBytesHolder { bytes: [0u8; byte_len::<T, N>()] };
+            let word_size = size_of::<T>();
+            let mut i = 0;
+            while i < N {
+                let word_idx = N - 1 - i;
+                let word_bytes = ToBytes::to_be_bytes(self.array[word_idx]);
+                let src = word_bytes.as_ref();
+                let mut j = 0;
+                while j < word_size {
+                    result.bytes[i * word_size + j] = src[j];
+                    j += 1;
+                }
+                i += 1;
+            }
+            result
+        }
+    }
 }
 
 // Note: num_traits::ToBytes/FromBytes impls are in to_from_bytes.rs
