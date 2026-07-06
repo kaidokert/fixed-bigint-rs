@@ -22,7 +22,10 @@ panic-handler = []
 
 [dependencies]
 fixed-bigint = { path = "../.." }
-const-num-traits = { version = "0.1", default-features = false, features = ["ct"] }
+# TEMPORARY: kept in sync with the root manifest (v0.1.2-alpha.0
+# adds `FromByteSlice`). Reverts to `version = "0.1.2"` once on
+# crates.io.
+const-num-traits = { git = "https://github.com/kaidokert/num-traits.git", tag = "v0.1.2-alpha.0", default-features = false, features = ["ct"] }
 num-integer = { version = "0.1", default-features = false }
 subtle = { version = "2.6", default-features = false }
 

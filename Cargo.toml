@@ -8,12 +8,6 @@ members = [
 ]
 resolver = "2"
 
-# TEMPORARY: pull the v0.1.2-alpha.0 const-num-traits (adds
-# `FromByteSlice`) from git while the byte-trait alignment is being
-# prototyped across fixed-bigint / rsa/new_reduce / ed25519_heapless.
-# Drop this block once 0.1.2 is on crates.io.
-[patch.crates-io]
-const-num-traits = { git = "https://github.com/kaidokert/num-traits.git", tag = "v0.1.2-alpha.0" }
 
 # Pinned release profile: deterministic codegen so a passing PR locks
 # the inspection output.
@@ -56,8 +50,16 @@ version = "0.1.45"
 optional = true
 default-features = false
 
+# TEMPORARY: git dep on v0.1.2-alpha.0 (adds `FromByteSlice`) while
+# the byte-trait alignment is being prototyped across fixed-bigint,
+# rsa/new_reduce, and ed25519_heapless. Switches back to `version =
+# "0.1.2"` (crates.io) once the release lands. Direct git dep — not
+# a `[patch.crates-io]` block — so downstream consumers get the tag
+# transitively without having to repeat the patch in their own
+# workspace manifests.
 [dependencies.const-num-traits]
-version = "0.1.1"
+git = "https://github.com/kaidokert/num-traits.git"
+tag = "v0.1.2-alpha.0"
 default-features = false
 features = ["ct"]
 
