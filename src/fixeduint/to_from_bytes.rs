@@ -118,16 +118,24 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {
+    // Zero-init (`BytesHolder::default()`) rather than
+    // `BytesHolder::from_array(self.array)`. On the `&FixedUInt` path
+    // the latter would materialise the secret limb array on the stack
+    // as a Copy of the referenced `[T; N]` before the serialisation
+    // step overwrites it — defeating the CT/Zeroize goal of the
+    // by-reference impl. Zero-init writes serialised bytes through
+    // the reference directly. Also removes a wasted Copy on the
+    // owned path.
     #[inline]
     fn holder_be(&self) -> BytesHolder<T, N> {
-        let mut ret = BytesHolder::from_array(self.array);
+        let mut ret = BytesHolder::default();
         let _ = self.to_be_bytes(ret.as_byte_slice_mut());
         ret
     }
 
     #[inline]
     fn holder_le(&self) -> BytesHolder<T, N> {
-        let mut ret = BytesHolder::from_array(self.array);
+        let mut ret = BytesHolder::default();
         let _ = self.to_le_bytes(ret.as_byte_slice_mut());
         ret
     }

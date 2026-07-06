@@ -15,18 +15,29 @@
 use super::{FixedUInt, MachineWord};
 use const_num_traits::{ByteSliceError, ByteSliceErrorKind, FromByteSlice, Personality};
 
-impl<T: MachineWord, const N: usize, P: Personality> FromByteSlice for FixedUInt<T, N, P> {
-    fn from_be_slice(bytes: &[u8]) -> Result<Self, ByteSliceError> {
-        if bytes.is_empty() {
+impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
+    /// Length-check for the `FromByteSlice` methods: empty → `Empty`,
+    /// wider-than-`BYTE_WIDTH` → `Overflow`. Kept out-of-line so both
+    /// endianness bodies can share the same failure paths.
+    #[inline]
+    fn check_slice_len(len: usize) -> Result<(), ByteSliceError> {
+        if len == 0 {
             return Err(ByteSliceError {
                 kind: ByteSliceErrorKind::Empty,
             });
         }
-        if bytes.len() > Self::BYTE_WIDTH {
+        if len > Self::BYTE_WIDTH {
             return Err(ByteSliceError {
                 kind: ByteSliceErrorKind::Overflow,
             });
         }
+        Ok(())
+    }
+}
+
+impl<T: MachineWord, const N: usize, P: Personality> FromByteSlice for FixedUInt<T, N, P> {
+    fn from_be_slice(bytes: &[u8]) -> Result<Self, ByteSliceError> {
+        Self::check_slice_len(bytes.len())?;
         // `from_be_bytes` already zero-extends shorter input (BE
         // reads from the trailing window and initialises the array
         // to zero).
@@ -34,16 +45,7 @@ impl<T: MachineWord, const N: usize, P: Personality> FromByteSlice for FixedUInt
     }
 
     fn from_le_slice(bytes: &[u8]) -> Result<Self, ByteSliceError> {
-        if bytes.is_empty() {
-            return Err(ByteSliceError {
-                kind: ByteSliceErrorKind::Empty,
-            });
-        }
-        if bytes.len() > Self::BYTE_WIDTH {
-            return Err(ByteSliceError {
-                kind: ByteSliceErrorKind::Overflow,
-            });
-        }
+        Self::check_slice_len(bytes.len())?;
         Ok(Self::from_le_bytes(bytes))
     }
 }
