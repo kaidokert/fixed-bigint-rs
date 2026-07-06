@@ -8,7 +8,6 @@ members = [
 ]
 resolver = "2"
 
-
 # Pinned release profile: deterministic codegen so a passing PR locks
 # the inspection output.
 [profile.release]
