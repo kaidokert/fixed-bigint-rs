@@ -14,10 +14,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 fixed-bigint = { path = "../.." }
-# TEMPORARY: kept in sync with the root manifest (v0.1.2-alpha.0
-# adds `FromByteSlice`). Reverts to `version = "0.1.2"` once on
-# crates.io.
-const-num-traits = { git = "https://github.com/kaidokert/num-traits.git", tag = "v0.1.2-alpha.0", default-features = false }
+const-num-traits = { version = "0.1.2", default-features = false }
 
 # Workspace `[profile.release]` (lto=fat, codegen-units=1, opt-level=z,
 # panic=abort) is what makes DCE worth measuring; do not override here.

@@ -50,16 +50,8 @@ version = "0.1.45"
 optional = true
 default-features = false
 
-# TEMPORARY: git dep on v0.1.2-alpha.0 (adds `FromByteSlice`) while
-# the byte-trait alignment is being prototyped across fixed-bigint,
-# rsa/new_reduce, and ed25519_heapless. Switches back to `version =
-# "0.1.2"` (crates.io) once the release lands. Direct git dep — not
-# a `[patch.crates-io]` block — so downstream consumers get the tag
-# transitively without having to repeat the patch in their own
-# workspace manifests.
 [dependencies.const-num-traits]
-git = "https://github.com/kaidokert/num-traits.git"
-tag = "v0.1.2-alpha.0"
+version = "0.1.2"
 default-features = false
 features = ["ct"]
 
