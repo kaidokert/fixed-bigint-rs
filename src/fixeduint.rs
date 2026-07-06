@@ -31,6 +31,7 @@ mod cios_row_ops_impl;
 mod div_ceil_impl;
 mod euclid;
 mod extended_precision_impl;
+mod from_byte_slice_impl;
 mod has_nonzero_impl;
 mod has_personality_impl;
 mod ilog_impl;

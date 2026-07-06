@@ -118,16 +118,24 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {
+    // Zero-init (`BytesHolder::default()`) rather than
+    // `BytesHolder::from_array(self.array)`. On the `&FixedUInt` path
+    // the latter would materialise the secret limb array on the stack
+    // as a Copy of the referenced `[T; N]` before the serialisation
+    // step overwrites it — defeating the CT/Zeroize goal of the
+    // by-reference impl. Zero-init writes serialised bytes through
+    // the reference directly. Also removes a wasted Copy on the
+    // owned path.
     #[inline]
     fn holder_be(&self) -> BytesHolder<T, N> {
-        let mut ret = BytesHolder::from_array(self.array);
+        let mut ret = BytesHolder::default();
         let _ = self.to_be_bytes(ret.as_byte_slice_mut());
         ret
     }
 
     #[inline]
     fn holder_le(&self) -> BytesHolder<T, N> {
-        let mut ret = BytesHolder::from_array(self.array);
+        let mut ret = BytesHolder::default();
         let _ = self.to_le_bytes(ret.as_byte_slice_mut());
         ret
     }
@@ -164,6 +172,27 @@ where
 #[cfg(not(feature = "nightly"))]
 impl<T: MachineWord, const N: usize, P: Personality> const_num_traits::ToBytes
     for FixedUInt<T, N, P>
+where
+    T: core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, N>;
+    fn to_be_bytes(self) -> Self::Bytes {
+        self.holder_be()
+    }
+    fn to_le_bytes(self) -> Self::Bytes {
+        self.holder_le()
+    }
+}
+
+// `ToBytes for &FixedUInt` — needed by CT nonce paths where the value
+// lives behind `Zeroizing<T>` and `(*r).to_le_bytes()` would deref-copy
+// an unwrapped secret onto the stack. `<&T as ToBytes>::to_le_bytes(&*r)`
+// reads through the reference; only the output `BytesHolder` is
+// unwrapped material and the caller can wrap that (or rely on the
+// crate-side `ZeroizeOnDrop` when the feature is on).
+#[cfg(not(feature = "nightly"))]
+impl<T: MachineWord, const N: usize, P: Personality> const_num_traits::ToBytes
+    for &FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {
