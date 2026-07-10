@@ -21,6 +21,7 @@ use const_num_traits::{CheckedMul, CheckedPow, One};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedPow for FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn checked_pow(self, exp: u32) -> Option<Self> {
             if exp == 0 {
                 return Some(Self::one());
@@ -49,8 +50,9 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedPow for &FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn checked_pow(self, exp: u32) -> Option<FixedUInt<T, N, Nct>> {
-            <FixedUInt<T, N, Nct> as CheckedPow>::checked_pow(*self, exp)
+            <FixedUInt<T, N, Nct> as CheckedPow>::checked_pow(FixedUInt::from_array(self.array), exp)
         }
     }
 }

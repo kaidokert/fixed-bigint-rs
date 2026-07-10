@@ -31,6 +31,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> NextMultipleOf for FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn next_multiple_of(self, rhs: Self) -> Self {
             match self.checked_next_multiple_of(rhs) {
                 Some(v) => v,
@@ -55,16 +56,17 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> MultipleOf for &FixedUInt<T, N, Nct> {
         fn is_multiple_of(self, rhs: Self) -> bool {
-            <FixedUInt<T, N, Nct> as MultipleOf>::is_multiple_of(*self, *rhs)
+            <FixedUInt<T, N, Nct> as MultipleOf>::is_multiple_of(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> NextMultipleOf for &FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn next_multiple_of(self, rhs: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as NextMultipleOf>::next_multiple_of(*self, *rhs)
+            <FixedUInt<T, N, Nct> as NextMultipleOf>::next_multiple_of(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array))
         }
         fn checked_next_multiple_of(self, rhs: Self) -> Option<FixedUInt<T, N, Nct>> {
-            <FixedUInt<T, N, Nct> as NextMultipleOf>::checked_next_multiple_of(*self, *rhs)
+            <FixedUInt<T, N, Nct> as NextMultipleOf>::checked_next_multiple_of(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array))
         }
     }
 }

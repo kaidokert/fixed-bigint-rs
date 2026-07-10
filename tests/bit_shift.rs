@@ -165,8 +165,8 @@ fn test_sh_variants() {
         INT: num_traits::PrimInt
             + core::fmt::Debug
             + core::convert::From<T>
-            + OverflowingShl
-            + OverflowingShr
+            + OverflowingShl<Output = INT>
+            + OverflowingShr<Output = INT>
             + num_traits::WrappingShl
             + num_traits::WrappingShr
             + num_traits::CheckedShl

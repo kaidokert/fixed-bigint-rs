@@ -220,6 +220,7 @@ const HELPER_ALLOWLIST: &[&str] = &[
     r"fixed_bigint9fixeduint23const_trailing_zeros_ct",
     // Per-limb arithmetic — N-bounded loops.
     r"fixed_bigint9fixeduint14add_with_carry",
+    r"fixed_bigint9fixeduint15sub_with_borrow",
     r"fixed_bigint9fixeduint9const_mul",
     r"fixed_bigint9fixeduint8add_impl",
     r"fixed_bigint9fixeduint8sub_impl",

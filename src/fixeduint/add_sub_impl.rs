@@ -1,15 +1,17 @@
 use super::{
-    FixedUInt, MachineWord, PanicReason, add_impl, const_ct_select, maybe_panic_if, sub_impl,
+    FixedUInt, MachineWord, PanicReason, add_impl, add_with_carry, const_ct_select, maybe_panic_if,
+    sub_impl, sub_with_borrow,
 };
 use crate::machineword::ConstMachineWord;
 use const_num_traits::ops::ct::{CtCheckedAdd, CtCheckedSub};
 use const_num_traits::{
     Bounded, CheckedAdd, CheckedSub, ConstZero, OverflowingAdd, OverflowingSub, Personality,
-    PersonalityTag, SaturatingAdd, SaturatingSub, WrappingAdd, WrappingSub,
+    PersonalityTag, SaturatingAdd, SaturatingSub, WrappingAdd, WrappingSub, Zero,
 };
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingAdd for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn overflowing_add(self, other: Self) -> (Self, bool) {
             let mut ret = self;
             let overflow = add_impl(&mut ret.array, &other.array);
@@ -18,6 +20,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingSub for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn overflowing_sub(self, other: Self) -> (Self, bool) {
             let mut ret = self;
             let overflow = sub_impl(&mut ret.array, &other.array);
@@ -26,18 +29,21 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingAdd for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn wrapping_add(self, other: Self) -> Self {
             <Self as OverflowingAdd>::overflowing_add(self, other).0
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingSub for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn wrapping_sub(self, other: Self) -> Self {
             <Self as OverflowingSub>::overflowing_sub(self, other).0
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedAdd for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn checked_add(self, other: Self) -> Option<Self> {
             let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(self, other);
             if overflow { None } else { Some(res) }
@@ -45,6 +51,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedSub for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn checked_sub(self, other: Self) -> Option<Self> {
             let (res, overflow) = <Self as OverflowingSub>::overflowing_sub(self, other);
             if overflow { None } else { Some(res) }
@@ -52,6 +59,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingAdd for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn saturating_add(self, other: Self) -> Self {
             let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(self, other);
             match P::TAG {
@@ -62,6 +70,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingSub for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn saturating_sub(self, other: Self) -> Self {
             let (res, overflow) = <Self as OverflowingSub>::overflowing_sub(self, other);
             match P::TAG {
@@ -101,16 +110,19 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Add<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn add(self, other: FixedUInt<T, N, P>) -> Self::Output {
-            let (res, overflow) = <FixedUInt<T, N, P> as OverflowingAdd>::overflowing_add(*self, other);
+            // Read `self.array` through the reference (no `*self`
+            // deref-copy of the full FixedUInt). `other` is already
+            // owned on this frame, so passing its array by ref is free.
+            let (array, overflow) = add_with_carry(&self.array, &other.array, false);
             maybe_panic_if::<P>(overflow, PanicReason::Add);
-            res
+            FixedUInt::from_array(array)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Add<Self> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn add(self, other: Self) -> Self::Output {
-            let (res, overflow) = <FixedUInt<T, N, P> as OverflowingAdd>::overflowing_add(*self, *other);
+            let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(self, other);
             maybe_panic_if::<P>(overflow, PanicReason::Add);
             res
         }
@@ -128,17 +140,17 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Sub<FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn sub(self, other: FixedUInt<T, N, P>) -> Self::Output {
-            let (res, overflow) = <FixedUInt<T, N, P> as OverflowingSub>::overflowing_sub(*self, other);
-            maybe_panic_if::<P>(overflow, PanicReason::Sub);
-            res
+            let (array, borrow) = sub_with_borrow(&self.array, &other.array, false);
+            maybe_panic_if::<P>(borrow, PanicReason::Sub);
+            FixedUInt::from_array(array)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Sub<Self> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn sub(self, other: Self) -> Self::Output {
-            let (res, overflow) = <FixedUInt<T, N, P> as OverflowingSub>::overflowing_sub(*self, *other);
-            maybe_panic_if::<P>(overflow, PanicReason::Sub);
+            let (res, borrow) = <Self as OverflowingSub>::overflowing_sub(self, other);
+            maybe_panic_if::<P>(borrow, PanicReason::Sub);
             res
         }
     }
@@ -188,51 +200,84 @@ c0nst::c0nst! {
     // `&FixedUInt`) without sprinkling derefs. The `Add<&FixedUInt> for
     // &FixedUInt` impls above supply `Output = FixedUInt<T,N,P>`.
 
+    // Read-through-ref primitives. The bodies MUST NOT deref-copy — that
+    // materialises the owned operand on the stack, defeating the CT /
+    // Zeroize defense-in-depth reason `&T` is used in the first place
+    // (nonce path in ed25519's CT sign, e.g. `Zeroizing<FixedUInt>` +
+    // `.wrapping_add(&r)`). `add_with_carry` / `sub_with_borrow` take
+    // `&[T; N]` and produce a fresh `[T; N]`; each `self.array[i]` /
+    // `other.array[i]` read is a per-limb Copy of `T`, not of the whole
+    // FixedUInt. `Checked*` / `Saturating*` for `&FixedUInt` below
+    // delegate here to inherit the same read-through-ref behaviour.
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingAdd for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn overflowing_add(self, other: Self) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as OverflowingAdd>::overflowing_add(*self, *other)
+            let (array, overflow) = add_with_carry(&self.array, &other.array, false);
+            (FixedUInt::from_array(array), overflow)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingSub for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn overflowing_sub(self, other: Self) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as OverflowingSub>::overflowing_sub(*self, *other)
+            let (array, borrow) = sub_with_borrow(&self.array, &other.array, false);
+            (FixedUInt::from_array(array), borrow)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingAdd for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn wrapping_add(self, other: Self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as WrappingAdd>::wrapping_add(*self, *other)
+            let (array, _carry) = add_with_carry(&self.array, &other.array, false);
+            FixedUInt::from_array(array)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingSub for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn wrapping_sub(self, other: Self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as WrappingSub>::wrapping_sub(*self, *other)
+            let (array, _borrow) = sub_with_borrow(&self.array, &other.array, false);
+            FixedUInt::from_array(array)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedAdd for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn checked_add(self, other: Self) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as CheckedAdd>::checked_add(*self, *other)
+            let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(self, other);
+            if overflow { None } else { Some(res) }
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedSub for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn checked_sub(self, other: Self) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as CheckedSub>::checked_sub(*self, *other)
+            let (res, borrow) = <Self as OverflowingSub>::overflowing_sub(self, other);
+            if borrow { None } else { Some(res) }
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingAdd for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn saturating_add(self, other: Self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as SaturatingAdd>::saturating_add(*self, *other)
+            let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(self, other);
+            if overflow {
+                <FixedUInt<T, N, P> as Bounded>::max_value()
+            } else {
+                res
+            }
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingSub for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn saturating_sub(self, other: Self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as SaturatingSub>::saturating_sub(*self, *other)
+            let (res, borrow) = <Self as OverflowingSub>::overflowing_sub(self, other);
+            if borrow {
+                <FixedUInt<T, N, P> as Zero>::zero()
+            } else {
+                res
+            }
         }
     }
 }
@@ -242,7 +287,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowin
     for FixedUInt<T, N, P>
 {
     fn overflowing_add(&self, other: &Self) -> (Self, bool) {
-        <Self as OverflowingAdd>::overflowing_add(*self, *other)
+        <&Self as OverflowingAdd>::overflowing_add(self, other)
     }
 }
 
@@ -251,14 +296,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingAdd
     for FixedUInt<T, N, P>
 {
     fn wrapping_add(&self, other: &Self) -> Self {
-        <Self as WrappingAdd>::wrapping_add(*self, *other)
+        <&Self as WrappingAdd>::wrapping_add(self, other)
     }
 }
 
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedAdd for FixedUInt<T, N, P> {
     fn checked_add(&self, other: &Self) -> Option<Self> {
-        <Self as CheckedAdd>::checked_add(*self, *other)
+        <&Self as CheckedAdd>::checked_add(self, other)
     }
 }
 
@@ -267,7 +312,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating
     for FixedUInt<T, N, P>
 {
     fn saturating_add(&self, other: &Self) -> Self {
-        <Self as SaturatingAdd>::saturating_add(*self, *other)
+        <&Self as SaturatingAdd>::saturating_add(self, other)
     }
 }
 
@@ -276,7 +321,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowin
     for FixedUInt<T, N, P>
 {
     fn overflowing_sub(&self, other: &Self) -> (Self, bool) {
-        <Self as OverflowingSub>::overflowing_sub(*self, *other)
+        <&Self as OverflowingSub>::overflowing_sub(self, other)
     }
 }
 
@@ -285,14 +330,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingSub
     for FixedUInt<T, N, P>
 {
     fn wrapping_sub(&self, other: &Self) -> Self {
-        <Self as WrappingSub>::wrapping_sub(*self, *other)
+        <&Self as WrappingSub>::wrapping_sub(self, other)
     }
 }
 
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedSub for FixedUInt<T, N, P> {
     fn checked_sub(&self, other: &Self) -> Option<Self> {
-        <Self as CheckedSub>::checked_sub(*self, *other)
+        <&Self as CheckedSub>::checked_sub(self, other)
     }
 }
 
@@ -301,7 +346,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating
     for FixedUInt<T, N, P>
 {
     fn saturating_sub(&self, other: &Self) -> Self {
-        <Self as SaturatingSub>::saturating_sub(*self, *other)
+        <&Self as SaturatingSub>::saturating_sub(self, other)
     }
 }
 
@@ -325,14 +370,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::Saturating for 
 // overflow flag to a `Choice`. Same shape upstream uses for the primitives.
 impl<T: MachineWord, const N: usize, P: Personality> CtCheckedAdd for FixedUInt<T, N, P> {
     fn ct_checked_add(&self, v: &Self) -> subtle::CtOption<Self> {
-        let (val, overflow) = <Self as OverflowingAdd>::overflowing_add(*self, *v);
+        let (val, overflow) = <&Self as OverflowingAdd>::overflowing_add(self, v);
         subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
     }
 }
 
 impl<T: MachineWord, const N: usize, P: Personality> CtCheckedSub for FixedUInt<T, N, P> {
     fn ct_checked_sub(&self, v: &Self) -> subtle::CtOption<Self> {
-        let (val, overflow) = <Self as OverflowingSub>::overflowing_sub(*self, *v);
+        let (val, overflow) = <&Self as OverflowingSub>::overflowing_sub(self, v);
         subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
     }
 }

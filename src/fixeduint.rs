@@ -181,28 +181,31 @@ fn ct_checked_shift_valid(bits: u32, bit_size: usize) -> subtle::Choice {
     subtle::Choice::from(1 ^ overflow)
 }
 
-impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt<T, N, Ct> {
+impl<T: MachineWord, const N: usize> FixedUInt<T, N, Ct> {
     /// CT-friendly counterpart to `num_traits::CheckedAdd::checked_add`.
     /// Returns `CtOption::new(res, Choice::from(!overflow))` — the result is
     /// always computed (always-iterate via overflowing_add), and the
     /// validity Choice carries the overflow flag without exposing it as
     /// a control-flow signal.
     pub fn ct_checked_add(&self, other: &Self) -> subtle::CtOption<Self> {
-        let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(*self, *other);
+        // Route through `&Self: OverflowingAdd` — reads limbs through
+        // the references (see `add_sub_impl.rs`), avoiding an
+        // intermediate deref-copy of the wrapped secret onto the stack.
+        let (res, overflow) = <&Self as OverflowingAdd>::overflowing_add(self, other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
 
     /// CT-friendly counterpart to `num_traits::CheckedSub::checked_sub`.
     pub fn ct_checked_sub(&self, other: &Self) -> subtle::CtOption<Self> {
-        let (res, overflow) = <Self as OverflowingSub>::overflowing_sub(*self, *other);
+        let (res, overflow) = <&Self as OverflowingSub>::overflowing_sub(self, other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
 
     /// CT-friendly counterpart to `num_traits::CheckedMul::checked_mul`.
     pub fn ct_checked_mul(&self, other: &Self) -> subtle::CtOption<Self> {
-        let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(*self, *other);
+        let (res, overflow) = <&Self as OverflowingMul>::overflowing_mul(self, other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
@@ -216,8 +219,13 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     /// `OverflowingShl::overflowing_shl` which routes through
     /// `normalize_shift_amount`'s tainted branch + variable-time modulo.
     pub fn ct_checked_shl(&self, bits: u32) -> subtle::CtOption<Self> {
+        // `const_unbounded_shl_u32` takes owned `FixedUInt<T,N,Ct>` and
+        // materialises a shifted copy on the stack regardless of input
+        // shape — same cost as `*self`. Kept explicit here so a future
+        // slice-based helper can replace this line without changing
+        // callers.
         subtle::CtOption::new(
-            bit_ops_impl::const_unbounded_shl_u32::<T, N, Ct>(*self, bits),
+            bit_ops_impl::const_unbounded_shl_u32::<T, N, Ct>(Self::from_array(self.array), bits),
             ct_checked_shift_valid(bits, Self::BIT_SIZE),
         )
     }
@@ -228,46 +236,12 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
     /// `const_unbounded_shr_u32`, validity flag derived branchlessly.
     pub fn ct_checked_shr(&self, bits: u32) -> subtle::CtOption<Self> {
         subtle::CtOption::new(
-            bit_ops_impl::const_unbounded_shr_u32::<T, N, Ct>(*self, bits),
+            bit_ops_impl::const_unbounded_shr_u32::<T, N, Ct>(Self::from_array(self.array), bits),
             ct_checked_shift_valid(bits, Self::BIT_SIZE),
         )
     }
 
-    /// CT-friendly counterpart to `NextPowerOfTwo::checked_next_power_of_two`.
-    pub fn ct_checked_next_power_of_two(self) -> subtle::CtOption<Self>
-    where
-        T: subtle::ConstantTimeEq,
-    {
-        let one = <Self as One>::one();
-        let m_one = <Self as const_num_traits::WrappingSub>::wrapping_sub(self, one);
-        let leading = <Self as PrimBits>::leading_zeros(m_one);
-        let bits = Self::BIT_SIZE as u32 - leading;
-        let shifted = one << (bits as usize);
-        let is_zero_choice =
-            <Self as subtle::ConstantTimeEq>::ct_eq(&self, &<Self as Zero>::zero());
-        // result = is_zero ? 1 : shifted
-        let result = <Self as subtle::ConditionallySelectable>::conditional_select(
-            &shifted,
-            &one,
-            is_zero_choice,
-        );
-        // overflow iff bits >= BIT_SIZE; when input == 0 we treat as valid
-        // (the answer is 1).
-        let overflow = (bits >= Self::BIT_SIZE as u32) as u8;
-        let valid_otherwise = subtle::Choice::from(1u8 ^ overflow);
-        let valid = <subtle::Choice as subtle::ConditionallySelectable>::conditional_select(
-            &valid_otherwise,
-            &subtle::Choice::from(1u8),
-            is_zero_choice,
-        );
-        subtle::CtOption::new(result, valid)
-    }
-
-    pub fn ct_checked_pow(self, exp: u32) -> subtle::CtOption<Self>
-    where
-        T: subtle::ConstantTimeEq + subtle::ConstantTimeGreater,
-        for<'a> &'a Self: core::ops::Mul<&'a Self, Output = Self>,
-    {
+    pub fn ct_checked_pow(self, exp: u32) -> subtle::CtOption<Self> {
         let mut result = <Self as One>::one();
         let mut base = self;
         let mut e = exp;
@@ -295,6 +269,44 @@ impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt
             base = new_base;
         }
         let valid = subtle::Choice::from(1u8 ^ any_overflow);
+        subtle::CtOption::new(result, valid)
+    }
+}
+
+// `ct_checked_next_power_of_two` is the only Ct inherent that consumes
+// `T: subtle::ConditionallySelectable` (via the branchless "1 iff zero
+// else shifted" select). Kept in its own impl block so the six
+// sibling `ct_checked_{add,sub,mul,shl,shr,pow}` methods are reachable
+// under the bare `T: MachineWord` bound that a CT-secure downstream
+// generic normally carries.
+impl<T: MachineWord + subtle::ConditionallySelectable, const N: usize> FixedUInt<T, N, Ct> {
+    /// CT-friendly counterpart to `NextPowerOfTwo::checked_next_power_of_two`.
+    pub fn ct_checked_next_power_of_two(self) -> subtle::CtOption<Self>
+    where
+        T: subtle::ConstantTimeEq,
+    {
+        let one = <Self as One>::one();
+        let m_one = <Self as const_num_traits::WrappingSub>::wrapping_sub(self, one);
+        let leading = <Self as PrimBits>::leading_zeros(m_one);
+        let bits = Self::BIT_SIZE as u32 - leading;
+        let shifted = one << (bits as usize);
+        let is_zero_choice =
+            <Self as subtle::ConstantTimeEq>::ct_eq(&self, &<Self as Zero>::zero());
+        // result = is_zero ? 1 : shifted
+        let result = <Self as subtle::ConditionallySelectable>::conditional_select(
+            &shifted,
+            &one,
+            is_zero_choice,
+        );
+        // overflow iff bits >= BIT_SIZE; when input == 0 we treat as valid
+        // (the answer is 1).
+        let overflow = (bits >= Self::BIT_SIZE as u32) as u8;
+        let valid_otherwise = subtle::Choice::from(1u8 ^ overflow);
+        let valid = <subtle::Choice as subtle::ConditionallySelectable>::conditional_select(
+            &valid_otherwise,
+            &subtle::Choice::from(1u8),
+            is_zero_choice,
+        );
         subtle::CtOption::new(result, valid)
     }
 }
@@ -382,7 +394,10 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
 
     /// Returns number of used bits.
     pub fn bit_length(&self) -> u32 {
-        Self::BIT_SIZE as u32 - PrimBits::leading_zeros(*self)
+        // `PrimBits::leading_zeros` takes `self` by value; slice-based
+        // `const_leading_zeros` in the same crate reads the array
+        // directly and avoids materialising a fresh FixedUInt.
+        Self::BIT_SIZE as u32 - const_leading_zeros(&self.array)
     }
 }
 

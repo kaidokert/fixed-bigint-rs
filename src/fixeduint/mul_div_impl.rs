@@ -12,12 +12,13 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::overflowin
     for FixedUInt<T, N, P>
 {
     fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
-        <Self as OverflowingMul>::overflowing_mul(*self, *other)
+        <&Self as OverflowingMul>::overflowing_mul(self, other)
     }
 }
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingMul for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn overflowing_mul(self, other: Self) -> (Self, bool) {
             let (array, overflow) = const_mul::<T, N, true, P>(&self.array, &other.array, Self::WORD_BITS);
             (Self::from_array(array), overflow)
@@ -25,6 +26,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingMul for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn wrapping_mul(self, other: Self) -> Self {
             let (array, _) = const_mul::<T, N, false, P>(&self.array, &other.array, Self::WORD_BITS);
             Self::from_array(array)
@@ -32,6 +34,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedMul for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn checked_mul(self, other: Self) -> Option<Self> {
             let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(self, other);
             if overflow { None } else { Some(res) }
@@ -39,6 +42,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingMul for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn saturating_mul(self, other: Self) -> Self {
             let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(self, other);
             match P::TAG {
@@ -48,29 +52,57 @@ c0nst::c0nst! {
         }
     }
 
-    // --- Reference-receiver mul impls (see add_sub_impl.rs for rationale) ---
+    // --- Reference-receiver mul impls -------------------------------------
+    //
+    // Read-through-ref primitives. See add_sub_impl.rs for the CT rationale
+    // — bodies must NOT deref-copy the operand `FixedUInt` onto the stack
+    // (that defeats the whole reason `&T` is used, e.g. `Zeroizing<T>` on
+    // ed25519's CT sign path). `const_mul` reads `&[T; N]` slices and
+    // returns a fresh `[T; N]`. The `Checked` and `Saturating` mirrors
+    // delegate to the primitives above so they inherit the read-through
+    // behaviour.
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingMul for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn overflowing_mul(self, other: Self) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as OverflowingMul>::overflowing_mul(*self, *other)
+            let (array, overflow) = const_mul::<T, N, true, P>(
+                &self.array,
+                &other.array,
+                FixedUInt::<T, N, P>::WORD_BITS,
+            );
+            (FixedUInt::from_array(array), overflow)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingMul for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn wrapping_mul(self, other: Self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as WrappingMul>::wrapping_mul(*self, *other)
+            let (array, _overflow) = const_mul::<T, N, false, P>(
+                &self.array,
+                &other.array,
+                FixedUInt::<T, N, P>::WORD_BITS,
+            );
+            FixedUInt::from_array(array)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedMul for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn checked_mul(self, other: Self) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as CheckedMul>::checked_mul(*self, *other)
+            let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(self, other);
+            if overflow { None } else { Some(res) }
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingMul for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn saturating_mul(self, other: Self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as SaturatingMul>::saturating_mul(*self, *other)
+            let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(self, other);
+            if overflow {
+                <FixedUInt<T, N, P> as Bounded>::max_value()
+            } else {
+                res
+            }
         }
     }
 }
@@ -144,14 +176,14 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingMul
     for FixedUInt<T, N, P>
 {
     fn wrapping_mul(&self, other: &Self) -> Self {
-        <Self as WrappingMul>::wrapping_mul(*self, *other)
+        <&Self as WrappingMul>::wrapping_mul(self, other)
     }
 }
 
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedMul for FixedUInt<T, N, P> {
     fn checked_mul(&self, other: &Self) -> Option<Self> {
-        <Self as CheckedMul>::checked_mul(*self, *other)
+        <&Self as CheckedMul>::checked_mul(self, other)
     }
 }
 
@@ -160,7 +192,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::ops::saturating
     for FixedUInt<T, N, P>
 {
     fn saturating_mul(&self, other: &Self) -> Self {
-        <Self as SaturatingMul>::saturating_mul(*self, *other)
+        <&Self as SaturatingMul>::saturating_mul(self, other)
     }
 }
 
@@ -208,6 +240,7 @@ c0nst::c0nst! {
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedDiv for FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn checked_div(self, other: Self) -> Option<Self> {
             if <Self as Zero>::is_zero(&other) {
                 None
@@ -218,8 +251,9 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedDiv for &FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn checked_div(self, other: Self) -> Option<FixedUInt<T, N, Nct>> {
-            <FixedUInt<T, N, Nct> as CheckedDiv>::checked_div(*self, *other)
+            <FixedUInt<T, N, Nct> as CheckedDiv>::checked_div(FixedUInt::from_array(self.array), FixedUInt::from_array(other.array))
         }
     }
 }
@@ -227,7 +261,7 @@ c0nst::c0nst! {
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize> num_traits::CheckedDiv for FixedUInt<T, N, Nct> {
     fn checked_div(&self, other: &Self) -> Option<Self> {
-        <Self as CheckedDiv>::checked_div(*self, *other)
+        <&Self as CheckedDiv>::checked_div(self, other)
     }
 }
 
@@ -275,6 +309,7 @@ c0nst::c0nst! {
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedRem for FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn checked_rem(self, other: Self) -> Option<Self> {
             if <Self as Zero>::is_zero(&other) {
                 None
@@ -285,8 +320,9 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedRem for &FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn checked_rem(self, other: Self) -> Option<FixedUInt<T, N, Nct>> {
-            <FixedUInt<T, N, Nct> as CheckedRem>::checked_rem(*self, *other)
+            <FixedUInt<T, N, Nct> as CheckedRem>::checked_rem(FixedUInt::from_array(self.array), FixedUInt::from_array(other.array))
         }
     }
 }
@@ -294,7 +330,7 @@ c0nst::c0nst! {
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize> num_traits::CheckedRem for FixedUInt<T, N, Nct> {
     fn checked_rem(&self, other: &Self) -> Option<Self> {
-        <Self as CheckedRem>::checked_rem(*self, *other)
+        <&Self as CheckedRem>::checked_rem(self, other)
     }
 }
 
@@ -356,7 +392,7 @@ where
     T: MachineWord,
 {
     fn ct_checked_mul(&self, v: &Self) -> subtle::CtOption<Self> {
-        let (val, overflow) = <Self as OverflowingMul>::overflowing_mul(*self, *v);
+        let (val, overflow) = <&Self as OverflowingMul>::overflowing_mul(self, v);
         subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
     }
 }

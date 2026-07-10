@@ -55,7 +55,7 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Isqrt for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn isqrt(self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as Isqrt>::isqrt(*self)
+            <FixedUInt<T, N, Nct> as Isqrt>::isqrt(FixedUInt::from_array(self.array))
         }
     }
 }
