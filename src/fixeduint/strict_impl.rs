@@ -115,56 +115,56 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictAdd for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn strict_add(self, v: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as StrictAdd>::strict_add(*self, *v)
+            <FixedUInt<T, N, Nct> as StrictAdd>::strict_add(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictSub for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn strict_sub(self, v: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as StrictSub>::strict_sub(*self, *v)
+            <FixedUInt<T, N, Nct> as StrictSub>::strict_sub(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictMul for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn strict_mul(self, v: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as StrictMul>::strict_mul(*self, *v)
+            <FixedUInt<T, N, Nct> as StrictMul>::strict_mul(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictDiv for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn strict_div(self, v: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as StrictDiv>::strict_div(*self, *v)
+            <FixedUInt<T, N, Nct> as StrictDiv>::strict_div(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictRem for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn strict_rem(self, v: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as StrictRem>::strict_rem(*self, *v)
+            <FixedUInt<T, N, Nct> as StrictRem>::strict_rem(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictShl for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn strict_shl(self, rhs: u32) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as StrictShl>::strict_shl(*self, rhs)
+            <FixedUInt<T, N, Nct> as StrictShl>::strict_shl(FixedUInt::from_array(self.array), rhs)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictShr for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn strict_shr(self, rhs: u32) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as StrictShr>::strict_shr(*self, rhs)
+            <FixedUInt<T, N, Nct> as StrictShr>::strict_shr(FixedUInt::from_array(self.array), rhs)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> StrictPow for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn strict_pow(self, exp: u32) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as StrictPow>::strict_pow(*self, exp)
+            <FixedUInt<T, N, Nct> as StrictPow>::strict_pow(FixedUInt::from_array(self.array), exp)
         }
     }
 }

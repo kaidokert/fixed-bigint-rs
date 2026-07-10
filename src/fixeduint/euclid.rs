@@ -50,25 +50,25 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Euclid for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn div_euclid(self, v: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as Euclid>::div_euclid(*self, *v)
+            <FixedUInt<T, N, Nct> as Euclid>::div_euclid(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
         fn rem_euclid(self, v: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as Euclid>::rem_euclid(*self, *v)
+            <FixedUInt<T, N, Nct> as Euclid>::rem_euclid(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
         fn div_rem_euclid(self, v: Self) -> (FixedUInt<T, N, Nct>, FixedUInt<T, N, Nct>) {
-            <FixedUInt<T, N, Nct> as Euclid>::div_rem_euclid(*self, *v)
+            <FixedUInt<T, N, Nct> as Euclid>::div_rem_euclid(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> CheckedEuclid for &FixedUInt<T, N, Nct> {
         fn checked_div_euclid(self, v: Self) -> Option<FixedUInt<T, N, Nct>> {
-            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_div_euclid(*self, *v)
+            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_div_euclid(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
         fn checked_rem_euclid(self, v: Self) -> Option<FixedUInt<T, N, Nct>> {
-            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_rem_euclid(*self, *v)
+            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_rem_euclid(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
         fn checked_div_rem_euclid(self, v: Self) -> Option<(FixedUInt<T, N, Nct>, FixedUInt<T, N, Nct>)> {
-            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_div_rem_euclid(*self, *v)
+            <FixedUInt<T, N, Nct> as CheckedEuclid>::checked_div_rem_euclid(FixedUInt::from_array(self.array), FixedUInt::from_array(v.array))
         }
     }
 }

@@ -129,20 +129,20 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> IsPowerOfTwo for &FixedUInt<T, N, P> {
         fn is_power_of_two(self) -> bool {
-            <FixedUInt<T, N, P> as IsPowerOfTwo>::is_power_of_two(*self)
+            <FixedUInt<T, N, P> as IsPowerOfTwo>::is_power_of_two(FixedUInt::from_array(self.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> NextPowerOfTwo for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn next_power_of_two(self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as NextPowerOfTwo>::next_power_of_two(*self)
+            <FixedUInt<T, N, P> as NextPowerOfTwo>::next_power_of_two(FixedUInt::from_array(self.array))
         }
         fn checked_next_power_of_two(self) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as NextPowerOfTwo>::checked_next_power_of_two(*self)
+            <FixedUInt<T, N, P> as NextPowerOfTwo>::checked_next_power_of_two(FixedUInt::from_array(self.array))
         }
         fn wrapping_next_power_of_two(self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as NextPowerOfTwo>::wrapping_next_power_of_two(*self)
+            <FixedUInt<T, N, P> as NextPowerOfTwo>::wrapping_next_power_of_two(FixedUInt::from_array(self.array))
         }
     }
 }
@@ -161,7 +161,10 @@ where
         use const_num_traits::ops::ct::CtIsZero;
         let nonzero = !self.ct_is_zero();
         let one = <Self as ConstOne>::ONE;
-        let masked = *self & <Self as WrappingSub>::wrapping_sub(*self, one);
+        // Route through the by-ref `WrappingSub` so `self` isn't
+        // deref-copied onto the stack — matters on Ct paths where
+        // `self` may point into a `Zeroizing<T>` nonce.
+        let masked = self & <&Self as WrappingSub>::wrapping_sub(self, &one);
         let pow2 = masked.ct_is_zero();
         nonzero & pow2
     }
@@ -272,7 +275,7 @@ mod tests {
         pub c0nst fn const_is_power_of_two<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(
             v: &FixedUInt<T, N, P>,
         ) -> bool {
-            IsPowerOfTwo::is_power_of_two(*v)
+            IsPowerOfTwo::is_power_of_two(FixedUInt::<T, N, P>::from_array(v.array))
         }
 
         pub c0nst fn const_next_power_of_two<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality>(

@@ -177,14 +177,14 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CarryingAdd for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn carrying_add(self, rhs: Self, carry: bool) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as CarryingAdd>::carrying_add(*self, *rhs, carry)
+            <FixedUInt<T, N, P> as CarryingAdd>::carrying_add(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array), carry)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> BorrowingSub for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn borrowing_sub(self, rhs: Self, borrow: bool) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as BorrowingSub>::borrowing_sub(*self, *rhs, borrow)
+            <FixedUInt<T, N, P> as BorrowingSub>::borrowing_sub(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array), borrow)
         }
     }
 
@@ -195,10 +195,10 @@ c0nst::c0nst! {
         type Unsigned = FixedUInt<T, N, P>;
         type Output = FixedUInt<T, N, P>;
         fn carrying_mul(self, rhs: Self, carry: Self) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
-            <FixedUInt<T, N, P> as CarryingMul>::carrying_mul(*self, *rhs, *carry)
+            <FixedUInt<T, N, P> as CarryingMul>::carrying_mul(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array), FixedUInt::from_array(carry.array))
         }
         fn carrying_mul_add(self, rhs: Self, addend: Self, carry: Self) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
-            <FixedUInt<T, N, P> as CarryingMul>::carrying_mul_add(*self, *rhs, *addend, *carry)
+            <FixedUInt<T, N, P> as CarryingMul>::carrying_mul_add(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array), FixedUInt::from_array(addend.array), FixedUInt::from_array(carry.array))
         }
     }
 }

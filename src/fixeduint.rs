@@ -188,21 +188,24 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Ct> {
     /// validity Choice carries the overflow flag without exposing it as
     /// a control-flow signal.
     pub fn ct_checked_add(&self, other: &Self) -> subtle::CtOption<Self> {
-        let (res, overflow) = <Self as OverflowingAdd>::overflowing_add(*self, *other);
+        // Route through `&Self: OverflowingAdd` — reads limbs through
+        // the references (see `add_sub_impl.rs`), avoiding an
+        // intermediate deref-copy of the wrapped secret onto the stack.
+        let (res, overflow) = <&Self as OverflowingAdd>::overflowing_add(self, other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
 
     /// CT-friendly counterpart to `num_traits::CheckedSub::checked_sub`.
     pub fn ct_checked_sub(&self, other: &Self) -> subtle::CtOption<Self> {
-        let (res, overflow) = <Self as OverflowingSub>::overflowing_sub(*self, *other);
+        let (res, overflow) = <&Self as OverflowingSub>::overflowing_sub(self, other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
 
     /// CT-friendly counterpart to `num_traits::CheckedMul::checked_mul`.
     pub fn ct_checked_mul(&self, other: &Self) -> subtle::CtOption<Self> {
-        let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(*self, *other);
+        let (res, overflow) = <&Self as OverflowingMul>::overflowing_mul(self, other);
         let valid = subtle::Choice::from((!overflow) as u8);
         subtle::CtOption::new(res, valid)
     }
@@ -216,8 +219,13 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Ct> {
     /// `OverflowingShl::overflowing_shl` which routes through
     /// `normalize_shift_amount`'s tainted branch + variable-time modulo.
     pub fn ct_checked_shl(&self, bits: u32) -> subtle::CtOption<Self> {
+        // `const_unbounded_shl_u32` takes owned `FixedUInt<T,N,Ct>` and
+        // materialises a shifted copy on the stack regardless of input
+        // shape — same cost as `*self`. Kept explicit here so a future
+        // slice-based helper can replace this line without changing
+        // callers.
         subtle::CtOption::new(
-            bit_ops_impl::const_unbounded_shl_u32::<T, N, Ct>(*self, bits),
+            bit_ops_impl::const_unbounded_shl_u32::<T, N, Ct>(Self::from_array(self.array), bits),
             ct_checked_shift_valid(bits, Self::BIT_SIZE),
         )
     }
@@ -228,7 +236,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Ct> {
     /// `const_unbounded_shr_u32`, validity flag derived branchlessly.
     pub fn ct_checked_shr(&self, bits: u32) -> subtle::CtOption<Self> {
         subtle::CtOption::new(
-            bit_ops_impl::const_unbounded_shr_u32::<T, N, Ct>(*self, bits),
+            bit_ops_impl::const_unbounded_shr_u32::<T, N, Ct>(Self::from_array(self.array), bits),
             ct_checked_shift_valid(bits, Self::BIT_SIZE),
         )
     }
@@ -386,7 +394,10 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
 
     /// Returns number of used bits.
     pub fn bit_length(&self) -> u32 {
-        Self::BIT_SIZE as u32 - PrimBits::leading_zeros(*self)
+        // `PrimBits::leading_zeros` takes `self` by value; slice-based
+        // `const_leading_zeros` in the same crate reads the array
+        // directly and avoids materialising a fresh FixedUInt.
+        Self::BIT_SIZE as u32 - const_leading_zeros(&self.array)
     }
 }
 

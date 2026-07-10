@@ -33,7 +33,7 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> DivCeil for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn div_ceil(self, rhs: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as DivCeil>::div_ceil(*self, *rhs)
+            <FixedUInt<T, N, Nct> as DivCeil>::div_ceil(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array))
         }
     }
 }

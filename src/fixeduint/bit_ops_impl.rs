@@ -224,56 +224,56 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<usize> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: usize) -> Self::Output {
-            (*self).shl(bits)
+            FixedUInt::from_array(self.array).shl(bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<usize> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: usize) -> Self::Output {
-            (*self).shr(bits)
+            FixedUInt::from_array(self.array).shr(bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: u32) -> Self::Output {
-            (*self).shl(bits)
+            FixedUInt::from_array(self.array).shl(bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: u32) -> Self::Output {
-            (*self).shr(bits)
+            FixedUInt::from_array(self.array).shr(bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<&usize> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: &usize) -> Self::Output {
-            (*self).shl(*bits)
+            FixedUInt::from_array(self.array).shl(*bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<&usize> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: &usize) -> Self::Output {
-            (*self).shr(*bits)
+            FixedUInt::from_array(self.array).shr(*bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shl<&u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl(self, bits: &u32) -> Self::Output {
-            (*self).shl(*bits)
+            FixedUInt::from_array(self.array).shl(*bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Shr<&u32> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr(self, bits: &u32) -> Self::Output {
-            (*self).shr(*bits)
+            FixedUInt::from_array(self.array).shr(*bits)
         }
     }
 
@@ -491,56 +491,56 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingShl for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn overflowing_shl(self, bits: u32) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as OverflowingShl>::overflowing_shl(*self, bits)
+            <FixedUInt<T, N, P> as OverflowingShl>::overflowing_shl(FixedUInt::from_array(self.array), bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingShr for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn overflowing_shr(self, bits: u32) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as OverflowingShr>::overflowing_shr(*self, bits)
+            <FixedUInt<T, N, P> as OverflowingShr>::overflowing_shr(FixedUInt::from_array(self.array), bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingShl for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn wrapping_shl(self, bits: u32) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as WrappingShl>::wrapping_shl(*self, bits)
+            <FixedUInt<T, N, P> as WrappingShl>::wrapping_shl(FixedUInt::from_array(self.array), bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingShr for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn wrapping_shr(self, bits: u32) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as WrappingShr>::wrapping_shr(*self, bits)
+            <FixedUInt<T, N, P> as WrappingShr>::wrapping_shr(FixedUInt::from_array(self.array), bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedShl for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn checked_shl(self, bits: u32) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as CheckedShl>::checked_shl(*self, bits)
+            <FixedUInt<T, N, P> as CheckedShl>::checked_shl(FixedUInt::from_array(self.array), bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedShr for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn checked_shr(self, bits: u32) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as CheckedShr>::checked_shr(*self, bits)
+            <FixedUInt<T, N, P> as CheckedShr>::checked_shr(FixedUInt::from_array(self.array), bits)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> UnboundedShl for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn unbounded_shl(self, rhs: u32) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as UnboundedShl>::unbounded_shl(*self, rhs)
+            <FixedUInt<T, N, P> as UnboundedShl>::unbounded_shl(FixedUInt::from_array(self.array), rhs)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> UnboundedShr for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn unbounded_shr(self, rhs: u32) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as UnboundedShr>::unbounded_shr(*self, rhs)
+            <FixedUInt<T, N, P> as UnboundedShr>::unbounded_shr(FixedUInt::from_array(self.array), rhs)
         }
     }
 
@@ -581,13 +581,13 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::HighestOne for &FixedUInt<T, N, P> {
         fn highest_one(self) -> Option<u32> {
-            <FixedUInt<T, N, P> as const_num_traits::HighestOne>::highest_one(*self)
+            <FixedUInt<T, N, P> as const_num_traits::HighestOne>::highest_one(FixedUInt::from_array(self.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::LowestOne for &FixedUInt<T, N, P> {
         fn lowest_one(self) -> Option<u32> {
-            <FixedUInt<T, N, P> as const_num_traits::LowestOne>::lowest_one(*self)
+            <FixedUInt<T, N, P> as const_num_traits::LowestOne>::lowest_one(FixedUInt::from_array(self.array))
         }
     }
 
@@ -604,7 +604,7 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::BitWidth for &FixedUInt<T, N, P> {
         fn bit_width(self) -> u32 {
-            <FixedUInt<T, N, P> as const_num_traits::BitWidth>::bit_width(*self)
+            <FixedUInt<T, N, P> as const_num_traits::BitWidth>::bit_width(FixedUInt::from_array(self.array))
         }
     }
 
@@ -653,14 +653,14 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::IsolateHighestOne for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn isolate_highest_one(self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as const_num_traits::IsolateHighestOne>::isolate_highest_one(*self)
+            <FixedUInt<T, N, P> as const_num_traits::IsolateHighestOne>::isolate_highest_one(FixedUInt::from_array(self.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::IsolateLowestOne for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn isolate_lowest_one(self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as const_num_traits::IsolateLowestOne>::isolate_lowest_one(*self)
+            <FixedUInt<T, N, P> as const_num_traits::IsolateLowestOne>::isolate_lowest_one(FixedUInt::from_array(self.array))
         }
     }
 
@@ -705,14 +705,14 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::ShlExact for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shl_exact(self, rhs: u32) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as const_num_traits::ShlExact>::shl_exact(*self, rhs)
+            <FixedUInt<T, N, P> as const_num_traits::ShlExact>::shl_exact(FixedUInt::from_array(self.array), rhs)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::ShrExact for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn shr_exact(self, rhs: u32) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as const_num_traits::ShrExact>::shr_exact(*self, rhs)
+            <FixedUInt<T, N, P> as const_num_traits::ShrExact>::shr_exact(FixedUInt::from_array(self.array), rhs)
         }
     }
 
@@ -754,14 +754,14 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::FunnelShl for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn funnel_shl(self, rhs: Self, n: u32) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as const_num_traits::FunnelShl>::funnel_shl(*self, *rhs, n)
+            <FixedUInt<T, N, P> as const_num_traits::FunnelShl>::funnel_shl(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array), n)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::FunnelShr for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn funnel_shr(self, rhs: Self, n: u32) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as const_num_traits::FunnelShr>::funnel_shr(*self, *rhs, n)
+            <FixedUInt<T, N, P> as const_num_traits::FunnelShr>::funnel_shr(FixedUInt::from_array(self.array), FixedUInt::from_array(rhs.array), n)
         }
     }
 
@@ -824,14 +824,14 @@ c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> const_num_traits::DepositBits for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn deposit_bits(self, mask: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as const_num_traits::DepositBits>::deposit_bits(*self, *mask)
+            <FixedUInt<T, N, Nct> as const_num_traits::DepositBits>::deposit_bits(FixedUInt::from_array(self.array), FixedUInt::from_array(mask.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> const_num_traits::ExtractBits for &FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
         fn extract_bits(self, mask: Self) -> FixedUInt<T, N, Nct> {
-            <FixedUInt<T, N, Nct> as const_num_traits::ExtractBits>::extract_bits(*self, *mask)
+            <FixedUInt<T, N, Nct> as const_num_traits::ExtractBits>::extract_bits(FixedUInt::from_array(self.array), FixedUInt::from_array(mask.array))
         }
     }
 }
@@ -842,7 +842,7 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingShl
     for FixedUInt<T, N, P>
 {
     fn wrapping_shl(&self, bits: u32) -> Self {
-        WrappingShl::wrapping_shl(*self, bits)
+        <&Self as WrappingShl>::wrapping_shl(self, bits)
     }
 }
 
@@ -851,21 +851,21 @@ impl<T: MachineWord, const N: usize, P: Personality> num_traits::WrappingShr
     for FixedUInt<T, N, P>
 {
     fn wrapping_shr(&self, bits: u32) -> Self {
-        WrappingShr::wrapping_shr(*self, bits)
+        <&Self as WrappingShr>::wrapping_shr(self, bits)
     }
 }
 
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedShl for FixedUInt<T, N, P> {
     fn checked_shl(&self, bits: u32) -> Option<Self> {
-        CheckedShl::checked_shl(*self, bits)
+        <&Self as CheckedShl>::checked_shl(self, bits)
     }
 }
 
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const N: usize, P: Personality> num_traits::CheckedShr for FixedUInt<T, N, P> {
     fn checked_shr(&self, bits: u32) -> Option<Self> {
-        CheckedShr::checked_shr(*self, bits)
+        <&Self as CheckedShr>::checked_shr(self, bits)
     }
 }
 

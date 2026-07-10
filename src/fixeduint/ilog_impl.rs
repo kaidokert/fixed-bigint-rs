@@ -91,28 +91,28 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog2 for &FixedUInt<T, N, Nct> {
         fn ilog2(self) -> u32 {
-            <FixedUInt<T, N, Nct> as Ilog2>::ilog2(*self)
+            <FixedUInt<T, N, Nct> as Ilog2>::ilog2(FixedUInt::from_array(self.array))
         }
         fn checked_ilog2(self) -> Option<u32> {
-            <FixedUInt<T, N, Nct> as Ilog2>::checked_ilog2(*self)
+            <FixedUInt<T, N, Nct> as Ilog2>::checked_ilog2(FixedUInt::from_array(self.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog10 for &FixedUInt<T, N, Nct> {
         fn ilog10(self) -> u32 {
-            <FixedUInt<T, N, Nct> as Ilog10>::ilog10(*self)
+            <FixedUInt<T, N, Nct> as Ilog10>::ilog10(FixedUInt::from_array(self.array))
         }
         fn checked_ilog10(self) -> Option<u32> {
-            <FixedUInt<T, N, Nct> as Ilog10>::checked_ilog10(*self)
+            <FixedUInt<T, N, Nct> as Ilog10>::checked_ilog10(FixedUInt::from_array(self.array))
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Ilog for &FixedUInt<T, N, Nct> {
         fn ilog(self, base: Self) -> u32 {
-            <FixedUInt<T, N, Nct> as Ilog>::ilog(*self, *base)
+            <FixedUInt<T, N, Nct> as Ilog>::ilog(FixedUInt::from_array(self.array), FixedUInt::from_array(base.array))
         }
         fn checked_ilog(self, base: Self) -> Option<u32> {
-            <FixedUInt<T, N, Nct> as Ilog>::checked_ilog(*self, *base)
+            <FixedUInt<T, N, Nct> as Ilog>::checked_ilog(FixedUInt::from_array(self.array), FixedUInt::from_array(base.array))
         }
     }
 }
