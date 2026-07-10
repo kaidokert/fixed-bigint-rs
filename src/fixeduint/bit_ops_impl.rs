@@ -1184,13 +1184,7 @@ mod tests {
     fn test_unbounded_shift_polymorphic() {
         fn test_unbounded<T>(val: T, shift: u32, expected_shl: T, expected_shr: T)
         where
-            T: UnboundedShl<Output = T>
-                + UnboundedShr<Output = T>
-                + core::ops::Shl<u32, Output = T>
-                + core::ops::Shr<u32, Output = T>
-                + Eq
-                + core::fmt::Debug
-                + Copy,
+            T: UnboundedShl<Output = T> + UnboundedShr<Output = T> + Eq + core::fmt::Debug + Copy,
         {
             assert_eq!(UnboundedShl::unbounded_shl(val, shift), expected_shl);
             assert_eq!(UnboundedShr::unbounded_shr(val, shift), expected_shr);
