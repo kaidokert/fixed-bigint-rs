@@ -22,9 +22,7 @@ panic-handler = []
 
 [dependencies]
 fixed-bigint = { path = "../.." }
-# TEMPORARY: kept in sync with the root manifest (v0.2.0-alpha.1).
-# Reverts to `version = "0.2"` once on crates.io.
-const-num-traits = { git = "https://github.com/kaidokert/num-traits.git", tag = "v0.2.0-alpha.1", default-features = false, features = ["ct"] }
+const-num-traits = { version = "0.2", default-features = false, features = ["ct"] }
 num-integer = { version = "0.1", default-features = false }
 subtle = { version = "2.6", default-features = false }
 
