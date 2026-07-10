@@ -52,33 +52,57 @@ c0nst::c0nst! {
         }
     }
 
-    // --- Reference-receiver mul impls (see add_sub_impl.rs for rationale) ---
+    // --- Reference-receiver mul impls -------------------------------------
+    //
+    // Read-through-ref primitives. See add_sub_impl.rs for the CT rationale
+    // — bodies must NOT deref-copy the operand `FixedUInt` onto the stack
+    // (that defeats the whole reason `&T` is used, e.g. `Zeroizing<T>` on
+    // ed25519's CT sign path). `const_mul` reads `&[T; N]` slices and
+    // returns a fresh `[T; N]`. The `Checked` and `Saturating` mirrors
+    // delegate to the primitives above so they inherit the read-through
+    // behaviour.
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> OverflowingMul for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn overflowing_mul(self, other: Self) -> (FixedUInt<T, N, P>, bool) {
-            <FixedUInt<T, N, P> as OverflowingMul>::overflowing_mul(*self, *other)
+            let (array, overflow) = const_mul::<T, N, true, P>(
+                &self.array,
+                &other.array,
+                FixedUInt::<T, N, P>::WORD_BITS,
+            );
+            (FixedUInt::from_array(array), overflow)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> WrappingMul for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn wrapping_mul(self, other: Self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as WrappingMul>::wrapping_mul(*self, *other)
+            let (array, _overflow) = const_mul::<T, N, false, P>(
+                &self.array,
+                &other.array,
+                FixedUInt::<T, N, P>::WORD_BITS,
+            );
+            FixedUInt::from_array(array)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CheckedMul for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn checked_mul(self, other: Self) -> Option<FixedUInt<T, N, P>> {
-            <FixedUInt<T, N, P> as CheckedMul>::checked_mul(*self, *other)
+            let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(self, other);
+            if overflow { None } else { Some(res) }
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> SaturatingMul for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn saturating_mul(self, other: Self) -> FixedUInt<T, N, P> {
-            <FixedUInt<T, N, P> as SaturatingMul>::saturating_mul(*self, *other)
+            let (res, overflow) = <Self as OverflowingMul>::overflowing_mul(self, other);
+            if overflow {
+                <FixedUInt<T, N, P> as Bounded>::max_value()
+            } else {
+                res
+            }
         }
     }
 }
