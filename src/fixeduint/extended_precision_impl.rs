@@ -19,8 +19,9 @@
 
 use super::{FixedUInt, MachineWord, add_with_carry, sub_with_borrow};
 use crate::machineword::ConstMachineWord;
-use const_num_traits::{BorrowingSub, Bounded, CarryingAdd, CarryingMul, Zero};
-use const_num_traits::{Personality, PersonalityTag};
+use const_num_traits::{
+    BorrowingSub, Bounded, CarryingAdd, CarryingMul, Personality, PersonalityTag, PrimInt, Zero,
+};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CarryingAdd for FixedUInt<T, N, P> {
@@ -70,10 +71,7 @@ c0nst::c0nst! {
         a: FixedUInt<T, N, P>, b: FixedUInt<T, N, P>,
     ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>)
     where
-        <T as ConstMachineWord>::ConstDoubleWord:
-            [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
-            + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
-            + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+        <T as ConstMachineWord>::ConstDoubleWord: [c0nst] PrimInt,
     {
         // External `WideningMul` on T returns a single wide-int
         // (`<u8 as WideningMul>::Wide = u16`), not a `(lo, hi)` tuple.
@@ -143,10 +141,7 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CarryingMul for FixedUInt<T, N, P>
     where
-        <T as ConstMachineWord>::ConstDoubleWord:
-            [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
-            + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
-            + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+        <T as ConstMachineWord>::ConstDoubleWord: [c0nst] PrimInt,
     {
         type Unsigned = Self;
         type Output = FixedUInt<T, N, P>;
@@ -195,10 +190,7 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> CarryingMul for &FixedUInt<T, N, P>
     where
-        <T as ConstMachineWord>::ConstDoubleWord:
-            [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
-            + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
-            + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+        <T as ConstMachineWord>::ConstDoubleWord: [c0nst] PrimInt,
     {
         type Unsigned = FixedUInt<T, N, P>;
         type Output = FixedUInt<T, N, P>;
@@ -242,10 +234,7 @@ mod tests {
             b: FixedUInt<T, N, P>,
         ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>)
         where
-            <T as ConstMachineWord>::ConstDoubleWord:
-                [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
-                + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
-                + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+            <T as ConstMachineWord>::ConstDoubleWord: [c0nst] PrimInt,
         {
             CarryingMul::carrying_mul(a, b, <FixedUInt<T, N, P> as Zero>::zero())
         }
@@ -256,10 +245,7 @@ mod tests {
             carry: FixedUInt<T, N, P>,
         ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>)
         where
-            <T as ConstMachineWord>::ConstDoubleWord:
-                [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
-                + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
-                + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+            <T as ConstMachineWord>::ConstDoubleWord: [c0nst] PrimInt,
         {
             CarryingMul::carrying_mul(a, b, carry)
         }
@@ -271,10 +257,7 @@ mod tests {
             carry: FixedUInt<T, N, P>,
         ) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>)
         where
-            <T as ConstMachineWord>::ConstDoubleWord:
-                [c0nst] core::ops::Mul<Output = <T as ConstMachineWord>::ConstDoubleWord>
-                + [c0nst] core::ops::BitAnd<Output = <T as ConstMachineWord>::ConstDoubleWord>
-                + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
+            <T as ConstMachineWord>::ConstDoubleWord: [c0nst] PrimInt,
         {
             CarryingMul::carrying_mul_add(a, b, addend, carry)
         }

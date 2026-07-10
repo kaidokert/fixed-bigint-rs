@@ -13,44 +13,38 @@
 // limitations under the License.
 
 pub use const_num_traits::PrimInt;
-use const_num_traits::{
-    BorrowingSub, CarryingAdd, OverflowingAdd, OverflowingSub, ToBytes, WideningMul,
-};
+use const_num_traits::{BorrowingSub, CarryingAdd, OverflowingSub, ToBytes};
 
 c0nst::c0nst! {
     /// Const-friendly aggregate trait bundling the arithmetic, bit,
     /// shift, and byte-conversion capabilities every limb type has to
     /// carry to serve as a `FixedUInt`'s `T`.
     ///
-    /// `*Assign` bounds are added explicitly: external `PrimBits` /
-    /// `PrimInt` cover the by-value bit/shift ops (the CT-friendly
-    /// core) but not their `*Assign` counterparts, which we rely on
-    /// in `fixeduint.rs` (the per-limb loops use `|=` / `^=` / `<<=`
-    /// / `>>=` / `&=` etc. on `T`).
+    /// The bit/shift `*Assign` supertraits are added explicitly:
+    /// `PrimBits`/`PrimInt` provide the by-value bit/shift ops but
+    /// not the `*Assign` counterparts, which the per-limb loops in
+    /// `fixeduint.rs`/`bit_ops_impl.rs` use (`|=` / `^=` / `<<=` /
+    /// `>>=` / `&=` on `T`). Arithmetic `*Assign` and `WideningMul`
+    /// are intentionally NOT here — no limb-loop uses `T += T` /
+    /// `T -= T`, and the crate doesn't call `T::widening_mul`
+    /// anywhere (the CarryingMul impls route through the
+    /// `ConstDoubleWord` associated type).
     pub c0nst trait ConstMachineWord:
         [c0nst] PrimInt +
-        [c0nst] OverflowingAdd<Output = Self> +
         [c0nst] OverflowingSub<Output = Self> +
         [c0nst] CarryingAdd<Output = Self> +
         [c0nst] BorrowingSub<Output = Self> +
         [c0nst] ToBytes +
-        [c0nst] WideningMul +
         [c0nst] core::ops::BitAndAssign +
         [c0nst] core::ops::BitOrAssign +
         [c0nst] core::ops::BitXorAssign +
         [c0nst] core::ops::ShlAssign<usize> +
         [c0nst] core::ops::ShrAssign<usize> +
-        [c0nst] core::ops::AddAssign +
-        [c0nst] core::ops::SubAssign +
         [c0nst] From<u8>
     {
         type ConstDoubleWord: [c0nst] PrimInt
             + [c0nst] core::ops::BitAndAssign
-            + [c0nst] core::ops::BitOrAssign
-            + [c0nst] core::ops::AddAssign
-            + [c0nst] core::ops::Mul<Output = Self::ConstDoubleWord>
-            + [c0nst] core::ops::BitAnd<Output = Self::ConstDoubleWord>
-            + [c0nst] core::ops::Shr<usize, Output = Self::ConstDoubleWord>;
+            + [c0nst] core::ops::AddAssign;
         fn to_double(self) -> Self::ConstDoubleWord;
         fn from_double(word: Self::ConstDoubleWord) -> Self;
     }
