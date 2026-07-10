@@ -5,6 +5,7 @@ use const_num_traits::{CheckedEuclid, Euclid, Zero};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Euclid for FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn div_euclid(self, v: Self) -> Self {
             // For unsigned integers, Euclidean division is the same as regular division
             self / v
@@ -47,6 +48,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> Euclid for &FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn div_euclid(self, v: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as Euclid>::div_euclid(*self, *v)
         }

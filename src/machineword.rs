@@ -29,10 +29,10 @@ c0nst::c0nst! {
     /// / `>>=` / `&=` etc. on `T`).
     pub c0nst trait ConstMachineWord:
         [c0nst] PrimInt +
-        [c0nst] OverflowingAdd +
-        [c0nst] OverflowingSub +
-        [c0nst] CarryingAdd +
-        [c0nst] BorrowingSub +
+        [c0nst] OverflowingAdd<Output = Self> +
+        [c0nst] OverflowingSub<Output = Self> +
+        [c0nst] CarryingAdd<Output = Self> +
+        [c0nst] BorrowingSub<Output = Self> +
         [c0nst] ToBytes +
         [c0nst] WideningMul +
         [c0nst] core::ops::BitAndAssign +

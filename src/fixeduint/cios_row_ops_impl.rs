@@ -27,7 +27,7 @@ use const_num_traits::{CarryingAdd, CarryingMul, ConstZero};
 
 impl<T, const N: usize, P: Personality> modmath_cios::CiosRowOps for FixedUInt<T, N, P>
 where
-    T: MachineWord + CarryingMul<Unsigned = T> + CarryingAdd,
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T> + CarryingAdd<Output = T>,
 {
     type Word = T;
 

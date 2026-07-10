@@ -24,6 +24,7 @@ use const_num_traits::{Personality, PersonalityTag};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + MachineWord, const N: usize, P: Personality> CarryingAdd for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn carrying_add(self, rhs: Self, carry: bool) -> (Self, bool) {
             let (array, carry_out) = add_with_carry(&self.array, &rhs.array, carry);
             (Self::from_array(array), carry_out)
@@ -31,6 +32,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> BorrowingSub for FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn borrowing_sub(self, rhs: Self, borrow: bool) -> (Self, bool) {
             let (array, borrow_out) = sub_with_borrow(&self.array, &rhs.array, borrow);
             (Self::from_array(array), borrow_out)
@@ -147,6 +149,7 @@ c0nst::c0nst! {
             + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
     {
         type Unsigned = Self;
+        type Output = FixedUInt<T, N, P>;
         fn carrying_mul(self, rhs: Self, carry: Self) -> (Self, Self) {
             // Full product + add carry to low half, propagate to high.
             let (lo, hi) = schoolbook_mul(self, rhs);
@@ -177,12 +180,14 @@ c0nst::c0nst! {
     // --- Reference-receiver bigint-helper impls -----------------------------
 
     c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] CarryingAdd + MachineWord, const N: usize, P: Personality> CarryingAdd for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn carrying_add(self, rhs: Self, carry: bool) -> (FixedUInt<T, N, P>, bool) {
             <FixedUInt<T, N, P> as CarryingAdd>::carrying_add(*self, *rhs, carry)
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + [c0nst] BorrowingSub + MachineWord, const N: usize, P: Personality> BorrowingSub for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
         fn borrowing_sub(self, rhs: Self, borrow: bool) -> (FixedUInt<T, N, P>, bool) {
             <FixedUInt<T, N, P> as BorrowingSub>::borrowing_sub(*self, *rhs, borrow)
         }
@@ -196,6 +201,7 @@ c0nst::c0nst! {
             + [c0nst] core::ops::Shr<usize, Output = <T as ConstMachineWord>::ConstDoubleWord>,
     {
         type Unsigned = FixedUInt<T, N, P>;
+        type Output = FixedUInt<T, N, P>;
         fn carrying_mul(self, rhs: Self, carry: Self) -> (FixedUInt<T, N, P>, FixedUInt<T, N, P>) {
             <FixedUInt<T, N, P> as CarryingMul>::carrying_mul(*self, *rhs, *carry)
         }
@@ -461,7 +467,7 @@ mod tests {
         // Generic test function following crate pattern
         fn test_widening<T>(a: T, b: T, expected_lo: T, expected_hi: T)
         where
-            T: CarryingMul<Unsigned = T>
+            T: CarryingMul<Unsigned = T, Output = T>
                 + core::ops::Mul<T, Output = T>
                 + CarryingAdd
                 + BorrowingSub
@@ -514,7 +520,7 @@ mod tests {
     fn test_carrying_mul_add_polymorphic() {
         fn test_cma<T>(a: T, b: T, addend: T, carry: T, expected_lo: T, expected_hi: T)
         where
-            T: CarryingMul<Unsigned = T>
+            T: CarryingMul<Unsigned = T, Output = T>
                 + core::ops::Mul<T, Output = T>
                 + Eq
                 + core::fmt::Debug

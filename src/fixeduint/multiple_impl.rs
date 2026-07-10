@@ -31,6 +31,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> NextMultipleOf for FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn next_multiple_of(self, rhs: Self) -> Self {
             match self.checked_next_multiple_of(rhs) {
                 Some(v) => v,
@@ -60,6 +61,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> NextMultipleOf for &FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn next_multiple_of(self, rhs: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as NextMultipleOf>::next_multiple_of(*self, *rhs)
         }

@@ -21,6 +21,7 @@ use const_num_traits::{CheckedAdd, DivCeil, One};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> DivCeil for FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn div_ceil(self, rhs: Self) -> Self {
             match checked_div_ceil_impl(self, rhs) {
                 Some(v) => v,
@@ -30,6 +31,7 @@ c0nst::c0nst! {
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> DivCeil for &FixedUInt<T, N, Nct> {
+        type Output = FixedUInt<T, N, Nct>;
         fn div_ceil(self, rhs: Self) -> FixedUInt<T, N, Nct> {
             <FixedUInt<T, N, Nct> as DivCeil>::div_ceil(*self, *rhs)
         }
