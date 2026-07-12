@@ -601,6 +601,60 @@ fn leading_zeros_plus_bit_length_equals_cap_bits() {
     assert_eq!(v.leading_zeros() + v.bit_length(), 128);
 }
 
+// ── BitsPrecision (width = len·word_bits) / BitWidth (bit-length) ──
+
+#[test]
+fn bits_precision_is_len_times_word_bits_not_cap() {
+    use const_num_traits::BitsPrecision;
+    // u32 backing: width = len * 32, tracks the constructed len, never CAP.
+    assert_eq!(
+        BitsPrecision::bits_precision(H4u32Nct::from_limbs([1, 0, 0, 0], 1)),
+        32
+    );
+    assert_eq!(
+        BitsPrecision::bits_precision(H4u32Nct::from_limbs([1, 2, 0, 0], 2)),
+        64
+    );
+    assert_eq!(
+        BitsPrecision::bits_precision(H4u32Nct::from_limbs([1, 2, 3, 4], 4)),
+        128
+    );
+    // len 0 (mathematical zero) → width 0.
+    assert_eq!(BitsPrecision::bits_precision(<H4u32Nct as Zero>::zero()), 0);
+    // u8 backing: width = len * 8.
+    type H8u8 = HeaplessBigInt<u8, 8, Nct>;
+    assert_eq!(
+        BitsPrecision::bits_precision(H8u8::from_be_bytes(&[1, 2, 3])),
+        24
+    );
+}
+
+#[test]
+fn bits_precision_via_reference() {
+    use const_num_traits::BitsPrecision;
+    let v = H4u32Nct::from_limbs([1, 2, 0, 0], 2);
+    assert_eq!((&v).bits_precision(), 64);
+}
+
+#[test]
+fn bit_width_is_bit_length() {
+    use const_num_traits::BitWidth;
+    // Magnitude (top set bit), <= bits_precision.
+    assert_eq!(BitWidth::bit_width(<H4u32Nct as Zero>::zero()), 0);
+    assert_eq!(
+        BitWidth::bit_width(H4u32Nct::from_limbs([0b101, 0, 0, 0], 1)),
+        3
+    );
+    // A value at len 2 (width 64) whose magnitude is small: bit_width < precision.
+    let v = H4u32Nct::from_limbs([0xFF, 0, 0, 0], 2);
+    assert_eq!(BitWidth::bit_width(v), 8);
+    assert_eq!(
+        <H4u32Nct as const_num_traits::BitsPrecision>::bits_precision(v),
+        64
+    );
+    assert!(BitWidth::bit_width(v) <= const_num_traits::BitsPrecision::bits_precision(v));
+}
+
 #[test]
 fn bytes_work_across_widths() {
     // u8 backing: byte-per-limb, no cross-limb assembly.

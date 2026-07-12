@@ -41,3 +41,44 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         total_bits - self.bit_length()
     }
 }
+
+// ── const_num_traits::BitWidth (bit-length) / BitsPrecision (width) ──
+//
+// Two distinct quantities (bit-vocabulary canon): `bit_width` is the
+// significant-bit count (per-value magnitude); `bits_precision` is the
+// operating width, which for this variable-width carrier is the
+// constructed `len·word_bits` — NOT `CAP` (capacity stays out of any
+// trait answer). `bit_length <= bits_precision` always. Value receiver
+// per the traits; `&Self` mirrors (no reference blanket upstream).
+
+impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::BitWidth
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn bit_width(self) -> u32 {
+        self.bit_length() as u32
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::BitWidth
+    for &HeaplessBigInt<T, CAP, P>
+{
+    fn bit_width(self) -> u32 {
+        self.bit_length() as u32
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::BitsPrecision
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn bits_precision(self) -> u32 {
+        self.len as u32 * (core::mem::size_of::<T>() as u32 * 8)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::BitsPrecision
+    for &HeaplessBigInt<T, CAP, P>
+{
+    fn bits_precision(self) -> u32 {
+        self.len as u32 * (core::mem::size_of::<T>() as u32 * 8)
+    }
+}
