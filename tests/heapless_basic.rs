@@ -122,6 +122,34 @@ fn sub_underflow_wraps_and_flags() {
     assert_eq!(a.checked_sub(&b), None);
 }
 
+#[test]
+fn sub_underflow_wraps_at_full_cap_width() {
+    // Underflow wraps at the full container width (CAP limbs), matching
+    // FixedUInt<T, CAP> — not at max(operand_len). Output len = CAP.
+    let a = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([2, 0, 0, 0], 1);
+    let w = a.wrapping_sub(&b);
+    assert_eq!(w.len(), 4);
+    assert_eq!(w.all_limbs(), &[u32::MAX; 4]); // 2^128 - 1
+}
+
+#[test]
+fn wrapping_sub_is_value_deterministic_not_len_deterministic() {
+    // Same values carried at different lens must give the same wrapped
+    // result — the property the len-derived width previously violated.
+    let five_short: H4u32Nct = 5u32.into(); // len 1
+    let seven_short: H4u32Nct = 7u32.into();
+    let five_long = H4u32Nct::from_limbs([5, 0, 0, 0], 4); // len 4
+    let seven_long = H4u32Nct::from_limbs([7, 0, 0, 0], 4);
+    assert_eq!(
+        five_short.wrapping_sub(&seven_short),
+        five_long.wrapping_sub(&seven_long)
+    );
+    // And the value is the CAP-width wrap of 5 - 7 = -2.
+    let w = five_short.wrapping_sub(&seven_short);
+    assert_eq!(w.all_limbs(), &[u32::MAX - 1, u32::MAX, u32::MAX, u32::MAX]);
+}
+
 // ── Mul ──
 
 #[test]

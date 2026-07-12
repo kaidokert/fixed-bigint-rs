@@ -127,21 +127,26 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         if overflow { None } else { Some(res) }
     }
 
-    /// Wrapping subtraction. Output `len = max(a.len, b.len)`.
-    /// If `self < other`, the value wraps modulo `2^(len * WORD_BITS)`.
+    /// Wrapping subtraction. On underflow the value wraps modulo
+    /// `2^(CAP * WORD_BITS)` — the full container width, matching
+    /// `FixedUInt<T, CAP>`. Iterating the full `CAP` (rather than
+    /// `max(a.len, b.len)`) makes the result a function of the operand
+    /// *values*, not how their `len` was carried: `wrapping_sub(5, 7)`
+    /// is the same whether 5 and 7 are held at len 1 or len CAP. Output
+    /// `len = CAP`.
     pub fn wrapping_sub(&self, other: &Self) -> Self {
-        let out_len = core::cmp::max(self.len as usize, other.len as usize);
-        let mut out = Self::new_zero_with_len(out_len as u16);
-        let _borrow = sub_slice(&self.limbs, &other.limbs, &mut out.limbs, out_len);
-        debug_assert!(zero_tail_ok(&out.limbs, out_len));
+        let mut out = Self::new_zero_with_len(CAP as u16);
+        let _borrow = sub_slice(&self.limbs, &other.limbs, &mut out.limbs, CAP);
         out
     }
 
     /// Overflowing subtraction. Returns `(wrapped_result, borrow_out)`.
+    /// `borrow_out` is the true underflow flag (`self < other`); the
+    /// wrapped value is the CAP-width two's complement — see
+    /// [`wrapping_sub`](Self::wrapping_sub) on the width choice.
     pub fn overflowing_sub(&self, other: &Self) -> (Self, bool) {
-        let out_len = core::cmp::max(self.len as usize, other.len as usize);
-        let mut out = Self::new_zero_with_len(out_len as u16);
-        let borrow = sub_slice(&self.limbs, &other.limbs, &mut out.limbs, out_len);
+        let mut out = Self::new_zero_with_len(CAP as u16);
+        let borrow = sub_slice(&self.limbs, &other.limbs, &mut out.limbs, CAP);
         (out, borrow)
     }
 
