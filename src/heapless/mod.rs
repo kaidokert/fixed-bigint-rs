@@ -29,6 +29,8 @@ mod has_personality;
 mod identities;
 mod parity;
 mod shift;
+#[cfg(any(feature = "nightly", feature = "use-unsafe"))]
+mod to_bytes;
 #[cfg(feature = "zeroize")]
 mod zeroize_impl;
 

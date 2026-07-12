@@ -1188,3 +1188,78 @@ fn zeroize_wipes_value() {
     assert_eq!(v, H4u32Nct::default());
     assert_eq!(v.len(), 0);
 }
+
+// ── const_num_traits::ToBytes / FromBytes (needs BytesHolder) ──
+
+#[cfg(any(feature = "use-unsafe", feature = "nightly"))]
+mod to_from_bytes {
+    use super::*;
+    use const_num_traits::{FromBytes, ToBytes};
+
+    #[test]
+    fn to_be_bytes_is_full_container_width() {
+        // len=1 value in a CAP=4 u32 container → 16 bytes, left-padded.
+        let v: H4u32Nct = 0x1234_5678u32.into();
+        let bytes = ToBytes::to_be_bytes(v);
+        assert_eq!(bytes.as_ref().len(), 16);
+        // High 12 bytes zero, low 4 = the value big-endian.
+        assert_eq!(&bytes.as_ref()[..12], &[0u8; 12]);
+        assert_eq!(&bytes.as_ref()[12..], &[0x12, 0x34, 0x56, 0x78]);
+    }
+
+    #[test]
+    fn to_le_bytes_is_full_container_width() {
+        let v: H4u32Nct = 0x1234_5678u32.into();
+        let bytes = ToBytes::to_le_bytes(v);
+        assert_eq!(bytes.as_ref().len(), 16);
+        assert_eq!(&bytes.as_ref()[..4], &[0x78, 0x56, 0x34, 0x12]);
+        assert_eq!(&bytes.as_ref()[4..], &[0u8; 12]);
+    }
+
+    #[test]
+    fn be_round_trip_through_holder() {
+        let v = H4u32Nct::from_limbs([0xDEAD_BEEF, 0xCAFE_BABE, 0x0102_0304, 0], 3);
+        let bytes = ToBytes::to_be_bytes(v);
+        let back = <H4u32Nct as FromBytes>::from_be_bytes(&bytes);
+        // FromBytes reconstructs at full width (len = CAP); trim to compare value.
+        assert_eq!(back.trim(), v);
+    }
+
+    #[test]
+    fn le_round_trip_through_holder() {
+        let v = H4u32Nct::from_limbs([0xDEAD_BEEF, 0xCAFE_BABE, 0x0102_0304, 0], 3);
+        let bytes = ToBytes::to_le_bytes(v);
+        let back = <H4u32Nct as FromBytes>::from_le_bytes(&bytes);
+        assert_eq!(back.trim(), v);
+    }
+
+    #[test]
+    fn ref_tobytes_matches_owned() {
+        let v: H4u32Nct = 0xABCD_1234u32.into();
+        let owned = ToBytes::to_be_bytes(v);
+        let by_ref = ToBytes::to_be_bytes(&v);
+        assert_eq!(owned.as_ref(), by_ref.as_ref());
+    }
+
+    #[test]
+    fn byte_shape_matches_fixeduint_same_params() {
+        // The whole point of the full-width representation: a HeaplessBigInt
+        // and a FixedUInt of the same <T, CAP> serialise identically, so a
+        // carrier-generic consumer round-trips a modulus the same way.
+        use fixed_bigint::FixedUInt;
+        let h: H4u32Nct = 0x1234_5678u32.into();
+        let f = FixedUInt::<u32, 4>::from(0x1234_5678u32);
+        let hb = ToBytes::to_be_bytes(h);
+        let fb = <FixedUInt<u32, 4> as ToBytes>::to_be_bytes(f);
+        assert_eq!(hb.as_ref(), fb.as_ref());
+    }
+
+    #[test]
+    fn works_across_widths() {
+        type H8u8 = HeaplessBigInt<u8, 8, Nct>;
+        let v = H8u8::from_be_bytes(&[0x11, 0x22, 0x33, 0x44]);
+        let bytes = ToBytes::to_be_bytes(v);
+        assert_eq!(bytes.as_ref().len(), 8);
+        assert_eq!(bytes.as_ref(), &[0, 0, 0, 0, 0x11, 0x22, 0x33, 0x44]);
+    }
+}

@@ -35,8 +35,10 @@ impl<T: MachineWord, const N: usize> BytesHolder<T, N> {
     pub(crate) const fn from_array(array: [T; N]) -> Self {
         Self { array }
     }
-    // Converts internal storage to a mutable byte slice
-    fn as_byte_slice_mut(&mut self) -> &mut [u8] {
+    // Converts internal storage to a mutable byte slice.
+    // `pub(crate)` so the `heapless` module can build a holder from its
+    // own limb array with the same endianness discipline.
+    pub(crate) fn as_byte_slice_mut(&mut self) -> &mut [u8] {
         // SAFETY: This is safe because the size of the array is the same as the size of the slice
         unsafe {
             core::slice::from_raw_parts_mut(
