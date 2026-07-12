@@ -271,9 +271,11 @@ where
 fn trim_content<T: MachineWord, const CAP: usize, P: Personality>(
     mut v: HeaplessBigInt<T, CAP, P>,
 ) -> HeaplessBigInt<T, CAP, P> {
+    // Scan the value's own words (0..len); the zero-tail invariant means
+    // limbs beyond len are already zero, so CAP need not appear.
     let mut new_len: u16 = 0;
     let mut i = 0;
-    while i < CAP {
+    while i < v.len as usize {
         if !is_zero(&v.limbs[i]) {
             new_len = (i + 1) as u16;
         }
@@ -550,14 +552,14 @@ where
 
 // ── CarryingMul at the bigint level ──
 //
-// `(lo, hi) = self * rhs + carry`, splitting the 2·CAP-limb natural
-// product across two CAP-wide halves. Modmath's `WideMul` blanket
-// impl fires from this, unlocking the Montgomery driver.
-//
-// Both output halves get `len = CAP` — a public shape derived from the
-// type parameter, not from operand content. The full-CAP iteration
-// discipline is deliberate: widening semantics require the whole array
-// range, not the runtime-len subset.
+// `(lo, hi) = self * rhs + carry (+ add)`. The split between `lo` and
+// `hi` is the operands' **width** `W = max(len)` words — the
+// `R = 2^(W·word_bits)` boundary modmath's `WideMul`/wide-REDC
+// reconstructs against (`full = hi·2^(W·word_bits) + lo`), matching the
+// primitive contract (`200u8 * 200 → (64, 156)`, split at 8 bits). Both
+// halves get `len = W`; `CAP` (capacity) never enters — splitting there
+// would misalign the REDC. `W` also covers `carry`/`add`, which the
+// primitive contract keeps below one register (`< 2^W`).
 
 impl<T, const CAP: usize, P: Personality> CarryingMul for HeaplessBigInt<T, CAP, P>
 where
@@ -572,79 +574,79 @@ where
     }
 
     fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self::Unsigned, Self::Output) {
+        let w = core::cmp::max(
+            core::cmp::max(self.len as usize, rhs.len as usize),
+            core::cmp::max(carry.len as usize, add.len as usize),
+        );
         let mut lo_limbs = [zero::<T>(); CAP];
         let mut hi_limbs = [zero::<T>(); CAP];
 
-        // Schoolbook self * rhs accumulating into positions [0, 2·CAP).
+        // Schoolbook self * rhs into positions [0, 2W): pos < W → lo,
+        // else hi[pos - W]. Iterate the operands' word counts (public
+        // shape), not the array capacity.
+        let a_n = self.len as usize;
+        let b_n = rhs.len as usize;
         let mut i = 0;
-        while i < CAP {
+        while i < a_n {
             let mut c = zero::<T>();
             let mut j = 0;
-            while j < CAP {
+            while j < b_n {
                 let pos = i + j;
                 let (t_lo, t_hi) = <T as CarryingMul>::carrying_mul(self.limbs[i], rhs.limbs[j], c);
-                let existing = if pos < CAP {
+                let existing = if pos < w {
                     lo_limbs[pos]
                 } else {
-                    hi_limbs[pos - CAP]
+                    hi_limbs[pos - w]
                 };
                 let (sum, c1) = <T as CarryingAdd>::carrying_add(existing, t_lo, false);
-                if pos < CAP {
+                if pos < w {
                     lo_limbs[pos] = sum;
                 } else {
-                    hi_limbs[pos - CAP] = sum;
+                    hi_limbs[pos - w] = sum;
                 }
                 let (new_c, _) = <T as CarryingAdd>::carrying_add(t_hi, zero::<T>(), c1);
                 c = new_c;
                 j += 1;
             }
-            let (sum, _) = <T as CarryingAdd>::carrying_add(hi_limbs[i], c, false);
-            hi_limbs[i] = sum;
+            // Row-final carry at column i + b_n.
+            let tail = i + b_n;
+            if tail < w {
+                let (sum, _) = <T as CarryingAdd>::carrying_add(lo_limbs[tail], c, false);
+                lo_limbs[tail] = sum;
+            } else {
+                let (sum, _) = <T as CarryingAdd>::carrying_add(hi_limbs[tail - w], c, false);
+                hi_limbs[tail - w] = sum;
+            }
             i += 1;
         }
 
-        // Fold `carry` into the low half, propagating overflow into hi.
-        let mut cin = false;
-        let mut i = 0;
-        while i < CAP {
-            let (sum, c) = <T as CarryingAdd>::carrying_add(lo_limbs[i], carry.limbs[i], cin);
-            lo_limbs[i] = sum;
-            cin = c;
-            i += 1;
-        }
-        let mut i = 0;
-        while cin && i < CAP {
-            let (sum, c) = <T as CarryingAdd>::carrying_add(hi_limbs[i], zero::<T>(), true);
-            hi_limbs[i] = sum;
-            cin = c;
-            i += 1;
-        }
-
-        // Fold `add` into the low half the same way.
-        let mut cin = false;
-        let mut i = 0;
-        while i < CAP {
-            let (sum, c) = <T as CarryingAdd>::carrying_add(lo_limbs[i], add.limbs[i], cin);
-            lo_limbs[i] = sum;
-            cin = c;
-            i += 1;
-        }
-        let mut i = 0;
-        while cin && i < CAP {
-            let (sum, c) = <T as CarryingAdd>::carrying_add(hi_limbs[i], zero::<T>(), true);
-            hi_limbs[i] = sum;
-            cin = c;
-            i += 1;
+        // Fold carry, then add, into the low half [0, W); overflow into hi.
+        for src in [&carry, &add] {
+            let mut cin = false;
+            let mut i = 0;
+            while i < w {
+                let (sum, c) = <T as CarryingAdd>::carrying_add(lo_limbs[i], src.limbs[i], cin);
+                lo_limbs[i] = sum;
+                cin = c;
+                i += 1;
+            }
+            let mut i = 0;
+            while cin && i < w {
+                let (sum, c) = <T as CarryingAdd>::carrying_add(hi_limbs[i], zero::<T>(), true);
+                hi_limbs[i] = sum;
+                cin = c;
+                i += 1;
+            }
         }
 
         let lo = HeaplessBigInt {
             limbs: lo_limbs,
-            len: CAP as u16,
+            len: w as u16,
             _p: PhantomData,
         };
         let hi = HeaplessBigInt {
             limbs: hi_limbs,
-            len: CAP as u16,
+            len: w as u16,
             _p: PhantomData,
         };
         (lo, hi)

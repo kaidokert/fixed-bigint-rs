@@ -583,22 +583,29 @@ fn bit_length_ignores_zero_high_limbs() {
 }
 
 #[test]
-fn leading_zeros_zero() {
+fn leading_zeros_zero_is_zero_width() {
+    // Zero has len 0 → width 0 → no leading zeros (CAP does not enter).
     let z = <H4u32Nct as Zero>::zero();
-    // CAP=4 × 32 bits = 128.
-    assert_eq!(z.leading_zeros(), 128);
+    assert_eq!(z.leading_zeros(), 0);
 }
 
 #[test]
 fn leading_zeros_full_width_value() {
+    // len 4 → width 128, top bit set → 0 leading zeros.
     let v = H4u32Nct::from_limbs([0, 0, 0, 1u32 << 31], 4);
     assert_eq!(v.leading_zeros(), 0);
 }
 
 #[test]
-fn leading_zeros_plus_bit_length_equals_cap_bits() {
+fn leading_zeros_plus_bit_length_equals_width() {
+    // width = len·word_bits = 2·32 = 64 (not CAP·32 = 128).
     let v = H4u32Nct::from_limbs([0, 1u32 << 20, 0, 0], 2);
-    assert_eq!(v.leading_zeros() + v.bit_length(), 128);
+    assert_eq!(v.leading_zeros() + v.bit_length(), 64);
+    // And that equals bits_precision().
+    assert_eq!(
+        v.leading_zeros() + v.bit_length(),
+        <H4u32Nct as const_num_traits::BitsPrecision>::bits_precision(v) as usize
+    );
 }
 
 // ── BitsPrecision (width = len·word_bits) / BitWidth (bit-length) ──
@@ -996,6 +1003,27 @@ fn carrying_mul_add_two_adders() {
     let expected_lo: H4u32Nct = 42u8.into();
     assert_eq!(lo, expected_lo);
     assert!(<H4u32Nct as const_num_traits::Zero>::is_zero(&hi));
+}
+
+#[test]
+fn carrying_mul_splits_at_operand_width_not_cap() {
+    use const_num_traits::CarryingMul;
+    // The WideMul/wide-REDC contract: split at the operand WIDTH, so the
+    // (lo, hi) reconstruct as `hi·2^width + lo`. For width-8 operands
+    // (u8 backing, len 1), 200 * 200 = 40000 must split at 8 bits into
+    // (64, 156) — exactly like the u8 primitive — NOT (40000, 0) at CAP.
+    type H4u8 = HeaplessBigInt<u8, 4, Nct>;
+    let a = H4u8::from_limbs([200, 0, 0, 0], 1); // width 8
+    let b = H4u8::from_limbs([200, 0, 0, 0], 1);
+    let zero_v = <H4u8 as Zero>::zero();
+    let (lo, hi) = a.carrying_mul(b, zero_v);
+    assert_eq!(lo.len(), 1, "lo width == operand width (1 word), not CAP");
+    assert_eq!(hi.len(), 1);
+    assert_eq!(lo.limbs()[0], 64); // 40000 & 0xFF
+    assert_eq!(hi.limbs()[0], 156); // 40000 >> 8
+    // Matches the primitive wide-multiply exactly.
+    assert_eq!((200u8 as u16 * 200) & 0xFF, lo.limbs()[0] as u16);
+    assert_eq!((200u8 as u16 * 200) >> 8, hi.limbs()[0] as u16);
 }
 
 // ── BorrowingSub at the bigint level ──

@@ -6,9 +6,10 @@
 //!
 //! `bit_length` is the position of the highest set bit plus one, so
 //! `bit_length(0) == 0` and `bit_length(1) == 1`. `leading_zeros` is
-//! taken against `CAP * word_bits` — the full container width, not the
-//! runtime `len` — so it composes cleanly with other bit-width-sized
-//! callers (Barrett reduction start, sliding-window scalar decomposition).
+//! taken against the value's **width** (`len * word_bits`), not capacity
+//! — so `bit_length + leading_zeros == bits_precision()` and `CAP` never
+//! enters. A caller that wants zeros relative to a wider window sizes it
+//! from that window's own `bits_precision`, not this value's capacity.
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
@@ -34,11 +35,12 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         0
     }
 
-    /// Leading zeros against the full container width (`CAP * word_bits`).
-    /// `leading_zeros(0) == CAP * word_bits`.
+    /// Leading zeros against the value's width (`len * word_bits`), so
+    /// `leading_zeros + bit_length == bits_precision()`. A `len = 0`
+    /// value has width 0, hence `leading_zeros() == 0`.
     pub fn leading_zeros(&self) -> usize {
-        let total_bits = CAP * core::mem::size_of::<T>() * 8;
-        total_bits - self.bit_length()
+        let width = self.len as usize * core::mem::size_of::<T>() * 8;
+        width - self.bit_length()
     }
 }
 

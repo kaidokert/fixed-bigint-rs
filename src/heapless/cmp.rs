@@ -74,12 +74,13 @@ impl<T: MachineWord + core::hash::Hash, const CAP: usize, P: Personality> core::
     for HeaplessBigInt<T, CAP, P>
 {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        // Hash up to the highest non-zero limb, ignoring both `len` and
-        // `CAP`, so `ConstZero::ZERO` and `zero_full_cap()` produce the
-        // same hash (value-based). NCT-implicit — this scans content.
+        // Hash up to the highest non-zero limb, ignoring `len` so equal
+        // values at different shapes hash alike (value-based). Scans
+        // `0..len`; limbs beyond `len` are zero by invariant, so `CAP`
+        // need not enter. NCT-implicit — this scans content.
         let mut top = 0usize;
         let mut i = 0;
-        while i < CAP {
+        while i < self.len as usize {
             if !super::is_zero(&self.limbs[i]) {
                 top = i + 1;
             }

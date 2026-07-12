@@ -6,11 +6,19 @@
 //! `BytesHolder` already carries, so this module rides the same
 //! `nightly | use-unsafe` gate that guards `BytesHolder`.
 //!
-//! The representation is **full container width** (`CAP * size_of::<T>()`
-//! bytes): all `CAP` limbs are serialised, high (zero-tail) limbs
-//! producing leading zero bytes for BE / trailing for LE. This matches
-//! `FixedUInt<T, CAP>`'s byte shape, so a modmath consumer generic over
-//! the carrier round-trips a modulus/scalar identically on either type.
+//! The `ToBytes` representation is **capacity-width** (`CAP *
+//! size_of::<T>()` bytes): all `CAP` limbs are serialised, high
+//! (zero-tail) limbs producing leading zero bytes for BE / trailing for
+//! LE. This is the one place the carrier's `CAP` is intentionally
+//! exposed — an *owned* fixed holder cannot be sized to the runtime
+//! width — so it necessarily reports capacity, not the value's width.
+//! It's the right shape for a full-precision operand (a crypto modulus
+//! is constructed at `len == CAP`, so capacity == width there) and it
+//! matches `FixedUInt<T, CAP>`'s bytes, letting a carrier-generic
+//! consumer round-trip a modulus identically on either type. A caller
+//! that needs **width-based** (`len * word_size`) bytes uses the
+//! inherent `to_be_bytes(&mut [u8]) -> &[u8]` / `to_le_bytes` instead,
+//! which serialise only the value's own words.
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
