@@ -118,26 +118,17 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {
-    // Zero-init (`BytesHolder::default()`) rather than
-    // `BytesHolder::from_array(self.array)`. On the `&FixedUInt` path
-    // the latter would materialise the secret limb array on the stack
-    // as a Copy of the referenced `[T; N]` before the serialisation
-    // step overwrites it — defeating the CT/Zeroize goal of the
-    // by-reference impl. Zero-init writes serialised bytes through
-    // the reference directly. Also removes a wasted Copy on the
-    // owned path.
+    // Zero-init NOT `BytesHolder::from_array(self.array)` — the latter
+    // Copy-materialises the referenced `[T; N]` on the stack before
+    // serialisation overwrites it, defeating the point of the by-ref
+    // impl (CT / Zeroize wrapper leaks).
     //
-    // Serialisation body is inlined `chunks_exact_mut(WORD_SIZE)` per
-    // `to_{be,le}_bytes_fixed` in `byte_conversion_panic_free.rs`, NOT
-    // via the fallible `self.to_be_bytes(&mut [u8]) -> Result` path.
-    // The fallible variant does a runtime `output_buffer.len() <
-    // total_bytes` guard that fails to DCE at `opt-level = z`, leaving
-    // a `panic_fmt` in the linked binary for every downstream that
-    // reaches `NumToBytes::to_be_bytes` via this helper. `chunks_exact_mut`
-    // iterates exactly `N` times over `ret.as_byte_slice_mut()`'s
-    // `N * size_of::<T>()` bytes (known at monomorphisation); each
-    // `copy_from_slice` pairs an equal-length chunk and word slice,
-    // provable no-panic under LTO.
+    // Body inlines `chunks_exact_mut(WORD_SIZE)` (see
+    // `byte_conversion_panic_free.rs`) rather than `self.to_be_bytes(&mut
+    // [u8]) -> Result`: the fallible path's runtime length check fails
+    // to DCE at `-Oz`, leaving `panic_fmt` in the binary for every
+    // `NumToBytes` consumer. The inlined variant pairs equal-length
+    // chunks + words; no runtime check.
     #[inline]
     fn holder_be(&self) -> BytesHolder<T, N> {
         let mut ret = BytesHolder::default();
