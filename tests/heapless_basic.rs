@@ -856,3 +856,110 @@ fn mul_owned_owned_matches_ref_ref() {
     assert_eq!(a * &b, &a * &b);
     assert_eq!(&a * b, &a * &b);
 }
+
+// ── ShrAssign / ShlAssign ──
+
+#[test]
+fn shr_assign_matches_shr() {
+    let a: H4u32Nct = 0xABCD_EF01u32.into();
+    let mut x = a;
+    x >>= 8;
+    assert_eq!(x, a >> 8);
+}
+
+#[test]
+fn shl_assign_matches_shl() {
+    let a: H4u32Nct = 0xABCDu32.into();
+    let mut x = a;
+    x <<= 12;
+    assert_eq!(x, a << 12);
+}
+
+// ── WrappingMul trait ──
+
+#[test]
+fn wrapping_mul_trait_matches_inherent() {
+    use const_num_traits::WrappingMul;
+    let a: H4u32Nct = 13u8.into();
+    let b: H4u32Nct = 17u8.into();
+    let via_trait = <H4u32Nct as WrappingMul>::wrapping_mul(a, b);
+    let via_inherent = HeaplessBigInt::wrapping_mul(&a, &b);
+    assert_eq!(via_trait, via_inherent);
+}
+
+// ── CarryingMul at the bigint level ──
+
+#[test]
+fn carrying_mul_small_no_overflow() {
+    use const_num_traits::CarryingMul;
+    // 5 * 7 + 3 = 38. Fits in one limb, hi = 0.
+    let a: H4u32Nct = 5u8.into();
+    let b: H4u32Nct = 7u8.into();
+    let c: H4u32Nct = 3u8.into();
+    let (lo, hi) = a.carrying_mul(b, c);
+    let expected_lo: H4u32Nct = 38u8.into();
+    assert_eq!(lo, expected_lo);
+    assert!(<H4u32Nct as const_num_traits::Zero>::is_zero(&hi));
+}
+
+#[test]
+fn carrying_mul_produces_high_half() {
+    use const_num_traits::CarryingMul;
+    // MAX-limb value squared should populate hi. CAP=4, u32 → 128 bits.
+    // Use (2^127) * (2^1) = 2^128 → hi = 1.
+    let a = H4u32Nct::from_limbs([0, 0, 0, 1u32 << 31], 4); // 2^127
+    let b: H4u32Nct = 2u8.into(); // 2^1
+    let zero_v = <H4u32Nct as Zero>::zero();
+    let (lo, hi) = a.carrying_mul(b, zero_v);
+    // 2^128 = hi contribution of 1 at limb 0; lo is 0.
+    assert!(<H4u32Nct as const_num_traits::Zero>::is_zero(&lo));
+    assert_eq!(hi.all_limbs()[0], 1);
+}
+
+#[test]
+fn carrying_mul_add_two_adders() {
+    use const_num_traits::CarryingMul;
+    // 5 * 7 + 3 + 4 = 42.
+    let a: H4u32Nct = 5u8.into();
+    let b: H4u32Nct = 7u8.into();
+    let c: H4u32Nct = 3u8.into();
+    let d: H4u32Nct = 4u8.into();
+    let (lo, hi) = a.carrying_mul_add(b, c, d);
+    let expected_lo: H4u32Nct = 42u8.into();
+    assert_eq!(lo, expected_lo);
+    assert!(<H4u32Nct as const_num_traits::Zero>::is_zero(&hi));
+}
+
+// ── BorrowingSub at the bigint level ──
+
+#[test]
+fn borrowing_sub_no_borrow_in() {
+    use const_num_traits::BorrowingSub;
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 40u32.into();
+    let (diff, borrow) = a.borrowing_sub(b, false);
+    let expected: H4u32Nct = 60u8.into();
+    assert_eq!(diff, expected);
+    assert!(!borrow);
+}
+
+#[test]
+fn borrowing_sub_with_borrow_in() {
+    use const_num_traits::BorrowingSub;
+    // 100 - 40 - 1 = 59.
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 40u32.into();
+    let (diff, borrow) = a.borrowing_sub(b, true);
+    let expected: H4u32Nct = 59u8.into();
+    assert_eq!(diff, expected);
+    assert!(!borrow);
+}
+
+#[test]
+fn borrowing_sub_underflow_reports_borrow_out() {
+    use const_num_traits::BorrowingSub;
+    let a: H4u32Nct = 1u8.into();
+    let b: H4u32Nct = 2u8.into();
+    let (_, borrow) = a.borrowing_sub(b, false);
+    assert!(borrow);
+}

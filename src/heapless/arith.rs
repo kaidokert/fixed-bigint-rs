@@ -12,8 +12,9 @@ use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
 use const_num_traits::{
     BorrowingSub, CarryingAdd, CarryingMul, OverflowingAdd, OverflowingSub, Personality,
-    WrappingAdd, WrappingSub,
+    WrappingAdd, WrappingMul, WrappingSub,
 };
+use core::marker::PhantomData;
 
 // ── Free-function slice kernels ──
 //
@@ -391,6 +392,165 @@ impl<T: MachineWord, const CAP: usize, P: Personality> OverflowingSub
     type Output = HeaplessBigInt<T, CAP, P>;
     fn overflowing_sub(self, v: Self) -> (Self::Output, bool) {
         HeaplessBigInt::overflowing_sub(self, v)
+    }
+}
+
+// WrappingMul — the explicit method modmath's EEA should call instead
+// of `core::ops::Mul`, which has no defined overflow contract.
+
+impl<T, const CAP: usize, P: Personality> WrappingMul for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = Self;
+    fn wrapping_mul(self, v: Self) -> Self::Output {
+        Self::wrapping_mul(&self, &v)
+    }
+}
+
+impl<T, const CAP: usize, P: Personality> WrappingMul for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn wrapping_mul(self, v: Self) -> Self::Output {
+        HeaplessBigInt::wrapping_mul(self, v)
+    }
+}
+
+// ── BorrowingSub at the bigint level ──
+//
+// Full-CAP `self - rhs - borrow_in` with borrow_out. Iteration is
+// 0..CAP (not `self.len`) because widening-primitive semantics require
+// the whole array range. Modmath's full CIOS driver fires from this.
+
+impl<T, const CAP: usize, P: Personality> BorrowingSub for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    type Output = Self;
+    fn borrowing_sub(self, rhs: Self, borrow_in: bool) -> (Self::Output, bool) {
+        let mut out_limbs = [zero::<T>(); CAP];
+        let mut borrow = borrow_in;
+        let mut i = 0;
+        while i < CAP {
+            let (diff, br) =
+                <T as BorrowingSub>::borrowing_sub(self.limbs[i], rhs.limbs[i], borrow);
+            out_limbs[i] = diff;
+            borrow = br;
+            i += 1;
+        }
+        (
+            HeaplessBigInt {
+                limbs: out_limbs,
+                len: CAP as u16,
+                _p: PhantomData,
+            },
+            borrow,
+        )
+    }
+}
+
+// ── CarryingMul at the bigint level ──
+//
+// `(lo, hi) = self * rhs + carry`, splitting the 2·CAP-limb natural
+// product across two CAP-wide halves. Modmath's `WideMul` blanket
+// impl fires from this, unlocking the Montgomery driver.
+//
+// Both output halves get `len = CAP` — a public shape derived from the
+// type parameter, not from operand content. The full-CAP iteration
+// discipline is deliberate: widening semantics require the whole array
+// range, not the runtime-len subset.
+
+impl<T, const CAP: usize, P: Personality> CarryingMul for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Unsigned = Self;
+    type Output = Self;
+
+    fn carrying_mul(self, rhs: Self, carry: Self) -> (Self::Unsigned, Self::Output) {
+        let zero_v = <Self as const_num_traits::Zero>::zero();
+        self.carrying_mul_add(rhs, carry, zero_v)
+    }
+
+    fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self::Unsigned, Self::Output) {
+        let mut lo_limbs = [zero::<T>(); CAP];
+        let mut hi_limbs = [zero::<T>(); CAP];
+
+        // Schoolbook self * rhs accumulating into positions [0, 2·CAP).
+        let mut i = 0;
+        while i < CAP {
+            let mut c = zero::<T>();
+            let mut j = 0;
+            while j < CAP {
+                let pos = i + j;
+                let (t_lo, t_hi) = <T as CarryingMul>::carrying_mul(self.limbs[i], rhs.limbs[j], c);
+                let existing = if pos < CAP {
+                    lo_limbs[pos]
+                } else {
+                    hi_limbs[pos - CAP]
+                };
+                let (sum, c1) = <T as CarryingAdd>::carrying_add(existing, t_lo, false);
+                if pos < CAP {
+                    lo_limbs[pos] = sum;
+                } else {
+                    hi_limbs[pos - CAP] = sum;
+                }
+                let (new_c, _) = <T as CarryingAdd>::carrying_add(t_hi, zero::<T>(), c1);
+                c = new_c;
+                j += 1;
+            }
+            let (sum, _) = <T as CarryingAdd>::carrying_add(hi_limbs[i], c, false);
+            hi_limbs[i] = sum;
+            i += 1;
+        }
+
+        // Fold `carry` into the low half, propagating overflow into hi.
+        let mut cin = false;
+        let mut i = 0;
+        while i < CAP {
+            let (sum, c) = <T as CarryingAdd>::carrying_add(lo_limbs[i], carry.limbs[i], cin);
+            lo_limbs[i] = sum;
+            cin = c;
+            i += 1;
+        }
+        let mut i = 0;
+        while cin && i < CAP {
+            let (sum, c) = <T as CarryingAdd>::carrying_add(hi_limbs[i], zero::<T>(), true);
+            hi_limbs[i] = sum;
+            cin = c;
+            i += 1;
+        }
+
+        // Fold `add` into the low half the same way.
+        let mut cin = false;
+        let mut i = 0;
+        while i < CAP {
+            let (sum, c) = <T as CarryingAdd>::carrying_add(lo_limbs[i], add.limbs[i], cin);
+            lo_limbs[i] = sum;
+            cin = c;
+            i += 1;
+        }
+        let mut i = 0;
+        while cin && i < CAP {
+            let (sum, c) = <T as CarryingAdd>::carrying_add(hi_limbs[i], zero::<T>(), true);
+            hi_limbs[i] = sum;
+            cin = c;
+            i += 1;
+        }
+
+        let lo = HeaplessBigInt {
+            limbs: lo_limbs,
+            len: CAP as u16,
+            _p: PhantomData,
+        };
+        let hi = HeaplessBigInt {
+            limbs: hi_limbs,
+            len: CAP as u16,
+            _p: PhantomData,
+        };
+        (lo, hi)
     }
 }
 

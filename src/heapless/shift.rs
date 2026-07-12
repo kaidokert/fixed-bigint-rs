@@ -17,7 +17,7 @@ use super::{HeaplessBigInt, zero};
 use crate::MachineWord;
 use const_num_traits::Personality;
 use core::marker::PhantomData;
-use core::ops::{Shl, Shr};
+use core::ops::{Shl, ShlAssign, Shr, ShrAssign};
 
 impl<T: MachineWord, const CAP: usize, P: Personality> Shl<usize> for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
@@ -64,6 +64,22 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Shl<usize> for HeaplessBi
             len: out_len as u16,
             _p: PhantomData,
         }
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShlAssign<usize>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shl_assign(&mut self, bits: usize) {
+        *self = *self << bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShrAssign<usize>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shr_assign(&mut self, bits: usize) {
+        *self = *self >> bits;
     }
 }
 
