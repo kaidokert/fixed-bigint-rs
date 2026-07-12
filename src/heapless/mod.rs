@@ -22,7 +22,10 @@ mod bytes;
 #[cfg(feature = "cios")]
 mod cios;
 mod cmp;
+mod div_rem;
+mod from_prim;
 mod identities;
+mod parity;
 mod shift;
 
 /// Fixed-capacity, runtime-length unsigned bignum.

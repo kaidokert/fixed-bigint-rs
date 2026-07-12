@@ -10,7 +10,10 @@
 
 use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
-use const_num_traits::{BorrowingSub, CarryingAdd, CarryingMul, Personality};
+use const_num_traits::{
+    BorrowingSub, CarryingAdd, CarryingMul, OverflowingAdd, OverflowingSub, Personality,
+    WrappingAdd, WrappingSub,
+};
 
 // ── Free-function slice kernels ──
 //
@@ -229,6 +232,79 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
         let (res, overflow) = self.overflowing_mul(other);
         assert!(!overflow, "HeaplessBigInt::mul overflow");
         res
+    }
+}
+
+// ── const_num_traits Wrapping / Overflowing Add & Sub ──
+//
+// Delegate to the inherent methods; the traits take `self` by value,
+// the inherent methods take references. `HeaplessBigInt: Copy`, so
+// converting between the two is a no-op at runtime.
+
+impl<T: MachineWord, const CAP: usize, P: Personality> WrappingAdd for HeaplessBigInt<T, CAP, P> {
+    type Output = Self;
+    fn wrapping_add(self, v: Self) -> Self::Output {
+        Self::wrapping_add(&self, &v)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> WrappingSub for HeaplessBigInt<T, CAP, P> {
+    type Output = Self;
+    fn wrapping_sub(self, v: Self) -> Self::Output {
+        Self::wrapping_sub(&self, &v)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> OverflowingAdd
+    for HeaplessBigInt<T, CAP, P>
+{
+    type Output = Self;
+    fn overflowing_add(self, v: Self) -> (Self::Output, bool) {
+        Self::overflowing_add(&self, &v)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> OverflowingSub
+    for HeaplessBigInt<T, CAP, P>
+{
+    type Output = Self;
+    fn overflowing_sub(self, v: Self) -> (Self::Output, bool) {
+        Self::overflowing_sub(&self, &v)
+    }
+}
+
+// Reference-receiver variants mirror `FixedUInt`'s pattern (`add_sub_impl.rs`),
+// letting `&HeaplessBigInt` satisfy the same generic trait bound.
+
+impl<T: MachineWord, const CAP: usize, P: Personality> WrappingAdd for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn wrapping_add(self, v: Self) -> Self::Output {
+        HeaplessBigInt::wrapping_add(self, v)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> WrappingSub for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn wrapping_sub(self, v: Self) -> Self::Output {
+        HeaplessBigInt::wrapping_sub(self, v)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> OverflowingAdd
+    for &HeaplessBigInt<T, CAP, P>
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn overflowing_add(self, v: Self) -> (Self::Output, bool) {
+        HeaplessBigInt::overflowing_add(self, v)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> OverflowingSub
+    for &HeaplessBigInt<T, CAP, P>
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn overflowing_sub(self, v: Self) -> (Self::Output, bool) {
+        HeaplessBigInt::overflowing_sub(self, v)
     }
 }
 

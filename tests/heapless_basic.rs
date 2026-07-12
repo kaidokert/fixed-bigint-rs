@@ -5,8 +5,12 @@
 
 #![cfg(feature = "heapless-runtime-len")]
 
+// `WrappingAdd`/`WrappingSub`/`OverflowingAdd`/`OverflowingSub` are used
+// via fully-qualified paths below because they shadow the inherent
+// methods on `HeaplessBigInt` when in scope — the existing `.wrapping_add(&b)`
+// callers need the inherent to win method resolution.
 use const_num_traits::ops::ct::CtIsZero;
-use const_num_traits::{Ct, Nct, One, Zero};
+use const_num_traits::{Ct, Nct, One, Parity, Zero};
 use fixed_bigint::HeaplessBigInt;
 use subtle::{
     Choice, ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess,
@@ -597,4 +601,180 @@ fn bytes_work_across_widths() {
     let v = H2u64Nct::from_be_bytes(&[0, 0, 0, 0, 0, 0, 0, 0x42]);
     assert_eq!(v.len(), 1);
     assert_eq!(v.limbs()[0], 0x42);
+}
+
+// ── From<u8>/<u16>/<u32> ──
+
+#[test]
+fn from_u8_matches_le_bytes() {
+    let v: H4u32Nct = 0xABu8.into();
+    assert_eq!(v.limbs()[0], 0xAB);
+    // u32 backing, u8 source: single limb.
+    assert_eq!(v.len(), 1);
+}
+
+#[test]
+fn from_u16_multi_limb_when_backing_is_u8() {
+    type H8u8Nct = HeaplessBigInt<u8, 8, Nct>;
+    let v: H8u8Nct = 0xABCDu16.into();
+    // u8 backing splits u16 across two limbs (LE).
+    assert_eq!(v.limbs()[0], 0xCD);
+    assert_eq!(v.limbs()[1], 0xAB);
+    assert_eq!(v.len(), 2);
+}
+
+#[test]
+fn from_u32_across_u8_backing() {
+    type H8u8Nct = HeaplessBigInt<u8, 8, Nct>;
+    let v: H8u8Nct = 0x12345678u32.into();
+    assert_eq!(v.limbs(), &[0x78, 0x56, 0x34, 0x12]);
+    assert_eq!(v.len(), 4);
+}
+
+#[test]
+fn from_u32_single_limb_when_backing_is_u32() {
+    let v: H4u32Nct = 0xDEADBEEFu32.into();
+    assert_eq!(v.limbs()[0], 0xDEADBEEF);
+    assert_eq!(v.len(), 1);
+}
+
+// ── Trait-form Wrapping / Overflowing Add / Sub ──
+
+#[test]
+fn trait_wrapping_add_matches_inherent() {
+    use const_num_traits::WrappingAdd;
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 250u32.into();
+    let via_trait = <H4u32Nct as WrappingAdd>::wrapping_add(a, b);
+    let via_inherent = HeaplessBigInt::wrapping_add(&a, &b);
+    assert_eq!(via_trait, via_inherent);
+}
+
+#[test]
+fn trait_wrapping_sub_matches_inherent() {
+    use const_num_traits::WrappingSub;
+    let a: H4u32Nct = 500u32.into();
+    let b: H4u32Nct = 200u32.into();
+    let via_trait = <H4u32Nct as WrappingSub>::wrapping_sub(a, b);
+    let via_inherent = HeaplessBigInt::wrapping_sub(&a, &b);
+    assert_eq!(via_trait, via_inherent);
+}
+
+#[test]
+fn trait_overflowing_add_reports_overflow() {
+    use const_num_traits::OverflowingAdd;
+    let max = H4u32Nct::from_limbs([u32::MAX; 4], 4);
+    let one: H4u32Nct = 1u8.into();
+    let (_, overflow) = <H4u32Nct as OverflowingAdd>::overflowing_add(max, one);
+    assert!(overflow);
+}
+
+#[test]
+fn trait_overflowing_sub_reports_borrow() {
+    use const_num_traits::OverflowingSub;
+    let a: H4u32Nct = 1u8.into();
+    let b: H4u32Nct = 2u8.into();
+    let (_, borrow) = <H4u32Nct as OverflowingSub>::overflowing_sub(a, b);
+    assert!(borrow);
+}
+
+// ── Parity ──
+
+#[test]
+fn parity_zero_is_even() {
+    let z = <H4u32Nct as Zero>::zero();
+    assert!(!z.is_odd());
+    assert!(z.is_even());
+}
+
+#[test]
+fn parity_reads_lowest_bit() {
+    let odd: H4u32Nct = 5u32.into();
+    let even: H4u32Nct = 4u32.into();
+    assert!(odd.is_odd());
+    assert!(!odd.is_even());
+    assert!(!even.is_odd());
+    assert!(even.is_even());
+}
+
+#[test]
+fn parity_reads_only_lowest_limb() {
+    // High limbs are non-zero; parity must still come from limb 0.
+    let v = H4u32Nct::from_limbs([0xFFFF_FFFE, 0xFFFF_FFFF, 0, 0], 2);
+    assert!(v.is_even()); // low bit of 0xFFFF_FFFE is 0
+}
+
+// ── Div / Rem ──
+
+#[test]
+fn div_rem_dividend_less_than_divisor() {
+    let a: H4u32Nct = 3u8.into();
+    let b: H4u32Nct = 10u8.into();
+    assert_eq!(a / b, <H4u32Nct as Zero>::zero());
+    assert_eq!(a % b, a);
+}
+
+#[test]
+fn div_rem_equal() {
+    let a: H4u32Nct = 42u32.into();
+    let b: H4u32Nct = 42u32.into();
+    assert_eq!(a / b, <H4u32Nct as One>::one());
+    assert_eq!(a % b, <H4u32Nct as Zero>::zero());
+}
+
+#[test]
+fn div_rem_small_values() {
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 7u8.into();
+    // 100 = 14*7 + 2.
+    let expected_q: H4u32Nct = 14u32.into();
+    let expected_r: H4u32Nct = 2u8.into();
+    assert_eq!(a / b, expected_q);
+    assert_eq!(a % b, expected_r);
+}
+
+#[test]
+fn div_rem_cross_limb() {
+    // 0x1_0000_0000 / 3 = 0x5555_5555 rem 1.
+    let a = H4u32Nct::from_limbs([0, 1, 0, 0], 2);
+    let b: H4u32Nct = 3u32.into();
+    let q = a / b;
+    let r = a % b;
+    let expected_q: H4u32Nct = 0x5555_5555u32.into();
+    let expected_r: H4u32Nct = 1u8.into();
+    assert_eq!(q, expected_q);
+    assert_eq!(r, expected_r);
+}
+
+#[test]
+#[should_panic]
+fn div_by_zero_panics() {
+    let a: H4u32Nct = 5u8.into();
+    let b = <H4u32Nct as Zero>::zero();
+    let _ = a / b;
+}
+
+#[test]
+fn div_rem_ref_variants_agree_with_owned() {
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 7u8.into();
+    assert_eq!(a / b, (&a) / (&b));
+    assert_eq!(a % b, (&a) % (&b));
+    assert_eq!(a / b, a / &b);
+    assert_eq!(a % b, a % &b);
+    assert_eq!(a / b, (&a) / b);
+    assert_eq!(a % b, (&a) % b);
+}
+
+#[test]
+fn div_rem_round_trip_identity() {
+    // For any a, b > 0: (a / b) * b + (a % b) == a.
+    let a = H4u32Nct::from_limbs([0xDEAD_BEEFu32, 0x1234_5678u32, 0, 0], 2);
+    let b: H4u32Nct = 0xABCDu32.into();
+    let q = a / b;
+    let r = a % b;
+    // Sanity-check: q * b + r == a. Use inherent wrapping_mul + wrapping_add.
+    let product = q.wrapping_mul(&b);
+    let reconstructed = product.wrapping_add(&r);
+    assert_eq!(reconstructed, a);
 }
