@@ -778,3 +778,81 @@ fn div_rem_round_trip_identity() {
     let reconstructed = product.wrapping_add(&r);
     assert_eq!(reconstructed, a);
 }
+
+// ── HasPersonality projection ──
+
+#[test]
+fn has_personality_projects_declared_type() {
+    use const_num_traits::HasPersonality;
+    fn assert_nct<T: HasPersonality<P = Nct>>() {}
+    fn assert_ct<T: HasPersonality<P = Ct>>() {}
+    assert_nct::<H4u32Nct>();
+    assert_ct::<HeaplessBigInt<u32, 4, Ct>>();
+}
+
+// ── RemAssign / DivAssign ──
+
+#[test]
+fn rem_assign_owned_matches_rem() {
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 7u8.into();
+    let mut x = a;
+    x %= b;
+    assert_eq!(x, a % b);
+}
+
+#[test]
+fn rem_assign_ref_matches_rem() {
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 7u8.into();
+    let mut x = a;
+    x %= &b;
+    assert_eq!(x, a % &b);
+}
+
+#[test]
+fn div_assign_owned_matches_div() {
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 7u8.into();
+    let mut x = a;
+    x /= b;
+    assert_eq!(x, a / b);
+}
+
+#[test]
+fn div_assign_ref_matches_div() {
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 7u8.into();
+    let mut x = a;
+    x /= &b;
+    assert_eq!(x, a / &b);
+}
+
+// ── Value + mixed core::ops receiver variants ──
+
+#[test]
+fn add_owned_owned_matches_ref_ref() {
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 200u32.into();
+    assert_eq!(a + b, &a + &b);
+    assert_eq!(a + &b, &a + &b);
+    assert_eq!(&a + b, &a + &b);
+}
+
+#[test]
+fn sub_owned_owned_matches_ref_ref() {
+    let a: H4u32Nct = 500u32.into();
+    let b: H4u32Nct = 200u32.into();
+    assert_eq!(a - b, &a - &b);
+    assert_eq!(a - &b, &a - &b);
+    assert_eq!(&a - b, &a - &b);
+}
+
+#[test]
+fn mul_owned_owned_matches_ref_ref() {
+    let a: H4u32Nct = 13u8.into();
+    let b: H4u32Nct = 17u8.into();
+    assert_eq!(a * b, &a * &b);
+    assert_eq!(a * &b, &a * &b);
+    assert_eq!(&a * b, &a * &b);
+}

@@ -235,6 +235,92 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     }
 }
 
+// Value + mixed-receiver variants — modmath's EEA `Signed<T>` arithmetic
+// wants owned-owned `+`/`-`/`*`, owned-ref `*`, and ref-owned `-`. Each
+// delegates to the `&Self op &Self` variant. `HeaplessBigInt: Copy` so
+// forwarding by-value operands to references is a no-op at runtime.
+
+impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Add
+    for HeaplessBigInt<T, CAP, P>
+{
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        (&self).add(&other)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Add<&HeaplessBigInt<T, CAP, P>>
+    for HeaplessBigInt<T, CAP, P>
+{
+    type Output = Self;
+    fn add(self, other: &Self) -> Self {
+        (&self).add(other)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Add<HeaplessBigInt<T, CAP, P>>
+    for &HeaplessBigInt<T, CAP, P>
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn add(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
+        self.add(&other)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Sub
+    for HeaplessBigInt<T, CAP, P>
+{
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        (&self).sub(&other)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Sub<&HeaplessBigInt<T, CAP, P>>
+    for HeaplessBigInt<T, CAP, P>
+{
+    type Output = Self;
+    fn sub(self, other: &Self) -> Self {
+        (&self).sub(other)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Sub<HeaplessBigInt<T, CAP, P>>
+    for &HeaplessBigInt<T, CAP, P>
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn sub(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
+        self.sub(&other)
+    }
+}
+
+impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
+    core::ops::Mul for HeaplessBigInt<T, CAP, P>
+{
+    type Output = Self;
+    fn mul(self, other: Self) -> Self {
+        (&self).mul(&other)
+    }
+}
+
+impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
+    core::ops::Mul<&HeaplessBigInt<T, CAP, P>> for HeaplessBigInt<T, CAP, P>
+{
+    type Output = Self;
+    fn mul(self, other: &Self) -> Self {
+        (&self).mul(other)
+    }
+}
+
+impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
+    core::ops::Mul<HeaplessBigInt<T, CAP, P>> for &HeaplessBigInt<T, CAP, P>
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn mul(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
+        self.mul(&other)
+    }
+}
+
 // ── const_num_traits Wrapping / Overflowing Add & Sub ──
 //
 // Delegate to the inherent methods; the traits take `self` by value,

@@ -107,3 +107,46 @@ div_impls!(
     &HeaplessBigInt<T, CAP, Nct>,
     HeaplessBigInt<T, CAP, Nct>
 );
+
+// ── DivAssign / RemAssign ──
+//
+// modmath's constrained flavor uses `%=`; `DivAssign` is added for
+// symmetry. Both delegate to the same long-division kernel.
+
+impl<T, const CAP: usize> core::ops::DivAssign for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn div_assign(&mut self, other: Self) {
+        *self = div_rem_impl::<T, CAP>(self, &other).0;
+    }
+}
+
+impl<T, const CAP: usize> core::ops::DivAssign<&HeaplessBigInt<T, CAP, Nct>>
+    for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn div_assign(&mut self, other: &Self) {
+        *self = div_rem_impl::<T, CAP>(self, other).0;
+    }
+}
+
+impl<T, const CAP: usize> core::ops::RemAssign for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn rem_assign(&mut self, other: Self) {
+        *self = div_rem_impl::<T, CAP>(self, &other).1;
+    }
+}
+
+impl<T, const CAP: usize> core::ops::RemAssign<&HeaplessBigInt<T, CAP, Nct>>
+    for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn rem_assign(&mut self, other: &Self) {
+        *self = div_rem_impl::<T, CAP>(self, other).1;
+    }
+}

@@ -24,6 +24,7 @@ mod cios;
 mod cmp;
 mod div_rem;
 mod from_prim;
+mod has_personality;
 mod identities;
 mod parity;
 mod shift;
