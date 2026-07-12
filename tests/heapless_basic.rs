@@ -123,31 +123,17 @@ fn sub_underflow_wraps_and_flags() {
 }
 
 #[test]
-fn sub_underflow_wraps_at_full_cap_width() {
-    // Underflow wraps at the full container width (CAP limbs), matching
-    // FixedUInt<T, CAP> — not at max(operand_len). Output len = CAP.
-    let a = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
-    let b = H4u32Nct::from_limbs([2, 0, 0, 0], 1);
+fn sub_underflow_wraps_at_operand_width_not_cap() {
+    // A HeaplessBigInt's width is len·word_bits, not CAP. Underflow wraps
+    // at the operands' width (max len), leaving CAP out of it: 5 - 7 at
+    // len 1 (u32 backing → width 32) is a 32-bit wrap, and the result
+    // stays len 1 — the high CAP limbs are untouched.
+    let a: H4u32Nct = 5u32.into(); // len 1, width 32
+    let b: H4u32Nct = 7u32.into();
     let w = a.wrapping_sub(&b);
-    assert_eq!(w.len(), 4);
-    assert_eq!(w.all_limbs(), &[u32::MAX; 4]); // 2^128 - 1
-}
-
-#[test]
-fn wrapping_sub_is_value_deterministic_not_len_deterministic() {
-    // Same values carried at different lens must give the same wrapped
-    // result — the property the len-derived width previously violated.
-    let five_short: H4u32Nct = 5u32.into(); // len 1
-    let seven_short: H4u32Nct = 7u32.into();
-    let five_long = H4u32Nct::from_limbs([5, 0, 0, 0], 4); // len 4
-    let seven_long = H4u32Nct::from_limbs([7, 0, 0, 0], 4);
-    assert_eq!(
-        five_short.wrapping_sub(&seven_short),
-        five_long.wrapping_sub(&seven_long)
-    );
-    // And the value is the CAP-width wrap of 5 - 7 = -2.
-    let w = five_short.wrapping_sub(&seven_short);
-    assert_eq!(w.all_limbs(), &[u32::MAX - 1, u32::MAX, u32::MAX, u32::MAX]);
+    assert_eq!(w.len(), 1);
+    assert_eq!(w.limbs()[0], u32::MAX - 1); // 2^32 - 2
+    assert_eq!(w.all_limbs()[1], 0); // CAP limbs beyond the width stay zero
 }
 
 // ── Mul ──

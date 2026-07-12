@@ -127,26 +127,28 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         if overflow { None } else { Some(res) }
     }
 
-    /// Wrapping subtraction. On underflow the value wraps modulo
-    /// `2^(CAP * WORD_BITS)` — the full container width, matching
-    /// `FixedUInt<T, CAP>`. Iterating the full `CAP` (rather than
-    /// `max(a.len, b.len)`) makes the result a function of the operand
-    /// *values*, not how their `len` was carried: `wrapping_sub(5, 7)`
-    /// is the same whether 5 and 7 are held at len 1 or len CAP. Output
-    /// `len = CAP`.
+    /// Wrapping subtraction. Output `len = max(a.len, b.len)` — the
+    /// operands' width, per the bit-vocabulary model where a
+    /// `HeaplessBigInt`'s width is `len·word_bits`, not `CAP`. On
+    /// underflow the value wraps modulo `2^(max_len·WORD_BITS)`: a
+    /// value carried at a narrower width wraps at that narrower width
+    /// (like `u8` vs `u32`), which is the point of the variable-width
+    /// carrier — `CAP` never enters.
     pub fn wrapping_sub(&self, other: &Self) -> Self {
-        let mut out = Self::new_zero_with_len(CAP as u16);
-        let _borrow = sub_slice(&self.limbs, &other.limbs, &mut out.limbs, CAP);
+        let out_len = core::cmp::max(self.len as usize, other.len as usize);
+        let mut out = Self::new_zero_with_len(out_len as u16);
+        let _borrow = sub_slice(&self.limbs, &other.limbs, &mut out.limbs, out_len);
+        debug_assert!(zero_tail_ok(&out.limbs, out_len));
         out
     }
 
     /// Overflowing subtraction. Returns `(wrapped_result, borrow_out)`.
-    /// `borrow_out` is the true underflow flag (`self < other`); the
-    /// wrapped value is the CAP-width two's complement — see
-    /// [`wrapping_sub`](Self::wrapping_sub) on the width choice.
+    /// Same width choice as [`wrapping_sub`](Self::wrapping_sub);
+    /// `borrow_out` is the underflow flag (`self < other`).
     pub fn overflowing_sub(&self, other: &Self) -> (Self, bool) {
-        let mut out = Self::new_zero_with_len(CAP as u16);
-        let borrow = sub_slice(&self.limbs, &other.limbs, &mut out.limbs, CAP);
+        let out_len = core::cmp::max(self.len as usize, other.len as usize);
+        let mut out = Self::new_zero_with_len(out_len as u16);
+        let borrow = sub_slice(&self.limbs, &other.limbs, &mut out.limbs, out_len);
         (out, borrow)
     }
 
@@ -513,9 +515,10 @@ where
 
 // ── BorrowingSub at the bigint level ──
 //
-// Full-CAP `self - rhs - borrow_in` with borrow_out. Iteration is
-// 0..CAP (not `self.len`) because widening-primitive semantics require
-// the whole array range. Modmath's full CIOS driver fires from this.
+// `self - rhs - borrow_in` with borrow_out, over the operands' width
+// (`max(self.len, rhs.len)`), not `CAP` — same width rule as
+// `wrapping_sub`, so underflow wraps at the value's width and `CAP`
+// stays out of the algorithm. Modmath's CIOS driver fires from this.
 
 impl<T, const CAP: usize, P: Personality> BorrowingSub for HeaplessBigInt<T, CAP, P>
 where
@@ -523,10 +526,11 @@ where
 {
     type Output = Self;
     fn borrowing_sub(self, rhs: Self, borrow_in: bool) -> (Self::Output, bool) {
+        let out_len = core::cmp::max(self.len as usize, rhs.len as usize);
         let mut out_limbs = [zero::<T>(); CAP];
         let mut borrow = borrow_in;
         let mut i = 0;
-        while i < CAP {
+        while i < out_len {
             let (diff, br) =
                 <T as BorrowingSub>::borrowing_sub(self.limbs[i], rhs.limbs[i], borrow);
             out_limbs[i] = diff;
@@ -536,7 +540,7 @@ where
         (
             HeaplessBigInt {
                 limbs: out_limbs,
-                len: CAP as u16,
+                len: out_len as u16,
                 _p: PhantomData,
             },
             borrow,
