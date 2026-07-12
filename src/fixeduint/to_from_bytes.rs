@@ -133,6 +133,11 @@ where
     fn holder_be(&self) -> BytesHolder<T, N> {
         let mut ret = BytesHolder::default();
         let word_size = core::mem::size_of::<T>();
+        // Zip-truncation guard: if a future edit desynced
+        // `as_byte_slice_mut`'s length from `N * size_of::<T>()`, `zip`
+        // would silently drop the tail words and produce a wrong-length
+        // serialisation. Compiles out in release.
+        debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
         for (chunk, word) in ret
             .as_byte_slice_mut()
             .chunks_exact_mut(word_size)
@@ -147,6 +152,7 @@ where
     fn holder_le(&self) -> BytesHolder<T, N> {
         let mut ret = BytesHolder::default();
         let word_size = core::mem::size_of::<T>();
+        debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
         for (chunk, word) in ret
             .as_byte_slice_mut()
             .chunks_exact_mut(word_size)
