@@ -118,25 +118,48 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {
-    // Zero-init (`BytesHolder::default()`) rather than
-    // `BytesHolder::from_array(self.array)`. On the `&FixedUInt` path
-    // the latter would materialise the secret limb array on the stack
-    // as a Copy of the referenced `[T; N]` before the serialisation
-    // step overwrites it — defeating the CT/Zeroize goal of the
-    // by-reference impl. Zero-init writes serialised bytes through
-    // the reference directly. Also removes a wasted Copy on the
-    // owned path.
+    // Zero-init NOT `BytesHolder::from_array(self.array)` — the latter
+    // Copy-materialises the referenced `[T; N]` on the stack before
+    // serialisation overwrites it, defeating the point of the by-ref
+    // impl (CT / Zeroize wrapper leaks).
+    //
+    // Body inlines `chunks_exact_mut(WORD_SIZE)` (see
+    // `byte_conversion_panic_free.rs`) rather than `self.to_be_bytes(&mut
+    // [u8]) -> Result`: the fallible path's runtime length check fails
+    // to DCE at `-Oz`, leaving `panic_fmt` in the binary for every
+    // `NumToBytes` consumer. The inlined variant pairs equal-length
+    // chunks + words; no runtime check.
     #[inline]
     fn holder_be(&self) -> BytesHolder<T, N> {
         let mut ret = BytesHolder::default();
-        let _ = self.to_be_bytes(ret.as_byte_slice_mut());
+        let word_size = core::mem::size_of::<T>();
+        // Zip-truncation guard: if a future edit desynced
+        // `as_byte_slice_mut`'s length from `N * size_of::<T>()`, `zip`
+        // would silently drop the tail words and produce a wrong-length
+        // serialisation. Compiles out in release.
+        debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
+        for (chunk, word) in ret
+            .as_byte_slice_mut()
+            .chunks_exact_mut(word_size)
+            .zip(self.array.iter().rev())
+        {
+            chunk.copy_from_slice(word.to_be_bytes().as_ref());
+        }
         ret
     }
 
     #[inline]
     fn holder_le(&self) -> BytesHolder<T, N> {
         let mut ret = BytesHolder::default();
-        let _ = self.to_le_bytes(ret.as_byte_slice_mut());
+        let word_size = core::mem::size_of::<T>();
+        debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
+        for (chunk, word) in ret
+            .as_byte_slice_mut()
+            .chunks_exact_mut(word_size)
+            .zip(self.array.iter())
+        {
+            chunk.copy_from_slice(word.to_le_bytes().as_ref());
+        }
         ret
     }
 }
