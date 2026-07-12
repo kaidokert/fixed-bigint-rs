@@ -126,17 +126,43 @@ where
     // by-reference impl. Zero-init writes serialised bytes through
     // the reference directly. Also removes a wasted Copy on the
     // owned path.
+    //
+    // Serialisation body is inlined `chunks_exact_mut(WORD_SIZE)` per
+    // `to_{be,le}_bytes_fixed` in `byte_conversion_panic_free.rs`, NOT
+    // via the fallible `self.to_be_bytes(&mut [u8]) -> Result` path.
+    // The fallible variant does a runtime `output_buffer.len() <
+    // total_bytes` guard that fails to DCE at `opt-level = z`, leaving
+    // a `panic_fmt` in the linked binary for every downstream that
+    // reaches `NumToBytes::to_be_bytes` via this helper. `chunks_exact_mut`
+    // iterates exactly `N` times over `ret.as_byte_slice_mut()`'s
+    // `N * size_of::<T>()` bytes (known at monomorphisation); each
+    // `copy_from_slice` pairs an equal-length chunk and word slice,
+    // provable no-panic under LTO.
     #[inline]
     fn holder_be(&self) -> BytesHolder<T, N> {
         let mut ret = BytesHolder::default();
-        let _ = self.to_be_bytes(ret.as_byte_slice_mut());
+        let word_size = core::mem::size_of::<T>();
+        for (chunk, word) in ret
+            .as_byte_slice_mut()
+            .chunks_exact_mut(word_size)
+            .zip(self.array.iter().rev())
+        {
+            chunk.copy_from_slice(word.to_be_bytes().as_ref());
+        }
         ret
     }
 
     #[inline]
     fn holder_le(&self) -> BytesHolder<T, N> {
         let mut ret = BytesHolder::default();
-        let _ = self.to_le_bytes(ret.as_byte_slice_mut());
+        let word_size = core::mem::size_of::<T>();
+        for (chunk, word) in ret
+            .as_byte_slice_mut()
+            .chunks_exact_mut(word_size)
+            .zip(self.array.iter())
+        {
+            chunk.copy_from_slice(word.to_le_bytes().as_ref());
+        }
         ret
     }
 }
