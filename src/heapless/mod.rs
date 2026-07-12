@@ -19,6 +19,7 @@ use core::marker::PhantomData;
 mod arith;
 mod cmp;
 mod identities;
+mod shift;
 
 /// Fixed-capacity, runtime-length unsigned bignum.
 ///

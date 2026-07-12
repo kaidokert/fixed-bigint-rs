@@ -5,9 +5,12 @@
 
 #![cfg(feature = "heapless-runtime-len")]
 
+use const_num_traits::ops::ct::CtIsZero;
 use const_num_traits::{Ct, Nct, One, Zero};
 use fixed_bigint::HeaplessBigInt;
-use subtle::ConstantTimeEq;
+use subtle::{
+    Choice, ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess,
+};
 
 type H8Nct = HeaplessBigInt<u8, 8, Nct>;
 type H8Ct = HeaplessBigInt<u8, 8, Ct>;
@@ -214,4 +217,194 @@ fn ct_eq_across_shapes() {
     let a = H8Ct::zero_full_cap();
     let b = <H8Ct as Zero>::zero();
     assert_eq!(bool::from(a.ct_eq(&b)), true);
+}
+
+// ── subtle::ConditionallySelectable ──
+
+#[test]
+fn cselect_choice_1_returns_b() {
+    let a = H4u32Nct::from_limbs([100, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([200, 0, 0, 0], 1);
+    let out = H4u32Nct::conditional_select(&a, &b, Choice::from(1u8));
+    assert_eq!(out, b);
+}
+
+#[test]
+fn cselect_choice_0_returns_a() {
+    let a = H4u32Nct::from_limbs([100, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([200, 0, 0, 0], 1);
+    let out = H4u32Nct::conditional_select(&a, &b, Choice::from(0u8));
+    assert_eq!(out, a);
+}
+
+#[test]
+fn cselect_output_len_is_max_of_operand_lens() {
+    // a.len = 1, b.len = 3 → out.len = 3 regardless of choice.
+    let a = H4u32Nct::from_limbs([100, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([1, 2, 3, 0], 3);
+    let out_a = H4u32Nct::conditional_select(&a, &b, Choice::from(0u8));
+    let out_b = H4u32Nct::conditional_select(&a, &b, Choice::from(1u8));
+    assert_eq!(out_a.len(), 3);
+    assert_eq!(out_b.len(), 3);
+    // Value-check: choice=0 picks a's limbs, higher limbs come from a's
+    // zero tail, so the value is still 100.
+    assert_eq!(out_a.limbs(), &[100, 0, 0]);
+    assert_eq!(out_b.limbs(), &[1, 2, 3]);
+}
+
+#[test]
+fn cselect_preserves_zero_tail() {
+    let a = H4u32Nct::from_limbs([0xAAAAAAAA, 0xBBBBBBBB, 0, 0], 2);
+    let b = H4u32Nct::from_limbs([0xCCCCCCCC, 0xDDDDDDDD, 0, 0], 2);
+    let out = H4u32Nct::conditional_select(&a, &b, Choice::from(1u8));
+    // limbs beyond len must remain zero.
+    assert_eq!(out.all_limbs()[2], 0);
+    assert_eq!(out.all_limbs()[3], 0);
+}
+
+// ── CtIsZero ──
+
+#[test]
+fn ct_is_zero_true_for_zero_shapes() {
+    let z = <H4u32Nct as Zero>::zero();
+    let f = H4u32Nct::zero_full_cap();
+    let s = H4u32Nct::from_limbs([0, 0, 0, 0], 4);
+    assert!(bool::from(z.ct_is_zero()));
+    assert!(bool::from(f.ct_is_zero()));
+    assert!(bool::from(s.ct_is_zero()));
+}
+
+#[test]
+fn ct_is_zero_false_for_nonzero() {
+    let a = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([0, 1, 0, 0], 2);
+    assert!(!bool::from(a.ct_is_zero()));
+    assert!(!bool::from(b.ct_is_zero()));
+}
+
+// ── ConstantTimeGreater / ConstantTimeLess ──
+
+#[test]
+fn ct_gt_matches_partial_ord() {
+    let a = H4u32Nct::from_limbs([100, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([200, 0, 0, 0], 1);
+    assert!(!bool::from(a.ct_gt(&b)));
+    assert!(bool::from(b.ct_gt(&a)));
+    assert!(!bool::from(a.ct_gt(&a)));
+}
+
+#[test]
+fn ct_gt_across_lens() {
+    // b has a bit in limb 1 → b > a even though a's limb 0 > b's.
+    let a = H4u32Nct::from_limbs([u32::MAX, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([0, 1, 0, 0], 2);
+    assert!(bool::from(b.ct_gt(&a)));
+    assert!(!bool::from(a.ct_gt(&b)));
+    assert!(bool::from(a.ct_lt(&b)));
+    assert!(!bool::from(b.ct_lt(&a)));
+}
+
+#[test]
+fn ct_lt_and_eq_partition_ordering() {
+    let a = H4u32Nct::from_limbs([5, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([7, 0, 0, 0], 1);
+    // Exactly one of {a<b, a==b, a>b} holds.
+    let lt = bool::from(a.ct_lt(&b));
+    let eq = bool::from(a.ct_eq(&b));
+    let gt = bool::from(a.ct_gt(&b));
+    assert_eq!(lt as u8 + eq as u8 + gt as u8, 1);
+    assert!(lt);
+}
+
+// ── Shl ──
+
+#[test]
+fn shl_by_zero_is_identity() {
+    let a = H4u32Nct::from_limbs([0xDEADBEEF, 0, 0, 0], 1);
+    let b = a << 0;
+    assert_eq!(a, b);
+    assert_eq!(a.len(), b.len());
+}
+
+#[test]
+fn shl_within_a_limb() {
+    let a = H4u32Nct::from_limbs([0x0000_00AB, 0, 0, 0], 1);
+    let b = a << 8;
+    // 0xAB << 8 = 0xAB00, still fits in limb 0.
+    assert_eq!(b.limbs()[0], 0x0000_AB00);
+}
+
+#[test]
+fn shl_crosses_a_limb() {
+    // Shift a byte at bit position 24 by 8 → carries into limb 1.
+    let a = H4u32Nct::from_limbs([0xAB000000, 0, 0, 0], 1);
+    let b = a << 8;
+    // Low limb: top byte 0xAB shifts out, low bytes are 0. New limb 0 = 0.
+    // High limb: 0xAB now in the low byte of limb 1.
+    assert_eq!(b.limbs()[0], 0);
+    assert_eq!(b.limbs()[1], 0x000000AB);
+    assert_eq!(b.len(), 2);
+}
+
+#[test]
+fn shl_by_full_word() {
+    let a = H4u32Nct::from_limbs([1, 2, 0, 0], 2);
+    let b = a << 32;
+    assert_eq!(b.limbs()[0], 0);
+    assert_eq!(b.limbs()[1], 1);
+    assert_eq!(b.limbs()[2], 2);
+    // out_len = min(2 + 1 + 0, 4) = 3.
+    assert_eq!(b.len(), 3);
+}
+
+#[test]
+fn shl_beyond_capacity_truncates() {
+    let a = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
+    // CAP=4, WORD_BITS=32 → 128 bits total. Shift by 128 → zero.
+    let b = a << 128;
+    assert!(<H4u32Nct as Zero>::is_zero(&b));
+    assert_eq!(b.len(), 0);
+}
+
+// ── Shr ──
+
+#[test]
+fn shr_by_zero_is_identity() {
+    let a = H4u32Nct::from_limbs([0xDEADBEEF, 0x12345678, 0, 0], 2);
+    let b = a >> 0;
+    assert_eq!(a, b);
+    assert_eq!(a.len(), b.len());
+}
+
+#[test]
+fn shr_within_a_limb() {
+    let a = H4u32Nct::from_limbs([0x0000_AB00, 0, 0, 0], 1);
+    let b = a >> 8;
+    assert_eq!(b.limbs()[0], 0x0000_00AB);
+}
+
+#[test]
+fn shr_crosses_a_limb() {
+    let a = H4u32Nct::from_limbs([0, 0x0000_00AB, 0, 0], 2);
+    let b = a >> 32;
+    assert_eq!(b.limbs()[0], 0x0000_00AB);
+    assert_eq!(b.len(), 1);
+}
+
+#[test]
+fn shr_bit_carries_from_higher_limb() {
+    // limb1 = 0x00000001. Shr by 1 puts that bit at the top of limb 0.
+    let a = H4u32Nct::from_limbs([0, 1, 0, 0], 2);
+    let b = a >> 1;
+    assert_eq!(b.limbs()[0], 0x8000_0000);
+    // out_len = self.len - word_shift = 2 - 0 = 2.
+    assert_eq!(b.len(), 2);
+}
+
+#[test]
+fn shr_by_more_than_value_bits_zeros() {
+    let a = H4u32Nct::from_limbs([0xDEADBEEF, 0, 0, 0], 1);
+    let b = a >> 64;
+    assert!(<H4u32Nct as Zero>::is_zero(&b));
+    assert_eq!(b.len(), 0);
 }

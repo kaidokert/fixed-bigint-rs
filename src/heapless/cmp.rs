@@ -1,5 +1,6 @@
 //! `PartialEq` / `Eq` / `PartialOrd` / `Ord` for `HeaplessBigInt`, plus
-//! `subtle::ConstantTimeEq` for the Ct comparison path.
+//! `subtle::ConstantTimeEq` and `subtle::ConditionallySelectable` for
+//! the Ct paths.
 //!
 //! All value-based:
 //! - `Eq`: walks `max(a.len, b.len)` limbs. Under the zero-tail invariant,
@@ -10,10 +11,21 @@
 //!   `subtle::ConstantTimeGreater` / `ConstantTimeEq` separately.
 //! - `subtle::ConstantTimeEq`: XOR-fold across `max(a.len, b.len)`.
 //!   `black_box` guards against LLVM re-branchifying the fold.
+//! - `subtle::ConditionallySelectable`: per-limb branchless select via
+//!   `T`'s subtle impl, iterating up to `max(a.len, b.len)`. Output len
+//!   is that same `max`, a public shape derived from two public shape
+//!   parameters — never from `choice`.
+//! - `const_num_traits::CtIsZero`: AND-fold `T::ct_eq(&ZERO)` across
+//!   `0..self.len`. Limbs beyond `len` are zero by invariant so
+//!   skipping them preserves the answer.
+//! - `subtle::ConstantTimeGreater` / `ConstantTimeLess`: MSB-to-LSB
+//!   scan up to `max(a.len, b.len)` with a running `undecided` bit —
+//!   the Montgomery conditional-subtract shape.
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
 use const_num_traits::Personality;
+use core::marker::PhantomData;
 
 // ── PartialEq / Eq (value-based) ──
 
@@ -102,4 +114,88 @@ where
         // FixedUInt's `const_ct_select`.
         subtle::Choice::from(core::hint::black_box(acc.unwrap_u8()))
     }
+}
+
+// ── subtle::ConditionallySelectable ──
+
+impl<T, const CAP: usize, P: Personality> subtle::ConditionallySelectable
+    for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    fn conditional_select(a: &Self, b: &Self, choice: subtle::Choice) -> Self {
+        // Output `len = max(a.len, b.len)`. Both operand lens are public
+        // shape parameters, so their `max` is public — never derived
+        // from `choice`. Per-limb select up to that bound; the tails
+        // beyond each operand's own len are zero (zero-tail invariant),
+        // so per-limb select on the tails yields zero regardless of
+        // `choice`, and the output's tail past `out_len` stays zero.
+        let out_len = core::cmp::max(a.len, b.len);
+        let mut limbs = [super::zero::<T>(); CAP];
+        let mut i = 0;
+        while i < out_len as usize {
+            limbs[i] = <T as subtle::ConditionallySelectable>::conditional_select(
+                &a.limbs[i],
+                &b.limbs[i],
+                choice,
+            );
+            i += 1;
+        }
+        Self {
+            limbs,
+            len: out_len,
+            _p: PhantomData,
+        }
+    }
+}
+
+// ── const_num_traits::CtIsZero ──
+
+impl<T, const CAP: usize, P: Personality> const_num_traits::ops::ct::CtIsZero
+    for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + subtle::ConstantTimeEq,
+{
+    fn ct_is_zero(&self) -> subtle::Choice {
+        let n = self.len as usize;
+        let mut acc = subtle::Choice::from(1u8);
+        let mut i = 0;
+        while i < n {
+            acc &= self.limbs[i].ct_eq(&<T as const_num_traits::ConstZero>::ZERO);
+            i += 1;
+        }
+        subtle::Choice::from(core::hint::black_box(acc.unwrap_u8()))
+    }
+}
+
+// ── subtle::ConstantTimeGreater / ConstantTimeLess ──
+
+impl<T, const CAP: usize, P: Personality> subtle::ConstantTimeGreater for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + subtle::ConstantTimeEq + subtle::ConstantTimeGreater,
+{
+    fn ct_gt(&self, other: &Self) -> subtle::Choice {
+        // MSB-to-LSB scan across `max(a.len, b.len)`. `undecided` locks
+        // the answer at the first differing limb without a data-dependent
+        // branch — every iteration always executes.
+        let n = core::cmp::max(self.len, other.len) as usize;
+        let mut gt = subtle::Choice::from(0u8);
+        let mut undecided = subtle::Choice::from(1u8);
+        let mut i = n;
+        while i > 0 {
+            i -= 1;
+            let gt_here = self.limbs[i].ct_gt(&other.limbs[i]);
+            let eq_here = self.limbs[i].ct_eq(&other.limbs[i]);
+            gt |= undecided & gt_here;
+            undecided &= eq_here;
+        }
+        gt
+    }
+}
+
+// `ConstantTimeLess` is derived from `ConstantTimeEq` + `ConstantTimeGreater`
+// via its default methods; the empty impl is enough to opt in.
+impl<T, const CAP: usize, P: Personality> subtle::ConstantTimeLess for HeaplessBigInt<T, CAP, P> where
+    T: MachineWord + subtle::ConstantTimeEq + subtle::ConstantTimeGreater
+{
 }
