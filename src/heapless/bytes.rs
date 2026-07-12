@@ -15,7 +15,7 @@
 
 use super::{HeaplessBigInt, zero};
 use crate::MachineWord;
-use const_num_traits::Personality;
+use const_num_traits::{ByteSliceError, ByteSliceErrorKind, FromByteSlice, Personality};
 use core::marker::PhantomData;
 
 // Read up to `bytes.len()` MSB-first bytes into a T, zero-padding on the
@@ -156,5 +156,41 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
             len: out_len as u16,
             _p: PhantomData,
         }
+    }
+}
+
+// ── const_num_traits::FromByteSlice ──
+//
+// Result-returning slice parse: empty → `Empty`, wider than the
+// container → `Overflow`, shorter → zero-extended. The inherent
+// `from_be_bytes`/`from_le_bytes` already zero-extend; the length
+// guard converts their panic-on-oversize into the `Overflow` error.
+
+impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P> {
+    #[inline]
+    fn check_slice_len(len: usize) -> Result<(), ByteSliceError> {
+        if len == 0 {
+            return Err(ByteSliceError {
+                kind: ByteSliceErrorKind::Empty,
+            });
+        }
+        if len > CAP * core::mem::size_of::<T>() {
+            return Err(ByteSliceError {
+                kind: ByteSliceErrorKind::Overflow,
+            });
+        }
+        Ok(())
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> FromByteSlice for HeaplessBigInt<T, CAP, P> {
+    fn from_be_slice(bytes: &[u8]) -> Result<Self, ByteSliceError> {
+        Self::check_slice_len(bytes.len())?;
+        Ok(Self::from_be_bytes(bytes))
+    }
+
+    fn from_le_slice(bytes: &[u8]) -> Result<Self, ByteSliceError> {
+        Self::check_slice_len(bytes.len())?;
+        Ok(Self::from_le_bytes(bytes))
     }
 }

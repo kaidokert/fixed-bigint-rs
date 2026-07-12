@@ -1140,3 +1140,51 @@ fn bitand_with_full_width_mask() {
     assert_eq!(out.limbs()[0], 0x1234_5678);
     assert_eq!(out.len(), 1);
 }
+
+// ── FromByteSlice ──
+
+#[test]
+fn from_be_slice_exact_and_short() {
+    use const_num_traits::FromByteSlice;
+    // Exact width.
+    let v = H4u32Nct::from_be_slice(&[0x12, 0x34, 0x56, 0x78]).unwrap();
+    assert_eq!(v.limbs()[0], 0x12345678);
+    // Short input zero-extends (BE reads the trailing window).
+    let v = H4u32Nct::from_be_slice(&[0x12, 0x34]).unwrap();
+    assert_eq!(v.limbs()[0], 0x1234);
+}
+
+#[test]
+fn from_le_slice_exact_and_short() {
+    use const_num_traits::FromByteSlice;
+    let v = H4u32Nct::from_le_slice(&[0x78, 0x56, 0x34, 0x12]).unwrap();
+    assert_eq!(v.limbs()[0], 0x12345678);
+    let v = H4u32Nct::from_le_slice(&[0x34, 0x12]).unwrap();
+    assert_eq!(v.limbs()[0], 0x1234);
+}
+
+#[test]
+fn from_slice_rejects_empty_and_overflow() {
+    use const_num_traits::FromByteSlice;
+    type H4u8 = HeaplessBigInt<u8, 4, Nct>; // 4-byte container
+    assert!(H4u8::from_be_slice(&[]).is_err()); // empty
+    assert!(H4u8::from_le_slice(&[]).is_err());
+    assert!(H4u8::from_be_slice(&[1, 2, 3, 4, 5]).is_err()); // wider than 4 bytes
+    assert!(H4u8::from_le_slice(&[1, 2, 3, 4, 5]).is_err());
+    // Exactly the width is accepted.
+    assert!(H4u8::from_be_slice(&[1, 2, 3, 4]).is_ok());
+}
+
+// ── DefaultIsZeroes / Zeroize ──
+
+#[cfg(feature = "zeroize")]
+#[test]
+fn zeroize_wipes_value() {
+    use zeroize::Zeroize;
+    let mut v = H4u32Nct::from_limbs([0xDEAD_BEEF, 0xCAFE_BABE, 0, 0], 2);
+    v.zeroize();
+    assert!(<H4u32Nct as Zero>::is_zero(&v));
+    // Default-is-zero: wiped value equals Default.
+    assert_eq!(v, H4u32Nct::default());
+    assert_eq!(v.len(), 0);
+}

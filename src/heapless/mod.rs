@@ -29,6 +29,8 @@ mod has_personality;
 mod identities;
 mod parity;
 mod shift;
+#[cfg(feature = "zeroize")]
+mod zeroize_impl;
 
 /// Fixed-capacity, runtime-length unsigned bignum.
 ///
