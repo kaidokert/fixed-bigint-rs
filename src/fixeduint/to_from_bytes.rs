@@ -125,10 +125,10 @@ where
     //
     // Byte-wise inner loop rather than `chunk.copy_from_slice(word_bytes)`:
     // `copy_from_slice`'s length assert only DCEs when the optimizer
-    // proves `chunk.len() == word_bytes.len()`, and on MSRV (1.87) that
-    // proof lands for only a subset of monomorphizations — leaving
-    // `panic_fmt` linked in for the rest. The zip byte-loop needs no
-    // length proof on any toolchain.
+    // proves `chunk.len() == word_bytes.len()`, and on stable rustc
+    // through MSRV that proof lands for only a subset of
+    // monomorphizations — leaving `panic_fmt` linked in for the rest.
+    // The zip byte-loop needs no length proof on any toolchain.
     #[inline]
     fn holder_be(&self) -> BytesHolder<T, N> {
         let mut ret = BytesHolder::default();

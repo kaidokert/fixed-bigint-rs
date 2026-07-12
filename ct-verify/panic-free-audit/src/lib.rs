@@ -16,11 +16,10 @@
 //!   `FixedUInt<u8, 256>` and `FixedUInt<u64, 32>` (2048-bit RSA-scale
 //!   moduli at both extremes of the word-stride range).
 //!
-//! The RSA-scale shapes exist because rustc 1.87 (the MSRV) did not
-//! fold `copy_from_slice`'s length assert for those monomorphizations,
-//! leaving `len_mismatch_fail`+`panic_fmt` linked in until the inner
-//! copy was replaced with a byte-wise zip loop. Their presence in the
-//! audit locks that structural fix down against regressions.
+//! The RSA-scale shapes are included because stable rustc through MSRV
+//! does not fold `copy_from_slice`'s length assert for those
+//! monomorphizations; auditing them here locks the byte-wise zip loop
+//! down against regressions to a `copy_from_slice`-shaped inner copy.
 //!
 //! `black_box` at every boundary so the optimizer can't fold inputs
 //! through and DCE the body wholesale (same hygiene as ct-fixtures).
@@ -91,11 +90,9 @@ pub extern "C" fn panic_audit__num_traits_to_le_bytes__u32_8(seed: u32, out: *mu
 
 // ── 2048-bit RSA-scale shapes ────────────────────────────────────────
 
-type U2048u8 = FixedUInt<u8, 256>; // 256 × 1-byte limbs
-type U2048u64 = FixedUInt<u64, 32>; // 32 × 8-byte limbs
+type U2048u8 = FixedUInt<u8, 256>;
+type U2048u64 = FixedUInt<u64, 32>;
 const RSA_BYTE_WIDTH: usize = 256;
-
-// `*_bytes_fixed` at u8@256.
 
 #[no_mangle]
 pub extern "C" fn panic_audit__to_le_bytes_fixed__u8_256(
@@ -118,8 +115,6 @@ pub extern "C" fn panic_audit__to_be_bytes_fixed__u8_256(
     let written = v.to_be_bytes_fixed(buf);
     let _ = black_box(written);
 }
-
-// `num_traits::ToBytes` at u8@256.
 
 #[no_mangle]
 pub extern "C" fn panic_audit__num_traits_to_be_bytes__u8_256(
@@ -145,8 +140,6 @@ pub extern "C" fn panic_audit__num_traits_to_le_bytes__u8_256(
     let _ = black_box(unsafe { &*out });
 }
 
-// `*_bytes_fixed` at u64@32.
-
 #[no_mangle]
 pub extern "C" fn panic_audit__to_le_bytes_fixed__u64_32(
     seed: u32,
@@ -168,8 +161,6 @@ pub extern "C" fn panic_audit__to_be_bytes_fixed__u64_32(
     let written = v.to_be_bytes_fixed(buf);
     let _ = black_box(written);
 }
-
-// `num_traits::ToBytes` at u64@32.
 
 #[no_mangle]
 pub extern "C" fn panic_audit__num_traits_to_be_bytes__u64_32(
