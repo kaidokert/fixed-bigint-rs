@@ -123,12 +123,12 @@ where
     // serialisation overwrites it, defeating the point of the by-ref
     // impl (CT / Zeroize wrapper leaks).
     //
-    // Body inlines `chunks_exact_mut(WORD_SIZE)` (see
-    // `byte_conversion_panic_free.rs`) rather than `self.to_be_bytes(&mut
-    // [u8]) -> Result`: the fallible path's runtime length check fails
-    // to DCE at `-Oz`, leaving `panic_fmt` in the binary for every
-    // `NumToBytes` consumer. The inlined variant pairs equal-length
-    // chunks + words; no runtime check.
+    // Byte-wise inner loop rather than `chunk.copy_from_slice(word_bytes)`:
+    // `copy_from_slice`'s length assert only DCEs when the optimizer
+    // proves `chunk.len() == word_bytes.len()`, and on stable rustc
+    // through MSRV that proof lands for only a subset of
+    // monomorphizations — leaving `panic_fmt` linked in for the rest.
+    // The zip byte-loop needs no length proof on any toolchain.
     #[inline]
     fn holder_be(&self) -> BytesHolder<T, N> {
         let mut ret = BytesHolder::default();
@@ -143,7 +143,10 @@ where
             .chunks_exact_mut(word_size)
             .zip(self.array.iter().rev())
         {
-            chunk.copy_from_slice(word.to_be_bytes().as_ref());
+            let word_bytes = word.to_be_bytes();
+            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
+                *dst = *src;
+            }
         }
         ret
     }
@@ -158,7 +161,10 @@ where
             .chunks_exact_mut(word_size)
             .zip(self.array.iter())
         {
-            chunk.copy_from_slice(word.to_le_bytes().as_ref());
+            let word_bytes = word.to_le_bytes();
+            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
+                *dst = *src;
+            }
         }
         ret
     }

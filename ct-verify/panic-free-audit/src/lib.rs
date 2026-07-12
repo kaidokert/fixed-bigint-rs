@@ -1,16 +1,25 @@
-//! Linker-DCE audit fixture for `FixedUInt::*_bytes_fixed`.
+//! Linker-DCE audit fixtures for `FixedUInt` byte serialisation.
 //!
-//! Each `#[no_mangle] pub extern "C"` symbol exercises one of the four
-//! new panic-free byte-conversion methods at a representative
-//! instantiation. After cross-building for an embedded target with the
-//! workspace's release profile (lto=fat, codegen-units=1, opt-level=z,
-//! panic=abort), `cargo nm` on the resulting `.a` should report no
-//! `panic_*` / `unwind` symbols traced back to these methods.
+//! Each `#[no_mangle] pub extern "C"` symbol exercises one byte-
+//! conversion method at one type instantiation. After cross-building for
+//! an embedded target with the workspace's release profile
+//! (lto=fat, codegen-units=1, opt-level=z, panic=abort), `cargo nm` on
+//! the resulting `.a` should report no `panic_*` / `unwind` symbols
+//! traced back to these methods.
 //!
-//! Picks a real-world-shaped instantiation: `FixedUInt<u32, 8>` ⇒
-//! 32 bytes (a 256-bit scalar). The buffer size matches `BYTE_WIDTH`
-//! exactly to exercise the equal-size hot path that downstream
-//! consumers care about.
+//! Two call paths × three shape combinations:
+//!
+//! - Paths: the explicit `to_{le,be}_bytes_fixed` (const-asserted
+//!   buffer size) and the `num_traits::ToBytes` trait path (routes
+//!   through `holder_be`/`holder_le`).
+//! - Shapes: `FixedUInt<u32, 8>` (256-bit / Curve25519), plus
+//!   `FixedUInt<u8, 256>` and `FixedUInt<u64, 32>` (2048-bit RSA-scale
+//!   moduli at both extremes of the word-stride range).
+//!
+//! The RSA-scale shapes are included because stable rustc through MSRV
+//! does not fold `copy_from_slice`'s length assert for those
+//! monomorphizations; auditing them here locks the byte-wise zip loop
+//! down against regressions to a `copy_from_slice`-shaped inner copy.
 //!
 //! `black_box` at every boundary so the optimizer can't fold inputs
 //! through and DCE the body wholesale (same hygiene as ct-fixtures).
@@ -57,6 +66,124 @@ pub extern "C" fn panic_audit__from_be_bytes_fixed(bytes: *const [u8; 32], out: 
     let v: U256 = U256::from_be_bytes_fixed(buf);
     let arr = black_box(*v.words());
     unsafe { *out = arr };
+}
+
+// ── `num_traits::ToBytes` at U256 (routes through `holder_be`/`_le`) ──
+
+#[no_mangle]
+pub extern "C" fn panic_audit__num_traits_to_be_bytes__u32_8(seed: u32, out: *mut [u8; 32]) {
+    let v = U256::from(black_box(seed));
+    let bytes = <U256 as num_traits::ToBytes>::to_be_bytes(&v);
+    let src: &[u8] = bytes.as_ref();
+    unsafe { core::ptr::copy_nonoverlapping(src.as_ptr(), (*out).as_mut_ptr(), 32) };
+    let _ = black_box(unsafe { &*out });
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__num_traits_to_le_bytes__u32_8(seed: u32, out: *mut [u8; 32]) {
+    let v = U256::from(black_box(seed));
+    let bytes = <U256 as num_traits::ToBytes>::to_le_bytes(&v);
+    let src: &[u8] = bytes.as_ref();
+    unsafe { core::ptr::copy_nonoverlapping(src.as_ptr(), (*out).as_mut_ptr(), 32) };
+    let _ = black_box(unsafe { &*out });
+}
+
+// ── 2048-bit RSA-scale shapes ────────────────────────────────────────
+
+type U2048u8 = FixedUInt<u8, 256>;
+type U2048u64 = FixedUInt<u64, 32>;
+const RSA_BYTE_WIDTH: usize = 256;
+
+#[no_mangle]
+pub extern "C" fn panic_audit__to_le_bytes_fixed__u8_256(
+    seed: u32,
+    out: *mut [u8; RSA_BYTE_WIDTH],
+) {
+    let v = U2048u8::from(black_box(seed));
+    let buf = unsafe { &mut *out };
+    let written = v.to_le_bytes_fixed(buf);
+    let _ = black_box(written);
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__to_be_bytes_fixed__u8_256(
+    seed: u32,
+    out: *mut [u8; RSA_BYTE_WIDTH],
+) {
+    let v = U2048u8::from(black_box(seed));
+    let buf = unsafe { &mut *out };
+    let written = v.to_be_bytes_fixed(buf);
+    let _ = black_box(written);
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__num_traits_to_be_bytes__u8_256(
+    seed: u32,
+    out: *mut [u8; RSA_BYTE_WIDTH],
+) {
+    let v = U2048u8::from(black_box(seed));
+    let bytes = <U2048u8 as num_traits::ToBytes>::to_be_bytes(&v);
+    let src: &[u8] = bytes.as_ref();
+    unsafe { core::ptr::copy_nonoverlapping(src.as_ptr(), (*out).as_mut_ptr(), RSA_BYTE_WIDTH) };
+    let _ = black_box(unsafe { &*out });
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__num_traits_to_le_bytes__u8_256(
+    seed: u32,
+    out: *mut [u8; RSA_BYTE_WIDTH],
+) {
+    let v = U2048u8::from(black_box(seed));
+    let bytes = <U2048u8 as num_traits::ToBytes>::to_le_bytes(&v);
+    let src: &[u8] = bytes.as_ref();
+    unsafe { core::ptr::copy_nonoverlapping(src.as_ptr(), (*out).as_mut_ptr(), RSA_BYTE_WIDTH) };
+    let _ = black_box(unsafe { &*out });
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__to_le_bytes_fixed__u64_32(
+    seed: u32,
+    out: *mut [u8; RSA_BYTE_WIDTH],
+) {
+    let v = U2048u64::from(black_box(seed));
+    let buf = unsafe { &mut *out };
+    let written = v.to_le_bytes_fixed(buf);
+    let _ = black_box(written);
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__to_be_bytes_fixed__u64_32(
+    seed: u32,
+    out: *mut [u8; RSA_BYTE_WIDTH],
+) {
+    let v = U2048u64::from(black_box(seed));
+    let buf = unsafe { &mut *out };
+    let written = v.to_be_bytes_fixed(buf);
+    let _ = black_box(written);
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__num_traits_to_be_bytes__u64_32(
+    seed: u32,
+    out: *mut [u8; RSA_BYTE_WIDTH],
+) {
+    let v = U2048u64::from(black_box(seed));
+    let bytes = <U2048u64 as num_traits::ToBytes>::to_be_bytes(&v);
+    let src: &[u8] = bytes.as_ref();
+    unsafe { core::ptr::copy_nonoverlapping(src.as_ptr(), (*out).as_mut_ptr(), RSA_BYTE_WIDTH) };
+    let _ = black_box(unsafe { &*out });
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__num_traits_to_le_bytes__u64_32(
+    seed: u32,
+    out: *mut [u8; RSA_BYTE_WIDTH],
+) {
+    let v = U2048u64::from(black_box(seed));
+    let bytes = <U2048u64 as num_traits::ToBytes>::to_le_bytes(&v);
+    let src: &[u8] = bytes.as_ref();
+    unsafe { core::ptr::copy_nonoverlapping(src.as_ptr(), (*out).as_mut_ptr(), RSA_BYTE_WIDTH) };
+    let _ = black_box(unsafe { &*out });
 }
 
 // ── HasNonZero/DivNonZero panic-deletion audit ───────────────────────

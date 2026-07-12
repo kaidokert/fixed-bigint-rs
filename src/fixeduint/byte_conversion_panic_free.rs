@@ -14,13 +14,13 @@
 
 //! Fixed-size byte conversion: typed buffers, compile-time size check.
 //!
-//! Panic-free-signature counterparts to the slice-based
+//! Panic-free counterparts to the slice-based
 //! `FixedUInt::{to,from}_{le,be}_bytes`. Take `&[u8; M]` / `&mut [u8; M]`
 //! and verify `M >= BYTE_WIDTH` at monomorphization; wrong-size callers
-//! fail at compile time. The signature guarantee is "no `Result`, no
-//! `.unwrap()` at the boundary" — not "no `panic_fmt` in the linked
-//! binary": `copy_from_slice` still carries a length check LLVM can't
-//! elide through the trait boundary.
+//! fail at compile time. No `Result`, no `.unwrap()` at the boundary,
+//! and no `panic_fmt` in the linked binary: the inner byte-copy is a
+//! zip loop rather than `copy_from_slice`, so it needs no length proof
+//! on any toolchain (MSRV included).
 //!
 //! Oversized-buffer convention when `M > BYTE_WIDTH`: LE uses the
 //! leading `BYTE_WIDTH` bytes and BE uses the trailing `BYTE_WIDTH`
@@ -86,7 +86,10 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
         let _ = <Self as AssertBufferFits<M>>::CHECK;
         let word_size = Self::WORD_SIZE;
         for (chunk, word) in out.chunks_exact_mut(word_size).zip(self.array.iter()) {
-            chunk.copy_from_slice(word.to_le_bytes().as_ref());
+            let word_bytes = word.to_le_bytes();
+            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
+                *dst = *src;
+            }
         }
         &out[..Self::BYTE_WIDTH]
     }
@@ -119,7 +122,10 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
             .chunks_exact_mut(word_size)
             .zip(self.array.iter().rev())
         {
-            chunk.copy_from_slice(word.to_be_bytes().as_ref());
+            let word_bytes = word.to_be_bytes();
+            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
+                *dst = *src;
+            }
         }
         &out[start..]
     }
