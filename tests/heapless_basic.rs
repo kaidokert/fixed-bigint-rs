@@ -963,3 +963,78 @@ fn borrowing_sub_underflow_reports_borrow_out() {
     let (_, borrow) = a.borrowing_sub(b, false);
     assert!(borrow);
 }
+
+// ── Nct value-aware checked_mul + trim ──
+
+type H4u8Nct = HeaplessBigInt<u8, 4, Nct>;
+
+#[test]
+fn checked_mul_returns_some_when_value_fits_but_shape_overflows_nct() {
+    // Two operands whose `len` sum exceeds CAP but whose true product
+    // still fits — the shape check would falsely reject, but the value
+    // check accepts.
+    //
+    // Set up: build values with inflated len (all-zero high limbs).
+    let a = H4u8Nct::from_limbs([5, 0, 0, 0], 4); // value 5, shape len=4
+    let b = H4u8Nct::from_limbs([7, 0, 0, 0], 4); // value 7, shape len=4
+    // len sum = 8 > CAP=4, but 5*7 = 35 fits.
+    let out = a
+        .checked_mul(&b)
+        .expect("value fits, checked_mul should accept");
+    assert_eq!(out.limbs()[0], 35);
+    // Nct path trims: len reflects value.
+    assert_eq!(out.len(), 1);
+}
+
+#[test]
+fn checked_mul_returns_none_when_value_truly_overflows() {
+    // 2^24 (limb 3) * 2^16 (limb 2) = 2^40 — doesn't fit in u8*4 = 32 bits.
+    let a = H4u8Nct::from_limbs([0, 0, 0, 1], 4); // 2^24
+    let b = H4u8Nct::from_limbs([0, 0, 1, 0], 3); // 2^16
+    assert!(a.checked_mul(&b).is_none());
+}
+
+#[test]
+fn checked_mul_chain_survives_shape_inflation() {
+    // The "modmath EEA" pattern that would panic under a shape-based
+    // check: multiply small values that keep growing `len` under the
+    // untrimmed shape but whose true values stay small.
+    let start: H4u8Nct = 1u8.into();
+    let a: H4u8Nct = 3u8.into();
+    let b: H4u8Nct = 5u8.into();
+    let c: H4u8Nct = 7u8.into();
+    // start * a * b * c = 105. Fits trivially in one u8 limb.
+    let p1 = start.checked_mul(&a).unwrap();
+    let p2 = p1.checked_mul(&b).unwrap();
+    let p3 = p2.checked_mul(&c).unwrap();
+    assert_eq!(p3.limbs()[0], 105);
+    assert_eq!(p3.len(), 1);
+}
+
+#[test]
+fn trim_normalises_inflated_shape() {
+    // Inflated len=4, only limb 0 non-zero.
+    let v = H4u8Nct::from_limbs([42, 0, 0, 0], 4);
+    let t = v.trim();
+    assert_eq!(t.len(), 1);
+    assert_eq!(t.limbs()[0], 42);
+    // Value equality preserved.
+    assert_eq!(t, v);
+}
+
+#[test]
+fn trim_zero_gives_len_zero() {
+    let z = H4u8Nct::from_limbs([0; 4], 4);
+    let t = z.trim();
+    assert_eq!(t.len(), 0);
+    assert!(<H4u8Nct as Zero>::is_zero(&t));
+}
+
+#[test]
+fn trim_leaves_content_untouched() {
+    // len already tight; trim is a no-op.
+    let v = H4u8Nct::from_limbs([0xAB, 0xCD, 0, 0], 2);
+    let t = v.trim();
+    assert_eq!(t.len(), 2);
+    assert_eq!(t.limbs(), v.limbs());
+}

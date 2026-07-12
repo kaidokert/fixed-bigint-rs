@@ -11,8 +11,8 @@
 use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
 use const_num_traits::{
-    BorrowingSub, CarryingAdd, CarryingMul, OverflowingAdd, OverflowingSub, Personality,
-    WrappingAdd, WrappingMul, WrappingSub,
+    BorrowingSub, CarryingAdd, CarryingMul, Nct, OverflowingAdd, OverflowingSub, Personality,
+    PersonalityTag, WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
 use core::marker::PhantomData;
 
@@ -194,10 +194,69 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
         (out, overflow)
     }
 
-    /// Checked multiplication. `None` on overflow.
+    /// Checked multiplication. `None` when the true product does not
+    /// fit in `CAP` limbs.
+    ///
+    /// **Nct**: value-aware. Computes the full 2·CAP-limb product via
+    /// [`CarryingMul`] and reports overflow iff the high half is
+    /// non-zero. Chained muls whose accumulated `len` sums exceed
+    /// `CAP` but whose true value still fits (a common pattern in EEA
+    /// intermediates) return `Some(product)` here; `overflowing_mul`'s
+    /// shape-based check would falsely reject them. The returned
+    /// value has its `len` trimmed to the highest non-zero limb — an
+    /// NCT-implicit content scan, sound because Nct.
+    ///
+    /// **Ct**: shape-based (`self.len + other.len > CAP` → `None`).
+    /// Ct callers who need a value-derived answer are asking for a
+    /// content-derived shape, which the spec forbids.
     pub fn checked_mul(&self, other: &Self) -> Option<Self> {
-        let (res, overflow) = self.overflowing_mul(other);
-        if overflow { None } else { Some(res) }
+        match P::TAG {
+            PersonalityTag::Nct => {
+                let zero_v = <Self as Zero>::zero();
+                let (lo, hi) = <Self as CarryingMul>::carrying_mul(*self, *other, zero_v);
+                if <Self as Zero>::is_zero(&hi) {
+                    Some(trim_content(lo))
+                } else {
+                    None
+                }
+            }
+            PersonalityTag::Ct => {
+                let (res, overflow) = self.overflowing_mul(other);
+                if overflow { None } else { Some(res) }
+            }
+        }
+    }
+}
+
+// Trim trailing-zero limbs — NCT-implicit content scan sets `len` to
+// `1 + index of highest non-zero limb` (or 0 for the mathematical zero).
+// Called only from Nct code paths; exposed as a public method on the
+// Nct-only impl block below.
+fn trim_content<T: MachineWord, const CAP: usize, P: Personality>(
+    mut v: HeaplessBigInt<T, CAP, P>,
+) -> HeaplessBigInt<T, CAP, P> {
+    let mut new_len: u16 = 0;
+    let mut i = 0;
+    while i < CAP {
+        if !is_zero(&v.limbs[i]) {
+            new_len = (i + 1) as u16;
+        }
+        i += 1;
+    }
+    v.len = new_len;
+    v
+}
+
+// Nct-only public trim: normalises `len` to match the actual value.
+// Reasonable to call on any Nct-shape output whose `len` was inflated
+// by upstream shape arithmetic (chained mul, add-with-CAP-headroom).
+
+impl<T: MachineWord, const CAP: usize> HeaplessBigInt<T, CAP, Nct> {
+    /// Trim `len` down to the highest non-zero limb + 1 (0 for zero).
+    /// NCT-implicit — inspects limb content, so Nct-only.
+    #[inline]
+    pub fn trim(self) -> Self {
+        trim_content(self)
     }
 }
 
