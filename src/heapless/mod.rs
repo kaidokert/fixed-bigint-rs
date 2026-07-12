@@ -18,6 +18,7 @@ use core::marker::PhantomData;
 
 mod arith;
 mod bits;
+mod bitwise;
 mod bytes;
 #[cfg(feature = "cios")]
 mod cios;

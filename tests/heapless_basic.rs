@@ -1091,3 +1091,52 @@ fn trait_checked_mul_reports_true_overflow() {
     let b = H4u8Nct::from_limbs([0, 0, 1, 0], 3); // 2^16
     assert_eq!(<H4u8Nct as CheckedMul>::checked_mul(a, b), None);
 }
+
+// ── BitAnd ──
+
+#[test]
+fn bitand_masks_bits() {
+    let a: H4u32Nct = 0xF0F0_F0F0u32.into();
+    let mask: H4u32Nct = 0x00FF_00FFu32.into();
+    let out = a & mask;
+    assert_eq!(out.limbs()[0], 0x00F0_00F0);
+}
+
+#[test]
+fn bitand_output_len_is_min_of_operand_lens() {
+    // a spans 3 limbs, mask spans 1 → result can only have limb 0 set.
+    let a = H4u32Nct::from_limbs([0xFFFF_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF, 0], 3);
+    let mask: H4u32Nct = 0x0000_00FFu32.into(); // len 1
+    let out = &a & &mask;
+    assert_eq!(out.len(), 1);
+    assert_eq!(out.limbs()[0], 0x0000_00FF);
+}
+
+#[test]
+fn bitand_preserves_zero_tail() {
+    let a = H4u32Nct::from_limbs([0xAAAA_AAAA, 0xBBBB_BBBB, 0, 0], 2);
+    let b = H4u32Nct::from_limbs([0xFFFF_0000, 0x0000_FFFF, 0, 0], 2);
+    let out = a & b;
+    assert_eq!(out.all_limbs()[2], 0);
+    assert_eq!(out.all_limbs()[3], 0);
+}
+
+#[test]
+fn bitand_all_receiver_forms_agree() {
+    let a: H4u32Nct = 0xF0F0_F0F0u32.into();
+    let b: H4u32Nct = 0x00FF_00FFu32.into();
+    let ref_ref = &a & &b;
+    assert_eq!(a & b, ref_ref);
+    assert_eq!(a & &b, ref_ref);
+    assert_eq!(&a & b, ref_ref);
+}
+
+#[test]
+fn bitand_with_full_width_mask() {
+    // Masking a short value by a full-CAP all-ones mask returns the value.
+    let v: H4u32Nct = 0x1234_5678u32.into(); // len 1
+    let mask = H4u32Nct::from_limbs([u32::MAX; 4], 4);
+    let out = v & mask;
+    assert_eq!(out.limbs()[0], 0x1234_5678);
+    assert_eq!(out.len(), 1);
+}
