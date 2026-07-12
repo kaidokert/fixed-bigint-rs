@@ -11,8 +11,8 @@
 use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
 use const_num_traits::{
-    BorrowingSub, CarryingAdd, CarryingMul, Nct, OverflowingAdd, OverflowingSub, Personality,
-    PersonalityTag, WrappingAdd, WrappingMul, WrappingSub, Zero,
+    BorrowingSub, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, Nct, OverflowingAdd,
+    OverflowingSub, Personality, PersonalityTag, WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
 use core::marker::PhantomData;
 
@@ -225,6 +225,35 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
                 if overflow { None } else { Some(res) }
             }
         }
+    }
+}
+
+// ── const_num_traits CheckedAdd / CheckedMul (Nct only) ──
+//
+// The trait forms modmath's variable-time inv binds on. Nct-only: the
+// value-aware `checked_mul` (returns `Some` when the true product fits
+// even though the accumulated `len` shape overruns CAP) is an
+// NCT-implicit content scan, so exposing it through a trait is sound
+// only on the Nct carrier. `HeaplessBigInt: Copy`, so bridging the
+// by-value trait receiver to the by-reference inherent method is free.
+
+impl<T, const CAP: usize> CheckedAdd for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = Self;
+    fn checked_add(self, v: Self) -> Option<Self> {
+        Self::checked_add(&self, &v)
+    }
+}
+
+impl<T, const CAP: usize> CheckedMul for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = Self;
+    fn checked_mul(self, v: Self) -> Option<Self> {
+        Self::checked_mul(&self, &v)
     }
 }
 

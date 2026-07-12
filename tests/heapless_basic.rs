@@ -1038,3 +1038,56 @@ fn trim_leaves_content_untouched() {
     assert_eq!(t.len(), 2);
     assert_eq!(t.limbs(), v.limbs());
 }
+
+// ── const_num_traits CheckedAdd / CheckedMul trait forms (Nct) ──
+
+#[test]
+fn trait_checked_add_matches_inherent() {
+    use const_num_traits::CheckedAdd;
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 250u32.into();
+    let via_trait = <H4u32Nct as CheckedAdd>::checked_add(a, b);
+    let via_inherent = HeaplessBigInt::checked_add(&a, &b);
+    assert_eq!(via_trait, via_inherent);
+    assert_eq!(via_trait, Some(HeaplessBigInt::from(350u32)));
+}
+
+#[test]
+fn trait_checked_add_reports_overflow() {
+    use const_num_traits::CheckedAdd;
+    let max = H4u32Nct::from_limbs([u32::MAX; 4], 4);
+    let one: H4u32Nct = 1u8.into();
+    assert_eq!(<H4u32Nct as CheckedAdd>::checked_add(max, one), None);
+}
+
+#[test]
+fn trait_checked_mul_matches_inherent() {
+    use const_num_traits::CheckedMul;
+    let a: H4u32Nct = 13u8.into();
+    let b: H4u32Nct = 17u8.into();
+    let via_trait = <H4u32Nct as CheckedMul>::checked_mul(a, b);
+    let via_inherent = HeaplessBigInt::checked_mul(&a, &b);
+    assert_eq!(via_trait, via_inherent);
+    assert_eq!(via_trait, Some(HeaplessBigInt::from(221u32)));
+}
+
+#[test]
+fn trait_checked_mul_is_value_aware_through_the_trait() {
+    // The whole point of routing modmath's inv through the trait: a
+    // value that fits despite shape-len overrun returns Some via the
+    // trait form, not just the inherent.
+    use const_num_traits::CheckedMul;
+    let a = H4u8Nct::from_limbs([5, 0, 0, 0], 4); // value 5, shape len=4
+    let b = H4u8Nct::from_limbs([7, 0, 0, 0], 4); // value 7, shape len=4
+    let out = <H4u8Nct as CheckedMul>::checked_mul(a, b).expect("value fits");
+    assert_eq!(out.limbs()[0], 35);
+    assert_eq!(out.len(), 1);
+}
+
+#[test]
+fn trait_checked_mul_reports_true_overflow() {
+    use const_num_traits::CheckedMul;
+    let a = H4u8Nct::from_limbs([0, 0, 0, 1], 4); // 2^24
+    let b = H4u8Nct::from_limbs([0, 0, 1, 0], 3); // 2^16
+    assert_eq!(<H4u8Nct as CheckedMul>::checked_mul(a, b), None);
+}
