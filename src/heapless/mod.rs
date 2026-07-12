@@ -17,6 +17,10 @@ use const_num_traits::{Nct, Personality};
 use core::marker::PhantomData;
 
 mod arith;
+mod bits;
+mod bytes;
+#[cfg(feature = "cios")]
+mod cios;
 mod cmp;
 mod identities;
 mod shift;

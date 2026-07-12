@@ -408,3 +408,193 @@ fn shr_by_more_than_value_bits_zeros() {
     assert!(<H4u32Nct as Zero>::is_zero(&b));
     assert_eq!(b.len(), 0);
 }
+
+// ── Byte serialization ──
+
+#[test]
+fn to_be_bytes_single_limb() {
+    let v = H4u32Nct::from_limbs([0x12345678, 0, 0, 0], 1);
+    let mut buf = [0u8; 4];
+    let written = v.to_be_bytes(&mut buf);
+    assert_eq!(written, &[0x12, 0x34, 0x56, 0x78]);
+}
+
+#[test]
+fn to_be_bytes_multiple_limbs_high_first() {
+    let v = H4u32Nct::from_limbs([0xAAAAAAAA, 0xBBBBBBBB, 0, 0], 2);
+    let mut buf = [0u8; 8];
+    let written = v.to_be_bytes(&mut buf);
+    // Limb 1 (higher) at the front, limb 0 at the back.
+    assert_eq!(written, &[0xBB, 0xBB, 0xBB, 0xBB, 0xAA, 0xAA, 0xAA, 0xAA]);
+}
+
+#[test]
+fn to_le_bytes_matches_le_convention() {
+    let v = H4u32Nct::from_limbs([0x12345678, 0, 0, 0], 1);
+    let mut buf = [0u8; 4];
+    let written = v.to_le_bytes(&mut buf);
+    assert_eq!(written, &[0x78, 0x56, 0x34, 0x12]);
+}
+
+#[test]
+fn to_bytes_zero_produces_empty_slice() {
+    let z = <H4u32Nct as Zero>::zero();
+    let mut buf = [0u8; 4];
+    let written = z.to_be_bytes(&mut buf);
+    assert_eq!(written.len(), 0);
+    let written = z.to_le_bytes(&mut buf);
+    assert_eq!(written.len(), 0);
+}
+
+#[test]
+#[should_panic]
+fn to_be_bytes_panics_on_undersized_buffer() {
+    let v = H4u32Nct::from_limbs([1, 2, 0, 0], 2);
+    let mut buf = [0u8; 4]; // needs 8
+    let _ = v.to_be_bytes(&mut buf);
+}
+
+#[test]
+fn from_be_bytes_word_aligned() {
+    let v = H4u32Nct::from_be_bytes(&[0x12, 0x34, 0x56, 0x78]);
+    assert_eq!(v.len(), 1);
+    assert_eq!(v.limbs()[0], 0x12345678);
+}
+
+#[test]
+fn from_be_bytes_partial_top_word_zero_pads() {
+    // 5 bytes = 2 limbs. Low limb has 4 bytes, top limb has 1 byte.
+    let v = H4u32Nct::from_be_bytes(&[0xAB, 0x12, 0x34, 0x56, 0x78]);
+    assert_eq!(v.len(), 2);
+    assert_eq!(v.limbs()[0], 0x12345678);
+    assert_eq!(v.limbs()[1], 0x000000AB);
+}
+
+#[test]
+fn from_le_bytes_word_aligned() {
+    let v = H4u32Nct::from_le_bytes(&[0x78, 0x56, 0x34, 0x12]);
+    assert_eq!(v.len(), 1);
+    assert_eq!(v.limbs()[0], 0x12345678);
+}
+
+#[test]
+fn from_le_bytes_partial_top_word() {
+    let v = H4u32Nct::from_le_bytes(&[0x78, 0x56, 0x34, 0x12, 0xAB]);
+    assert_eq!(v.len(), 2);
+    assert_eq!(v.limbs()[0], 0x12345678);
+    assert_eq!(v.limbs()[1], 0x000000AB);
+}
+
+#[test]
+fn from_bytes_empty_gives_zero() {
+    let v = H4u32Nct::from_be_bytes(&[]);
+    assert_eq!(v.len(), 0);
+    assert!(<H4u32Nct as Zero>::is_zero(&v));
+    let v = H4u32Nct::from_le_bytes(&[]);
+    assert_eq!(v.len(), 0);
+}
+
+#[test]
+#[should_panic]
+fn from_be_bytes_panics_on_oversized_input() {
+    // CAP=4, word_size=4 → max 16 bytes. Give 17.
+    let bytes = [0u8; 17];
+    let _ = H4u32Nct::from_be_bytes(&bytes);
+}
+
+#[test]
+fn be_round_trip() {
+    let original = H4u32Nct::from_limbs([0xDEADBEEF, 0xCAFEBABE, 0x01020304, 0], 3);
+    let mut buf = [0u8; 12];
+    original.to_be_bytes(&mut buf);
+    let back = H4u32Nct::from_be_bytes(&buf);
+    assert_eq!(back.len(), 3);
+    assert_eq!(back.limbs(), original.limbs());
+}
+
+#[test]
+fn le_round_trip() {
+    let original = H4u32Nct::from_limbs([0xDEADBEEF, 0xCAFEBABE, 0x01020304, 0], 3);
+    let mut buf = [0u8; 12];
+    original.to_le_bytes(&mut buf);
+    let back = H4u32Nct::from_le_bytes(&buf);
+    assert_eq!(back.len(), 3);
+    assert_eq!(back.limbs(), original.limbs());
+}
+
+// ── bit_length / leading_zeros ──
+
+#[test]
+fn bit_length_zero_is_zero() {
+    let z = <H4u32Nct as Zero>::zero();
+    assert_eq!(z.bit_length(), 0);
+}
+
+#[test]
+fn bit_length_one_is_one() {
+    let o = <H4u32Nct as One>::one();
+    assert_eq!(o.bit_length(), 1);
+}
+
+#[test]
+fn bit_length_within_single_limb() {
+    let a = H4u32Nct::from_limbs([0x80, 0, 0, 0], 1);
+    assert_eq!(a.bit_length(), 8);
+    let b = H4u32Nct::from_limbs([0xFF, 0, 0, 0], 1);
+    assert_eq!(b.bit_length(), 8);
+    let c = H4u32Nct::from_limbs([1u32 << 31, 0, 0, 0], 1);
+    assert_eq!(c.bit_length(), 32);
+}
+
+#[test]
+fn bit_length_multi_limb() {
+    // Highest set bit is in limb 2, bit 0. Total = 2 * 32 + 1 = 65.
+    let a = H4u32Nct::from_limbs([0, 0, 1, 0], 3);
+    assert_eq!(a.bit_length(), 65);
+    // Highest set bit in limb 3, bit 31. Total = 3 * 32 + 32 = 128.
+    let b = H4u32Nct::from_limbs([0, 0, 0, 1u32 << 31], 4);
+    assert_eq!(b.bit_length(), 128);
+}
+
+#[test]
+fn bit_length_ignores_zero_high_limbs() {
+    // Explicit len=4 but high limbs happen to be zero — same value as
+    // a shorter `len` shape.
+    let a = H4u32Nct::from_limbs([0xABCD, 0, 0, 0], 4);
+    assert_eq!(a.bit_length(), 16);
+}
+
+#[test]
+fn leading_zeros_zero() {
+    let z = <H4u32Nct as Zero>::zero();
+    // CAP=4 × 32 bits = 128.
+    assert_eq!(z.leading_zeros(), 128);
+}
+
+#[test]
+fn leading_zeros_full_width_value() {
+    let v = H4u32Nct::from_limbs([0, 0, 0, 1u32 << 31], 4);
+    assert_eq!(v.leading_zeros(), 0);
+}
+
+#[test]
+fn leading_zeros_plus_bit_length_equals_cap_bits() {
+    let v = H4u32Nct::from_limbs([0, 1u32 << 20, 0, 0], 2);
+    assert_eq!(v.leading_zeros() + v.bit_length(), 128);
+}
+
+#[test]
+fn bytes_work_across_widths() {
+    // u8 backing: byte-per-limb, no cross-limb assembly.
+    type H8u8Nct = HeaplessBigInt<u8, 8, Nct>;
+    let v = H8u8Nct::from_be_bytes(&[0x12, 0x34, 0x56, 0x78]);
+    assert_eq!(v.len(), 4);
+    // BE, byte 0 = 0x12 is the highest byte → limb 3.
+    assert_eq!(v.limbs(), &[0x78, 0x56, 0x34, 0x12]);
+
+    // u64 backing: 8 bytes per limb.
+    type H2u64Nct = HeaplessBigInt<u64, 2, Nct>;
+    let v = H2u64Nct::from_be_bytes(&[0, 0, 0, 0, 0, 0, 0, 0x42]);
+    assert_eq!(v.len(), 1);
+    assert_eq!(v.limbs()[0], 0x42);
+}
