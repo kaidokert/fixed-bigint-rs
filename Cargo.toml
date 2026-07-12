@@ -89,4 +89,6 @@ use-unsafe = []
 nightly = ["c0nst/nightly", "const-num-traits/nightly"]
 cios = ["dep:modmath-cios"]
 num-traits = ["dep:num-traits", "dep:num-integer"]
+# Parked sketch: fixed-capacity, runtime-length bignum. Off by default.
+heapless-runtime-len = []
 default = ["num-traits"]

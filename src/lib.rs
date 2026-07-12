@@ -64,5 +64,13 @@ pub mod fixeduint;
 /// Machine word and doubleword
 mod machineword;
 
+/// Fixed-capacity, runtime-length bignum sketch. Parked; see the module
+/// header for the design record.
+#[cfg(feature = "heapless-runtime-len")]
+pub mod heapless;
+
 pub use crate::fixeduint::{FixedUInt, NonZeroFixedUInt};
 pub use crate::machineword::MachineWord;
+
+#[cfg(feature = "heapless-runtime-len")]
+pub use crate::heapless::HeaplessBigInt;
