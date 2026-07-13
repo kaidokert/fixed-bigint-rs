@@ -81,33 +81,32 @@ fn add_small_values() {
 
 #[test]
 fn add_cross_limb_carry() {
-    // (u32::MAX) + 1 = 0x1_0000_0000. wrapping_add wraps at the value
-    // width (len 1 → 2^32), so the carry is discarded → 0 at len 1
-    // (like FixedUInt<u32,1>). The growing sum that keeps the carry is
-    // overflowing_add / core::ops::+, which is what EEA relies on.
+    // (u32::MAX) + 1 = 0x1_0000_0000 at width 1 (len 1). The carry is out
+    // of the width, reported as a flag, result wraps to 0 — exactly like
+    // FixedUInt<u32,1>. No limb growth: the words beyond len do not exist.
     let a = H4u32Nct::from_limbs([u32::MAX, 0, 0, 0], 1);
     let b = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
     let w = a.wrapping_add(&b);
     assert_eq!(w.len(), 1);
     assert_eq!(w.limbs()[0], 0);
 
-    // overflowing_add grows a limb to hold the carry (no CAP overflow).
-    let (grown, overflow) = a.overflowing_add(&b);
-    assert!(!overflow);
-    assert_eq!(grown.len(), 2);
-    assert_eq!(grown.limbs()[0], 0);
-    assert_eq!(grown.limbs()[1], 1);
+    let (res, overflow) = a.overflowing_add(&b);
+    assert!(overflow, "carry out of width 1");
+    assert_eq!(res.len(), 1);
+    assert_eq!(res.limbs()[0], 0);
+    assert_eq!(a.checked_add(&b), None);
 }
 
 #[test]
-fn add_overflows_when_natural_len_exceeds_cap() {
-    // 2 CAP=4 32-bit values whose sum needs 5 limbs.
+fn add_overflow_at_operand_width() {
+    // Sum overflowing the operands' width flags, regardless of capacity:
+    // here width == 4 (== CAP), but the rule is width, not CAP.
     let max = H4u32Nct::from_limbs([u32::MAX; 4], 4);
     let one = <H4u32Nct as One>::one();
     let (_wrapped, overflow) = max.overflowing_add(&one);
     assert!(
         overflow,
-        "expected overflow when natural sum needs CAP+1 limbs"
+        "expected overflow when the sum exceeds the operand width"
     );
     assert_eq!(max.checked_add(&one), None);
 }
@@ -159,30 +158,32 @@ fn mul_small_product_fits() {
 
 #[test]
 fn mul_cross_limb_carry() {
-    // 0x1_0000 * 0x1_0000 = 2^32. wrapping_mul wraps at the value width
-    // (len 1 → 2^32) → 0, like FixedUInt<u32,1>. The full growing
-    // product lives in checked_mul / core::ops::* (used by EEA).
+    // 0x1_0000 * 0x1_0000 = 2^32. At width 1 (len 1) the product exceeds
+    // the width: wrapping_mul → 0, overflowing_mul flags, checked_mul is
+    // None — exactly like FixedUInt<u32,1>. The high half beyond the
+    // width does not exist here; WideMul is the op that returns it.
     let a = H4u32Nct::from_limbs([0x1_0000, 0, 0, 0], 1);
     let b = H4u32Nct::from_limbs([0x1_0000, 0, 0, 0], 1);
     let w = a.wrapping_mul(&b);
     assert_eq!(w.len(), 1);
     assert_eq!(w.limbs()[0], 0);
 
-    // The full product 2^32 = [0, 1] is available (fits in CAP=4).
-    let full = a.checked_mul(&b).expect("2^32 fits in CAP");
-    assert_eq!(full.limbs()[0], 0);
-    assert_eq!(full.limbs()[1], 1);
+    let (_res, overflow) = a.overflowing_mul(&b);
+    assert!(overflow, "2^32 overflows width 1");
+    assert_eq!(a.checked_mul(&b), None);
 }
 
 #[test]
-fn mul_overflow_when_natural_len_exceeds_cap() {
-    // len=3 * len=3 → natural product needs 6 limbs; CAP=4.
+fn mul_overflow_at_operand_width() {
+    // len=3 * len=3 → product exceeds width 3, so it flags — the rule is
+    // the operand width, not CAP (here CAP=4 also fits fewer than 6 words,
+    // but that is not what decides it).
     let a = H4u32Nct::from_limbs([1, 1, 1, 0], 3);
     let b = H4u32Nct::from_limbs([1, 1, 1, 0], 3);
     let (_wrapped, overflow) = a.overflowing_mul(&b);
     assert!(
         overflow,
-        "expected overflow when natural product exceeds CAP"
+        "expected overflow when the product exceeds the operand width"
     );
     assert_eq!(a.checked_mul(&b), None);
 }
@@ -1118,51 +1119,45 @@ fn borrowing_sub_underflow_reports_borrow_out() {
     assert!(borrow);
 }
 
-// ── Nct value-aware checked_mul + trim ──
+// ── checked_mul (behaves like the same-width FixedUInt) + trim ──
 
 type H4u8Nct = HeaplessBigInt<u8, 4, Nct>;
 
 #[test]
-fn checked_mul_returns_some_when_value_fits_but_shape_overflows_nct() {
-    // Two operands whose `len` sum exceeds CAP but whose true product
-    // still fits — the shape check would falsely reject, but the value
-    // check accepts.
-    //
-    // Set up: build values with inflated len (all-zero high limbs).
-    let a = H4u8Nct::from_limbs([5, 0, 0, 0], 4); // value 5, shape len=4
-    let b = H4u8Nct::from_limbs([7, 0, 0, 0], 4); // value 7, shape len=4
-    // len sum = 8 > CAP=4, but 5*7 = 35 fits.
-    let out = a
-        .checked_mul(&b)
-        .expect("value fits, checked_mul should accept");
+fn checked_mul_at_operand_width_like_fixeduint() {
+    // A value carried at len=4 IS a 4-word (32-bit) integer, so checked_mul
+    // behaves exactly like FixedUInt<u8,4>: 5 * 7 = 35 fits in width 4 →
+    // Some(35) at len 4 (the operating width). No trim: those words are the
+    // value's real width, not inflation, and capacity never enters.
+    let a = H4u8Nct::from_limbs([5, 0, 0, 0], 4);
+    let b = H4u8Nct::from_limbs([7, 0, 0, 0], 4);
+    let out = a.checked_mul(&b).expect("35 fits in width 4");
+    assert_eq!(out.len(), 4);
     assert_eq!(out.limbs()[0], 35);
-    // Nct path trims: len reflects value.
-    assert_eq!(out.len(), 1);
 }
 
 #[test]
-fn checked_mul_returns_none_when_value_truly_overflows() {
-    // 2^24 (limb 3) * 2^16 (limb 2) = 2^40 — doesn't fit in u8*4 = 32 bits.
+fn checked_mul_returns_none_when_value_overflows_width() {
+    // 2^24 (limb 3) * 2^16 (limb 2) = 2^40 — exceeds the 32-bit operand
+    // width (u8*4), so None, exactly as FixedUInt<u8,4> would report.
     let a = H4u8Nct::from_limbs([0, 0, 0, 1], 4); // 2^24
     let b = H4u8Nct::from_limbs([0, 0, 1, 0], 3); // 2^16
     assert!(a.checked_mul(&b).is_none());
 }
 
 #[test]
-fn checked_mul_chain_survives_shape_inflation() {
-    // The "modmath EEA" pattern that would panic under a shape-based
-    // check: multiply small values that keep growing `len` under the
-    // untrimmed shape but whose true values stay small.
+fn checked_mul_chain_stays_within_width() {
+    // Chained small products (the modmath EEA pattern): each stays within
+    // the operand width, so the chain never falsely overflows.
     let start: H4u8Nct = 1u8.into();
     let a: H4u8Nct = 3u8.into();
     let b: H4u8Nct = 5u8.into();
     let c: H4u8Nct = 7u8.into();
-    // start * a * b * c = 105. Fits trivially in one u8 limb.
+    // 1 * 3 * 5 * 7 = 105, fits in width 1.
     let p1 = start.checked_mul(&a).unwrap();
     let p2 = p1.checked_mul(&b).unwrap();
     let p3 = p2.checked_mul(&c).unwrap();
     assert_eq!(p3.limbs()[0], 105);
-    assert_eq!(p3.len(), 1);
 }
 
 #[test]
@@ -1226,16 +1221,15 @@ fn trait_checked_mul_matches_inherent() {
 }
 
 #[test]
-fn trait_checked_mul_is_value_aware_through_the_trait() {
-    // The whole point of routing modmath's inv through the trait: a
-    // value that fits despite shape-len overrun returns Some via the
-    // trait form, not just the inherent.
+fn trait_checked_mul_matches_fixeduint_width_behavior() {
+    // Through the trait form modmath's inv binds on: checked_mul at the
+    // operand width, same as FixedUInt<u8,4>. 5 * 7 = 35 fits in width 4.
     use const_num_traits::CheckedMul;
-    let a = H4u8Nct::from_limbs([5, 0, 0, 0], 4); // value 5, shape len=4
-    let b = H4u8Nct::from_limbs([7, 0, 0, 0], 4); // value 7, shape len=4
-    let out = <H4u8Nct as CheckedMul>::checked_mul(a, b).expect("value fits");
+    let a = H4u8Nct::from_limbs([5, 0, 0, 0], 4);
+    let b = H4u8Nct::from_limbs([7, 0, 0, 0], 4);
+    let out = <H4u8Nct as CheckedMul>::checked_mul(a, b).expect("35 fits in width 4");
+    assert_eq!(out.len(), 4);
     assert_eq!(out.limbs()[0], 35);
-    assert_eq!(out.len(), 1);
 }
 
 #[test]

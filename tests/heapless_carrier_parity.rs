@@ -1,17 +1,18 @@
 //! Width-model regression: a `HeaplessBigInt<u8, CAP>` value carried at
-//! `len = k` has **width `k · word_bits`** (per the bit-vocabulary
-//! canon), so it must behave like the fixed-width `FixedUInt<u8, k>` —
-//! *not* like `FixedUInt<u8, CAP>`. `CAP` is capacity, invisible to
-//! arithmetic; the operating width is the constructed `len`.
-//!
-//! This is the corrected form of an earlier test that wrongly expected
-//! CAP-width / FixedUInt<u8,CAP> parity at every len. Grew out of a
-//! Montgomery-multiply hunt whose real lesson was the width vs capacity
-//! distinction.
+//! `len = k` is a `k`-word integer of width `k · word_bits`, so every
+//! arithmetic op must return bit-for-bit what `FixedUInt<u8, k>` returns
+//! — wrapped value AND overflow/borrow flag alike. `CAP` is allocation,
+//! invisible to arithmetic; the words beyond `len` do not exist. This
+//! pins that equivalence across sub / wrapping_add / wrapping_mul /
+//! overflowing_add / overflowing_mul / checked_add / checked_mul at
+//! widths 1, 2, 4 inside a capacity-4 carrier.
 
 #![cfg(all(feature = "heapless-runtime-len", feature = "num-traits"))]
 
-use const_num_traits::{Nct, OverflowingSub, WrappingAdd, WrappingMul};
+use const_num_traits::{
+    CheckedAdd, CheckedMul, Nct, OverflowingAdd, OverflowingMul, OverflowingSub, WrappingAdd,
+    WrappingMul,
+};
 use fixed_bigint::{FixedUInt, HeaplessBigInt};
 use num_traits::ToPrimitive;
 
@@ -80,6 +81,39 @@ macro_rules! width_parity {
                     "wrapping_mul {a}*{b} width={} bytes",
                     $k
                 );
+
+                // Overflowing add/mul: wrapped value AND the overflow flag
+                // must both match the same-width FixedUInt.
+                let (ha, hac) = OverflowingAdd::overflowing_add(h(a, $k), h(b, $k));
+                let (fa, fac) =
+                    OverflowingAdd::overflowing_add(<$fixed>::from(a), <$fixed>::from(b));
+                assert_eq!(
+                    (h_val(&ha), hac),
+                    (fa.to_u64().unwrap(), fac),
+                    "overflowing_add {a}+{b} width={} bytes",
+                    $k
+                );
+
+                let (hp, hpo) = OverflowingMul::overflowing_mul(h(a, $k), h(b, $k));
+                let (fp, fpo) =
+                    OverflowingMul::overflowing_mul(<$fixed>::from(a), <$fixed>::from(b));
+                assert_eq!(
+                    (h_val(&hp), hpo),
+                    (fp.to_u64().unwrap(), fpo),
+                    "overflowing_mul {a}*{b} width={} bytes",
+                    $k
+                );
+
+                // Checked add/mul: None iff FixedUInt is None, else equal.
+                let hca = CheckedAdd::checked_add(h(a, $k), h(b, $k)).map(|v| h_val(&v));
+                let fca = CheckedAdd::checked_add(<$fixed>::from(a), <$fixed>::from(b))
+                    .map(|v| v.to_u64().unwrap());
+                assert_eq!(hca, fca, "checked_add {a}+{b} width={} bytes", $k);
+
+                let hcm = CheckedMul::checked_mul(h(a, $k), h(b, $k)).map(|v| h_val(&v));
+                let fcm = CheckedMul::checked_mul(<$fixed>::from(a), <$fixed>::from(b))
+                    .map(|v| v.to_u64().unwrap());
+                assert_eq!(hcm, fcm, "checked_mul {a}*{b} width={} bytes", $k);
             }
         }
     }};
