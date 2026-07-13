@@ -1237,6 +1237,55 @@ fn bitand_with_full_width_mask() {
     assert_eq!(out.len(), 1);
 }
 
+// ── BitOr ──
+
+#[test]
+fn bitor_sets_bits() {
+    let a: H4u32Nct = 0xF0F0_0000u32.into();
+    let b: H4u32Nct = 0x0000_0F0Fu32.into();
+    assert_eq!((a | b).limbs()[0], 0xF0F0_0F0F);
+}
+
+#[test]
+fn bitor_output_len_is_max_of_operand_lens() {
+    // a spans 1 limb, b spans 3 → result spans 3 (OR sets bits in the
+    // wider operand's limbs, which the shorter operand's zero-tail leaves).
+    let a: H4u32Nct = 0x0000_00FFu32.into(); // len 1
+    let b = H4u32Nct::from_limbs([0xFF00, 0xAAAA, 0xBBBB, 0], 3);
+    let out = &a | &b;
+    assert_eq!(out.len(), 3);
+    assert_eq!(out.limbs(), &[0x0000_FFFF, 0xAAAA, 0xBBBB]);
+}
+
+#[test]
+fn bitor_preserves_zero_tail() {
+    let a = H4u32Nct::from_limbs([0xAAAA, 0xBBBB, 0, 0], 2);
+    let b = H4u32Nct::from_limbs([0x5555, 0x4444, 0, 0], 2);
+    let out = a | b;
+    assert_eq!(out.all_limbs()[2], 0);
+    assert_eq!(out.all_limbs()[3], 0);
+}
+
+#[test]
+fn bitor_all_receiver_forms_agree() {
+    let a: H4u32Nct = 0xF0F0_F0F0u32.into();
+    let b: H4u32Nct = 0x0F0F_0F0Fu32.into();
+    let ref_ref = &a | &b;
+    assert_eq!(a | b, ref_ref);
+    assert_eq!(a | &b, ref_ref);
+    assert_eq!(&a | b, ref_ref);
+    // Full-width OR.
+    assert_eq!(ref_ref.limbs()[0], 0xFFFF_FFFF);
+}
+
+#[test]
+fn bitor_with_zero_is_identity() {
+    let a = H4u32Nct::from_limbs([0x1234, 0x5678, 0, 0], 2);
+    let z = <H4u32Nct as Zero>::zero();
+    assert_eq!((&a | &z), a);
+    assert_eq!((&z | &a), a);
+}
+
 // ── FromByteSlice ──
 
 #[test]
