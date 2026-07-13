@@ -1,9 +1,12 @@
 # Bench-wide hardware check: read the ARM core ID (SCB CPUID @ 0xE000ED00) from
-# every debug probe attached to the Pi. One matrix entry per board.
+# every libusb debug probe attached to the Pi. One matrix entry per board.
 #
 # Uses probe-rs GENERIC core targets (cortex-m3 / cortex-m4) so it doesn't depend
 # on exact chip part numbers — the CPUID register lives in the ARM System Control
 # Space, identical across a given Cortex-M core.
+#
+# The nEDBG (Microchip EDBG) CMSIS-DAP HID probe is intentionally excluded: it's
+# janky on recent probe-rs (needs a patched build) and is HID rather than libusb.
 #
 # The job invokes `docker run` itself (not a `container:` block) to keep control
 # of the USB device flags. NOTE: only one runner is registered to this repo, and
@@ -35,10 +38,6 @@ jobs:
             probe: "0483:374b:0670FF373146363143155341"
             chip: "cortex-m3"
             expect: "c23"
-          - board: "SAME51 (nEDBG)"
-            probe: "03eb:2175:MCHP3408073000000192"
-            chip: "cortex-m4"
-            expect: "c24"
           - board: "nRF52833 (J-Link)"
             probe: "1366:1025:000685893034"
             chip: "cortex-m4"
@@ -65,6 +64,7 @@ jobs:
             "$IMAGE" bash -c '
               set -euo pipefail
               CPUID=$(probe-rs read --chip "$CHIP" --probe "$PROBE" b32 0xE000ED00 1 2>/dev/null | tr -d "[:space:]")
+              [ -n "$CPUID" ] || { echo "::error::empty CPUID (probe not responding)"; exit 1; }
               v=$((16#$CPUID))
               imp=$(( (v>>24)&0xff )); var=$(( (v>>20)&0xf )); part=$(( (v>>4)&0xfff )); rev=$(( v&0xf ))
               ph=$(printf "%03x" "$part")
