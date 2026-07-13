@@ -50,7 +50,12 @@ optional = true
 default-features = false
 
 [dependencies.const-num-traits]
-version = "0.2"
+# Alpha-validation chain: pinned to the git tag (not crates.io) so the
+# whole dependency chain resolves via alpha tags. 0.2.1-alpha.1 carries
+# BitsPrecision. Downstream (modmath/rsa/krabitls) must pin the same tag
+# so cargo unifies to one const-num-traits.
+git = "https://github.com/kaidokert/num-traits.git"
+tag = "v0.2.1-alpha.1"
 default-features = false
 features = ["ct"]
 
@@ -92,9 +97,3 @@ num-traits = ["dep:num-traits", "dep:num-integer"]
 # Parked sketch: fixed-capacity, runtime-length bignum. Off by default.
 heapless-runtime-len = []
 default = ["num-traits"]
-
-# TEMPORARY dev-pin: const-num-traits 0.2.1 (BitsPrecision) is tagged
-# v0.2.1-alpha.0 but not yet on crates.io. Drop this patch once 0.2.1
-# publishes; `version = "0.2"` above then resolves it normally.
-[patch.crates-io]
-const-num-traits = { path = "../num-traits" }

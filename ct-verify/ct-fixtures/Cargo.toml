@@ -22,7 +22,7 @@ panic-handler = []
 
 [dependencies]
 fixed-bigint = { path = "../.." }
-const-num-traits = { version = "0.2", default-features = false, features = ["ct"] }
+const-num-traits = { git = "https://github.com/kaidokert/num-traits.git", tag = "v0.2.1-alpha.1", default-features = false, features = ["ct"] }
 num-integer = { version = "0.1", default-features = false }
 subtle = { version = "2.6", default-features = false }
 
