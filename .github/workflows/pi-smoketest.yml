@@ -1,0 +1,26 @@
+# Standalone smoke test for the Pi 5 self-hosted runner + ct-ci container.
+# Not part of CI — just proves the bench picks up a job and the toolchain is
+# reachable. Safe to delete once the real CT workflows are wired up.
+name: Pi Smoketest
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [experiment/pi-smoketest]
+
+jobs:
+  hi:
+    runs-on: [self-hosted, rust, ct, arm64]
+    container:
+      image: localhost:5000/ct-ci:latest
+    steps:
+      - name: Hi from the Pi
+        run: |
+          echo "hi 👋 from $(hostname) — $(uname -srm)"
+          echo "running inside container: $(cat /etc/os-release | grep PRETTY_NAME)"
+
+      - name: Toolchain is reachable
+        run: |
+          rustc +1.86 --version
+          cargo +nightly --version
+          valgrind --version | head -1
