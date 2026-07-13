@@ -4,8 +4,12 @@
 //! from operand `len` + shift amount, both public shape parameters. The
 //! shape math:
 //!
-//! - `Shl`: `out_len = min(ceil((self.len * word_bits + bits) / word_bits), CAP)`.
-//!   Bits that would need `CAP + 1` limbs are discarded (wrapping).
+//! - `Shl`: width-preserving — `out_len = self.len`, bits shifted past the
+//!   operand width are discarded (`x << bits mod 2^(len·word_bits)`), so a
+//!   value at `len = k` shifts exactly like `FixedUInt<T, k>`. `CAP` never
+//!   enters; the words beyond `len` do not exist. A caller wanting the
+//!   shifted value to occupy more words constructs it at the wider width
+//!   first (as `div_rem` does).
 //! - `Shr`: `out_len = self.len.saturating_sub(bits / word_bits)`. The
 //!   top limb may become zero — that's fine under the zero-tail invariant
 //!   and downstream can trim explicitly if needed (NCT-only).
@@ -27,23 +31,14 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Shl<usize> for HeaplessBi
         let word_shift = bits / word_bits;
         let bit_shift = bits % word_bits;
 
-        // out_len: enough to hold self.len limbs shifted by word_shift,
-        // plus one extra if any bits carry across a word boundary.
-        let extra = if bit_shift > 0 { 1 } else { 0 };
-        let natural = self.len as usize + word_shift + extra;
-        let out_len = core::cmp::min(natural, CAP);
-
+        // Width-preserving: the result occupies the operand's own `len`
+        // words; anything shifted past that is discarded, matching a
+        // fixed-width `<<`. `CAP` never enters.
+        let out_len = self.len as usize;
         let mut limbs = [zero::<T>(); CAP];
-        if word_shift >= CAP {
-            return Self {
-                limbs,
-                len: 0,
-                _p: PhantomData,
-            };
-        }
 
         let mut i = 0;
-        while i < self.len as usize {
+        while i < out_len {
             let dst_lo = i + word_shift;
             if dst_lo < out_len {
                 let lo = self.limbs[i] << bit_shift;

@@ -44,14 +44,22 @@ where
     let dv_bits = divisor.bit_length();
     let mut shift = d_bits - dv_bits;
 
-    let mut rem = *dividend;
+    // Work at a fixed width wide enough for every shifted value. `Shl` is
+    // width-preserving, so the divisor and the quotient-bit unit must be
+    // carried at this width for the up-shifts to have room. `shift <=
+    // d_bits - dv_bits`, so `divisor << shift <= dividend`, which fits in
+    // `dividend`'s words — `work_len` never needs to exceed the operands.
+    let work_len = core::cmp::max(dividend.len(), divisor.len());
+    let mut rem = dividend.widened(work_len);
+    let wide_divisor = divisor.widened(work_len);
+    let one = <HeaplessBigInt<T, CAP, Nct> as One>::one().widened(work_len);
     let mut quotient = <HeaplessBigInt<T, CAP, Nct> as Zero>::zero();
 
     loop {
-        let shifted = *divisor << shift;
+        let shifted = wide_divisor << shift;
         if rem >= shifted {
             rem = rem.wrapping_sub(&shifted);
-            let bit = <HeaplessBigInt<T, CAP, Nct> as One>::one() << shift;
+            let bit = one << shift;
             quotient = quotient.wrapping_add(&bit);
         }
         if shift == 0 {

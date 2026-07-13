@@ -414,35 +414,41 @@ fn shl_within_a_limb() {
 }
 
 #[test]
-fn shl_crosses_a_limb() {
-    // Shift a byte at bit position 24 by 8 → carries into limb 1.
+fn shl_crosses_a_limb_within_width() {
+    // Width-preserving: at width 1 (len 1) the top byte shifts out, like
+    // FixedUInt<u32,1>. 0xAB000000 << 8 = 0 (mod 2^32).
     let a = H4u32Nct::from_limbs([0xAB000000, 0, 0, 0], 1);
     let b = a << 8;
-    // Low limb: top byte 0xAB shifts out, low bytes are 0. New limb 0 = 0.
-    // High limb: 0xAB now in the low byte of limb 1.
+    assert_eq!(b.len(), 1);
     assert_eq!(b.limbs()[0], 0);
-    assert_eq!(b.limbs()[1], 0x000000AB);
-    assert_eq!(b.len(), 2);
+
+    // At width 2 (len 2) the same byte has room to carry into limb 1.
+    let a2 = H4u32Nct::from_limbs([0xAB000000, 0, 0, 0], 2);
+    let b2 = a2 << 8;
+    assert_eq!(b2.len(), 2);
+    assert_eq!(b2.limbs()[0], 0);
+    assert_eq!(b2.limbs()[1], 0x000000AB);
 }
 
 #[test]
-fn shl_by_full_word() {
+fn shl_by_full_word_preserves_width() {
+    // Width 2 (len 2): << 32 shifts limb 0 into limb 1; the old limb 1
+    // (value 2) shifts out of the width. Matches FixedUInt<u32,2>.
     let a = H4u32Nct::from_limbs([1, 2, 0, 0], 2);
     let b = a << 32;
+    assert_eq!(b.len(), 2);
     assert_eq!(b.limbs()[0], 0);
     assert_eq!(b.limbs()[1], 1);
-    assert_eq!(b.limbs()[2], 2);
-    // out_len = min(2 + 1 + 0, 4) = 3.
-    assert_eq!(b.len(), 3);
 }
 
 #[test]
-fn shl_beyond_capacity_truncates() {
+fn shl_beyond_width_is_zero() {
+    // Width 1 (len 1, 32 bits): shifting by >= the width gives zero, like
+    // FixedUInt<u32,1>. Width is preserved (len stays 1); CAP is irrelevant.
     let a = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
-    // CAP=4, WORD_BITS=32 → 128 bits total. Shift by 128 → zero.
     let b = a << 128;
     assert!(<H4u32Nct as Zero>::is_zero(&b));
-    assert_eq!(b.len(), 0);
+    assert_eq!(b.len(), 1);
 }
 
 // ── Shr ──

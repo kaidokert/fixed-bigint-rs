@@ -139,6 +139,19 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         CAP
     }
 
+    /// Return a copy carried at `new_len` words. Widening only relabels
+    /// the width — the limbs in `[len, new_len)` are already zero by the
+    /// zero-tail invariant. Used by algorithms that need a fixed working
+    /// width wider than an operand (e.g. long division shifting the
+    /// divisor up). `new_len` must be `>= len` and `<= CAP`.
+    #[inline]
+    pub(crate) fn widened(&self, new_len: u16) -> Self {
+        debug_assert!(new_len >= self.len && new_len as usize <= CAP);
+        let mut out = *self;
+        out.len = new_len;
+        out
+    }
+
     /// Read-only view of the used limbs.
     #[inline]
     pub fn limbs(&self) -> &[T] {
