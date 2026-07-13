@@ -264,6 +264,36 @@ fn accumulator_must_be_width_pinned() {
     assert_eq!(wide.limbs()[1], 1 << 8); // 2^40 = 2^8 · 2^32
 }
 
+#[test]
+fn wrapping_sub_preserves_width_no_stale_len() {
+    use const_num_traits::{OverflowingAdd, WrappingSub};
+    // A wrapping_sub whose result is numerically small keeps the operands'
+    // width — len is NOT trimmed to the value. So a later doubling still has
+    // room and retains the carry: there is no "stale/shrunk len" feeding a
+    // truncated add. (len IS the width, like the 8 in u8 — not value-tight
+    // metadata.)
+    let big = H4u32Nct::from_limbs([0x9807_72de, 5, 0, 0], 2); // width 2
+    let sub = H4u32Nct::from_limbs([0, 5, 0, 0], 2); // width 2
+    let small = WrappingSub::wrapping_sub(big, sub); // value 0x980772de
+    assert_eq!(
+        small.len(),
+        2,
+        "wrapping_sub keeps width, does not trim len"
+    );
+    assert_eq!(small.limbs()[0], 0x9807_72de);
+    assert_eq!(small.limbs()[1], 0);
+
+    // Doubling the "shrunk" value still carries into limb 1 (width 2 room).
+    let (dbl, _) = OverflowingAdd::overflowing_add(small, small);
+    assert_eq!(dbl.len(), 2);
+    assert_eq!(dbl.limbs()[0], 0x9807_72deu32.wrapping_shl(1));
+    assert_eq!(
+        dbl.limbs()[1],
+        1,
+        "carry retained after sub->double at width 2"
+    );
+}
+
 // ── PartialEq / PartialOrd (value-based) ──
 
 #[test]
