@@ -12,7 +12,7 @@ use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
 use const_num_traits::{
     BorrowingSub, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, Nct, OverflowingAdd,
-    OverflowingSub, Personality, PersonalityTag, WrappingAdd, WrappingMul, WrappingSub, Zero,
+    OverflowingSub, Personality, PersonalityTag, WrappingAdd, WrappingMul, WrappingSub,
 };
 use core::marker::PhantomData;
 
@@ -94,15 +94,71 @@ pub(crate) fn mul_slice<T: MachineWord + CarryingMul<Unsigned = T, Output = T>>(
     }
 }
 
+/// Full product `a * b` split at the carrier capacity `CAP`: returns
+/// `(lo, hi)` where the true product is `hi·2^(CAP·word_bits) + lo`.
+///
+/// This is the *capacity* split, deliberately distinct from the public
+/// `CarryingMul`/`WideMul`, which splits at the operands' value width.
+/// `checked_mul` needs it to answer "does the true product fit in the
+/// carrier?" — a question about `CAP`, not value width — so it cannot
+/// reuse the value-width split (that would report overflow the moment
+/// the product exceeds `max(len)`, rejecting products that still fit in
+/// `CAP`, which is exactly what EEA intermediates rely on).
+#[inline]
+fn mul_full_cap_split<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize>(
+    a: &[T],
+    a_n: usize,
+    b: &[T],
+    b_n: usize,
+) -> ([T; CAP], [T; CAP]) {
+    let mut lo = [zero::<T>(); CAP];
+    let mut hi = [zero::<T>(); CAP];
+    let mut i = 0;
+    while i < a_n {
+        let mut c = zero::<T>();
+        let mut j = 0;
+        while j < b_n {
+            let pos = i + j;
+            let (t_lo, t_hi) = <T as CarryingMul>::carrying_mul(a[i], b[j], c);
+            let existing = if pos < CAP { lo[pos] } else { hi[pos - CAP] };
+            let (sum, c1) = <T as CarryingAdd>::carrying_add(existing, t_lo, false);
+            if pos < CAP {
+                lo[pos] = sum;
+            } else {
+                hi[pos - CAP] = sum;
+            }
+            let (new_c, _) = <T as CarryingAdd>::carrying_add(t_hi, zero::<T>(), c1);
+            c = new_c;
+            j += 1;
+        }
+        let tail = i + b_n;
+        if tail < CAP {
+            let (sum, _) = <T as CarryingAdd>::carrying_add(lo[tail], c, false);
+            lo[tail] = sum;
+        } else {
+            let (sum, _) = <T as CarryingAdd>::carrying_add(hi[tail - CAP], c, false);
+            hi[tail - CAP] = sum;
+        }
+        i += 1;
+    }
+    (lo, hi)
+}
+
 // ── Inherent methods on HeaplessBigInt ──
 
 impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P> {
-    /// Wrapping addition. Output `len = min(max(a.len, b.len) + 1, CAP)`
-    /// per the spec. If the natural sum would need `CAP + 1` limbs, the
-    /// top carry-out is silently discarded (wrapping semantics).
+    /// Wrapping addition. Wraps at the operands' VALUE width: output
+    /// `len = max(a.len, b.len)`, and a carry out of that width is
+    /// discarded (`a.wrapping_add(b) mod 2^(max_len·word_bits)`). This
+    /// matches `FixedUInt<T, max_len>` and the primitive contract —
+    /// `wrapping_*` wraps at the type width, which for this carrier is
+    /// the value width `len·word_bits`, never `CAP`. It does NOT grow a
+    /// limb: a growing sum (up to `CAP`) is what `core::ops::+` /
+    /// `checked_add` provide. Growing here would make iterative modular
+    /// algorithms (Montgomery `n_prime` Newton, wide-REDC) drift width
+    /// and produce inconsistent results on sub-capacity fields.
     pub fn wrapping_add(&self, other: &Self) -> Self {
-        let max_len = core::cmp::max(self.len as usize, other.len as usize);
-        let out_len = core::cmp::min(max_len + 1, CAP);
+        let out_len = core::cmp::max(self.len as usize, other.len as usize);
         let mut out = Self::new_zero_with_len(out_len as u16);
         let _carry = add_slice(&self.limbs, &other.limbs, &mut out.limbs, out_len);
         debug_assert!(zero_tail_ok(&out.limbs, out_len));
@@ -165,10 +221,18 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
 impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
     HeaplessBigInt<T, CAP, P>
 {
-    /// Wrapping multiplication. Output `len = min(a.len + b.len, CAP)`.
-    /// Products that would exceed `CAP` limbs are truncated.
+    /// Wrapping multiplication. Wraps at the operands' VALUE width:
+    /// output `len = max(a.len, b.len)`, keeping the low `max_len` words
+    /// (`a·b mod 2^(max_len·word_bits)`). This matches
+    /// `FixedUInt<T, max_len>` and the primitive contract — `wrapping_*`
+    /// wraps at the type width (value width here), never `CAP`. The full
+    /// growing product (up to `CAP`) is `core::ops::*` / `checked_mul` /
+    /// `WideMul`; keeping the low half here is what Montgomery's
+    /// `t_lo.wrapping_mul(n_prime) mod R` needs, and prevents the width
+    /// drift that broke sub-capacity fields when this grew to
+    /// `a.len + b.len`.
     pub fn wrapping_mul(&self, other: &Self) -> Self {
-        let out_len = core::cmp::min(self.len as usize + other.len as usize, CAP);
+        let out_len = core::cmp::max(self.len as usize, other.len as usize);
         let mut out = Self::new_zero_with_len(out_len as u16);
         mul_slice(
             &self.limbs,
@@ -204,14 +268,16 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     /// Checked multiplication. `None` when the true product does not
     /// fit in `CAP` limbs.
     ///
-    /// **Nct**: value-aware. Computes the full 2·CAP-limb product via
-    /// [`CarryingMul`] and reports overflow iff the high half is
+    /// **Nct**: value-aware. Computes the full product split at the
+    /// carrier capacity `CAP` and reports overflow iff the high half is
     /// non-zero. Chained muls whose accumulated `len` sums exceed
     /// `CAP` but whose true value still fits (a common pattern in EEA
     /// intermediates) return `Some(product)` here; `overflowing_mul`'s
     /// shape-based check would falsely reject them. The returned
     /// value has its `len` trimmed to the highest non-zero limb — an
-    /// NCT-implicit content scan, sound because Nct.
+    /// NCT-implicit content scan, sound because Nct. The split is at
+    /// `CAP` (not the value width `WideMul` uses), because the question
+    /// is "does the true product fit in the carrier?".
     ///
     /// **Ct**: shape-based (`self.len + other.len > CAP` → `None`).
     /// Ct callers who need a value-derived answer are asking for a
@@ -219,10 +285,19 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     pub fn checked_mul(&self, other: &Self) -> Option<Self> {
         match P::TAG {
             PersonalityTag::Nct => {
-                let zero_v = <Self as Zero>::zero();
-                let (lo, hi) = <Self as CarryingMul>::carrying_mul(*self, *other, zero_v);
-                if <Self as Zero>::is_zero(&hi) {
-                    Some(trim_content(lo))
+                let (lo, hi) = mul_full_cap_split::<T, CAP>(
+                    &self.limbs,
+                    self.len as usize,
+                    &other.limbs,
+                    other.len as usize,
+                );
+                if hi.iter().all(is_zero) {
+                    let product = HeaplessBigInt {
+                        limbs: lo,
+                        len: CAP as u16,
+                        _p: PhantomData,
+                    };
+                    Some(trim_content(product))
                 } else {
                     None
                 }

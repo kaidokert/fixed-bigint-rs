@@ -81,14 +81,22 @@ fn add_small_values() {
 
 #[test]
 fn add_cross_limb_carry() {
-    // (u32::MAX) + 1 = 0x1_0000_0000, spans two limbs.
+    // (u32::MAX) + 1 = 0x1_0000_0000. wrapping_add wraps at the value
+    // width (len 1 → 2^32), so the carry is discarded → 0 at len 1
+    // (like FixedUInt<u32,1>). The growing sum that keeps the carry is
+    // overflowing_add / core::ops::+, which is what EEA relies on.
     let a = H4u32Nct::from_limbs([u32::MAX, 0, 0, 0], 1);
     let b = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
-    let s = a.wrapping_add(&b);
-    // Output len is max(1, 1) + 1 = 2.
-    assert_eq!(s.len(), 2);
-    assert_eq!(s.limbs()[0], 0);
-    assert_eq!(s.limbs()[1], 1);
+    let w = a.wrapping_add(&b);
+    assert_eq!(w.len(), 1);
+    assert_eq!(w.limbs()[0], 0);
+
+    // overflowing_add grows a limb to hold the carry (no CAP overflow).
+    let (grown, overflow) = a.overflowing_add(&b);
+    assert!(!overflow);
+    assert_eq!(grown.len(), 2);
+    assert_eq!(grown.limbs()[0], 0);
+    assert_eq!(grown.limbs()[1], 1);
 }
 
 #[test]
@@ -140,23 +148,30 @@ fn sub_underflow_wraps_at_operand_width_not_cap() {
 
 #[test]
 fn mul_small_product_fits() {
+    // 100 * 200 = 20_000 < 2^32, so at value width 1 it fits in one limb
+    // with no wrap. wrapping_mul stays len 1 (like FixedUInt<u32,1>).
     let a = H4u32Nct::from_limbs([100, 0, 0, 0], 1);
     let b = H4u32Nct::from_limbs([200, 0, 0, 0], 1);
     let p = a.wrapping_mul(&b);
-    // Output len = min(1 + 1, 4) = 2. Value = 20_000 fits in limb 0.
-    assert_eq!(p.len(), 2);
+    assert_eq!(p.len(), 1);
     assert_eq!(p.limbs()[0], 20_000);
-    assert_eq!(p.limbs()[1], 0);
 }
 
 #[test]
 fn mul_cross_limb_carry() {
-    // 0x1_0000 * 0x1_0000 = 0x1_0000_0000, straddles limb boundary.
+    // 0x1_0000 * 0x1_0000 = 2^32. wrapping_mul wraps at the value width
+    // (len 1 → 2^32) → 0, like FixedUInt<u32,1>. The full growing
+    // product lives in checked_mul / core::ops::* (used by EEA).
     let a = H4u32Nct::from_limbs([0x1_0000, 0, 0, 0], 1);
     let b = H4u32Nct::from_limbs([0x1_0000, 0, 0, 0], 1);
-    let p = a.wrapping_mul(&b);
-    assert_eq!(p.limbs()[0], 0);
-    assert_eq!(p.limbs()[1], 1);
+    let w = a.wrapping_mul(&b);
+    assert_eq!(w.len(), 1);
+    assert_eq!(w.limbs()[0], 0);
+
+    // The full product 2^32 = [0, 1] is available (fits in CAP=4).
+    let full = a.checked_mul(&b).expect("2^32 fits in CAP");
+    assert_eq!(full.limbs()[0], 0);
+    assert_eq!(full.limbs()[1], 1);
 }
 
 #[test]
@@ -170,6 +185,28 @@ fn mul_overflow_when_natural_len_exceeds_cap() {
         "expected overflow when natural product exceeds CAP"
     );
     assert_eq!(a.checked_mul(&b), None);
+}
+
+#[test]
+fn wrapping_ops_do_not_grow_width() {
+    // The headline symptom from the Montgomery n_prime trace: wrapping
+    // ops must keep the value width fixed so iterative modular algorithms
+    // stay self-consistent. one + one = 2 at len 1 (not [2,0] at len 2).
+    let one = <H4u32Nct as One>::one();
+    let two = one.wrapping_add(&one);
+    assert_eq!(two.len(), 1);
+    assert_eq!(two.limbs()[0], 2);
+
+    // A newton-style step at a fixed width-1 modulus: 2 - (m*x) stays
+    // len 1 through wrapping_mul / wrapping_sub, matching the width-1
+    // FixedUInt arithmetic the parity test pins. Here m=35, x=1.
+    let m = H4u32Nct::from_limbs([35, 0, 0, 0], 1);
+    let x = one;
+    let mx = m.wrapping_mul(&x);
+    assert_eq!(mx.len(), 1);
+    let r = two.wrapping_sub(&mx);
+    assert_eq!(r.len(), 1);
+    assert_eq!(r.limbs()[0], 2u32.wrapping_sub(35)); // wraps at 2^32
 }
 
 // ── PartialEq / PartialOrd (value-based) ──

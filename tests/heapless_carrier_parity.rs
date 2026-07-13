@@ -11,7 +11,7 @@
 
 #![cfg(all(feature = "heapless-runtime-len", feature = "num-traits"))]
 
-use const_num_traits::{Nct, OverflowingSub};
+use const_num_traits::{Nct, OverflowingSub, WrappingAdd, WrappingMul};
 use fixed_bigint::{FixedUInt, HeaplessBigInt};
 use num_traits::ToPrimitive;
 
@@ -35,11 +35,13 @@ fn h(val: u32, k: u16) -> H {
     H::from_limbs(limbs, k)
 }
 
-// Subtraction wraps at the operand width, so it matches the same-width
-// FixedUInt. (Add/mul are *growing* ops on this carrier — a+b can need
-// width+1 rather than wrapping — so they intentionally do NOT match a
-// fixed-width add; only sub's underflow-wrap is a fixed-width behavior.)
-macro_rules! sub_width_parity {
+// The wrapping/overflowing ops all wrap at the operand value width, so
+// each matches the same-width FixedUInt: sub's underflow-wrap,
+// wrapping_add's carry-out discard, and wrapping_mul's high-half
+// truncation are all fixed-width-at-`len` behaviors. (The *growing*
+// variants — core::ops::+/*, checked_* — are a separate carrier feature,
+// not exercised here; this file pins the value-width equivalence.)
+macro_rules! width_parity {
     ($k:literal, $fixed:ty) => {{
         let mask: u32 = if $k == 4 {
             u32::MAX
@@ -50,6 +52,7 @@ macro_rules! sub_width_parity {
         for &a in &vals {
             for &b in &vals {
                 let (a, b) = (a & mask, b & mask);
+
                 let (hd, hb) = OverflowingSub::overflowing_sub(h(a, $k), h(b, $k));
                 let (fd, fb) =
                     OverflowingSub::overflowing_sub(<$fixed>::from(a), <$fixed>::from(b));
@@ -59,16 +62,35 @@ macro_rules! sub_width_parity {
                     "sub {a}-{b} width={} bytes",
                     $k
                 );
+
+                let hs = WrappingAdd::wrapping_add(h(a, $k), h(b, $k));
+                let fs = WrappingAdd::wrapping_add(<$fixed>::from(a), <$fixed>::from(b));
+                assert_eq!(
+                    h_val(&hs),
+                    fs.to_u64().unwrap(),
+                    "wrapping_add {a}+{b} width={} bytes",
+                    $k
+                );
+
+                let hm = WrappingMul::wrapping_mul(h(a, $k), h(b, $k));
+                let fm = WrappingMul::wrapping_mul(<$fixed>::from(a), <$fixed>::from(b));
+                assert_eq!(
+                    h_val(&hm),
+                    fm.to_u64().unwrap(),
+                    "wrapping_mul {a}*{b} width={} bytes",
+                    $k
+                );
             }
         }
     }};
 }
 
 #[test]
-fn heapless_sub_at_len_k_matches_fixeduint_of_width_k() {
-    // width = len·8: HeaplessBigInt<u8,4> subtraction at len 1/2/4 wraps
-    // like FixedUInt<u8,1>/<u8,2>/<u8,4> — capacity 4 never enters.
-    sub_width_parity!(1u16, FixedUInt<u8, 1>);
-    sub_width_parity!(2u16, FixedUInt<u8, 2>);
-    sub_width_parity!(4u16, FixedUInt<u8, 4>);
+fn heapless_at_len_k_matches_fixeduint_of_width_k() {
+    // width = len·8: HeaplessBigInt<u8,4> sub / wrapping_add / wrapping_mul
+    // at len 1/2/4 wrap like FixedUInt<u8,1>/<u8,2>/<u8,4> — capacity 4
+    // never enters.
+    width_parity!(1u16, FixedUInt<u8, 1>);
+    width_parity!(2u16, FixedUInt<u8, 2>);
+    width_parity!(4u16, FixedUInt<u8, 4>);
 }
