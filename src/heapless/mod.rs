@@ -139,14 +139,29 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         CAP
     }
 
-    /// Return a copy carried at `new_len` words. Widening only relabels
-    /// the width — the limbs in `[len, new_len)` are already zero by the
-    /// zero-tail invariant. Used by algorithms that need a fixed working
-    /// width wider than an operand (e.g. long division shifting the
-    /// divisor up). `new_len` must be `>= len` and `<= CAP`.
+    /// Return a copy carried at `new_len` words, pinning the operating
+    /// width without changing the value.
+    ///
+    /// Arithmetic here is width-driven: a `HeaplessBigInt` at `len = k`
+    /// behaves exactly like `FixedUInt<T, k>`, and every op resolves at
+    /// `max(operand len)`. So a value assembled from small pieces (e.g. an
+    /// accumulator seeded from [`zero`](const_num_traits::Zero::zero) then
+    /// added to a one-word digit) is a *narrow* type and wraps at that
+    /// narrow width. To carry it at a chosen width — the way you pick `N`
+    /// for `FixedUInt` — pin it here once; subsequent ops keep that width
+    /// because `max` preserves it. Widening only relabels the width: the
+    /// limbs in `[len, new_len)` are already zero by the zero-tail
+    /// invariant.
+    ///
+    /// Panics if `new_len < len` (this only widens) or `new_len > CAP`.
     #[inline]
-    pub(crate) fn widened(&self, new_len: u16) -> Self {
-        debug_assert!(new_len >= self.len && new_len as usize <= CAP);
+    #[must_use]
+    pub fn widened(&self, new_len: u16) -> Self {
+        assert!(
+            new_len >= self.len && new_len as usize <= CAP,
+            "widened: new_len {new_len} must be in [len {}, CAP {CAP}]",
+            self.len
+        );
         let mut out = *self;
         out.len = new_len;
         out

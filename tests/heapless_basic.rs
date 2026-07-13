@@ -233,6 +233,37 @@ fn carrying_add_reports_width_carry_without_growing() {
     assert_eq!(s2.limbs()[0], 8);
 }
 
+#[test]
+fn accumulator_must_be_width_pinned() {
+    use const_num_traits::OverflowingAdd;
+    // Horner-style doubling: acc = acc*2, repeated. The width is whatever
+    // acc is carried at — value-width ops resolve at max(operand len), so
+    // a value grown from a narrow seed stays narrow and wraps early
+    // (exactly like a narrow FixedUInt). A width-pinned seed carries the
+    // full width, like FixedUInt<u32,8>. This is the recurring downstream
+    // trap: pin the width the way you pick N for FixedUInt.
+    let double = |acc: H4u32Nct| OverflowingAdd::overflowing_add(acc, acc).0;
+
+    // Start from 1, double 40 times → 2^40, which needs limb 1.
+    let start = H4u32Nct::from_limbs([1, 0, 0, 0], 1); // narrow: len 1
+    let mut narrow = start;
+    for _ in 0..40 {
+        narrow = double(narrow);
+    }
+    // Narrow stayed len 1 and wrapped at 2^32 → 0.
+    assert_eq!(narrow.len(), 1);
+    assert!(<H4u32Nct as Zero>::is_zero(&narrow));
+
+    // Pin to width 2 (64 bits) up front; 2^40 now fits.
+    let mut wide = start.widened(2);
+    for _ in 0..40 {
+        wide = double(wide);
+    }
+    assert_eq!(wide.len(), 2);
+    assert_eq!(wide.limbs()[0], 0); // low 32 bits of 2^40
+    assert_eq!(wide.limbs()[1], 1 << 8); // 2^40 = 2^8 · 2^32
+}
+
 // ── PartialEq / PartialOrd (value-based) ──
 
 #[test]
