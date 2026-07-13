@@ -552,21 +552,21 @@ where
 
 // ── CarryingMul at the bigint level ──
 //
-// `(lo, hi) = self * rhs + carry (+ add)`, split at the carrier's fixed
-// width `CAP`: `lo` = low CAP words, `hi` = high CAP words. This is the
-// `WideMul` contract — it must behave like `FixedUInt<T, CAP>`, whose
-// double-width product splits at `N`, because modmath's wide-REDC
-// reconstructs `full = hi·2^(CAP·word_bits) + lo` against the *carrier*
-// width, not the operands' runtime width. Unlike the value-arithmetic
-// ops, a widening multiply is intrinsically defined over the carrier's
-// fixed width, so `CAP` legitimately appears here (the same boundary
-// `ToBytes`'s owned holder uses). Splitting at `max(operand len)`
-// instead — the earlier mistake — diverges from `FixedUInt` for
-// sub-width operands (e.g. `38 * 38` in Curve25519's `r2_mod_n` setup)
-// and misplaces `hi` in the REDC.
+// `(lo, hi) = self * rhs + carry (+ add)`, split at the operands' VALUE
+// width `W = max(len)` words: `lo` = low W words, `hi` = high W words,
+// reconstructing as `full = hi·2^(W·word_bits) + lo`. This matches
+// `bits_precision()` (= `len·word_bits`) and the primitive contract
+// (`200u8.wide_mul(200) = (64, 156)` splits at the type width) — and it
+// is what modmath's wide-REDC reads back, since it reconstructs against
+// the operand's `bits_precision`, not the carrier's capacity.
 //
-// Iterates the full `CAP` (not runtime len): matches `FixedUInt` and is
-// constant-time (fixed loop count) on the Ct carrier.
+// NOT `CAP`: for a sub-capacity field (`len < CAP`) — rsa with a modulus
+// narrower than the carrier — a CAP split would strand the high half in
+// `lo` (`hi = 0`) and the REDC would be off by limbs. `CAP` is invisible
+// here just like every other value-width op; the only fixed-width use of
+// capacity is `ToBytes`'s owned holder. (For a full-width field,
+// `len == CAP`, so the two coincide — which is why ed25519 was
+// insensitive to this and RSA is not.)
 
 impl<T, const CAP: usize, P: Personality> CarryingMul for HeaplessBigInt<T, CAP, P>
 where
@@ -581,51 +581,66 @@ where
     }
 
     fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self::Unsigned, Self::Output) {
+        // Split point W = the operands' value width. `carry`/`add` are
+        // added into the low half, so W must also cover them.
+        let w = core::cmp::max(
+            core::cmp::max(self.len as usize, rhs.len as usize),
+            core::cmp::max(carry.len as usize, add.len as usize),
+        );
         let mut lo_limbs = [zero::<T>(); CAP];
         let mut hi_limbs = [zero::<T>(); CAP];
 
-        // Schoolbook self * rhs into positions [0, 2·CAP): pos < CAP → lo,
-        // else hi[pos - CAP].
+        // Schoolbook self * rhs into positions [0, 2W): pos < W → lo,
+        // else hi[pos - W]. Iterate the operands' word counts (public
+        // shape), not the array capacity.
+        let a_n = self.len as usize;
+        let b_n = rhs.len as usize;
         let mut i = 0;
-        while i < CAP {
+        while i < a_n {
             let mut c = zero::<T>();
             let mut j = 0;
-            while j < CAP {
+            while j < b_n {
                 let pos = i + j;
                 let (t_lo, t_hi) = <T as CarryingMul>::carrying_mul(self.limbs[i], rhs.limbs[j], c);
-                let existing = if pos < CAP {
+                let existing = if pos < w {
                     lo_limbs[pos]
                 } else {
-                    hi_limbs[pos - CAP]
+                    hi_limbs[pos - w]
                 };
                 let (sum, c1) = <T as CarryingAdd>::carrying_add(existing, t_lo, false);
-                if pos < CAP {
+                if pos < w {
                     lo_limbs[pos] = sum;
                 } else {
-                    hi_limbs[pos - CAP] = sum;
+                    hi_limbs[pos - w] = sum;
                 }
                 let (new_c, _) = <T as CarryingAdd>::carrying_add(t_hi, zero::<T>(), c1);
                 c = new_c;
                 j += 1;
             }
-            // Row-final carry lands at column i + CAP → hi[i].
-            let (sum, _) = <T as CarryingAdd>::carrying_add(hi_limbs[i], c, false);
-            hi_limbs[i] = sum;
+            // Row-final carry at column i + b_n.
+            let tail = i + b_n;
+            if tail < w {
+                let (sum, _) = <T as CarryingAdd>::carrying_add(lo_limbs[tail], c, false);
+                lo_limbs[tail] = sum;
+            } else {
+                let (sum, _) = <T as CarryingAdd>::carrying_add(hi_limbs[tail - w], c, false);
+                hi_limbs[tail - w] = sum;
+            }
             i += 1;
         }
 
-        // Fold carry, then add, into the low half [0, CAP); overflow into hi.
+        // Fold carry, then add, into the low half [0, W); overflow into hi.
         for src in [&carry, &add] {
             let mut cin = false;
             let mut i = 0;
-            while i < CAP {
+            while i < w {
                 let (sum, c) = <T as CarryingAdd>::carrying_add(lo_limbs[i], src.limbs[i], cin);
                 lo_limbs[i] = sum;
                 cin = c;
                 i += 1;
             }
             let mut i = 0;
-            while cin && i < CAP {
+            while cin && i < w {
                 let (sum, c) = <T as CarryingAdd>::carrying_add(hi_limbs[i], zero::<T>(), true);
                 hi_limbs[i] = sum;
                 cin = c;
@@ -635,12 +650,12 @@ where
 
         let lo = HeaplessBigInt {
             limbs: lo_limbs,
-            len: CAP as u16,
+            len: w as u16,
             _p: PhantomData,
         };
         let hi = HeaplessBigInt {
             limbs: hi_limbs,
-            len: CAP as u16,
+            len: w as u16,
             _p: PhantomData,
         };
         (lo, hi)

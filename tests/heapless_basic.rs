@@ -1006,24 +1006,22 @@ fn carrying_mul_add_two_adders() {
 }
 
 #[test]
-fn carrying_mul_splits_at_carrier_width_like_fixeduint() {
+fn carrying_mul_splits_at_value_width_not_cap() {
     use const_num_traits::CarryingMul;
-    // WideMul is a fixed-carrier-width op: the (lo, hi) split is at CAP
-    // words (the carrier width), so it reconstructs as
-    // `hi·2^(CAP·word_bits) + lo` — exactly like FixedUInt<u8, CAP>, which
-    // wide-REDC relies on. For sub-width operands (200 at len 1 in an
-    // 8-word container), 40000 stays in the low half: lo = 40000, hi = 0.
-    // (Splitting at the OPERAND width would give (64, 156) and misplace
-    // hi in the REDC — the ed25519 r2_mod_n bug.)
+    // WideMul splits at the operands' value width (max len), so (lo, hi)
+    // reconstruct as `hi·2^(len·word_bits) + lo`, matching bits_precision
+    // and the primitive (200u8.wide_mul(200) = (64, 156), split at 8
+    // bits). At len 1 (width 8) in an 8-word carrier, 40000 must split
+    // into (64, 156), NOT stay whole in lo at CAP — a CAP split strands
+    // the high half and misplaces hi in the REDC (the RSA bug).
     type H4u8 = HeaplessBigInt<u8, 4, Nct>;
     let a = H4u8::from_limbs([200, 0, 0, 0], 1);
     let b = H4u8::from_limbs([200, 0, 0, 0], 1);
     let (lo, hi) = a.carrying_mul(b, <H4u8 as Zero>::zero());
-    // 40000 = 0x9C40 → low half limbs [0x40, 0x9C, 0, 0]; high half zero.
-    assert_eq!(lo.len(), 4);
-    assert_eq!(hi.len(), 4);
-    assert_eq!(lo.all_limbs(), &[0x40, 0x9C, 0, 0]);
-    assert!(<H4u8 as Zero>::is_zero(&hi));
+    assert_eq!(lo.len(), 1, "split at value width (1 word), not CAP");
+    assert_eq!(hi.len(), 1);
+    assert_eq!(lo.limbs()[0], 64); // 40000 & 0xFF
+    assert_eq!(hi.limbs()[0], 156); // 40000 >> 8
 }
 
 // ── BorrowingSub at the bigint level ──
