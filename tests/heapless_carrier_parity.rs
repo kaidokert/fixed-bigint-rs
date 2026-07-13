@@ -5,28 +5,32 @@
 //! `FixedUInt` returns — value AND flag — on every op. `CAP` is
 //! allocation; the words beyond `len` do not exist for arithmetic.
 //!
-//! This inverts the usual "test the type" setup: `FixedUInt` is the
-//! trusted reference (it carries fixed-bigint's own large arithmetic
-//! suite), and every op is checked ONCE in [`assert_carrier_parity`] with
-//! `HeaplessBigInt` driven against `FixedUInt`'s answer. Any behavior that
-//! is correct for the fixed-width type is thereby demanded of the carrier
-//! too, across u8/u16/u32 backings and widths up to 64 bits, inside a
-//! capacity far wider than the width under test — so a capacity leak into
-//! any answer diverges here.
+//! `FixedUInt` is the trusted reference (it carries fixed-bigint's own
+//! arithmetic suite); a `WidthCarrier` trait (build at a width / read the
+//! full byte value back) drives both types through one
+//! [`assert_carrier_parity`]. Comparison is over the full little-endian
+//! byte value, so widths are NOT capped at 64 bits: the sub-capacity
+//! multi-limb configs downstream actually deploys — notably
+//! `HeaplessBigInt<u32, 16>` at `len 8` (a 255/256-bit value in a 512-bit
+//! carrier, the Ed25519 verify carrier) — are exercised against the
+//! matching `FixedUInt<u32, 8>` here.
 
 #![cfg(all(feature = "heapless-runtime-len", feature = "num-traits"))]
 
 use const_num_traits::{
-    BitWidth, CheckedAdd, CheckedMul, FromByteSlice, Nct, OverflowingAdd, OverflowingMul,
-    OverflowingSub, WrappingAdd, WrappingMul, WrappingSub,
+    BitWidth, BitsPrecision, CarryingMul, CheckedAdd, CheckedMul, FromByteSlice, Nct,
+    OverflowingAdd, OverflowingMul, OverflowingSub, WrappingAdd, WrappingMul, WrappingSub,
 };
-use core::cmp::Ordering;
 use fixed_bigint::{FixedUInt, HeaplessBigInt};
-use num_traits::ToPrimitive;
+
+/// Byte buffer wide enough for any value or wide product under test
+/// (512-bit operands → 1024-bit `carrying_mul` result = 128 bytes).
+const BUF: usize = 128;
 
 /// A fixed-width unsigned these differential tests can drive: build a value
-/// at a chosen word-width and read it back as `u64`. `FixedUInt<T, N>`'s
-/// width is its `N`; `HeaplessBigInt<T, CAP>` constructs at `len = width`.
+/// at a chosen word-width from little-endian bytes, and read the full value
+/// back as little-endian bytes. `FixedUInt<T, N>`'s width is its `N`;
+/// `HeaplessBigInt<T, CAP>` constructs at `len = width`.
 trait WidthCarrier:
     Copy
     + WrappingAdd<Output = Self>
@@ -37,6 +41,7 @@ trait WidthCarrier:
     + OverflowingMul<Output = Self>
     + CheckedAdd<Output = Self>
     + CheckedMul<Output = Self>
+    + CarryingMul<Unsigned = Self, Output = Self>
     + core::ops::Div<Output = Self>
     + core::ops::Rem<Output = Self>
     + core::ops::Shl<usize, Output = Self>
@@ -45,41 +50,36 @@ trait WidthCarrier:
     + core::ops::BitOr<Output = Self>
     + PartialOrd
     + BitWidth
+    + BitsPrecision
 {
     const WORD_BYTES: usize;
-    fn make(v: u64, width_words: usize) -> Self;
-    fn read(&self) -> u64;
+    fn make_le(bytes: &[u8], width_words: usize) -> Self;
+    fn read_le(&self, out: &mut [u8; BUF]);
 }
 
 macro_rules! impl_carrier {
     (fixed $t:ty) => {
         impl<const N: usize> WidthCarrier for FixedUInt<$t, N, Nct> {
             const WORD_BYTES: usize = core::mem::size_of::<$t>();
-            fn make(v: u64, width_words: usize) -> Self {
+            fn make_le(bytes: &[u8], width_words: usize) -> Self {
                 assert_eq!(width_words, N, "FixedUInt<T, N> width is fixed at N");
-                let bytes = v.to_le_bytes();
                 FromByteSlice::from_le_slice(&bytes[..N * Self::WORD_BYTES]).unwrap()
             }
-            fn read(&self) -> u64 {
-                ToPrimitive::to_u64(self).unwrap()
+            fn read_le(&self, out: &mut [u8; BUF]) {
+                *out = [0u8; BUF];
+                self.to_le_bytes_fixed(out);
             }
         }
     };
     (heapless $t:ty) => {
         impl<const CAP: usize> WidthCarrier for HeaplessBigInt<$t, CAP, Nct> {
             const WORD_BYTES: usize = core::mem::size_of::<$t>();
-            fn make(v: u64, width_words: usize) -> Self {
-                let bytes = v.to_le_bytes();
+            fn make_le(bytes: &[u8], width_words: usize) -> Self {
                 HeaplessBigInt::from_le_bytes(&bytes[..width_words * Self::WORD_BYTES])
             }
-            fn read(&self) -> u64 {
-                let mut buf = [0u8; 64];
-                let s = self.to_le_bytes(&mut buf);
-                let mut acc = 0u64;
-                for (i, b) in s.iter().enumerate().take(8) {
-                    acc |= (*b as u64) << (8 * i);
-                }
-                acc
+            fn read_le(&self, out: &mut [u8; BUF]) {
+                *out = [0u8; BUF];
+                self.to_le_bytes(out);
             }
         }
     };
@@ -92,176 +92,190 @@ impl_carrier!(heapless u8);
 impl_carrier!(heapless u16);
 impl_carrier!(heapless u32);
 
-fn value_set(mask: u64) -> [u64; 9] {
-    [
-        0,
-        1,
-        2,
-        7,
-        mask,                               // all ones
-        mask >> 1,                          // 0b0111..1
-        (mask >> 1).wrapping_add(1) & mask, // high bit only
-        0xA5A5_A5A5_A5A5_A5A5 & mask,       // alternating
-        0x0F1E_2D3C_4B5A_6978 & mask,       // arbitrary spread
-    ]
+/// Byte-pattern operands of `width_bytes` significant bytes. Multi-limb
+/// patterns (not just u64-range values) so the wide configs are real.
+fn value_seeds(width_bytes: usize) -> Vec<[u8; BUF]> {
+    let mut out = Vec::new();
+    let mut push = |f: &dyn Fn(usize) -> u8| {
+        let mut b = [0u8; BUF];
+        for i in 0..width_bytes {
+            b[i] = f(i);
+        }
+        out.push(b);
+    };
+    push(&|_| 0); // zero
+    push(&|i| if i == 0 { 1 } else { 0 }); // one
+    push(&|i| if i == 0 { 2 } else { 0 }); // two
+    push(&|_| 0xFF); // all ones
+    push(&|i| if i + 1 == width_bytes { 0x80 } else { 0 }); // high bit only
+    push(&|i| if i % 2 == 0 { 0xA5 } else { 0x5A }); // alternating
+    push(&|i| (i as u8).wrapping_mul(37).wrapping_add(3)); // ramp
+    push(&|i| 0xED ^ (i as u8)); // curve-ish spread
+    push(&|i| if i + 1 == width_bytes { 0x7F } else { 0xFF }); // just under all-ones (p-like)
+    out
+}
+
+fn is_zero(seed: &[u8; BUF], width_bytes: usize) -> bool {
+    seed[..width_bytes].iter().all(|&b| b == 0)
 }
 
 /// Assert `F` (fixed-width reference) and `H` (carrier under test) agree on
-/// every op at `width_words`. Both value and flag must match.
+/// every op at `width_words`, comparing full byte values (and flags).
 fn assert_carrier_parity<F, H>(width_words: usize)
 where
     F: WidthCarrier,
     H: WidthCarrier,
 {
     assert_eq!(F::WORD_BYTES, H::WORD_BYTES);
-    let width_bits = width_words * F::WORD_BYTES * 8;
-    let mask = if width_bits >= 64 {
-        u64::MAX
-    } else {
-        (1u64 << width_bits) - 1
-    };
-    let vals = value_set(mask);
-    let f = |v| F::make(v, width_words);
-    let h = |v| H::make(v, width_words);
+    let width_bytes = width_words * F::WORD_BYTES;
+    let seeds = value_seeds(width_bytes);
+    let f = |s: &[u8; BUF]| F::make_le(s, width_words);
+    let h = |s: &[u8; BUF]| H::make_le(s, width_words);
 
-    // Unary ops.
-    for &ra in &vals {
-        let a = ra & mask;
-        assert_eq!(
-            BitWidth::bit_width(f(a)),
-            BitWidth::bit_width(h(a)),
-            "bit_width {a} @ width {width_bits}"
+    // Compare the full byte value of a fixed result against a heapless one.
+    let eq = |fv: &F, hv: &H, msg: &str| {
+        let (mut fb, mut hb) = ([0u8; BUF], [0u8; BUF]);
+        fv.read_le(&mut fb);
+        hv.read_le(&mut hb);
+        assert!(
+            fb == hb,
+            "{msg} @ width {width_bytes}B\n fixed={fb:02x?}\n  heap={hb:02x?}"
         );
-        for &sh in &[0usize, 1, width_bits / 2, width_bits.saturating_sub(1)] {
-            assert_eq!(
-                (f(a) << sh).read(),
-                (h(a) << sh).read(),
-                "shl {a} << {sh} @ width {width_bits}"
-            );
-            assert_eq!(
-                (f(a) >> sh).read(),
-                (h(a) >> sh).read(),
-                "shr {a} >> {sh} @ width {width_bits}"
-            );
+    };
+    let zero_f = F::make_le(&[0u8; BUF], width_words);
+    let zero_h = H::make_le(&[0u8; BUF], width_words);
+
+    // The width a value REPORTS: `bits_precision` is the operating width
+    // modmath's reducer reads for R / n_prime. It must be the true width
+    // (`width_bytes * 8`), never a size_of-inflated capacity — the exact
+    // misread the historical Ed25519 reduce bug came from.
+    assert_eq!(
+        BitsPrecision::bits_precision(h(&seeds[1])),
+        (width_bytes * 8) as u32,
+        "heapless bits_precision must be the width, not capacity"
+    );
+    assert_eq!(
+        BitsPrecision::bits_precision(f(&seeds[1])),
+        BitsPrecision::bits_precision(h(&seeds[1])),
+        "bits_precision parity @ width {width_bytes}B"
+    );
+
+    // Unary: bit_width, shifts.
+    for sa in &seeds {
+        assert_eq!(
+            BitWidth::bit_width(f(sa)),
+            BitWidth::bit_width(h(sa)),
+            "bit_width @ width {width_bytes}B"
+        );
+        let width_bits = width_bytes * 8;
+        for &sh in &[
+            0usize,
+            1,
+            width_bits / 2,
+            width_bits.saturating_sub(1),
+            width_bits,
+        ] {
+            eq(&(f(sa) << sh), &(h(sa) << sh), "shl");
+            eq(&(f(sa) >> sh), &(h(sa) >> sh), "shr");
         }
     }
 
-    // Binary ops.
-    for &ra in &vals {
-        for &rb in &vals {
-            let (a, b) = (ra & mask, rb & mask);
-
-            assert_eq!(
-                WrappingAdd::wrapping_add(f(a), f(b)).read(),
-                WrappingAdd::wrapping_add(h(a), h(b)).read(),
-                "wrapping_add {a}+{b} @ width {width_bits}"
+    // Binary.
+    for sa in &seeds {
+        for sb in &seeds {
+            eq(
+                &WrappingAdd::wrapping_add(f(sa), f(sb)),
+                &WrappingAdd::wrapping_add(h(sa), h(sb)),
+                "wrapping_add",
             );
-            assert_eq!(
-                WrappingSub::wrapping_sub(f(a), f(b)).read(),
-                WrappingSub::wrapping_sub(h(a), h(b)).read(),
-                "wrapping_sub {a}-{b} @ width {width_bits}"
+            eq(
+                &WrappingSub::wrapping_sub(f(sa), f(sb)),
+                &WrappingSub::wrapping_sub(h(sa), h(sb)),
+                "wrapping_sub",
             );
-            assert_eq!(
-                WrappingMul::wrapping_mul(f(a), f(b)).read(),
-                WrappingMul::wrapping_mul(h(a), h(b)).read(),
-                "wrapping_mul {a}*{b} @ width {width_bits}"
+            eq(
+                &WrappingMul::wrapping_mul(f(sa), f(sb)),
+                &WrappingMul::wrapping_mul(h(sa), h(sb)),
+                "wrapping_mul",
             );
 
-            let (fa, ffl) = OverflowingAdd::overflowing_add(f(a), f(b));
-            let (ha, hfl) = OverflowingAdd::overflowing_add(h(a), h(b));
-            assert_eq!(
-                (fa.read(), ffl),
-                (ha.read(), hfl),
-                "overflowing_add {a}+{b} @ width {width_bits}"
-            );
+            let (fa, ffl) = OverflowingAdd::overflowing_add(f(sa), f(sb));
+            let (ha, hfl) = OverflowingAdd::overflowing_add(h(sa), h(sb));
+            assert_eq!(ffl, hfl, "overflowing_add flag @ width {width_bytes}B");
+            eq(&fa, &ha, "overflowing_add value");
 
-            let (fs, fsb) = OverflowingSub::overflowing_sub(f(a), f(b));
-            let (hs, hsb) = OverflowingSub::overflowing_sub(h(a), h(b));
-            assert_eq!(
-                (fs.read(), fsb),
-                (hs.read(), hsb),
-                "overflowing_sub {a}-{b} @ width {width_bits}"
-            );
+            let (fs, fsb) = OverflowingSub::overflowing_sub(f(sa), f(sb));
+            let (hs, hsb) = OverflowingSub::overflowing_sub(h(sa), h(sb));
+            assert_eq!(fsb, hsb, "overflowing_sub flag @ width {width_bytes}B");
+            eq(&fs, &hs, "overflowing_sub value");
 
-            let (fp, fpo) = OverflowingMul::overflowing_mul(f(a), f(b));
-            let (hp, hpo) = OverflowingMul::overflowing_mul(h(a), h(b));
-            assert_eq!(
-                (fp.read(), fpo),
-                (hp.read(), hpo),
-                "overflowing_mul {a}*{b} @ width {width_bits}"
-            );
+            let (fp, fpo) = OverflowingMul::overflowing_mul(f(sa), f(sb));
+            let (hp, hpo) = OverflowingMul::overflowing_mul(h(sa), h(sb));
+            assert_eq!(fpo, hpo, "overflowing_mul flag @ width {width_bytes}B");
+            eq(&fp, &hp, "overflowing_mul value");
+
+            // carrying_mul (WideMul): both halves must match. This is the
+            // op modmath's wide-REDC reduces through.
+            let (flo, fhi) = CarryingMul::carrying_mul(f(sa), f(sb), zero_f);
+            let (hlo, hhi) = CarryingMul::carrying_mul(h(sa), h(sb), zero_h);
+            eq(&flo, &hlo, "carrying_mul lo");
+            eq(&fhi, &hhi, "carrying_mul hi");
 
             assert_eq!(
-                CheckedAdd::checked_add(f(a), f(b)).map(|x| x.read()),
-                CheckedAdd::checked_add(h(a), h(b)).map(|x| x.read()),
-                "checked_add {a}+{b} @ width {width_bits}"
+                CheckedAdd::checked_add(f(sa), f(sb)).is_some(),
+                CheckedAdd::checked_add(h(sa), h(sb)).is_some(),
+                "checked_add some @ width {width_bytes}B"
             );
             assert_eq!(
-                CheckedMul::checked_mul(f(a), f(b)).map(|x| x.read()),
-                CheckedMul::checked_mul(h(a), h(b)).map(|x| x.read()),
-                "checked_mul {a}*{b} @ width {width_bits}"
+                CheckedMul::checked_mul(f(sa), f(sb)).is_some(),
+                CheckedMul::checked_mul(h(sa), h(sb)).is_some(),
+                "checked_mul some @ width {width_bytes}B"
             );
 
-            assert_eq!(
-                (f(a) & f(b)).read(),
-                (h(a) & h(b)).read(),
-                "bitand {a}&{b} @ width {width_bits}"
-            );
-            assert_eq!(
-                (f(a) | f(b)).read(),
-                (h(a) | h(b)).read(),
-                "bitor {a}|{b} @ width {width_bits}"
-            );
+            eq(&(f(sa) & f(sb)), &(h(sa) & h(sb)), "bitand");
+            eq(&(f(sa) | f(sb)), &(h(sa) | h(sb)), "bitor");
 
             assert_eq!(
-                f(a).partial_cmp(&f(b)),
-                h(a).partial_cmp(&h(b)),
-                "cmp {a} ? {b} @ width {width_bits}"
+                f(sa).partial_cmp(&f(sb)),
+                h(sa).partial_cmp(&h(sb)),
+                "cmp @ width {width_bytes}B"
             );
 
-            // Div / Rem: skip the zero divisor.
-            if b != 0 {
-                assert_eq!(
-                    (f(a) / f(b)).read(),
-                    (h(a) / h(b)).read(),
-                    "div {a}/{b} @ width {width_bits}"
-                );
-                assert_eq!(
-                    (f(a) % f(b)).read(),
-                    (h(a) % h(b)).read(),
-                    "rem {a}%{b} @ width {width_bits}"
-                );
+            if !is_zero(sb, width_bytes) {
+                eq(&(f(sa) / f(sb)), &(h(sa) / h(sb)), "div");
+                eq(&(f(sa) % f(sb)), &(h(sa) % h(sb)), "rem");
             }
         }
     }
 
-    // Anchor: at least one comparison actually distinguished ordering.
-    assert_ne!(
-        f(vals[0] & mask).partial_cmp(&f(vals[4] & mask)),
-        Some(Ordering::Equal)
-    );
+    let _ = (zero_f, zero_h);
 }
 
-// u8 backing: widths 1, 2, 4, 8 (8 … 64 bits) in a capacity-24 carrier.
+// u8 backing in a capacity-24 carrier: widths 1, 2, 8, 16, 24 (up to len==CAP).
 #[test]
 fn u8_backed_widths_match_fixeduint() {
     assert_carrier_parity::<FixedUInt<u8, 1>, HeaplessBigInt<u8, 24, Nct>>(1);
     assert_carrier_parity::<FixedUInt<u8, 2>, HeaplessBigInt<u8, 24, Nct>>(2);
-    assert_carrier_parity::<FixedUInt<u8, 4>, HeaplessBigInt<u8, 24, Nct>>(4);
     assert_carrier_parity::<FixedUInt<u8, 8>, HeaplessBigInt<u8, 24, Nct>>(8);
+    assert_carrier_parity::<FixedUInt<u8, 16>, HeaplessBigInt<u8, 24, Nct>>(16);
+    assert_carrier_parity::<FixedUInt<u8, 24>, HeaplessBigInt<u8, 24, Nct>>(24);
 }
 
-// u16 backing: widths 1, 2, 4 (16 … 64 bits) in a capacity-12 carrier.
+// u16 backing in a capacity-16 carrier: widths 1, 4, 8, 16.
 #[test]
 fn u16_backed_widths_match_fixeduint() {
-    assert_carrier_parity::<FixedUInt<u16, 1>, HeaplessBigInt<u16, 12, Nct>>(1);
-    assert_carrier_parity::<FixedUInt<u16, 2>, HeaplessBigInt<u16, 12, Nct>>(2);
-    assert_carrier_parity::<FixedUInt<u16, 4>, HeaplessBigInt<u16, 12, Nct>>(4);
+    assert_carrier_parity::<FixedUInt<u16, 1>, HeaplessBigInt<u16, 16, Nct>>(1);
+    assert_carrier_parity::<FixedUInt<u16, 4>, HeaplessBigInt<u16, 16, Nct>>(4);
+    assert_carrier_parity::<FixedUInt<u16, 8>, HeaplessBigInt<u16, 16, Nct>>(8);
+    assert_carrier_parity::<FixedUInt<u16, 16>, HeaplessBigInt<u16, 16, Nct>>(16);
 }
 
-// u32 backing: widths 1, 2 (32 … 64 bits) in a capacity-6 carrier.
+// u32 backing in a capacity-16 carrier: widths 1, 2, 4, and 8 — the last is
+// the Ed25519 verify config (255/256-bit value at len 8, sub-CAP 16, Nct).
 #[test]
 fn u32_backed_widths_match_fixeduint() {
-    assert_carrier_parity::<FixedUInt<u32, 1>, HeaplessBigInt<u32, 6, Nct>>(1);
-    assert_carrier_parity::<FixedUInt<u32, 2>, HeaplessBigInt<u32, 6, Nct>>(2);
+    assert_carrier_parity::<FixedUInt<u32, 1>, HeaplessBigInt<u32, 16, Nct>>(1);
+    assert_carrier_parity::<FixedUInt<u32, 2>, HeaplessBigInt<u32, 16, Nct>>(2);
+    assert_carrier_parity::<FixedUInt<u32, 4>, HeaplessBigInt<u32, 16, Nct>>(4);
+    assert_carrier_parity::<FixedUInt<u32, 8>, HeaplessBigInt<u32, 16, Nct>>(8);
 }
