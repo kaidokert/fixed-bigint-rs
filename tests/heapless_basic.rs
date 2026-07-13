@@ -209,6 +209,29 @@ fn wrapping_ops_do_not_grow_width() {
     assert_eq!(r.limbs()[0], 2u32.wrapping_sub(35)); // wraps at 2^32
 }
 
+#[test]
+fn carrying_add_reports_width_carry_without_growing() {
+    use const_num_traits::CarryingAdd;
+    // Symmetric to borrowing_sub: value-width add-with-carry. The carry
+    // out of the width is a flag, not a grown limb — what wide-REDC needs.
+    // u32::MAX + 1 at len 1 → (0, carry=true), stays len 1.
+    let a = H4u32Nct::from_limbs([u32::MAX, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
+    let (sum, carry) = CarryingAdd::carrying_add(a, b, false);
+    assert!(carry);
+    assert_eq!(sum.len(), 1);
+    assert_eq!(sum.limbs()[0], 0);
+
+    // carry_in threads through: 5 + 2 + carry = 8, no carry-out.
+    let (s2, c2) = CarryingAdd::carrying_add(
+        H4u32Nct::from_limbs([5, 0, 0, 0], 1),
+        H4u32Nct::from_limbs([2, 0, 0, 0], 1),
+        true,
+    );
+    assert!(!c2);
+    assert_eq!(s2.limbs()[0], 8);
+}
+
 // ── PartialEq / PartialOrd (value-based) ──
 
 #[test]

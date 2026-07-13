@@ -592,6 +592,42 @@ where
 
 // ── BorrowingSub at the bigint level ──
 //
+// `self + rhs + carry_in` with carry_out, over the operands' value width
+// (`max(self.len, rhs.len)`), not `CAP` — the symmetric partner of
+// `borrowing_sub` below. This is the value-width add-with-carry that
+// carry-propagating modular algorithms (wide-REDC) need: the carry-out
+// is the bit *beyond* the width, reported as a flag rather than grown
+// into a new limb. Distinct from `overflowing_add`, which grows a limb
+// (up to `CAP`) to hold the carry for the growing-bignum paths
+// (`core::ops::+`, `checked_add`) that modmath's EEA uses.
+
+impl<T, const CAP: usize, P: Personality> CarryingAdd for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    type Output = Self;
+    fn carrying_add(self, rhs: Self, carry_in: bool) -> (Self::Output, bool) {
+        let out_len = core::cmp::max(self.len as usize, rhs.len as usize);
+        let mut out_limbs = [zero::<T>(); CAP];
+        let mut carry = carry_in;
+        let mut i = 0;
+        while i < out_len {
+            let (sum, c) = <T as CarryingAdd>::carrying_add(self.limbs[i], rhs.limbs[i], carry);
+            out_limbs[i] = sum;
+            carry = c;
+            i += 1;
+        }
+        (
+            HeaplessBigInt {
+                limbs: out_limbs,
+                len: out_len as u16,
+                _p: PhantomData,
+            },
+            carry,
+        )
+    }
+}
+
 // `self - rhs - borrow_in` with borrow_out, over the operands' width
 // (`max(self.len, rhs.len)`), not `CAP` — same width rule as
 // `wrapping_sub`, so underflow wraps at the value's width and `CAP`
