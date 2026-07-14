@@ -294,6 +294,45 @@ fn wrapping_sub_preserves_width_no_stale_len() {
     );
 }
 
+#[test]
+fn with_precision_seeds_at_witness_width() {
+    use const_num_traits::{BitsPrecision, WithPrecision, WrappingSub};
+    // A witness (stand-in modulus) carried at len 3 (sub-CAP, CAP=4).
+    let q = H4u32Nct::from_limbs([7, 0, 5, 0], 3);
+
+    // zero_with_precision_of(&q): a zero pinned at q's width (len 3), NOT the
+    // minimal-width len-0 zero(). This is the named replacement for the
+    // load-bearing wrapping_sub(q, q) seed idiom — identical result.
+    let z = <H4u32Nct as WithPrecision>::zero_with_precision_of(&q);
+    assert!(<H4u32Nct as Zero>::is_zero(&z));
+    assert_eq!(z.len(), 3);
+    assert_eq!(
+        BitsPrecision::bits_precision(z),
+        BitsPrecision::bits_precision(q)
+    );
+    let idiom = WrappingSub::wrapping_sub(q, q);
+    assert_eq!(z, idiom);
+    assert_eq!(z.len(), idiom.len());
+
+    // one_with_precision_of(&q): value 1 at q's width.
+    let one = <H4u32Nct as WithPrecision>::one_with_precision_of(&q);
+    assert_eq!(one.len(), 3);
+    assert_eq!(one.limbs()[0], 1);
+
+    // widen_to_precision_of: grow a narrow value to the witness width,
+    // value preserved.
+    let small = H4u32Nct::from_limbs([42, 0, 0, 0], 1);
+    let widened = <H4u32Nct as WithPrecision>::widen_to_precision_of(small, &q);
+    assert_eq!(widened.len(), 3);
+    assert_eq!(widened.limbs()[0], 42);
+    assert_eq!(small, widened); // same value, wider carrier
+
+    // Grow-only: widening to a narrower witness keeps the current width.
+    let narrow_witness = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
+    let kept = <H4u32Nct as WithPrecision>::widen_to_precision_of(widened, &narrow_witness);
+    assert_eq!(kept.len(), 3);
+}
+
 // ── PartialEq / PartialOrd (value-based) ──
 
 #[test]

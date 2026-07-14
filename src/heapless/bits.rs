@@ -84,3 +84,19 @@ impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::BitsPre
         self.len as u32 * (core::mem::size_of::<T>() as u32 * 8)
     }
 }
+
+// Establish a width from a witness. Grow-only, value-preserving: widen `self`
+// to the whole-word length covering `bits_precision` bits, never shrinking.
+// The zero/one/witness constructors (`zero_with_precision_of(&modulus)` etc.)
+// default over this, giving generic reducers a correctly-sized seed instead of
+// the minimal-width `zero()` that silently truncates. `CAP` is the ceiling:
+// `widened` panics if the requested width exceeds it.
+impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::WithPrecision
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn widen_to_precision(self, bits_precision: u32) -> Self {
+        let word_bits = core::mem::size_of::<T>() as u32 * 8;
+        let target_len = bits_precision.div_ceil(word_bits) as u16;
+        self.widened(target_len.max(self.len()))
+    }
+}

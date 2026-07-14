@@ -626,6 +626,18 @@ c0nst::c0nst! {
         }
     }
 
+    // --- WithPrecision -----------------------------------------------------
+    //
+    // The operating width is the type (N words), so widening is the identity —
+    // same as the primitive impls. The zero/one/witness constructors default
+    // over this required method.
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::WithPrecision for FixedUInt<T, N, P> {
+        fn widen_to_precision(self, _bits_precision: u32) -> Self {
+            self
+        }
+    }
+
     // --- IsolateHighestOne / IsolateLowestOne ------------------------------
     //
     // Mask the value down to just its highest / lowest set bit.
