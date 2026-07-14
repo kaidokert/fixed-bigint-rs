@@ -1,16 +1,25 @@
-//! Fixed-capacity, runtime-length unsigned bignum.
+//! Unsigned integer whose width is chosen at runtime, not by the type.
 //!
-//! Sibling type to [`FixedUInt`](crate::FixedUInt). Same `Personality`
-//! typestate (`Nct` / `Ct`), same `T: MachineWord` bound. The distinction:
-//! `CAP` is compile-time, `len` is a runtime shape parameter treated as
-//! public. Every arithmetic op iterates `0..self.len` (or
-//! `0..output.len()`), not `0..CAP`.
+//! A [`HeaplessBigInt<T, CAP>`](HeaplessBigInt) carried at `len = k` **is** a
+//! `k`-word integer and behaves bit-for-bit like
+//! [`FixedUInt<T, k>`](crate::FixedUInt): arithmetic wraps, `<<` truncates, and
+//! overflow is reported at the value's width — it is *not* a growable bignum.
+//! The only difference from `FixedUInt` is that the width is `len`, a runtime
+//! (public) shape parameter, rather than the const `N`. You pick `len` at
+//! construction the way you pick `N`; `CAP` is only the storage ceiling
+//! (`len <= CAP`), invisible to arithmetic. Every op iterates `0..self.len`,
+//! never `0..CAP`. Same `Personality` typestate (`Nct` / `Ct`) and
+//! `T: MachineWord` bound as `FixedUInt`.
 //!
-//! See `notes/HEAPLESS_BIGINT_SPEC_v3.md` for the full design record.
+//! Because the width is `len`, a value must be *constructed* at its intended
+//! width: `zero()` / `one()` / short decodes are minimal-width, so anywhere the
+//! operating width matters (accumulators, field elements, reduction targets)
+//! pin it from a witness with
+//! [`WithPrecision`](const_num_traits::WithPrecision) — e.g.
+//! `zero_with_precision_of(&modulus)` — rather than seeding from an identity
+//! and letting it silently run narrow.
 //!
-//! **Sketch / parked.** The full trait surface, CIOS integration, and
-//! CT-verify fixtures come later; this module covers the core basics
-//! needed to prototype modmath arithmetic against.
+//! Behind the off-by-default `heapless-runtime-len` feature.
 
 use crate::MachineWord;
 use const_num_traits::{Nct, Personality};
@@ -34,10 +43,14 @@ mod to_bytes;
 #[cfg(feature = "zeroize")]
 mod zeroize_impl;
 
-/// Fixed-capacity, runtime-length unsigned bignum.
+/// A `len`-word unsigned integer whose width is chosen at runtime.
 ///
-/// `CAP` is the maximum limb count (compile-time). `len` is the logical
-/// used-limb count (runtime). Invariants (enforced by the module):
+/// Behaves bit-for-bit like [`FixedUInt<T, len>`](crate::FixedUInt): every op
+/// resolves at the value's width (`len·word_bits`), never a growable bignum.
+/// `CAP` is the maximum limb count (compile-time storage ceiling); `len` is the
+/// logical used-limb count (runtime) and the operating width — the words in
+/// `[len, CAP)` do not exist for arithmetic. Invariants (enforced by the
+/// module):
 ///
 /// - `CAP <= u16::MAX as usize` (compile-time-asserted).
 /// - `(len as usize) <= CAP`.

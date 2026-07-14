@@ -194,8 +194,8 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     /// `w = max(a.len, b.len)`. Returns `(a·b mod 2^(w·word_bits),
     /// overflow)`, where `overflow` is set iff the product does not fit
     /// in `w` words — bit-identical to `FixedUInt<T, w>::overflowing_mul`.
-    /// The split is at the value width (via [`WideMul`]), so the high
-    /// half is the part beyond `w`; `CAP` is irrelevant.
+    /// The split is at the value width (via the widening [`CarryingMul`]), so
+    /// the high half is the part beyond `w`; `CAP` is irrelevant.
     pub fn overflowing_mul(&self, other: &Self) -> (Self, bool) {
         let zero_v = <Self as const_num_traits::Zero>::zero();
         let (lo, hi) = <Self as CarryingMul>::carrying_mul(*self, *other, zero_v);
