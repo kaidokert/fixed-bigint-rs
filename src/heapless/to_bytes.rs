@@ -67,6 +67,11 @@ where
     }
 }
 
+/// **Capacity-width** serialization: `CAP · size_of::<T>()` bytes (all `CAP`
+/// limbs, zero-tail included), because the owned `Bytes` holder is fixed-size.
+/// For value-width (`len·word`) bytes use the inherent
+/// [`to_le_bytes`](HeaplessBigInt::to_le_bytes) / `to_be_bytes(&mut [u8])`. See
+/// the construction-width table in the [module docs](super).
 impl<T, const CAP: usize, P: Personality> ToBytes for HeaplessBigInt<T, CAP, P>
 where
     T: MachineWord + core::fmt::Debug,
@@ -96,6 +101,11 @@ where
     }
 }
 
+/// **Capacity-width** deserialization: the fixed-size `BytesHolder` yields a
+/// value at `len == CAP`. To parse a shorter fixed encoding at its own width,
+/// use the inherent [`from_le_bytes`](HeaplessBigInt::from_le_bytes) /
+/// `from_be_bytes(&[u8])` on a slice of the exact length. See the
+/// construction-width table in the [module docs](super).
 impl<T, const CAP: usize, P: Personality> FromBytes for HeaplessBigInt<T, CAP, P>
 where
     T: MachineWord + core::fmt::Debug,

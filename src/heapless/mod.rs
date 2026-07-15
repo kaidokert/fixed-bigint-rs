@@ -19,6 +19,44 @@
 //! `zero_with_precision_of(&modulus)` — rather than seeding from an identity
 //! and letting it silently run narrow.
 //!
+//! # Width contract
+//!
+//! Every operation resolves at the *value* width `len·word_bits` and returns
+//! bit-for-bit what the same-width `FixedUInt` would — no op grows past
+//! `max(operand len)` or narrows the magnitude, and `CAP` never enters a
+//! result. The result `len` of each op:
+//!
+//! | operation | result `len` |
+//! |---|---|
+//! | `wrapping`/`overflowing`/`checked` `add`·`sub`·`mul`, `+` `-` `*` | `max(a.len, b.len)` |
+//! | `Shl` (`<<`) | `self.len` — high bits past the width are discarded |
+//! | `Shr` (`>>`) | `self.len` minus the whole-word shift |
+//! | `WideMul` / [`CarryingMul`](const_num_traits::CarryingMul) | `lo` and `hi` each `max(a.len, b.len)`; reconstruct `hi·2^(W·word_bits) + lo` |
+//! | `Div` (`/`), `Rem` (`%`) | `max(dividend.len, divisor.len)` |
+//! | `BitAnd` (`&`) | `min(a.len, b.len)` |
+//! | `BitOr` | `max(a.len, b.len)` |
+//! | [`widened`](HeaplessBigInt::widened) / `WithPrecision` | the requested width (grow-only) |
+//!
+//! ## Construction & serialization widths
+//!
+//! Constructors and byte I/O carry *different* widths for the same value —
+//! there is no single "natural" one for a runtime carrier. When the width
+//! matters, pick the row you mean, or pin afterward with `WithPrecision`:
+//!
+//! | path | width |
+//! |---|---|
+//! | `From<u8/u16/u32>` | `ceil(size_of::<uN>() / word)` — the source int's width |
+//! | inherent [`from_le_bytes`](HeaplessBigInt::from_le_bytes) / `from_be_bytes(&[u8])` | `ceil(slice.len() / word)` — the slice width |
+//! | [`new_zero_with_len`](HeaplessBigInt::new_zero_with_len) / [`from_limbs`](HeaplessBigInt::from_limbs) | exactly the given `len` |
+//! | `FromBytes` **trait** (`BytesHolder<T, CAP>`) | **`CAP`** — an owned holder can't be runtime-sized |
+//! | inherent [`to_le_bytes`](HeaplessBigInt::to_le_bytes) / `to_be_bytes(&mut [u8])` | value width (`len·word` bytes) |
+//! | `ToBytes` **trait** (`BytesHolder<T, CAP>`) | **`CAP`** — same reason |
+//!
+//! The trait (`ToBytes`/`FromBytes`) paths are capacity-width because their
+//! owned `Bytes` associated type is fixed-size — the intended shape for a
+//! full-precision operand (a modulus with `len == CAP`) and for round-tripping
+//! against `FixedUInt<T, CAP>`. For value-width bytes use the inherent methods.
+//!
 //! Behind the off-by-default `heapless-runtime-len` feature.
 
 use crate::MachineWord;
