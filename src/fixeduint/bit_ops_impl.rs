@@ -615,13 +615,13 @@ c0nst::c0nst! {
     // (bit-length, per-value).
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::BitsPrecision for FixedUInt<T, N, P> {
-        fn bits_precision(self) -> u32 {
+        fn bits_precision(&self) -> u32 {
             Self::BIT_SIZE as u32
         }
     }
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::BitsPrecision for &FixedUInt<T, N, P> {
-        fn bits_precision(self) -> u32 {
+        fn bits_precision(&self) -> u32 {
             FixedUInt::<T, N, P>::BIT_SIZE as u32
         }
     }
@@ -1259,9 +1259,9 @@ mod tests {
         // Fixed carrier: width == BIT_SIZE, value-independent (= capacity).
         type U16 = FixedUInt<u8, 2>;
         type U32 = FixedUInt<u32, 1>;
-        assert_eq!(BitsPrecision::bits_precision(U16::from(0u8)), 16);
-        assert_eq!(BitsPrecision::bits_precision(U16::from(0xFFFFu16)), 16);
-        assert_eq!(BitsPrecision::bits_precision(U32::from(0u8)), 32);
+        assert_eq!(BitsPrecision::bits_precision(&U16::from(0u8)), 16);
+        assert_eq!(BitsPrecision::bits_precision(&U16::from(0xFFFFu16)), 16);
+        assert_eq!(BitsPrecision::bits_precision(&U32::from(0u8)), 32);
         assert_eq!(BitsPrecision::bits_precision(&U32::from(7u8)), 32);
     }
 

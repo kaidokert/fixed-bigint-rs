@@ -307,8 +307,8 @@ fn with_precision_seeds_at_witness_width() {
     assert!(<H4u32Nct as Zero>::is_zero(&z));
     assert_eq!(z.len(), 3);
     assert_eq!(
-        BitsPrecision::bits_precision(z),
-        BitsPrecision::bits_precision(q)
+        BitsPrecision::bits_precision(&z),
+        BitsPrecision::bits_precision(&q)
     );
     let idiom = WrappingSub::wrapping_sub(q, q);
     assert_eq!(z, idiom);
@@ -771,7 +771,7 @@ fn leading_zeros_plus_bit_length_equals_width() {
     // And that equals bits_precision().
     assert_eq!(
         v.leading_zeros() + v.bit_length(),
-        <H4u32Nct as const_num_traits::BitsPrecision>::bits_precision(v) as usize
+        <H4u32Nct as const_num_traits::BitsPrecision>::bits_precision(&v) as usize
     );
 }
 
@@ -782,23 +782,26 @@ fn bits_precision_is_len_times_word_bits_not_cap() {
     use const_num_traits::BitsPrecision;
     // u32 backing: width = len * 32, tracks the constructed len, never CAP.
     assert_eq!(
-        BitsPrecision::bits_precision(H4u32Nct::from_limbs([1, 0, 0, 0], 1)),
+        BitsPrecision::bits_precision(&H4u32Nct::from_limbs([1, 0, 0, 0], 1)),
         32
     );
     assert_eq!(
-        BitsPrecision::bits_precision(H4u32Nct::from_limbs([1, 2, 0, 0], 2)),
+        BitsPrecision::bits_precision(&H4u32Nct::from_limbs([1, 2, 0, 0], 2)),
         64
     );
     assert_eq!(
-        BitsPrecision::bits_precision(H4u32Nct::from_limbs([1, 2, 3, 4], 4)),
+        BitsPrecision::bits_precision(&H4u32Nct::from_limbs([1, 2, 3, 4], 4)),
         128
     );
     // len 0 (mathematical zero) → width 0.
-    assert_eq!(BitsPrecision::bits_precision(<H4u32Nct as Zero>::zero()), 0);
+    assert_eq!(
+        BitsPrecision::bits_precision(&<H4u32Nct as Zero>::zero()),
+        0
+    );
     // u8 backing: width = len * 8.
     type H8u8 = HeaplessBigInt<u8, 8, Nct>;
     assert_eq!(
-        BitsPrecision::bits_precision(H8u8::from_be_bytes(&[1, 2, 3])),
+        BitsPrecision::bits_precision(&H8u8::from_be_bytes(&[1, 2, 3])),
         24
     );
 }
@@ -823,10 +826,10 @@ fn bit_width_is_bit_length() {
     let v = H4u32Nct::from_limbs([0xFF, 0, 0, 0], 2);
     assert_eq!(BitWidth::bit_width(v), 8);
     assert_eq!(
-        <H4u32Nct as const_num_traits::BitsPrecision>::bits_precision(v),
+        <H4u32Nct as const_num_traits::BitsPrecision>::bits_precision(&v),
         64
     );
-    assert!(BitWidth::bit_width(v) <= const_num_traits::BitsPrecision::bits_precision(v));
+    assert!(BitWidth::bit_width(v) <= const_num_traits::BitsPrecision::bits_precision(&v));
 }
 
 #[test]

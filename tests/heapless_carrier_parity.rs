@@ -150,13 +150,13 @@ where
     // (`width_bytes * 8`), never a size_of-inflated capacity — the exact
     // misread the historical Ed25519 reduce bug came from.
     assert_eq!(
-        BitsPrecision::bits_precision(h(&seeds[1])),
+        BitsPrecision::bits_precision(&h(&seeds[1])),
         (width_bytes * 8) as u32,
         "heapless bits_precision must be the width, not capacity"
     );
     assert_eq!(
-        BitsPrecision::bits_precision(f(&seeds[1])),
-        BitsPrecision::bits_precision(h(&seeds[1])),
+        BitsPrecision::bits_precision(&f(&seeds[1])),
+        BitsPrecision::bits_precision(&h(&seeds[1])),
         "bits_precision parity @ width {width_bytes}B"
     );
 

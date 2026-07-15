@@ -51,12 +51,13 @@ default-features = false
 
 [dependencies.const-num-traits]
 # Alpha-validation chain: pinned to the git tag (not crates.io) so the
-# whole dependency chain resolves via alpha tags. 0.2.1-alpha.2 carries
-# BitsPrecision + WithPrecision (width-establishing constructors).
+# whole dependency chain resolves via alpha tags. 0.2.1-alpha.3 carries
+# BitsPrecision + WithPrecision (width-establishing constructors), with
+# bits_precision(&self) so non-Copy carriers seed from a borrowed witness.
 # Downstream (modmath/rsa/krabitls) must pin the same tag so cargo
 # unifies to one const-num-traits.
 git = "https://github.com/kaidokert/num-traits.git"
-tag = "v0.2.1-alpha.2"
+tag = "v0.2.1-alpha.3"
 default-features = false
 features = ["ct"]
 

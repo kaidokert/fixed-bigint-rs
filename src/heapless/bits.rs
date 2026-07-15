@@ -72,7 +72,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::BitWidt
 impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::BitsPrecision
     for HeaplessBigInt<T, CAP, P>
 {
-    fn bits_precision(self) -> u32 {
+    fn bits_precision(&self) -> u32 {
         self.len as u32 * (core::mem::size_of::<T>() as u32 * 8)
     }
 }
@@ -80,7 +80,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::BitsPre
 impl<T: MachineWord, const CAP: usize, P: Personality> const_num_traits::BitsPrecision
     for &HeaplessBigInt<T, CAP, P>
 {
-    fn bits_precision(self) -> u32 {
+    fn bits_precision(&self) -> u32 {
         self.len as u32 * (core::mem::size_of::<T>() as u32 * 8)
     }
 }
