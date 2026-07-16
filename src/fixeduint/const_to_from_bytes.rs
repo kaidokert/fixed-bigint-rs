@@ -30,9 +30,8 @@
 //! (This is why the `num_traits` impls live in `to_from_bytes.rs` instead —
 //! they avoid propagating a `generic_const_exprs` bound to callers.)
 //!
-//! The correct-usage doctest below (which, as a doctest, compiles as its own
-//! downstream crate) is the cross-crate coverage; `E0275` here shipped latent
-//! only because no cross-crate test previously monomorphized this path.
+//! The correct-usage doctest below (a doctest compiles as its own downstream
+//! crate) is the cross-crate coverage.
 //!
 //! ```
 //! # #![feature(generic_const_exprs)]
