@@ -29,12 +29,23 @@ where
         "HeaplessBigInt: divide by zero"
     );
 
+    // Both outputs are carried at the operands' width `max(len)`, the same
+    // as the general path below — the early returns must widen too, or
+    // `x / x` would come back at `len == 1` and later width-preserving ops
+    // would run narrower than the operands.
+    let work_len = core::cmp::max(dividend.len(), divisor.len());
+
     match dividend.cmp(divisor) {
-        Ordering::Less => return (<HeaplessBigInt<T, CAP, Nct> as Zero>::zero(), *dividend),
+        Ordering::Less => {
+            return (
+                <HeaplessBigInt<T, CAP, Nct> as Zero>::zero().widened(work_len),
+                dividend.widened(work_len),
+            );
+        }
         Ordering::Equal => {
             return (
-                <HeaplessBigInt<T, CAP, Nct> as One>::one(),
-                <HeaplessBigInt<T, CAP, Nct> as Zero>::zero(),
+                <HeaplessBigInt<T, CAP, Nct> as One>::one().widened(work_len),
+                <HeaplessBigInt<T, CAP, Nct> as Zero>::zero().widened(work_len),
             );
         }
         Ordering::Greater => {}
@@ -44,16 +55,14 @@ where
     let dv_bits = divisor.bit_length();
     let mut shift = d_bits - dv_bits;
 
-    // Work at a fixed width wide enough for every shifted value. `Shl` is
-    // width-preserving, so the divisor and the quotient-bit unit must be
-    // carried at this width for the up-shifts to have room. `shift <=
-    // d_bits - dv_bits`, so `divisor << shift <= dividend`, which fits in
-    // `dividend`'s words — `work_len` never needs to exceed the operands.
-    let work_len = core::cmp::max(dividend.len(), divisor.len());
+    // `Shl` is width-preserving, so the divisor and the quotient-bit unit
+    // must be carried at `work_len` for the up-shifts to have room. `shift
+    // <= d_bits - dv_bits`, so `divisor << shift <= dividend`, which fits
+    // in `dividend`'s words — `work_len` never needs to exceed the operands.
     let mut rem = dividend.widened(work_len);
     let wide_divisor = divisor.widened(work_len);
     let one = <HeaplessBigInt<T, CAP, Nct> as One>::one().widened(work_len);
-    let mut quotient = <HeaplessBigInt<T, CAP, Nct> as Zero>::zero();
+    let mut quotient = <HeaplessBigInt<T, CAP, Nct> as Zero>::zero().widened(work_len);
 
     loop {
         let shifted = wide_divisor << shift;

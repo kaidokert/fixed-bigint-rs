@@ -2,13 +2,15 @@
 //! `subtle::ConstantTimeEq` and `subtle::ConditionallySelectable` for
 //! the Ct paths.
 //!
-//! All value-based:
-//! - `Eq`: walks `max(a.len, b.len)` limbs. Under the zero-tail invariant,
-//!   `HeaplessBigInt<u32, N, _>` with `len = 0` compares equal to a
-//!   `zero_full_cap()` (len = CAP) — both represent mathematical zero.
-//! - `Ord`: walks MSB-to-LSB up to `max(a.len, b.len)`. Regular impl
-//!   branches on limb content (NCT-implicit); Ct callers use
-//!   `subtle::ConstantTimeGreater` / `ConstantTimeEq` separately.
+//! All value-based, each dispatching on `P` like `FixedUInt`:
+//! - `Eq`: walks `max(a.len, b.len)` limbs. `Nct` short-circuits at the
+//!   first differing limb; `Ct` XOR/OR-folds every limb so timing does
+//!   not reveal the first mismatch (the returned `bool` is still
+//!   branchable — Ct-secure equality routes through `ConstantTimeEq`).
+//!   Under the zero-tail invariant, `HeaplessBigInt<u32, N, _>` with
+//!   `len = 0` compares equal to a `zero_full_cap()` (len = CAP).
+//! - `Ord`: MSB-to-LSB up to `max(a.len, b.len)`. `Nct` short-circuits;
+//!   `Ct` scans the full width with an `undecided` lock (no early return).
 //! - `subtle::ConstantTimeEq`: XOR-fold across `max(a.len, b.len)`.
 //!   `black_box` guards against LLVM re-branchifying the fold.
 //! - `subtle::ConditionallySelectable`: per-limb branchless select via
@@ -22,9 +24,9 @@
 //!   scan up to `max(a.len, b.len)` with a running `undecided` bit —
 //!   the Montgomery conditional-subtract shape.
 
-use super::HeaplessBigInt;
+use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
-use const_num_traits::Personality;
+use const_num_traits::{Personality, PersonalityTag};
 use core::marker::PhantomData;
 
 // ── PartialEq / Eq (value-based) ──
@@ -32,20 +34,35 @@ use core::marker::PhantomData;
 impl<T: MachineWord, const CAP: usize, P: Personality> PartialEq for HeaplessBigInt<T, CAP, P> {
     fn eq(&self, other: &Self) -> bool {
         let n = core::cmp::max(self.len, other.len) as usize;
-        let mut i = 0;
-        while i < n {
-            if self.limbs[i] != other.limbs[i] {
-                return false;
+        match P::TAG {
+            PersonalityTag::Nct => {
+                let mut i = 0;
+                while i < n {
+                    if self.limbs[i] != other.limbs[i] {
+                        return false;
+                    }
+                    i += 1;
+                }
+                true
             }
-            i += 1;
+            // Fold every limb, no early return: timing is independent of
+            // where the first mismatch is.
+            PersonalityTag::Ct => {
+                let mut diff = zero::<T>();
+                let mut i = 0;
+                while i < n {
+                    diff |= self.limbs[i] ^ other.limbs[i];
+                    i += 1;
+                }
+                is_zero(&diff)
+            }
         }
-        true
     }
 }
 
 impl<T: MachineWord, const CAP: usize, P: Personality> Eq for HeaplessBigInt<T, CAP, P> {}
 
-// ── PartialOrd / Ord (value-based, NCT-implicit) ──
+// ── PartialOrd / Ord (value-based) ──
 
 impl<T: MachineWord, const CAP: usize, P: Personality> PartialOrd for HeaplessBigInt<T, CAP, P> {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
@@ -56,15 +73,42 @@ impl<T: MachineWord, const CAP: usize, P: Personality> PartialOrd for HeaplessBi
 impl<T: MachineWord, const CAP: usize, P: Personality> Ord for HeaplessBigInt<T, CAP, P> {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         let n = core::cmp::max(self.len, other.len) as usize;
-        let mut i = n;
-        while i > 0 {
-            i -= 1;
-            match self.limbs[i].cmp(&other.limbs[i]) {
-                core::cmp::Ordering::Equal => continue,
-                ord => return ord,
+        match P::TAG {
+            PersonalityTag::Nct => {
+                let mut i = n;
+                while i > 0 {
+                    i -= 1;
+                    match self.limbs[i].cmp(&other.limbs[i]) {
+                        core::cmp::Ordering::Equal => continue,
+                        ord => return ord,
+                    }
+                }
+                core::cmp::Ordering::Equal
+            }
+            // Full MSB-to-LSB scan; once a differing limb is seen the
+            // `decided` mask stops later limbs from overturning it. Mirrors
+            // `FixedUInt`'s `const_cmp_ct`. result: 2 = Greater, 1 = Less.
+            PersonalityTag::Ct => {
+                let mut result: u8 = 0;
+                let mut decided: u8 = 0;
+                let mut i = n;
+                while i > 0 {
+                    i -= 1;
+                    let gt = (self.limbs[i] > other.limbs[i]) as u8;
+                    let lt = (self.limbs[i] < other.limbs[i]) as u8;
+                    let here = (gt << 1) | lt;
+                    let undecided_mask = core::hint::black_box(!decided);
+                    result |= undecided_mask & here;
+                    let here_nz_mask = core::hint::black_box(((here != 0) as u8).wrapping_neg());
+                    decided |= here_nz_mask;
+                }
+                match result {
+                    2 => core::cmp::Ordering::Greater,
+                    1 => core::cmp::Ordering::Less,
+                    _ => core::cmp::Ordering::Equal,
+                }
             }
         }
-        core::cmp::Ordering::Equal
     }
 }
 

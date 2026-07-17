@@ -64,8 +64,8 @@ fn from_limbs_preserves_shape() {
 
 #[test]
 #[should_panic]
-fn from_limbs_rejects_nonzero_tail_in_debug() {
-    // In release this passes silently (debug_assert only).
+fn from_limbs_rejects_nonzero_tail() {
+    // The tail check is unconditional, so this panics in release too.
     let _ = H4u32Nct::from_limbs([1, 0, 42, 0], 1);
 }
 
@@ -366,9 +366,10 @@ fn ord_by_highest_limb() {
 
 // ── Ct-personality carriers ──
 //
-// The impls are shared across Nct/Ct (personality dispatch enters only
-// when the output shape differs). Sanity-check that Ct-typed values
-// arithmetic works and produces the same values.
+// Shared ops dispatch on `P` where the Ct arm must avoid value-dependent
+// control flow (arithmetic panics, compare/is_zero short-circuits, Debug).
+// The Ct arm produces the same values as Nct; these check that plus the
+// constant-time-shaped behavior (wrap instead of panic, opaque Debug).
 
 #[test]
 fn ct_add_matches_nct() {
@@ -1566,4 +1567,78 @@ mod to_from_bytes {
         assert_eq!(bytes.as_ref().len(), 8);
         assert_eq!(bytes.as_ref(), &[0, 0, 0, 0, 0x11, 0x22, 0x33, 0x44]);
     }
+}
+
+// ── Ct constant-time contract (regression for the PR #138 review) ──
+
+// `+` on Ct must not panic on a data-dependent overflow: it wraps, like
+// `wrapping_add`. The same operands panic under Nct.
+#[test]
+fn ct_add_overflow_wraps_instead_of_panicking() {
+    let a = HeaplessBigInt::<u8, 8, Ct>::from_limbs([0xff, 0, 0, 0, 0, 0, 0, 0], 1);
+    let b = HeaplessBigInt::<u8, 8, Ct>::from_limbs([1, 0, 0, 0, 0, 0, 0, 0], 1);
+    let s = &a + &b; // width 1: 0x100 wraps to 0
+    assert_eq!(s.len(), 1);
+    assert_eq!(s.limbs()[0], 0);
+}
+
+#[test]
+#[should_panic]
+fn nct_add_overflow_panics() {
+    let a = H8Nct::from_limbs([0xff, 0, 0, 0, 0, 0, 0, 0], 1);
+    let b = H8Nct::from_limbs([1, 0, 0, 0, 0, 0, 0, 0], 1);
+    let _ = &a + &b;
+}
+
+// Ct Debug is opaque; Nct still prints limbs.
+#[test]
+fn ct_debug_is_opaque() {
+    let ct = HeaplessBigInt::<u32, 4, Ct>::from_limbs([0xdead_beef, 0, 0, 0], 1);
+    let s = format!("{ct:?}");
+    assert_eq!(s, "HeaplessBigInt<…>");
+    assert!(!s.contains("beef"));
+
+    let nct = H4u32Nct::from_limbs([0xdead_beef, 0, 0, 0], 1);
+    assert!(format!("{nct:?}").contains("limbs"));
+}
+
+// Ct compare and is_zero/is_one return the same answers as Nct.
+#[test]
+fn ct_cmp_and_predicates_match_values() {
+    let a = HeaplessBigInt::<u32, 4, Ct>::from_limbs([5, 7, 0, 0], 2);
+    let b = HeaplessBigInt::<u32, 4, Ct>::from_limbs([9, 7, 0, 0], 2);
+    assert!(a < b);
+    assert!(b > a);
+    assert_eq!(a.cmp(&a), core::cmp::Ordering::Equal);
+
+    let z = <HeaplessBigInt<u32, 4, Ct> as Zero>::zero();
+    let one = <HeaplessBigInt<u32, 4, Ct> as One>::one();
+    assert!(<HeaplessBigInt<u32, 4, Ct> as Zero>::is_zero(&z));
+    assert!(!<HeaplessBigInt<u32, 4, Ct> as Zero>::is_zero(&a));
+    assert!(<HeaplessBigInt<u32, 4, Ct> as One>::is_one(&one));
+    assert!(!<HeaplessBigInt<u32, 4, Ct> as One>::is_one(&a));
+}
+
+// Div/Rem early-return paths carry the operands' width, like the general
+// path — otherwise `x / x` would come back one word wide.
+#[test]
+fn div_rem_early_returns_preserve_width() {
+    // Equal: quotient 1, remainder 0, both at work_len = 2.
+    let x = H4u32Nct::from_limbs([5, 7, 0, 0], 2);
+    let q = x / x;
+    let r = x % x;
+    assert_eq!(q.len(), 2);
+    assert_eq!(r.len(), 2);
+    assert_eq!(q, H4u32Nct::from(1u32));
+    assert!(<H4u32Nct as Zero>::is_zero(&r));
+
+    // Less: quotient 0, remainder == dividend, both at work_len = 2.
+    let a = H4u32Nct::from_limbs([3, 0, 0, 0], 1);
+    let b = H4u32Nct::from_limbs([5, 7, 0, 0], 2);
+    let q = a / b;
+    let r = a % b;
+    assert_eq!(q.len(), 2);
+    assert_eq!(r.len(), 2);
+    assert!(<H4u32Nct as Zero>::is_zero(&q));
+    assert_eq!(r, a);
 }

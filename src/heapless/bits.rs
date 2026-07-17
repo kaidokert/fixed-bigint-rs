@@ -1,8 +1,10 @@
 //! `bit_length` and `leading_zeros` for `HeaplessBigInt`.
 //!
-//! Both are NCT-implicit: they scan limb content to find the highest
-//! non-zero position. Ct callers that need a masked-return counterpart
-//! wire it through a separate primitive.
+//! Both dispatch on `P` like `FixedUInt`: `Nct` scans MSB-to-LSB and
+//! stops at the highest non-zero limb; `Ct` scans the full width with an
+//! `undecided` lock so the loop is value-independent (mirroring
+//! `const_leading_zeros_ct`). The returned count is the magnitude either
+//! way — a caller that must keep the magnitude secret does not call these.
 //!
 //! `bit_length` is the position of the highest set bit plus one, so
 //! `bit_length(0) == 0` and `bit_length(1) == 1`. `leading_zeros` is
@@ -13,34 +15,56 @@
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
-use const_num_traits::Personality;
+use const_num_traits::{Personality, PersonalityTag};
 
 impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P> {
     /// Number of bits needed to represent the value: `0` for zero,
     /// otherwise the position of the highest set bit plus one.
     pub fn bit_length(&self) -> usize {
-        let word_bits = core::mem::size_of::<T>() * 8;
-        // Walk MSB-to-LSB. First non-zero limb determines the answer;
-        // limbs beyond that are zero by the invariant so we don't need
-        // to inspect them.
-        let mut i = self.len as usize;
-        while i > 0 {
-            i -= 1;
-            let limb = self.limbs[i];
-            if !super::is_zero(&limb) {
-                let leading = limb.leading_zeros() as usize;
-                return i * word_bits + (word_bits - leading);
-            }
-        }
-        0
+        let width = self.len as usize * core::mem::size_of::<T>() * 8;
+        width - self.leading_zeros()
     }
 
     /// Leading zeros against the value's width (`len * word_bits`), so
     /// `leading_zeros + bit_length == bits_precision()`. A `len = 0`
     /// value has width 0, hence `leading_zeros() == 0`.
     pub fn leading_zeros(&self) -> usize {
-        let width = self.len as usize * core::mem::size_of::<T>() * 8;
-        width - self.bit_length()
+        let word_bits = core::mem::size_of::<T>() * 8;
+        match P::TAG {
+            // MSB-to-LSB; the first non-zero limb fixes the count and the
+            // invariant guarantees limbs above it are zero. Zero words above
+            // that limb contribute a full `word_bits` each.
+            PersonalityTag::Nct => {
+                let len = self.len as usize;
+                let mut i = len;
+                while i > 0 {
+                    i -= 1;
+                    let limb = self.limbs[i];
+                    if !super::is_zero(&limb) {
+                        return (len - 1 - i) * word_bits + limb.leading_zeros() as usize;
+                    }
+                }
+                len * word_bits
+            }
+            // Full scan: accumulate each limb's leading-zero contribution
+            // until a non-zero limb locks `decided`; later limbs add 0.
+            PersonalityTag::Ct => {
+                let mut total = 0usize;
+                let mut decided = 0usize;
+                let mut i = self.len as usize;
+                while i > 0 {
+                    i -= 1;
+                    let v = self.limbs[i];
+                    let v_lz = v.leading_zeros() as usize;
+                    let undecided = core::hint::black_box(!decided);
+                    total += undecided & v_lz;
+                    let v_nz_mask =
+                        core::hint::black_box(((!super::is_zero(&v)) as usize).wrapping_neg());
+                    decided |= v_nz_mask;
+                }
+                total
+            }
+        }
     }
 }
 

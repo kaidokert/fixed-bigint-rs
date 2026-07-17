@@ -7,7 +7,7 @@
 
 use super::{AssertCapFits, HeaplessBigInt, zero};
 use crate::MachineWord;
-use const_num_traits::{ConstOne, ConstZero, One, Personality, Zero};
+use const_num_traits::{ConstOne, ConstZero, One, Personality, PersonalityTag, Zero};
 use core::marker::PhantomData;
 
 // ── const_num_traits::Zero / One ──
@@ -20,18 +20,33 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Zero for HeaplessBigInt<T
 
     #[inline]
     fn is_zero(&self) -> bool {
-        // Value-based: any limb non-zero → non-zero. NCT-implicit (short-
-        // circuits on limb content). Ct callers use `CtIsZero::ct_is_zero`
-        // via a separate impl (added when needed).
-        let mut i = 0;
-        while i < self.len as usize {
-            if !super::is_zero(&self.limbs[i]) {
-                return false;
+        // Any limb non-zero → non-zero. `Nct` short-circuits; `Ct`
+        // OR-folds every limb so timing is value-independent (the returned
+        // `bool` is still branchable — see `CtIsZero::ct_is_zero` for the
+        // `Choice`-returning form). Limbs beyond `len` are zero by the
+        // zero-tail invariant, so scanning `0..len` suffices.
+        let n = self.len as usize;
+        match P::TAG {
+            PersonalityTag::Nct => {
+                let mut i = 0;
+                while i < n {
+                    if !super::is_zero(&self.limbs[i]) {
+                        return false;
+                    }
+                    i += 1;
+                }
+                true
             }
-            i += 1;
+            PersonalityTag::Ct => {
+                let mut acc = zero::<T>();
+                let mut i = 0;
+                while i < n {
+                    acc |= self.limbs[i];
+                    i += 1;
+                }
+                super::is_zero(&acc)
+            }
         }
-        // Zero-tail invariant means limbs beyond len are zero regardless.
-        true
     }
 
     #[inline]
@@ -61,21 +76,37 @@ impl<T: MachineWord, const CAP: usize, P: Personality> One for HeaplessBigInt<T,
 
     #[inline]
     fn is_one(&self) -> bool {
-        // NCT-implicit content scan.
-        if self.len == 0 {
+        // `len` is a public shape parameter, so branching on it is fine in
+        // both personalities. `Nct` short-circuits the limb scan; `Ct`
+        // folds `(limbs[0] ^ 1) | limbs[1] | …` with no early return.
+        let n = self.len as usize;
+        if n == 0 {
             return false;
         }
-        if !<T as const_num_traits::One>::is_one(&self.limbs[0]) {
-            return false;
-        }
-        let mut i = 1;
-        while i < self.len as usize {
-            if !super::is_zero(&self.limbs[i]) {
-                return false;
+        match P::TAG {
+            PersonalityTag::Nct => {
+                if !<T as const_num_traits::One>::is_one(&self.limbs[0]) {
+                    return false;
+                }
+                let mut i = 1;
+                while i < n {
+                    if !super::is_zero(&self.limbs[i]) {
+                        return false;
+                    }
+                    i += 1;
+                }
+                true
             }
-            i += 1;
+            PersonalityTag::Ct => {
+                let mut acc = self.limbs[0] ^ <T as ConstOne>::ONE;
+                let mut i = 1;
+                while i < n {
+                    acc |= self.limbs[i];
+                    i += 1;
+                }
+                super::is_zero(&acc)
+            }
         }
-        true
     }
 }
 

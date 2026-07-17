@@ -16,9 +16,23 @@ use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
 use const_num_traits::{
     BorrowingSub, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, Nct, OverflowingAdd,
-    OverflowingMul, OverflowingSub, Personality, WrappingAdd, WrappingMul, WrappingSub,
+    OverflowingMul, OverflowingSub, Personality, PersonalityTag, WrappingAdd, WrappingMul,
+    WrappingSub,
 };
 use core::marker::PhantomData;
+
+// The checked `+`/`-`/`*` operators panic on overflow at the operands'
+// width. That panic branches on a data-dependent overflow bit, so it
+// runs for `Nct` only; the `Ct` arm wraps silently (like `wrapping_*`),
+// keeping control flow value-independent. Mirrors `FixedUInt`'s
+// `maybe_panic_if::<P>`.
+#[inline]
+fn panic_on_overflow_if_nct<P: Personality>(overflow: bool, msg: &'static str) {
+    match P::TAG {
+        PersonalityTag::Nct => assert!(!overflow, "{}", msg),
+        PersonalityTag::Ct => {}
+    }
+}
 
 // ── Free-function slice kernels ──
 //
@@ -269,8 +283,8 @@ impl<T: MachineWord, const CAP: usize> HeaplessBigInt<T, CAP, Nct> {
 // ── core::ops::{Add, Sub, Mul} — panic on overflow at the operand width ──
 //
 // Same contract as the same-width `FixedUInt`: forward to the
-// `overflowing_*` op and panic if it flags. Callers wanting wrap or a
-// flag use `wrapping_*` / `overflowing_*` / `checked_*`.
+// `overflowing_*` op and panic (Nct) or wrap (Ct) if it flags. Callers
+// wanting wrap or a flag use `wrapping_*` / `overflowing_*` / `checked_*`.
 
 impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Add<&HeaplessBigInt<T, CAP, P>>
     for &HeaplessBigInt<T, CAP, P>
@@ -278,7 +292,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Add<&HeaplessB
     type Output = HeaplessBigInt<T, CAP, P>;
     fn add(self, other: &HeaplessBigInt<T, CAP, P>) -> Self::Output {
         let (res, overflow) = self.overflowing_add(other);
-        assert!(!overflow, "HeaplessBigInt::add overflow");
+        panic_on_overflow_if_nct::<P>(overflow, "HeaplessBigInt::add overflow");
         res
     }
 }
@@ -289,7 +303,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Sub<&HeaplessB
     type Output = HeaplessBigInt<T, CAP, P>;
     fn sub(self, other: &HeaplessBigInt<T, CAP, P>) -> Self::Output {
         let (res, borrow) = self.overflowing_sub(other);
-        assert!(!borrow, "HeaplessBigInt::sub underflow");
+        panic_on_overflow_if_nct::<P>(borrow, "HeaplessBigInt::sub underflow");
         res
     }
 }
@@ -300,7 +314,7 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     type Output = HeaplessBigInt<T, CAP, P>;
     fn mul(self, other: &HeaplessBigInt<T, CAP, P>) -> Self::Output {
         let (res, overflow) = self.overflowing_mul(other);
-        assert!(!overflow, "HeaplessBigInt::mul overflow");
+        panic_on_overflow_if_nct::<P>(overflow, "HeaplessBigInt::mul overflow");
         res
     }
 }

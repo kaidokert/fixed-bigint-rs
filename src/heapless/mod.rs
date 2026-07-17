@@ -60,7 +60,7 @@
 //! Behind the off-by-default `heapless-runtime-len` feature.
 
 use crate::MachineWord;
-use const_num_traits::{Nct, Personality};
+use const_num_traits::{Ct, Nct, Personality};
 use core::marker::PhantomData;
 
 mod arith;
@@ -145,21 +145,23 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
 
     /// Construct from a limb array + explicit `len`. Panics if `len > CAP`
     /// or if any limb at index `>= len` is non-zero (invariant check).
+    ///
+    /// The tail check runs in every build, not just under `debug_assertions`:
+    /// downstream arithmetic, equality, and `widened` all assume the tail is
+    /// zero, so a release build that skipped it would silently promote a
+    /// hidden limb into the value.
     #[inline]
     pub fn from_limbs(limbs: [T; CAP], len: u16) -> Self {
         let _ = <Self as AssertCapFits>::CHECK;
         assert!((len as usize) <= CAP);
-        #[cfg(debug_assertions)]
-        {
-            let mut i = len as usize;
-            while i < CAP {
-                assert!(
-                    is_zero(&limbs[i]),
-                    "HeaplessBigInt::from_limbs: zero-tail invariant violated at index {}",
-                    i
-                );
-                i += 1;
-            }
+        let mut i = len as usize;
+        while i < CAP {
+            assert!(
+                is_zero(&limbs[i]),
+                "HeaplessBigInt::from_limbs: zero-tail invariant violated at index {}",
+                i
+            );
+            i += 1;
         }
         Self {
             limbs,
@@ -243,8 +245,10 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Clone for HeaplessBigInt<
 
 impl<T: MachineWord, const CAP: usize, P: Personality> Copy for HeaplessBigInt<T, CAP, P> {}
 
-impl<T: MachineWord + core::fmt::Debug, const CAP: usize, P: Personality> core::fmt::Debug
-    for HeaplessBigInt<T, CAP, P>
+// Debug is personality-split like `FixedUInt`: `Nct` prints the limbs,
+// `Ct` is opaque so secret values never reach a formatter.
+impl<T: MachineWord + core::fmt::Debug, const CAP: usize> core::fmt::Debug
+    for HeaplessBigInt<T, CAP, Nct>
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
@@ -255,6 +259,12 @@ impl<T: MachineWord + core::fmt::Debug, const CAP: usize, P: Personality> core::
             &self.limbs[..self.len as usize],
             self.len,
         )
+    }
+}
+
+impl<T: MachineWord, const CAP: usize> core::fmt::Debug for HeaplessBigInt<T, CAP, Ct> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("HeaplessBigInt<…>")
     }
 }
 
