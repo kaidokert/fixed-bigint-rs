@@ -1650,3 +1650,89 @@ fn div_rem_early_returns_preserve_width() {
     assert!(<H4u32Nct as Zero>::is_zero(&q));
     assert_eq!(r, a);
 }
+
+// ── Trait-form ops and less-travelled paths ──
+
+// The `WrappingAdd`/`OverflowingAdd`/… trait impls (as opposed to the
+// inherent methods) are what generic callers reach through; exercise them
+// on both value and reference receivers.
+#[test]
+fn trait_form_wrapping_and_overflowing_ops() {
+    use const_num_traits::{
+        OverflowingAdd, OverflowingMul, OverflowingSub, WrappingAdd, WrappingMul, WrappingSub,
+    };
+    let a: H4u32Nct = 100u32.into();
+    let b: H4u32Nct = 30u32.into();
+
+    assert_eq!(WrappingAdd::wrapping_add(&a, &b), 130u32.into());
+    assert_eq!(WrappingSub::wrapping_sub(&a, &b), 70u32.into());
+    assert_eq!(WrappingMul::wrapping_mul(&a, &b), 3000u32.into());
+
+    assert_eq!(
+        OverflowingAdd::overflowing_add(&a, &b),
+        (130u32.into(), false)
+    );
+    assert_eq!(
+        OverflowingSub::overflowing_sub(&a, &b),
+        (70u32.into(), false)
+    );
+    assert_eq!(
+        OverflowingMul::overflowing_mul(&a, &b),
+        (3000u32.into(), false)
+    );
+    // Value-receiver trait forms.
+    assert_eq!(
+        OverflowingMul::overflowing_mul(a, b),
+        (3000u32.into(), false)
+    );
+}
+
+// `Hash` is value-based: equal values at different shapes hash alike.
+#[test]
+fn hash_is_value_based() {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let digest = |x: &H4u32Nct| {
+        let mut s = DefaultHasher::new();
+        x.hash(&mut s);
+        s.finish()
+    };
+    let narrow = H4u32Nct::from_limbs([5, 0, 0, 0], 1);
+    let wide = H4u32Nct::from_limbs([5, 0, 0, 0], 3);
+    assert_eq!(digest(&narrow), digest(&wide));
+}
+
+// `ConstZero::ZERO` / `ConstOne::ONE` const items and the `set_*` mutators.
+#[test]
+fn const_items_and_setters() {
+    use const_num_traits::{ConstOne, ConstZero};
+    let z = <H4u32Nct as ConstZero>::ZERO;
+    let o = <H4u32Nct as ConstOne>::ONE;
+    assert!(<H4u32Nct as Zero>::is_zero(&z));
+    assert!(<H4u32Nct as One>::is_one(&o));
+
+    let mut x: H4u32Nct = 42u32.into();
+    <H4u32Nct as Zero>::set_zero(&mut x);
+    assert!(<H4u32Nct as Zero>::is_zero(&x));
+    <H4u32Nct as One>::set_one(&mut x);
+    assert!(<H4u32Nct as One>::is_one(&x));
+}
+
+// Ct-personality magnitude scans (the branchless leading-zero arm) and the
+// by-reference `BitWidth` impl.
+#[test]
+fn ct_magnitude_and_reference_bit_width() {
+    use const_num_traits::BitWidth;
+    // value = 2^32, width 64: 33 significant bits, 31 leading zeros.
+    let v = HeaplessBigInt::<u32, 4, Ct>::from_limbs([0, 1, 0, 0], 2);
+    assert_eq!(v.bit_length(), 33);
+    assert_eq!(v.leading_zeros(), 31);
+
+    let n = H4u32Nct::from_limbs([0, 1, 0, 0], 2);
+    let r: &H4u32Nct = &n;
+    assert_eq!(BitWidth::bit_width(r), 33);
+
+    // Ct is_one on a zero-length value takes the early `n == 0` path.
+    let z = <HeaplessBigInt<u32, 4, Ct> as Zero>::zero();
+    assert!(!<HeaplessBigInt<u32, 4, Ct> as One>::is_one(&z));
+}
