@@ -15,7 +15,7 @@ use core::marker::PhantomData;
 impl<T: MachineWord, const CAP: usize, P: Personality> Zero for HeaplessBigInt<T, CAP, P> {
     #[inline]
     fn zero() -> Self {
-        Self::new_zero_with_len(0)
+        Self::const_zero()
     }
 
     #[inline]
@@ -59,14 +59,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> One for HeaplessBigInt<T,
     #[inline]
     fn one() -> Self {
         let () = <Self as AssertCapFits>::CHECK;
-        assert!(CAP >= 1, "HeaplessBigInt::one requires CAP >= 1");
-        let mut limbs = [zero::<T>(); CAP];
-        limbs[0] = <T as ConstOne>::ONE;
-        Self {
-            limbs,
-            len: 1,
-            _p: PhantomData,
-        }
+        Self::const_one()
     }
 
     #[inline]
