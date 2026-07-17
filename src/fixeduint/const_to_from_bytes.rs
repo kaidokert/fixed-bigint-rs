@@ -16,6 +16,34 @@
 //!
 //! This module requires the `nightly` feature and uses `generic_const_exprs`
 //! to compute byte array sizes at compile time without unsafe code.
+//!
+//! # Downstream usage — `generic_const_exprs` is viral
+//!
+//! The associated `Bytes` type of these impls is sized with a
+//! `generic_const_exprs` bound (`where [(); byte_len::<T, N>()]:`). That bound
+//! is **viral**: a downstream crate that monomorphizes
+//! `<FixedUInt<T, N, P> as const_num_traits::ToBytes>` (or `FromBytes`) must
+//! itself enable the feature — `#![feature(generic_const_exprs)]` — or the
+//! compiler cannot finish the associated type's well-formedness check and
+//! reports the unhelpful `error[E0275]: overflow evaluating whether [...] is
+//! well-formed`. With the feature enabled downstream it compiles and works.
+//! (This is why the `num_traits` impls live in `to_from_bytes.rs` instead —
+//! they avoid propagating a `generic_const_exprs` bound to callers.)
+//!
+//! The correct-usage doctest below (a doctest compiles as its own downstream
+//! crate) is the cross-crate coverage.
+//!
+//! ```
+//! # #![feature(generic_const_exprs)]
+//! # #![allow(incomplete_features)]
+//! use const_num_traits::{FromBytes, ToBytes};
+//! use fixed_bigint::FixedUInt;
+//!
+//! let n = FixedUInt::<u32, 4>::from(0x1234_5678u32);
+//! let be = <FixedUInt<u32, 4> as ToBytes>::to_be_bytes(n);
+//! assert_eq!(be.as_ref().len(), 16);
+//! assert_eq!(<FixedUInt<u32, 4> as FromBytes>::from_be_bytes(&be), n);
+//! ```
 
 use super::{FixedUInt, MachineWord, impl_from_be_bytes_slice, impl_from_le_bytes_slice};
 use crate::machineword::ConstMachineWord;
