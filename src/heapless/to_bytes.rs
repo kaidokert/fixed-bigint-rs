@@ -9,16 +9,13 @@
 //! The `ToBytes` representation is **capacity-width** (`CAP *
 //! size_of::<T>()` bytes): all `CAP` limbs are serialised, high
 //! (zero-tail) limbs producing leading zero bytes for BE / trailing for
-//! LE. This is the one place the carrier's `CAP` is intentionally
-//! exposed — an *owned* fixed holder cannot be sized to the runtime
-//! width — so it necessarily reports capacity, not the value's width.
-//! It's the right shape for a full-precision operand (a crypto modulus
-//! is constructed at `len == CAP`, so capacity == width there) and it
-//! matches `FixedUInt<T, CAP>`'s bytes, letting a carrier-generic
-//! consumer round-trip a modulus identically on either type. A caller
-//! that needs **width-based** (`len * word_size`) bytes uses the
-//! inherent `to_be_bytes(&mut [u8]) -> &[u8]` / `to_le_bytes` instead,
-//! which serialise only the value's own words.
+//! LE. This is the one place the carrier's `CAP` is intentionally exposed:
+//! an *owned* fixed holder cannot be sized to the runtime width, so it
+//! reports capacity. That matches `FixedUInt<T, CAP>`'s bytes — a
+//! carrier-generic consumer round-trips a full-precision operand (e.g. a
+//! crypto modulus, constructed at `len == CAP`) identically on either type.
+//! A caller that needs **width-based** (`len * word_size`) bytes uses the
+//! inherent `to_be_bytes(&mut [u8]) -> &[u8]` / `to_le_bytes` instead.
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
@@ -32,8 +29,7 @@ where
     // Full-width big-endian holder: highest limb first, each limb's own
     // bytes big-endian. Byte writes go through `as_byte_slice_mut` so the
     // sequence is host-endianness-independent (the `[T; CAP]` typing is
-    // incidental storage for the byte pattern). Zip byte-loop copy — no
-    // `copy_from_slice` length assert to fold.
+    // incidental storage for the byte pattern).
     fn holder_be(&self) -> BytesHolder<T, CAP> {
         let mut ret = BytesHolder::default();
         let word_size = core::mem::size_of::<T>();
@@ -67,11 +63,9 @@ where
     }
 }
 
-/// **Capacity-width** serialization: `CAP · size_of::<T>()` bytes (all `CAP`
-/// limbs, zero-tail included), because the owned `Bytes` holder is fixed-size.
-/// For value-width (`len·word`) bytes use the inherent
-/// [`to_le_bytes`](HeaplessBigInt::to_le_bytes) / `to_be_bytes(&mut [u8])`. See
-/// the construction-width table in the [module docs](super).
+/// **Capacity-width** serialization — see the [module docs](super). For
+/// value-width bytes use the inherent
+/// [`to_le_bytes`](HeaplessBigInt::to_le_bytes) / `to_be_bytes(&mut [u8])`.
 impl<T, const CAP: usize, P: Personality> ToBytes for HeaplessBigInt<T, CAP, P>
 where
     T: MachineWord + core::fmt::Debug,
@@ -101,20 +95,18 @@ where
     }
 }
 
-/// **Capacity-width** deserialization: the fixed-size `BytesHolder` yields a
-/// value at `len == CAP`. To parse a shorter fixed encoding at its own width,
-/// use the inherent [`from_le_bytes`](HeaplessBigInt::from_le_bytes) /
-/// `from_be_bytes(&[u8])` on a slice of the exact length. See the
-/// construction-width table in the [module docs](super).
+/// **Capacity-width** deserialization — the fixed-size `BytesHolder` yields a
+/// value at `len == CAP` (see the [module docs](super)). To parse a shorter
+/// fixed encoding at its own width, use the inherent
+/// [`from_le_bytes`](HeaplessBigInt::from_le_bytes) / `from_be_bytes(&[u8])`
+/// on a slice of the exact length.
 impl<T, const CAP: usize, P: Personality> FromBytes for HeaplessBigInt<T, CAP, P>
 where
     T: MachineWord + core::fmt::Debug,
 {
     type Bytes = BytesHolder<T, CAP>;
     fn from_be_bytes(bytes: &Self::Bytes) -> Self {
-        // `as_ref()` yields the full `CAP * word_size` byte sequence the
-        // holder was built from; the inherent slice reader reconstructs
-        // the value (len = CAP).
+        // Reconstructs at len = CAP from the holder's full byte sequence.
         Self::from_be_bytes(bytes.as_ref())
     }
     fn from_le_bytes(bytes: &Self::Bytes) -> Self {

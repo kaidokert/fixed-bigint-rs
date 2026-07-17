@@ -118,8 +118,8 @@ div_impls!(
 
 // ── DivAssign / RemAssign ──
 //
-// modmath's constrained flavor uses `%=`; `DivAssign` is added for
-// symmetry. Both delegate to the same long-division kernel.
+// `RemAssign` is the used form; `DivAssign` is added for symmetry. Both
+// delegate to the same long-division kernel.
 
 impl<T, const CAP: usize> core::ops::DivAssign for HeaplessBigInt<T, CAP, Nct>
 where

@@ -145,10 +145,9 @@ where
     let zero_f = F::make_le(&[0u8; BUF], width_words);
     let zero_h = H::make_le(&[0u8; BUF], width_words);
 
-    // The width a value REPORTS: `bits_precision` is the operating width
-    // modmath's reducer reads for R / n_prime. It must be the true width
-    // (`width_bytes * 8`), never a size_of-inflated capacity — the exact
-    // misread the historical Ed25519 reduce bug came from.
+    // The width a value REPORTS: `bits_precision` is the operating width a
+    // Montgomery reducer reads for R / n_prime. It must be the true width
+    // (`width_bytes * 8`), never a size_of-inflated capacity.
     assert_eq!(
         BitsPrecision::bits_precision(&h(&seeds[1])),
         (width_bytes * 8) as u32,
@@ -214,8 +213,8 @@ where
             assert_eq!(fpo, hpo, "overflowing_mul flag @ width {width_bytes}B");
             eq(&fp, &hp, "overflowing_mul value");
 
-            // carrying_mul (WideMul): both halves must match. This is the
-            // op modmath's wide-REDC reduces through.
+            // carrying_mul (WideMul): both halves must match — the op a
+            // wide Montgomery reduction reduces through.
             let (flo, fhi) = CarryingMul::carrying_mul(f(sa), f(sb), zero_f);
             let (hlo, hhi) = CarryingMul::carrying_mul(h(sa), h(sb), zero_h);
             eq(&flo, &hlo, "carrying_mul lo");

@@ -8,20 +8,18 @@
 //! high-order word's high byte at index 0, LE writes the low-order
 //! word's low byte at index 0.
 //!
-//! The inner byte-copy is the zip byte-loop landed in fixed-bigint
-//! 0.5.2 — no `copy_from_slice` length assert to fold. Per-word reads
-//! are bit-shifted rather than `T::from_be_bytes`, so `T` needs only
-//! `MachineWord` (not a byte-conversion trait bound).
+//! Per-word reads are bit-shifted rather than `T::from_be_bytes`, so `T`
+//! needs only `MachineWord`, not a byte-conversion trait bound.
 
 use super::{HeaplessBigInt, zero};
 use crate::MachineWord;
 use const_num_traits::{ByteSliceError, ByteSliceErrorKind, FromByteSlice, Personality};
 use core::marker::PhantomData;
 
-// Read up to `bytes.len()` MSB-first bytes into a T, zero-padding on the
-// high side if `bytes.len() < size_of::<T>()`. Skips the shift on the
-// first iteration because `T::BITS`-wide shift is UB — matters at
-// `size_of::<T>() == 1` (u8 backing) where the loop runs exactly once.
+// Read MSB-first bytes into a T, zero-padding the high side if
+// `bytes.len() < size_of::<T>()`. Skips the shift on the first iteration
+// because a `T::BITS`-wide shift is UB — matters at `size_of::<T>() == 1`
+// (u8 backing) where the loop runs exactly once.
 #[inline]
 fn read_be_word<T: MachineWord>(bytes: &[u8]) -> T {
     let mut val = zero::<T>();
@@ -109,8 +107,8 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         let out_len = byte_count.div_ceil(word_size);
 
         let mut limbs = [zero::<T>(); CAP];
-        // Walk backwards through `bytes`: each word_size chunk (or
-        // partial chunk at the front) fills a limb starting from limb 0.
+        // Fill limbs from limb 0, consuming `bytes` back-to-front (a
+        // partial chunk, if any, lands at the high end).
         let mut hi = byte_count;
         let mut word_idx = 0;
         while hi > 0 {

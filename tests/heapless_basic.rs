@@ -1,7 +1,7 @@
-//! Sketch-level sanity tests: constructors work, Add/Sub/Mul produce
-//! correct values against small u16/u32 inputs, PartialEq is
-//! value-based across shapes, Zero/One/Default line up, and Ct paths
-//! (subtle::ConstantTimeEq) agree with the value.
+//! Sanity tests: constructors work, Add/Sub/Mul produce correct values
+//! against small u16/u32 inputs, PartialEq is value-based across shapes,
+//! Zero/One/Default line up, and Ct paths (subtle::ConstantTimeEq) agree
+//! with the value.
 
 #![cfg(feature = "heapless-runtime-len")]
 
@@ -190,9 +190,9 @@ fn mul_overflow_at_operand_width() {
 
 #[test]
 fn wrapping_ops_do_not_grow_width() {
-    // The headline symptom from the Montgomery n_prime trace: wrapping
-    // ops must keep the value width fixed so iterative modular algorithms
-    // stay self-consistent. one + one = 2 at len 1 (not [2,0] at len 2).
+    // Wrapping ops must keep the value width fixed so iterative modular
+    // algorithms stay self-consistent: one + one = 2 at len 1 (not [2,0]
+    // at len 2).
     let one = <H4u32Nct as One>::one();
     let two = one.wrapping_add(&one);
     assert_eq!(two.len(), 1);
@@ -240,8 +240,7 @@ fn accumulator_must_be_width_pinned() {
     // acc is carried at — value-width ops resolve at max(operand len), so
     // a value grown from a narrow seed stays narrow and wraps early
     // (exactly like a narrow FixedUInt). A width-pinned seed carries the
-    // full width, like FixedUInt<u32,8>. This is the recurring downstream
-    // trap: pin the width the way you pick N for FixedUInt.
+    // full width, like FixedUInt<u32,8>.
     let double = |acc: H4u32Nct| OverflowingAdd::overflowing_add(acc, acc).0;
 
     // Start from 1, double 40 times → 2^40, which needs limb 1.
@@ -301,8 +300,8 @@ fn with_precision_seeds_at_witness_width() {
     let q = H4u32Nct::from_limbs([7, 0, 5, 0], 3);
 
     // zero_with_precision_of(&q): a zero pinned at q's width (len 3), NOT the
-    // minimal-width len-0 zero(). This is the named replacement for the
-    // load-bearing wrapping_sub(q, q) seed idiom — identical result.
+    // minimal-width len-0 zero(). Named replacement for the
+    // `wrapping_sub(q, q)` seed idiom — identical result.
     let z = <H4u32Nct as WithPrecision>::zero_with_precision_of(&q);
     assert!(<H4u32Nct as Zero>::is_zero(&z));
     assert_eq!(z.len(), 3);
@@ -582,7 +581,6 @@ fn shr_bit_carries_from_higher_limb() {
     let a = H4u32Nct::from_limbs([0, 1, 0, 0], 2);
     let b = a >> 1;
     assert_eq!(b.limbs()[0], 0x8000_0000);
-    // out_len = self.len - word_shift = 2 - 0 = 2.
     assert_eq!(b.len(), 2);
 }
 
@@ -1183,7 +1181,7 @@ fn carrying_mul_splits_at_value_width_not_cap() {
     // and the primitive (200u8.wide_mul(200) = (64, 156), split at 8
     // bits). At len 1 (width 8) in an 8-word carrier, 40000 must split
     // into (64, 156), NOT stay whole in lo at CAP — a CAP split strands
-    // the high half and misplaces hi in the REDC (the RSA bug).
+    // the high half and misplaces hi in the REDC.
     type H4u8 = HeaplessBigInt<u8, 4, Nct>;
     let a = H4u8::from_limbs([200, 0, 0, 0], 1);
     let b = H4u8::from_limbs([200, 0, 0, 0], 1);
@@ -1256,8 +1254,8 @@ fn checked_mul_returns_none_when_value_overflows_width() {
 
 #[test]
 fn checked_mul_chain_stays_within_width() {
-    // Chained small products (the modmath EEA pattern): each stays within
-    // the operand width, so the chain never falsely overflows.
+    // Chained small products, each staying within the operand width, so
+    // the chain never falsely overflows.
     let start: H4u8Nct = 1u8.into();
     let a: H4u8Nct = 3u8.into();
     let b: H4u8Nct = 5u8.into();
@@ -1331,8 +1329,8 @@ fn trait_checked_mul_matches_inherent() {
 
 #[test]
 fn trait_checked_mul_matches_fixeduint_width_behavior() {
-    // Through the trait form modmath's inv binds on: checked_mul at the
-    // operand width, same as FixedUInt<u8,4>. 5 * 7 = 35 fits in width 4.
+    // Through the trait form: checked_mul at the operand width, same as
+    // FixedUInt<u8,4>. 5 * 7 = 35 fits in width 4.
     use const_num_traits::CheckedMul;
     let a = H4u8Nct::from_limbs([5, 0, 0, 0], 4);
     let b = H4u8Nct::from_limbs([7, 0, 0, 0], 4);

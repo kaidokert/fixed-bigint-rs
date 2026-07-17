@@ -11,7 +11,7 @@
 //! Both lens are public shape parameters, so the body is identical for
 //! Nct and Ct. `BitAnd` serves Montgomery's `from_montgomery` mask;
 //! `BitOr` serves the sign path's blinding-inverse (`InvertCt`).
-//! `BitXor` is still unimplemented — no consumer needs it.
+//! `BitXor` is omitted — no consumer needs it.
 
 use super::{HeaplessBigInt, zero};
 use crate::MachineWord;

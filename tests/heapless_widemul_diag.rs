@@ -1,8 +1,8 @@
 //! `HeaplessBigInt::wide_mul` (CarryingMul) splits its (lo, hi) product
 //! at the operands' VALUE width (`max(len)` words = `bits_precision`),
-//! NOT at CAP. modmath's wide-REDC reconstructs `hi·2^(len·word_bits) +
-//! lo`, so a CAP split on a sub-capacity field (`len < CAP`) would
-//! strand the high half in `lo` and break the REDC (the RSA bug).
+//! NOT at CAP. A wide Montgomery reduction reconstructs
+//! `hi·2^(len·word_bits) + lo`, so a CAP split on a sub-capacity field
+//! (`len < CAP`) would strand the high half in `lo` and break the REDC.
 //!
 //! The full-product VALUE matches FixedUInt, but the (lo, hi) *split
 //! boundary* does not for sub-CAP operands — FixedUInt<N> always splits
@@ -19,7 +19,7 @@ type H4 = HeaplessBigInt<u32, 4, Nct>;
 
 #[test]
 fn wide_mul_splits_at_value_width_rsa_repro() {
-    // RSA repro: two len-2 operands in an 8-word carrier.
+    // Two len-2 operands in an 8-word carrier.
     // a = 0x1000_0000_0000_0003, b = 0x2_0000_0005.
     // full product = [15, 1342177286, 536870912, 0] (128-bit).
     let a = H8::from_limbs([0x0000_0003, 0x1000_0000, 0, 0, 0, 0, 0, 0], 2);

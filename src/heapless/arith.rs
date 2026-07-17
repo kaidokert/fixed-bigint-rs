@@ -101,11 +101,8 @@ pub(crate) fn mul_slice<T: MachineWord + CarryingMul<Unsigned = T, Output = T>>(
 // ── Inherent methods on HeaplessBigInt ──
 
 impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P> {
-    /// Wrapping addition, at the operands' width `max(a.len, b.len)`.
-    /// A carry out of that width is discarded — `HeaplessBigInt` carried
-    /// at `len = k` is a `k`-word integer that behaves exactly like
-    /// `FixedUInt<T, k>`; the capacity beyond `len` does not exist as far
-    /// as arithmetic is concerned. `CAP` never enters.
+    /// Wrapping addition at the operands' width `max(a.len, b.len)`; a
+    /// carry out of that width is discarded.
     pub fn wrapping_add(&self, other: &Self) -> Self {
         let out_len = core::cmp::max(self.len as usize, other.len as usize);
         let mut out = Self::new_zero_with_len(out_len as u16);
@@ -132,13 +129,9 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         if overflow { None } else { Some(res) }
     }
 
-    /// Wrapping subtraction. Output `len = max(a.len, b.len)` — the
-    /// operands' width, per the bit-vocabulary model where a
-    /// `HeaplessBigInt`'s width is `len·word_bits`, not `CAP`. On
-    /// underflow the value wraps modulo `2^(max_len·WORD_BITS)`: a
-    /// value carried at a narrower width wraps at that narrower width
-    /// (like `u8` vs `u32`), which is the point of the variable-width
-    /// carrier — `CAP` never enters.
+    /// Wrapping subtraction at the operands' width `max(a.len, b.len)`;
+    /// underflow wraps modulo `2^(max_len·WORD_BITS)`, so a value carried
+    /// at a narrower width wraps at that narrower width (like `u8` vs `u32`).
     pub fn wrapping_sub(&self, other: &Self) -> Self {
         let out_len = core::cmp::max(self.len as usize, other.len as usize);
         let mut out = Self::new_zero_with_len(out_len as u16);
@@ -170,11 +163,10 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
 impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
     HeaplessBigInt<T, CAP, P>
 {
-    /// Wrapping multiplication, at the operands' width `max(a.len, b.len)`:
+    /// Wrapping multiplication at the operands' width `max(a.len, b.len)`:
     /// keeps the low `width` words (`a·b mod 2^(width·word_bits)`),
-    /// exactly like `FixedUInt<T, width>::wrapping_mul`. The high half of
-    /// the product does not exist as far as this op is concerned — `CAP`
-    /// never enters. `WideMul` is the op that returns both halves.
+    /// exactly like `FixedUInt<T, width>::wrapping_mul`. [`WideMul`] returns
+    /// both halves.
     pub fn wrapping_mul(&self, other: &Self) -> Self {
         let out_len = core::cmp::max(self.len as usize, other.len as usize);
         let mut out = Self::new_zero_with_len(out_len as u16);
@@ -203,10 +195,8 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     }
 
     /// Checked multiplication. `None` when the product does not fit in the
-    /// operands' width `max(a.len, b.len)` — i.e. exactly when
-    /// `FixedUInt<T, width>::checked_mul` would return `None`. `CAP` does
-    /// not enter: the value is a `width`-word integer, and the words it
-    /// does not have do not exist.
+    /// operands' width `max(a.len, b.len)` — exactly when
+    /// `FixedUInt<T, width>::checked_mul` would return `None`.
     pub fn checked_mul(&self, other: &Self) -> Option<Self> {
         let (res, overflow) = self.overflowing_mul(other);
         if overflow { None } else { Some(res) }
@@ -215,12 +205,12 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
 
 // ── const_num_traits CheckedAdd / CheckedMul (Nct only) ──
 //
-// The trait forms modmath's variable-time inv binds on. `checked_add` /
-// `checked_mul` return `None` on overflow at the operands' width, exactly
-// as the same-width `FixedUInt` would — the carrier at `len = k` is a
-// `k`-word integer, no capacity headroom. Trait exposure is kept Nct-only
-// to match the existing surface. `HeaplessBigInt: Copy`, so bridging the
-// by-value trait receiver to the by-reference inherent method is free.
+// The trait forms a downstream variable-time modular-inverse consumer binds
+// on. `checked_add` / `checked_mul` return `None` on overflow at the
+// operands' width, exactly as the same-width `FixedUInt` would. Trait
+// exposure is kept Nct-only to match the existing surface.
+// `HeaplessBigInt: Copy`, so bridging the by-value trait receiver to the
+// by-reference inherent method is free.
 
 impl<T, const CAP: usize> CheckedAdd for HeaplessBigInt<T, CAP, Nct>
 where
@@ -315,10 +305,10 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     }
 }
 
-// Value + mixed-receiver variants — modmath's EEA `Signed<T>` arithmetic
-// wants owned-owned `+`/`-`/`*`, owned-ref `*`, and ref-owned `-`. Each
-// delegates to the `&Self op &Self` variant. `HeaplessBigInt: Copy` so
-// forwarding by-value operands to references is a no-op at runtime.
+// Value + mixed-receiver variants for callers that want by-value operators:
+// owned-owned `+`/`-`/`*`, owned-ref `*`, ref-owned `-`. Each delegates to
+// the `&Self op &Self` variant. `HeaplessBigInt: Copy`, so forwarding
+// by-value operands to references is a no-op at runtime.
 
 impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Add
     for HeaplessBigInt<T, CAP, P>
@@ -556,9 +546,8 @@ where
 }
 
 // `self - rhs - borrow_in` with borrow_out, over the operands' width
-// (`max(self.len, rhs.len)`), not `CAP` — same width rule as
-// `wrapping_sub`, so underflow wraps at the value's width and `CAP`
-// stays out of the algorithm. Modmath's CIOS driver fires from this.
+// (`max(self.len, rhs.len)`) — same width rule as `wrapping_sub`, so
+// underflow wraps at the value's width. Used by multi-precision reduction.
 
 impl<T, const CAP: usize, P: Personality> BorrowingSub for HeaplessBigInt<T, CAP, P>
 where
@@ -595,16 +584,15 @@ where
 // reconstructing as `full = hi·2^(W·word_bits) + lo`. This matches
 // `bits_precision()` (= `len·word_bits`) and the primitive contract
 // (`200u8.wide_mul(200) = (64, 156)` splits at the type width) — and it
-// is what modmath's wide-REDC reads back, since it reconstructs against
-// the operand's `bits_precision`, not the carrier's capacity.
+// is what a wide Montgomery reduction reads back, since it reconstructs
+// against the operand's `bits_precision`, not the carrier's capacity.
 //
-// NOT `CAP`: for a sub-capacity field (`len < CAP`) — rsa with a modulus
-// narrower than the carrier — a CAP split would strand the high half in
+// NOT `CAP`: for a sub-capacity field (`len < CAP` — e.g. a modulus
+// narrower than the carrier) a CAP split would strand the high half in
 // `lo` (`hi = 0`) and the REDC would be off by limbs. `CAP` is invisible
 // here just like every other value-width op; the only fixed-width use of
-// capacity is `ToBytes`'s owned holder. (For a full-width field,
-// `len == CAP`, so the two coincide — which is why ed25519 was
-// insensitive to this and RSA is not.)
+// capacity is `ToBytes`'s owned holder. (For a full-width field
+// `len == CAP`, so the two coincide.)
 
 impl<T, const CAP: usize, P: Personality> CarryingMul for HeaplessBigInt<T, CAP, P>
 where

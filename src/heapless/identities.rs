@@ -2,9 +2,8 @@
 //!
 //! - `Zero`: mathematical zero, `len = 0`.
 //! - `One`: `len = 1`, `limbs[0] = T::ONE`.
-//! - `Default = Zero` (spec's landed shape after `modmath-cios 0.1.2`
-//!   introduced `cios_accumulator(&self)` — the CIOS full-CAP zero
-//!   is now a separate constructor, not `Default`).
+//! - `Default = Zero`. (The CIOS full-CAP zero is a separate constructor,
+//!   `cios_accumulator`, not `Default`.)
 
 use super::{AssertCapFits, HeaplessBigInt, zero};
 use crate::MachineWord;

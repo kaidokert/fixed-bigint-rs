@@ -39,9 +39,7 @@ where
     }
 
     fn mul_acc_row(scalar: T, multiplicand: &Self, acc: &mut Self, carry_in: T) -> T {
-        // acc += scalar * multiplicand + carry_in. Each iteration adds
-        // one limb's worth. carry propagates through the loop; the
-        // final carry-out is returned.
+        // acc += scalar * multiplicand + carry_in; returns the carry-out.
         let n = multiplicand.len as usize;
         let mut carry = carry_in;
         let mut i = 0;
@@ -76,9 +74,8 @@ where
         }
         // Combine phase-1 carry with the incoming acc_hi at position W.
         let (top_low, top_hi_bit) = <T as CarryingAdd>::carrying_add(carry, acc_hi, false);
-        // Shift right by one limb: drop acc[0] (which the CIOS
-        // invariant makes zero), shuffle limbs down, place top_low at
-        // the highest slot.
+        // Shift right by one limb: drop acc[0] (zero by the CIOS
+        // invariant) and place top_low at the highest slot.
         let mut i = 0;
         while i + 1 < n {
             acc.limbs[i] = acc.limbs[i + 1];

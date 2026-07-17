@@ -115,7 +115,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> AssertCapFits for Heaples
     );
 }
 
-// ── Constructors (all Class A: shape-setting from public parameters) ──
+// ── Constructors (shape-setting from public parameters) ──
 
 impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P> {
     /// Zero with a caller-supplied logical length. The `len` is treated as

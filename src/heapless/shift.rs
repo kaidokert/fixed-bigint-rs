@@ -31,9 +31,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Shl<usize> for HeaplessBi
         let word_shift = bits / word_bits;
         let bit_shift = bits % word_bits;
 
-        // Width-preserving: the result occupies the operand's own `len`
-        // words; anything shifted past that is discarded, matching a
-        // fixed-width `<<`. `CAP` never enters.
+        // Width-preserving: out_len = self.len (see module doc).
         let out_len = self.len as usize;
         let mut limbs = [zero::<T>(); CAP];
 
