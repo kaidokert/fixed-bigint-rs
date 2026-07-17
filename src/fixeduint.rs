@@ -1632,8 +1632,9 @@ c0nst::c0nst! {
     /// Branchless per-limb select: returns `if_zero` when `choice == 0`,
     /// `if_one` when `choice == 1`.
     ///
-    /// The `black_box` on `choice` is required for correctness. Without it,
-    /// LLVM recognizes the algebraic identity `a ^ (mask & (a ^ b))` ==
+    /// The `black_box` on `choice` is required to keep this select
+    /// constant-time. Without it, LLVM recognizes the algebraic identity
+    /// `a ^ (mask & (a ^ b))` ==
     /// `if mask == 0 { a } else { b }` and rewrites the loop into a
     /// `csel` of the source ADDRESS followed by a load — a secret-
     /// dependent memory access that the asm-grep gate can't see but
