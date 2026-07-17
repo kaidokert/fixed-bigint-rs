@@ -9,8 +9,6 @@
 //! at N, HeaplessBigInt splits at the value width. So we check the split
 //! shape directly, not limb-for-limb parity with FixedUInt.
 
-#![cfg(feature = "heapless-runtime-len")]
-
 use const_num_traits::{CarryingMul, Nct, Zero};
 use fixed_bigint::HeaplessBigInt;
 

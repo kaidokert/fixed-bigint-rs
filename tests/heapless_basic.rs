@@ -3,7 +3,10 @@
 //! Zero/One/Default line up, and Ct paths (subtle::ConstantTimeEq) agree
 //! with the value.
 
-#![cfg(feature = "heapless-runtime-len")]
+// Several tests deliberately spell out `&a op &b` (and the mixed receiver
+// forms) to check that every operator impl — value/value, value/ref,
+// ref/value, ref/ref — agrees. That is the point, so `op_ref` is allowed.
+#![allow(clippy::op_ref)]
 
 // `WrappingAdd`/`WrappingSub`/`OverflowingAdd`/`OverflowingSub` are used
 // via fully-qualified paths below because they shadow the inherent
@@ -384,8 +387,8 @@ fn ct_eq_agrees_with_partial_eq() {
     let a = H8Ct::from_limbs([1, 2, 3, 0, 0, 0, 0, 0], 3);
     let b = H8Ct::from_limbs([1, 2, 3, 0, 0, 0, 0, 0], 3);
     let c = H8Ct::from_limbs([1, 2, 4, 0, 0, 0, 0, 0], 3);
-    assert_eq!(bool::from(a.ct_eq(&b)), true);
-    assert_eq!(bool::from(a.ct_eq(&c)), false);
+    assert!(bool::from(a.ct_eq(&b)));
+    assert!(!bool::from(a.ct_eq(&c)));
     assert!(a == b);
     assert!(a != c);
 }
@@ -395,7 +398,7 @@ fn ct_eq_across_shapes() {
     // Same-value, different-shape operands agree under Ct equality too.
     let a = H8Ct::zero_full_cap();
     let b = <H8Ct as Zero>::zero();
-    assert_eq!(bool::from(a.ct_eq(&b)), true);
+    assert!(bool::from(a.ct_eq(&b)));
 }
 
 // ── subtle::ConditionallySelectable ──
@@ -809,7 +812,7 @@ fn bits_precision_is_len_times_word_bits_not_cap() {
 fn bits_precision_via_reference() {
     use const_num_traits::BitsPrecision;
     let v = H4u32Nct::from_limbs([1, 2, 0, 0], 2);
-    assert_eq!((&v).bits_precision(), 64);
+    assert_eq!(<&H4u32Nct as BitsPrecision>::bits_precision(&&v), 64);
 }
 
 #[test]

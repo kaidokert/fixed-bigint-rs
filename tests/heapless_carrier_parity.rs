@@ -15,7 +15,7 @@
 //! carrier, the Ed25519 verify carrier) — are exercised against the
 //! matching `FixedUInt<u32, 8>` here.
 
-#![cfg(all(feature = "heapless-runtime-len", feature = "num-traits"))]
+#![cfg(feature = "num-traits")]
 
 use const_num_traits::{
     BitWidth, BitsPrecision, CarryingMul, CheckedAdd, CheckedMul, FromByteSlice, Nct,
@@ -98,8 +98,8 @@ fn value_seeds(width_bytes: usize) -> Vec<[u8; BUF]> {
     let mut out = Vec::new();
     let mut push = |f: &dyn Fn(usize) -> u8| {
         let mut b = [0u8; BUF];
-        for i in 0..width_bytes {
-            b[i] = f(i);
+        for (i, slot) in b.iter_mut().enumerate().take(width_bytes) {
+            *slot = f(i);
         }
         out.push(b);
     };

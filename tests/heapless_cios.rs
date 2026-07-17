@@ -4,7 +4,7 @@
 //! examples where the expected value is checked by hand) — the full
 //! CIOS driver is exercised in modmath's own integration.
 
-#![cfg(all(feature = "heapless-runtime-len", feature = "cios"))]
+#![cfg(feature = "cios")]
 
 use const_num_traits::Nct;
 use fixed_bigint::HeaplessBigInt;

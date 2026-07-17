@@ -56,8 +56,6 @@
 //! owned `Bytes` associated type is fixed-size — the intended shape for a
 //! full-precision operand (a modulus with `len == CAP`) and for round-tripping
 //! against `FixedUInt<T, CAP>`. For value-width bytes use the inherent methods.
-//!
-//! Behind the off-by-default `heapless-runtime-len` feature.
 
 use crate::MachineWord;
 use const_num_traits::{Ct, Nct, Personality};
@@ -122,7 +120,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
     /// a public shape parameter from here on. Panics if `len > CAP`.
     #[inline]
     pub fn new_zero_with_len(len: u16) -> Self {
-        let _ = <Self as AssertCapFits>::CHECK;
+        let () = <Self as AssertCapFits>::CHECK;
         assert!(
             (len as usize) <= CAP,
             "HeaplessBigInt::new_zero_with_len: len {} > CAP {}",
@@ -152,7 +150,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
     /// hidden limb into the value.
     #[inline]
     pub fn from_limbs(limbs: [T; CAP], len: u16) -> Self {
-        let _ = <Self as AssertCapFits>::CHECK;
+        let () = <Self as AssertCapFits>::CHECK;
         assert!((len as usize) <= CAP);
         let mut i = len as usize;
         while i < CAP {

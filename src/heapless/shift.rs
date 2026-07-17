@@ -40,12 +40,12 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Shl<usize> for HeaplessBi
             let dst_lo = i + word_shift;
             if dst_lo < out_len {
                 let lo = self.limbs[i] << bit_shift;
-                limbs[dst_lo] = limbs[dst_lo] | lo;
+                limbs[dst_lo] |= lo;
                 if bit_shift > 0 {
                     let dst_hi = dst_lo + 1;
                     if dst_hi < out_len {
                         let hi = self.limbs[i] >> (word_bits - bit_shift);
-                        limbs[dst_hi] = limbs[dst_hi] | hi;
+                        limbs[dst_hi] |= hi;
                     }
                 }
             }

@@ -58,7 +58,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Zero for HeaplessBigInt<T
 impl<T: MachineWord, const CAP: usize, P: Personality> One for HeaplessBigInt<T, CAP, P> {
     #[inline]
     fn one() -> Self {
-        let _ = <Self as AssertCapFits>::CHECK;
+        let () = <Self as AssertCapFits>::CHECK;
         assert!(CAP >= 1, "HeaplessBigInt::one requires CAP >= 1");
         let mut limbs = [zero::<T>(); CAP];
         limbs[0] = <T as ConstOne>::ONE;

@@ -26,9 +26,9 @@ fn read_be_word<T: MachineWord>(bytes: &[u8]) -> T {
     let mut first = true;
     for &b in bytes {
         if !first {
-            val = val << 8;
+            val <<= 8;
         }
-        val = val | <T as From<u8>>::from(b);
+        val |= <T as From<u8>>::from(b);
         first = false;
     }
     val
@@ -40,7 +40,7 @@ fn read_le_word<T: MachineWord>(bytes: &[u8]) -> T {
     let mut val = zero::<T>();
     let mut shift = 0;
     for &b in bytes {
-        val = val | (<T as From<u8>>::from(b) << shift);
+        val |= <T as From<u8>>::from(b) << shift;
         shift += 8;
     }
     val
