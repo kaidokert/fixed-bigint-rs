@@ -3,6 +3,11 @@
 //! Zero/One/Default line up, and Ct paths (subtle::ConstantTimeEq) agree
 //! with the value.
 
+// The `to_from_bytes` submodule exercises `FixedUInt`/`HeaplessBigInt`'s
+// const `ToBytes`/`FromBytes`, whose `generic_const_exprs` bound is viral;
+// a downstream crate (this test) must enable the feature itself on nightly.
+#![cfg_attr(feature = "nightly", feature(generic_const_exprs))]
+#![cfg_attr(feature = "nightly", allow(incomplete_features))]
 // Several tests deliberately spell out `&a op &b` (and the mixed receiver
 // forms) to check that every operator impl — value/value, value/ref,
 // ref/value, ref/ref — agrees. That is the point, so `op_ref` is allowed.
