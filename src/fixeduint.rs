@@ -249,7 +249,7 @@ impl<T: MachineWord, const N: usize> FixedUInt<T, N, Ct> {
         for _ in 0..u32::BITS {
             // `black_box` opacifies the per-iteration bit so LLVM can't
             // recognize the XOR-select as a cmov-on-secret-flag — see
-            // `const_ct_select` for the load-bearing explanation.
+            // `const_ct_select` for the full explanation.
             let bit = core::hint::black_box((e & 1) as u8);
             let (candidate, mul_ov) = <Self as OverflowingMul>::overflowing_mul(result, base);
             // Multiply overflow matters iff bit_k is set.
@@ -884,8 +884,8 @@ c0nst::c0nst! {
             let mut shifted = *target;
             const_shl_impl(&mut shifted, amount);
             // Spread bit k of `bits` to a full-T mask: 0 if cleared, T::MAX if set.
-            // `black_box` is load-bearing — see `const_ct_select` for the
-            // address-select rewrite it defeats.
+            // `black_box` defeats the address-select rewrite here — see
+            // `const_ct_select` for the full explanation.
             let bit_k = core::hint::black_box(((bits >> k) & 1) as u8);
             let bit_k_t = <T as core::convert::From<u8>>::from(bit_k);
             let mask = <T as core::ops::Mul>::mul(bit_k_t, <T as Bounded>::max_value());
@@ -1055,7 +1055,7 @@ c0nst::c0nst! {
             let v_lz = <T as PrimBits>::leading_zeros(v);
             // Add this limb's lz contribution iff we haven't decided yet.
             // `black_box` defeats the LLVM XOR/AND-select → cmov rewrite —
-            // see `const_ct_select` for the load-bearing explanation.
+            // see `const_ct_select` for the full explanation.
             let undecided = core::hint::black_box(!decided);
             total += undecided & v_lz;
             // Lock the decision the moment we see a non-zero limb.
@@ -1632,8 +1632,8 @@ c0nst::c0nst! {
     /// Branchless per-limb select: returns `if_zero` when `choice == 0`,
     /// `if_one` when `choice == 1`.
     ///
-    /// The `black_box` on `choice` is load-bearing. Without it, LLVM
-    /// recognizes the algebraic identity `a ^ (mask & (a ^ b))` ==
+    /// The `black_box` on `choice` is required for correctness. Without it,
+    /// LLVM recognizes the algebraic identity `a ^ (mask & (a ^ b))` ==
     /// `if mask == 0 { a } else { b }` and rewrites the loop into a
     /// `csel` of the source ADDRESS followed by a load — a secret-
     /// dependent memory access that the asm-grep gate can't see but
