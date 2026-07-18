@@ -2,6 +2,3 @@
 Cargo.lock
 *~
 notes/
-# Local working notes, kept out of the repo and the published crate.
-/CLAUDE.md
-/CT_VERIFY.md
