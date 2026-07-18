@@ -928,6 +928,16 @@ fn parity_reads_only_lowest_limb() {
     // High limbs are non-zero; parity must still come from limb 0.
     let v = H4u32Nct::from_limbs([0xFFFF_FFFE, 0xFFFF_FFFF, 0, 0], 2);
     assert!(v.is_even()); // low bit of 0xFFFF_FFFE is 0
+    assert!(!v.is_odd());
+}
+
+#[test]
+fn parity_of_minimal_width_zero() {
+    // `zero()` is minimal-width (len 0) — parity must read even with no limb
+    // to inspect. The generic carrier suite only ever sees a widened zero.
+    let z = <H4u32Nct as Zero>::zero();
+    assert!(z.is_even());
+    assert!(!z.is_odd());
 }
 
 // ── Div / Rem ──
@@ -1288,6 +1298,21 @@ fn trait_checked_mul_matches_fixeduint_width_behavior() {
     let out = <H4u8Nct as CheckedMul>::checked_mul(a, b).expect("35 fits in width 4");
     assert_eq!(out.len(), 4);
     assert_eq!(out.limbs()[0], 35);
+}
+
+#[test]
+fn checked_sub_trait_underflow_with_spare_capacity() {
+    // Narrow len-1 values in a CAP-4 carrier: the trait-form underflow must
+    // report None / borrow even though upper capacity limbs exist. The
+    // generic carrier suite only runs carriers where width == CAP, so this
+    // covers the `CAP > len` shape it can't reach.
+    use const_num_traits::{CheckedSub, OverflowingSub};
+    let one = H4u32Nct::from(1u32);
+    let two = H4u32Nct::from(2u32);
+    assert_eq!(one.len(), 1);
+    assert_eq!(<H4u32Nct as CheckedSub>::checked_sub(one, two), None);
+    let (_, borrow) = <H4u32Nct as OverflowingSub>::overflowing_sub(one, two);
+    assert!(borrow);
 }
 
 #[test]

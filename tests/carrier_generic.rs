@@ -164,6 +164,10 @@ fn mul() {
         let b = C::from_u32(17);
         assert_eq!(a * b, C::from_u32(221));
         assert_eq!(WrappingMul::wrapping_mul(a, b), C::from_u32(221));
+        assert_eq!(
+            OverflowingMul::overflowing_mul(a, b),
+            (C::from_u32(221), false)
+        );
         assert_eq!(CheckedMul::checked_mul(a, b), Some(C::from_u32(221)));
         let mut m = a;
         m *= b;
@@ -261,10 +265,15 @@ fn compare() {
 #[test]
 fn parity() {
     fn body<C: Carrier>() {
+        // Both directions, so an unconditional is_even/is_odd can't slip by.
         assert!(C::from_u32(0).is_even());
+        assert!(!C::from_u32(0).is_odd());
         assert!(C::from_u32(4).is_even());
+        assert!(!C::from_u32(4).is_odd());
         assert!(C::from_u32(5).is_odd());
+        assert!(!C::from_u32(5).is_even());
         assert!(C::from_u32(0xFFFF_FFFF).is_odd());
+        assert!(!C::from_u32(0xFFFF_FFFF).is_even());
     }
     for_both_carriers!(body);
 }
