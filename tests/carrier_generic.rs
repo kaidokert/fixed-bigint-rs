@@ -1,18 +1,19 @@
 //! Behavior shared by every carrier — written once as a generic body and run
 //! for both `FixedUInt` and `HeaplessBigInt`.
 //!
-//! Both carriers here are pinned to the same 32-bit width (`u8 × 4`) so the
-//! overflow / carry / wrap boundaries line up: `FixedUInt<u8, 4>` is 32-bit by
-//! construction, and `HeaplessBigInt<u8, 4>` is built from four bytes and
-//! `widened` to len 4 (its `From<small>` would otherwise be minimal-width).
+//! Both carriers are pinned to the same 32-bit width so the overflow / carry /
+//! wrap boundaries line up. Construction goes through the two traits both
+//! carriers share — `From<u32>` then `WithPrecision::widen_to_precision(32)` —
+//! because `From` alone is minimal-width on HeaplessBigInt and would otherwise
+//! not match FixedUInt's fixed width.
 //!
 //! Tests that reach into a carrier's internals (limbs / len / CAP, personality,
 //! the runtime-length width vocabulary) live in each carrier's own suite; this
 //! file is only the surface both share.
 
 use const_num_traits::{
-    CarryingMul, CheckedAdd, CheckedMul, CheckedSub, FromByteSlice, Nct, OverflowingAdd,
-    OverflowingMul, OverflowingSub, Parity, WrappingAdd, WrappingMul, WrappingSub, Zero,
+    CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Nct, OverflowingAdd, OverflowingMul,
+    OverflowingSub, Parity, WithPrecision, WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -20,8 +21,7 @@ use core::ops::{
 };
 use fixed_bigint::{FixedUInt, HeaplessBigInt};
 
-/// The 32-bit unsigned surface both carriers implement. `from_u32` pins the
-/// value to the carrier's full 32-bit width so overflow behavior matches.
+/// The 32-bit unsigned surface both carriers implement.
 trait Carrier:
     Copy
     + core::fmt::Debug
@@ -29,6 +29,8 @@ trait Carrier:
     + PartialOrd
     + Zero
     + Parity
+    + From<u32>
+    + WithPrecision
     + Add<Output = Self>
     + Sub<Output = Self>
     + Mul<Output = Self>
@@ -60,21 +62,19 @@ trait Carrier:
     + CheckedMul<Output = Self>
     + CarryingMul<Unsigned = Self, Output = Self>
 {
-    fn from_u32(v: u32) -> Self;
+    /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
+    /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
+    /// `widen_to_precision` pins it to 32 bits — an identity on FixedUInt,
+    /// a grow on HeaplessBigInt — so the overflow boundaries line up.
+    fn from_u32(v: u32) -> Self {
+        <Self as From<u32>>::from(v).widen_to_precision(32)
+    }
 }
 
 macro_rules! impl_carrier {
     ($t:ty, $n:expr) => {
-        impl Carrier for FixedUInt<$t, $n, Nct> {
-            fn from_u32(v: u32) -> Self {
-                FromByteSlice::from_le_slice(&v.to_le_bytes()).unwrap()
-            }
-        }
-        impl Carrier for HeaplessBigInt<$t, $n, Nct> {
-            fn from_u32(v: u32) -> Self {
-                HeaplessBigInt::from_le_bytes(&v.to_le_bytes()).widened($n)
-            }
-        }
+        impl Carrier for FixedUInt<$t, $n, Nct> {}
+        impl Carrier for HeaplessBigInt<$t, $n, Nct> {}
     };
 }
 
