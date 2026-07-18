@@ -387,7 +387,7 @@ c0nst::c0nst! {
 
     /// Branchless CT-safe `min(bits, cap)` for u32, used to clamp Ct
     /// shift amounts to `BIT_SIZE` before casting to usize. The
-    /// `black_box` on the mask is load-bearing — without it, LLVM
+    /// `black_box` on the mask is required — without it, LLVM
     /// recognises the XOR-AND-XOR select idiom and rewrites it into a
     /// `cmov` whose flag depends on the secret `bits`. Same defence as
     /// `const_ct_select` (PR #118).
