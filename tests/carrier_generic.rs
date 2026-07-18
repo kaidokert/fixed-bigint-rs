@@ -19,7 +19,7 @@ use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
-use fixed_bigint::{FixedUInt, HeaplessBigInt};
+use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
 
 /// The 32-bit unsigned surface both carriers implement.
 trait Carrier:
@@ -71,19 +71,21 @@ trait Carrier:
     }
 }
 
-macro_rules! impl_carrier {
-    ($t:ty, $n:expr) => {
-        impl Carrier for FixedUInt<$t, $n, Nct> {}
-        impl Carrier for HeaplessBigInt<$t, $n, Nct> {}
-    };
+impl<
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T> + core::fmt::Debug + Parity,
+    const N: usize,
+> Carrier for FixedUInt<T, N, Nct>
+{
+}
+impl<
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T> + core::fmt::Debug + Parity,
+    const CAP: usize,
+> Carrier for HeaplessBigInt<T, CAP, Nct>
+{
 }
 
-// Three backings of the same 32-bit width; each runs on both carriers.
-impl_carrier!(u8, 4);
-impl_carrier!(u16, 2);
-impl_carrier!(u32, 1);
-
-/// Run a generic body for both carriers across all three backings.
+/// Run a generic body for both carriers across three backings of the same
+/// 32-bit width.
 macro_rules! for_both_carriers {
     ($body:ident) => {{
         $body::<FixedUInt<u8, 4, Nct>>();
