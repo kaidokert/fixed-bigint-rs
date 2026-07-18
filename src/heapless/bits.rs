@@ -46,8 +46,6 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
                 }
                 len * word_bits
             }
-            // Full scan: accumulate each limb's leading-zero contribution
-            // until a non-zero limb locks `decided`; later limbs add 0.
             // Shared full-width branchless scan (see `const_leading_zeros_ct`).
             PersonalityTag::Ct => {
                 crate::fixeduint::const_leading_zeros_ct(&self.limbs[..self.len as usize]) as usize

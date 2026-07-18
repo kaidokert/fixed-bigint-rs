@@ -85,9 +85,6 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Ord for HeaplessBigInt<T,
                 }
                 core::cmp::Ordering::Equal
             }
-            // Full MSB-to-LSB scan; once a differing limb is seen the
-            // `decided` mask stops later limbs from overturning it. Mirrors
-            // `FixedUInt`'s `const_cmp_ct`. result: 2 = Greater, 1 = Less.
             // Shared full-width branchless scan (see `const_cmp_ct`); the two
             // operand slices are equal length (`n`).
             PersonalityTag::Ct => {

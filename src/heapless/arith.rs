@@ -367,9 +367,8 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     }
 }
 
-// Value + mixed-receiver variants for callers that want by-value operators;
-// each delegates to the `&Self op &Self` core. `HeaplessBigInt: Copy`, so
-// forwarding by-value operands to references is a no-op at runtime.
+// `HeaplessBigInt: Copy`, so forwarding these by-value operands to the
+// `&Self` core is a no-op at runtime.
 forward_arith_receivers!(Add, add);
 forward_arith_receivers!(Sub, sub);
 forward_arith_receivers!(Mul, mul + CarryingMul<Unsigned = T, Output = T>);

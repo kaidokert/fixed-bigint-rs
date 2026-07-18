@@ -77,9 +77,8 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
             bytes.len()
         );
         let out_len = bytes.len().div_ceil(word_size);
-        // The oversize case is already rejected above, so the helper never
-        // truncates here; it fills exactly the same `[T; CAP]` the hand loop
-        // did.
+        // The oversize case is rejected above, so the helper fills the full
+        // `[T; CAP]` without truncating.
         Self {
             limbs: impl_from_be_bytes_slice::<T, CAP>(bytes),
             len: out_len as u16,
