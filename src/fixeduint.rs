@@ -1049,8 +1049,10 @@ c0nst::c0nst! {
     /// `bool -> u32` cast that rustc compiles to a setne.
     // Slice-typed so both `FixedUInt` (whole `&self.array`) and
     // `HeaplessBigInt` (`&self.limbs[..len]`) share one copy of the
-    // `black_box`-guarded scan. `#[inline]` keeps `array.len()` known at each
-    // call site, so the indexed access stays bounds-check-free.
+    // `black_box`-guarded scan. `index` only ever descends from
+    // `array.len()`, so `index < array.len()` holds at every access and
+    // LLVM elides the bounds check — no compile-time-constant length
+    // needed, which is why the runtime-length heapless slice is fine too.
     #[inline]
     pub(crate) c0nst fn const_leading_zeros_ct<T: [c0nst] ConstMachineWord>(array: &[T]) -> u32 {
         let mut total: u32 = 0;
@@ -1236,8 +1238,11 @@ c0nst::c0nst! {
     /// limbs cannot overturn the locked decision. Used by the `Ct`-personality
     /// arm of `Ord::cmp` (and therefore `PartialOrd::partial_cmp`).
     // Slice-typed (see `const_leading_zeros_ct`): both carriers share this
-    // one `black_box`-guarded scan. Callers pass equal-length slices, kept
-    // provable by `#[inline]`.
+    // one `black_box`-guarded scan. Callers pass equal-length slices; the
+    // loop bounds on `a.len()` and indexes `b[index]` in lockstep, so a
+    // shorter `b` would panic — an equal-length precondition the type no
+    // longer encodes (both `FixedUInt` and heapless satisfy it by
+    // construction).
     #[inline]
     pub(crate) c0nst fn const_cmp_ct<T: [c0nst] ConstMachineWord>(
         a: &[T],
