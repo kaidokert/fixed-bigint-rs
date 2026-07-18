@@ -28,7 +28,7 @@
 #![allow(non_snake_case)]
 
 use core::hint::black_box;
-use fixed_bigint::FixedUInt;
+use fixed_bigint::{FixedUInt, HeaplessBigInt};
 
 type U256 = FixedUInt<u32, 8>; // 32-byte / 256-bit, Curve25519-shaped
 
@@ -65,6 +65,54 @@ pub extern "C" fn panic_audit__from_be_bytes_fixed(bytes: *const [u8; 32], out: 
     let buf = black_box(unsafe { &*bytes });
     let v: U256 = U256::from_be_bytes_fixed(buf);
     let arr = black_box(*v.words());
+    unsafe { *out = arr };
+}
+
+// ── `HeaplessBigInt::from_{le,be}_bytes` (delegate to `impl_from_*_bytes_slice`) ──
+//
+// Same byte→limb helper as the `from_*_bytes_fixed` fixtures above; these
+// lock down that `HeaplessBigInt`'s decode (oversize guard + `div_ceil` len
+// + the shared scatter) stays panic-free at the Curve25519 shape and at the
+// RSA-scale u8/256 shape where the length-assert fold historically failed.
+
+type HeaplessU256 = HeaplessBigInt<u32, 8>;
+type HeaplessU2048B = HeaplessBigInt<u8, 256>;
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_from_le_bytes(bytes: *const [u8; 32], out: *mut [u32; 8]) {
+    let buf = black_box(unsafe { &*bytes });
+    let v: HeaplessU256 = HeaplessBigInt::from_le_bytes(buf);
+    let arr = black_box(*v.all_limbs());
+    unsafe { *out = arr };
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_from_be_bytes(bytes: *const [u8; 32], out: *mut [u32; 8]) {
+    let buf = black_box(unsafe { &*bytes });
+    let v: HeaplessU256 = HeaplessBigInt::from_be_bytes(buf);
+    let arr = black_box(*v.all_limbs());
+    unsafe { *out = arr };
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_from_le_bytes__u8_256(
+    bytes: *const [u8; 256],
+    out: *mut [u8; 256],
+) {
+    let buf = black_box(unsafe { &*bytes });
+    let v: HeaplessU2048B = HeaplessBigInt::from_le_bytes(buf);
+    let arr = black_box(*v.all_limbs());
+    unsafe { *out = arr };
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_from_be_bytes__u8_256(
+    bytes: *const [u8; 256],
+    out: *mut [u8; 256],
+) {
+    let buf = black_box(unsafe { &*bytes });
+    let v: HeaplessU2048B = HeaplessBigInt::from_be_bytes(buf);
+    let arr = black_box(*v.all_limbs());
     unsafe { *out = arr };
 }
 

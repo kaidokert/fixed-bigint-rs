@@ -8,43 +8,16 @@
 //! high-order word's high byte at index 0, LE writes the low-order
 //! word's low byte at index 0.
 //!
-//! Per-word reads are bit-shifted rather than `T::from_be_bytes`, so `T`
-//! needs only `MachineWord`, not a byte-conversion trait bound.
+//! Decoding delegates to `FixedUInt`'s `impl_from_{be,le}_bytes_slice`
+//! (the byte→limb scatter is identical, and those are the helpers
+//! `panic-free-audit` already validates), so `HeaplessBigInt` only owns the
+//! `len` computation and the oversize guard.
 
-use super::{HeaplessBigInt, zero};
+use super::HeaplessBigInt;
 use crate::MachineWord;
+use crate::fixeduint::{impl_from_be_bytes_slice, impl_from_le_bytes_slice};
 use const_num_traits::{ByteSliceError, ByteSliceErrorKind, FromByteSlice, Personality};
 use core::marker::PhantomData;
-
-// Read MSB-first bytes into a T, zero-padding the high side if
-// `bytes.len() < size_of::<T>()`. Skips the shift on the first iteration
-// because a `T::BITS`-wide shift is UB — matters at `size_of::<T>() == 1`
-// (u8 backing) where the loop runs exactly once.
-#[inline]
-fn read_be_word<T: MachineWord>(bytes: &[u8]) -> T {
-    let mut val = zero::<T>();
-    let mut first = true;
-    for &b in bytes {
-        if !first {
-            val <<= 8;
-        }
-        val |= <T as From<u8>>::from(b);
-        first = false;
-    }
-    val
-}
-
-// LE counterpart: byte `i` of the input contributes at bit position `i*8`.
-#[inline]
-fn read_le_word<T: MachineWord>(bytes: &[u8]) -> T {
-    let mut val = zero::<T>();
-    let mut shift = 0;
-    for &b in bytes {
-        val |= <T as From<u8>>::from(b) << shift;
-        shift += 8;
-    }
-    val
-}
 
 impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P> {
     /// Serialize into `out` as big-endian bytes. Writes `self.len *
@@ -103,24 +76,12 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
             "HeaplessBigInt::from_be_bytes: input {} bytes > CAP * word_size ({max_bytes})",
             bytes.len()
         );
-        let byte_count = bytes.len();
-        let out_len = byte_count.div_ceil(word_size);
-
-        let mut limbs = [zero::<T>(); CAP];
-        // Fill limbs from limb 0, consuming `bytes` back-to-front (a
-        // partial chunk, if any, lands at the high end).
-        let mut hi = byte_count;
-        let mut word_idx = 0;
-        while hi > 0 {
-            let take = core::cmp::min(word_size, hi);
-            let lo = hi - take;
-            limbs[word_idx] = read_be_word::<T>(&bytes[lo..hi]);
-            word_idx += 1;
-            hi = lo;
-        }
-
+        let out_len = bytes.len().div_ceil(word_size);
+        // The oversize case is already rejected above, so the helper never
+        // truncates here; it fills exactly the same `[T; CAP]` the hand loop
+        // did.
         Self {
-            limbs,
+            limbs: impl_from_be_bytes_slice::<T, CAP>(bytes),
             len: out_len as u16,
             _p: PhantomData,
         }
@@ -136,21 +97,9 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
             "HeaplessBigInt::from_le_bytes: input {} bytes > CAP * word_size ({max_bytes})",
             bytes.len()
         );
-        let byte_count = bytes.len();
-        let out_len = byte_count.div_ceil(word_size);
-
-        let mut limbs = [zero::<T>(); CAP];
-        let mut offset = 0;
-        let mut word_idx = 0;
-        while offset < byte_count {
-            let take = core::cmp::min(word_size, byte_count - offset);
-            limbs[word_idx] = read_le_word::<T>(&bytes[offset..offset + take]);
-            word_idx += 1;
-            offset += take;
-        }
-
+        let out_len = bytes.len().div_ceil(word_size);
         Self {
-            limbs,
+            limbs: impl_from_le_bytes_slice::<T, CAP>(bytes),
             len: out_len as u16,
             _p: PhantomData,
         }
