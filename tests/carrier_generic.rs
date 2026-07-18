@@ -230,11 +230,17 @@ fn shifts() {
         let v = C::from_u32(0x0000_00AB);
         assert_eq!(v << 8, C::from_u32(0x0000_AB00));
         assert_eq!(v << 0, v);
-        // Shifting past the 32-bit width truncates to zero.
+        // Around the 32-bit width boundary: the top bit stays, shifting by
+        // exactly the width (or more) truncates to zero. `shift == word_bits`
+        // is the classic edge (a native `<<` there would be UB).
+        assert_eq!(C::from_u32(1) << 31, C::from_u32(0x8000_0000));
         assert_eq!(C::from_u32(0x8000_0000) << 1, C::from_u32(0));
+        assert_eq!(C::from_u32(1) << 32, C::from_u32(0));
+        assert_eq!(C::from_u32(1) << 33, C::from_u32(0));
 
         let w = C::from_u32(0x0000_AB00);
         assert_eq!(w >> 8, C::from_u32(0x0000_00AB));
+        assert_eq!(C::from_u32(0xDEAD_BEEF) >> 32, C::from_u32(0));
         assert_eq!(C::from_u32(0xDEAD_BEEF) >> 64, C::from_u32(0));
 
         let mut s = C::from_u32(0x0000_00AB);
@@ -290,6 +296,13 @@ fn div_rem() {
         // Dividend < divisor.
         assert_eq!(C::from_u32(3) / C::from_u32(10), C::from_u32(0));
         assert_eq!(C::from_u32(3) % C::from_u32(10), C::from_u32(3));
+        // Boundary identities at the max width.
+        let max = C::from_u32(MAX32);
+        let one = C::from_u32(1);
+        assert_eq!(max / one, max);
+        assert_eq!(max % one, C::from_u32(0));
+        assert_eq!(max / max, one);
+        assert_eq!(max % max, C::from_u32(0));
 
         let mut q = a;
         q /= b;
