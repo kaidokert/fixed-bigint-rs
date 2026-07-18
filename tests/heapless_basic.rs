@@ -921,50 +921,26 @@ fn trait_overflowing_add_reports_overflow() {
     assert!(overflow);
 }
 
-#[test]
-fn trait_overflowing_sub_reports_borrow() {
-    use const_num_traits::OverflowingSub;
-    let a: H4u32Nct = 1u8.into();
-    let b: H4u32Nct = 2u8.into();
-    let (_, borrow) = <H4u32Nct as OverflowingSub>::overflowing_sub(a, b);
-    assert!(borrow);
-}
-
 // ── Parity ──
-
-#[test]
-fn parity_zero_is_even() {
-    let z = <H4u32Nct as Zero>::zero();
-    assert!(!z.is_odd());
-    assert!(z.is_even());
-}
-
-#[test]
-fn parity_reads_lowest_bit() {
-    let odd: H4u32Nct = 5u32.into();
-    let even: H4u32Nct = 4u32.into();
-    assert!(odd.is_odd());
-    assert!(!odd.is_even());
-    assert!(!even.is_odd());
-    assert!(even.is_even());
-}
 
 #[test]
 fn parity_reads_only_lowest_limb() {
     // High limbs are non-zero; parity must still come from limb 0.
     let v = H4u32Nct::from_limbs([0xFFFF_FFFE, 0xFFFF_FFFF, 0, 0], 2);
     assert!(v.is_even()); // low bit of 0xFFFF_FFFE is 0
+    assert!(!v.is_odd());
+}
+
+#[test]
+fn parity_of_minimal_width_zero() {
+    // `zero()` is minimal-width (len 0) — parity must read even with no limb
+    // to inspect. The generic carrier suite only ever sees a widened zero.
+    let z = <H4u32Nct as Zero>::zero();
+    assert!(z.is_even());
+    assert!(!z.is_odd());
 }
 
 // ── Div / Rem ──
-
-#[test]
-fn div_rem_dividend_less_than_divisor() {
-    let a: H4u32Nct = 3u8.into();
-    let b: H4u32Nct = 10u8.into();
-    assert_eq!(a / b, <H4u32Nct as Zero>::zero());
-    assert_eq!(a % b, a);
-}
 
 #[test]
 fn div_rem_equal() {
@@ -972,17 +948,6 @@ fn div_rem_equal() {
     let b: H4u32Nct = 42u32.into();
     assert_eq!(a / b, <H4u32Nct as One>::one());
     assert_eq!(a % b, <H4u32Nct as Zero>::zero());
-}
-
-#[test]
-fn div_rem_small_values() {
-    let a: H4u32Nct = 100u32.into();
-    let b: H4u32Nct = 7u8.into();
-    // 100 = 14*7 + 2.
-    let expected_q: H4u32Nct = 14u32.into();
-    let expected_r: H4u32Nct = 2u8.into();
-    assert_eq!(a / b, expected_q);
-    assert_eq!(a % b, expected_r);
 }
 
 #[test]
@@ -1140,19 +1105,6 @@ fn wrapping_mul_trait_matches_inherent() {
 }
 
 // ── CarryingMul at the bigint level ──
-
-#[test]
-fn carrying_mul_small_no_overflow() {
-    use const_num_traits::CarryingMul;
-    // 5 * 7 + 3 = 38. Fits in one limb, hi = 0.
-    let a: H4u32Nct = 5u8.into();
-    let b: H4u32Nct = 7u8.into();
-    let c: H4u32Nct = 3u8.into();
-    let (lo, hi) = a.carrying_mul(b, c);
-    let expected_lo: H4u32Nct = 38u8.into();
-    assert_eq!(lo, expected_lo);
-    assert!(<H4u32Nct as const_num_traits::Zero>::is_zero(&hi));
-}
 
 #[test]
 fn carrying_mul_produces_high_half() {
@@ -1346,6 +1298,21 @@ fn trait_checked_mul_matches_fixeduint_width_behavior() {
     let out = <H4u8Nct as CheckedMul>::checked_mul(a, b).expect("35 fits in width 4");
     assert_eq!(out.len(), 4);
     assert_eq!(out.limbs()[0], 35);
+}
+
+#[test]
+fn checked_sub_trait_underflow_with_spare_capacity() {
+    // Narrow len-1 values in a CAP-4 carrier: the trait-form underflow must
+    // report None / borrow even though upper capacity limbs exist. The
+    // generic carrier suite only runs carriers where width == CAP, so this
+    // covers the `CAP > len` shape it can't reach.
+    use const_num_traits::{CheckedSub, OverflowingSub};
+    let one = H4u32Nct::from(1u32);
+    let two = H4u32Nct::from(2u32);
+    assert_eq!(one.len(), 1);
+    assert_eq!(<H4u32Nct as CheckedSub>::checked_sub(one, two), None);
+    let (_, borrow) = <H4u32Nct as OverflowingSub>::overflowing_sub(one, two);
+    assert!(borrow);
 }
 
 #[test]
@@ -1771,18 +1738,6 @@ fn bitxor_and_bitwise_assign_ops() {
     let mut z = a;
     z |= b;
     assert_eq!(z, 0xF0FF_F0FFu32.into());
-}
-
-#[test]
-fn checked_sub_trait_matches_inherent() {
-    use const_num_traits::CheckedSub;
-    let a = H4u32Nct::from(100u32);
-    let b = H4u32Nct::from(40u32);
-    assert_eq!(CheckedSub::checked_sub(a, b), Some(60u32.into()));
-    // Underflow at width 1 → None, like FixedUInt<u32, 1>.
-    let one = H4u32Nct::from(1u32);
-    let two = H4u32Nct::from(2u32);
-    assert_eq!(CheckedSub::checked_sub(one, two), None);
 }
 
 #[test]
