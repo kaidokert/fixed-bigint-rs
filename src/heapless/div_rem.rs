@@ -64,16 +64,23 @@ where
     let one = <HeaplessBigInt<T, CAP, Nct> as One>::one().widened(work_len);
     let mut quotient = <HeaplessBigInt<T, CAP, Nct> as Zero>::zero().widened(work_len);
 
+    // Compute the top shift once, then walk down one bit per iteration. A
+    // fresh `wide_divisor << shift` each step would be an O(W·shift) shift;
+    // `>> 1` is O(W). `divisor << shift <= dividend` fits in `work_len`, so
+    // no significant bit is lost on the initial shift and `>> 1` faithfully
+    // reconstructs `<< (shift-k)`.
+    let mut shifted = wide_divisor << shift;
+    let mut bit = one << shift;
     loop {
-        let shifted = wide_divisor << shift;
         if rem >= shifted {
             rem = rem.wrapping_sub(&shifted);
-            let bit = one << shift;
             quotient = quotient.wrapping_add(&bit);
         }
         if shift == 0 {
             break;
         }
+        shifted >>= 1;
+        bit >>= 1;
         shift -= 1;
     }
 

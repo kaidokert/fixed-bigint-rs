@@ -42,15 +42,16 @@ fn panic_on_overflow_if_nct<P: Personality>(overflow: bool, msg: &'static str) {
 /// `out[..n] = a[..n] + b[..n]`, returning the final carry-out.
 /// All three slices must have length ≥ `n`. `a` / `b` beyond their
 /// respective logical `len`s must be zero (zero-tail invariant).
+///
+/// Slicing to `..n` up front bounds-checks once; the zip loop then has no
+/// per-element indexing, so the body is panic-free.
 #[inline]
 pub(crate) fn add_slice<T: MachineWord>(a: &[T], b: &[T], out: &mut [T], n: usize) -> bool {
     let mut carry = false;
-    let mut i = 0;
-    while i < n {
-        let (sum, c) = <T as CarryingAdd>::carrying_add(a[i], b[i], carry);
-        out[i] = sum;
+    for ((&ai, &bi), oi) in a[..n].iter().zip(&b[..n]).zip(&mut out[..n]) {
+        let (sum, c) = <T as CarryingAdd>::carrying_add(ai, bi, carry);
+        *oi = sum;
         carry = c;
-        i += 1;
     }
     carry
 }
@@ -60,12 +61,10 @@ pub(crate) fn add_slice<T: MachineWord>(a: &[T], b: &[T], out: &mut [T], n: usiz
 #[inline]
 pub(crate) fn sub_slice<T: MachineWord>(a: &[T], b: &[T], out: &mut [T], n: usize) -> bool {
     let mut borrow = false;
-    let mut i = 0;
-    while i < n {
-        let (diff, br) = <T as BorrowingSub>::borrowing_sub(a[i], b[i], borrow);
-        out[i] = diff;
+    for ((&ai, &bi), oi) in a[..n].iter().zip(&b[..n]).zip(&mut out[..n]) {
+        let (diff, br) = <T as BorrowingSub>::borrowing_sub(ai, bi, borrow);
+        *oi = diff;
         borrow = br;
-        i += 1;
     }
     borrow
 }
@@ -88,6 +87,12 @@ pub(crate) fn mul_slice<T: MachineWord + CarryingMul<Unsigned = T, Output = T>>(
     out: &mut [T],
     out_n: usize,
 ) {
+    // Slice to the logical lengths up front: the `a[i]` / `b[j]` reads and
+    // the `out[pos]` writes are then provably in bounds, so LLVM drops the
+    // per-access bounds checks from the hot nested loop.
+    let a = &a[..a_n];
+    let b = &b[..b_n];
+    let out = &mut out[..out_n];
     let mut i = 0;
     while i < a_n {
         let mut carry = zero::<T>();
