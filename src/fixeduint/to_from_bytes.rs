@@ -107,6 +107,55 @@ impl<T: MachineWord, const N: usize> Drop for BytesHolder<T, N> {
 
 // ── num_traits + const_num_traits ToBytes/FromBytes ──────────────────
 //
+// Full-width holder builders, shared by `FixedUInt`'s and
+// `HeaplessBigInt`'s `ToBytes` paths (they differ only in `self.array` vs
+// `self.limbs`). Byte writes go through `as_byte_slice_mut`, so the byte
+// sequence is host-endianness-independent. The zip byte-loop needs no
+// length proof, so it stays panic-free on every toolchain — unlike
+// `chunk.copy_from_slice(word_bytes)`, whose length assert DCEs on only a
+// subset of monomorphizations on stable rustc through MSRV.
+
+/// Big-endian: highest limb first, each limb's own bytes big-endian.
+pub(crate) fn holder_be_from_limbs<T: MachineWord, const N: usize>(
+    limbs: &[T; N],
+) -> BytesHolder<T, N> {
+    let mut ret = BytesHolder::default();
+    let word_size = core::mem::size_of::<T>();
+    // Guard against a future `as_byte_slice_mut` desync silently truncating.
+    debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
+    for (chunk, word) in ret
+        .as_byte_slice_mut()
+        .chunks_exact_mut(word_size)
+        .zip(limbs.iter().rev())
+    {
+        let word_bytes = word.to_be_bytes();
+        for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
+            *dst = *src;
+        }
+    }
+    ret
+}
+
+/// Little-endian: lowest limb first, each limb's own bytes little-endian.
+pub(crate) fn holder_le_from_limbs<T: MachineWord, const N: usize>(
+    limbs: &[T; N],
+) -> BytesHolder<T, N> {
+    let mut ret = BytesHolder::default();
+    let word_size = core::mem::size_of::<T>();
+    debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
+    for (chunk, word) in ret
+        .as_byte_slice_mut()
+        .chunks_exact_mut(word_size)
+        .zip(limbs.iter())
+    {
+        let word_bytes = word.to_le_bytes();
+        for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
+            *dst = *src;
+        }
+    }
+    ret
+}
+
 // The two `ToBytes` traits differ only in receiver (`&self` vs `self`)
 // and the two `FromBytes` traits do the same. Delegate through
 // crate-private helpers on `FixedUInt` to keep them in lockstep. Both
@@ -120,55 +169,17 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P>
 where
     T: core::fmt::Debug,
 {
-    // Zero-init NOT `BytesHolder::from_array(self.array)` — the latter
-    // Copy-materialises the referenced `[T; N]` on the stack before
-    // serialisation overwrites it, defeating the point of the by-ref
-    // impl (CT / Zeroize wrapper leaks).
-    //
-    // Byte-wise inner loop rather than `chunk.copy_from_slice(word_bytes)`:
-    // `copy_from_slice`'s length assert only DCEs when the optimizer
-    // proves `chunk.len() == word_bytes.len()`, and on stable rustc
-    // through MSRV that proof lands for only a subset of
-    // monomorphizations — leaving `panic_fmt` linked in for the rest.
-    // The zip byte-loop needs no length proof on any toolchain.
+    // `holder_*` build a `BytesHolder` from a `&[T; N]` (never
+    // `from_array(self.array)`, which Copy-materialises the referenced array
+    // on the stack and defeats the by-ref impl's CT / Zeroize-wrapper intent).
     #[inline]
     fn holder_be(&self) -> BytesHolder<T, N> {
-        let mut ret = BytesHolder::default();
-        let word_size = core::mem::size_of::<T>();
-        // Zip-truncation guard: if a future edit desynced
-        // `as_byte_slice_mut`'s length from `N * size_of::<T>()`, `zip`
-        // would silently drop the tail words and produce a wrong-length
-        // serialisation. Compiles out in release.
-        debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
-        for (chunk, word) in ret
-            .as_byte_slice_mut()
-            .chunks_exact_mut(word_size)
-            .zip(self.array.iter().rev())
-        {
-            let word_bytes = word.to_be_bytes();
-            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-                *dst = *src;
-            }
-        }
-        ret
+        super::holder_be_from_limbs(&self.array)
     }
 
     #[inline]
     fn holder_le(&self) -> BytesHolder<T, N> {
-        let mut ret = BytesHolder::default();
-        let word_size = core::mem::size_of::<T>();
-        debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
-        for (chunk, word) in ret
-            .as_byte_slice_mut()
-            .chunks_exact_mut(word_size)
-            .zip(self.array.iter())
-        {
-            let word_bytes = word.to_le_bytes();
-            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-                *dst = *src;
-            }
-        }
-        ret
+        super::holder_le_from_limbs(&self.array)
     }
 }
 

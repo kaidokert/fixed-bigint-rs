@@ -16,20 +16,14 @@ use super::HeaplessBigInt;
 use crate::MachineWord;
 use const_num_traits::Personality;
 
-impl<T: MachineWord, const CAP: usize, P: Personality> From<u8> for HeaplessBigInt<T, CAP, P> {
-    fn from(v: u8) -> Self {
-        Self::from_le_bytes(&v.to_le_bytes())
-    }
+macro_rules! from_primitive {
+    ($($t:ty),+) => { $(
+        impl<T: MachineWord, const CAP: usize, P: Personality> From<$t> for HeaplessBigInt<T, CAP, P> {
+            fn from(v: $t) -> Self {
+                Self::from_le_bytes(&v.to_le_bytes())
+            }
+        }
+    )+ };
 }
 
-impl<T: MachineWord, const CAP: usize, P: Personality> From<u16> for HeaplessBigInt<T, CAP, P> {
-    fn from(v: u16) -> Self {
-        Self::from_le_bytes(&v.to_le_bytes())
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> From<u32> for HeaplessBigInt<T, CAP, P> {
-    fn from(v: u32) -> Self {
-        Self::from_le_bytes(&v.to_le_bytes())
-    }
-}
+from_primitive!(u8, u16, u32);

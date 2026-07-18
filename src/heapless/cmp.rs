@@ -85,28 +85,10 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Ord for HeaplessBigInt<T,
                 }
                 core::cmp::Ordering::Equal
             }
-            // Full MSB-to-LSB scan; once a differing limb is seen the
-            // `decided` mask stops later limbs from overturning it. Mirrors
-            // `FixedUInt`'s `const_cmp_ct`. result: 2 = Greater, 1 = Less.
+            // Shared full-width branchless scan (see `const_cmp_ct`); the two
+            // operand slices are equal length (`n`).
             PersonalityTag::Ct => {
-                let mut result: u8 = 0;
-                let mut decided: u8 = 0;
-                let mut i = n;
-                while i > 0 {
-                    i -= 1;
-                    let gt = (self.limbs[i] > other.limbs[i]) as u8;
-                    let lt = (self.limbs[i] < other.limbs[i]) as u8;
-                    let here = (gt << 1) | lt;
-                    let undecided_mask = core::hint::black_box(!decided);
-                    result |= undecided_mask & here;
-                    let here_nz_mask = core::hint::black_box(((here != 0) as u8).wrapping_neg());
-                    decided |= here_nz_mask;
-                }
-                match result {
-                    2 => core::cmp::Ordering::Greater,
-                    1 => core::cmp::Ordering::Less,
-                    _ => core::cmp::Ordering::Equal,
-                }
+                crate::fixeduint::const_cmp_ct(&self.limbs[..n], &other.limbs[..n])
             }
         }
     }

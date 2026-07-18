@@ -68,9 +68,9 @@ mod const_to_from_bytes;
 mod to_from_bytes;
 
 // Re-exported crate-internally so the `heapless` module can reuse the
-// same `BytesHolder` as its `ToBytes`/`FromBytes` associated type.
+// same `BytesHolder` and the shared holder builders for its `ToBytes` impl.
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]
-pub(crate) use to_from_bytes::BytesHolder;
+pub(crate) use to_from_bytes::{BytesHolder, holder_be_from_limbs, holder_le_from_limbs};
 
 pub use has_nonzero_impl::NonZeroFixedUInt;
 
@@ -1047,13 +1047,18 @@ c0nst::c0nst! {
     /// limbs contribute 0 to the total. Used by the `Ct`-personality
     /// arm of `PrimBits::leading_zeros`. Branchless apart from a
     /// `bool -> u32` cast that rustc compiles to a setne.
-    pub(crate) c0nst fn const_leading_zeros_ct<T: [c0nst] ConstMachineWord, const N: usize>(
-        array: &[T; N],
-    ) -> u32 {
+    // Slice-typed so both `FixedUInt` (whole `&self.array`) and
+    // `HeaplessBigInt` (`&self.limbs[..len]`) share one copy of the
+    // `black_box`-guarded scan. `index` only ever descends from
+    // `array.len()`, so `index < array.len()` holds at every access and
+    // LLVM elides the bounds check — no compile-time-constant length
+    // needed, which is why the runtime-length heapless slice is fine too.
+    #[inline]
+    pub(crate) c0nst fn const_leading_zeros_ct<T: [c0nst] ConstMachineWord>(array: &[T]) -> u32 {
         let mut total: u32 = 0;
         // 0 while still in leading-zero region; u32::MAX once a non-zero limb is seen.
         let mut decided: u32 = 0;
-        let mut index = N;
+        let mut index = array.len();
         while index > 0 {
             index -= 1;
             let v = array[index];
@@ -1232,15 +1237,24 @@ c0nst::c0nst! {
     /// short-circuiting; once the first differing limb is seen, subsequent
     /// limbs cannot overturn the locked decision. Used by the `Ct`-personality
     /// arm of `Ord::cmp` (and therefore `PartialOrd::partial_cmp`).
-    pub(crate) c0nst fn const_cmp_ct<T: [c0nst] ConstMachineWord, const N: usize>(
-        a: &[T; N],
-        b: &[T; N],
+    // Slice-typed (see `const_leading_zeros_ct`): both carriers share this
+    // one `black_box`-guarded scan. The slice signature no longer encodes
+    // that `a` and `b` are equal-length (both carriers pass equal-length
+    // slices by construction); the entry-line pin below makes that explicit.
+    #[inline]
+    pub(crate) c0nst fn const_cmp_ct<T: [c0nst] ConstMachineWord>(
+        a: &[T],
+        b: &[T],
     ) -> core::cmp::Ordering {
+        // Pin `b` to `a`'s length so `b[index]` is provably in bounds for the
+        // whole scan: a shorter `b` traps here at entry rather than mid-loop,
+        // and the compiler can drop the per-iteration bounds check.
+        let b = &b[..a.len()];
         // result encoding: 2 = Greater, 1 = Less, 0 = Equal.
         let mut result: u8 = 0;
         // 0 while still undecided; u8::MAX once a differing limb has been seen.
         let mut decided: u8 = 0;
-        let mut index = N;
+        let mut index = a.len();
         while index > 0 {
             index -= 1;
             let gt = (a[index] > b[index]) as u8;

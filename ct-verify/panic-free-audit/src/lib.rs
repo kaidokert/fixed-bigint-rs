@@ -27,10 +27,47 @@
 #![no_std]
 #![allow(non_snake_case)]
 
+use const_num_traits::{Ct, PrimBits};
 use core::hint::black_box;
-use fixed_bigint::FixedUInt;
+use fixed_bigint::{FixedUInt, HeaplessBigInt};
 
 type U256 = FixedUInt<u32, 8>; // 32-byte / 256-bit, Curve25519-shaped
+
+// ── Ct branchless scans (shared `const_cmp_ct` / `const_leading_zeros_ct`) ──
+//
+// These moved from `&[T; N]` to `&[T]` so both carriers share one copy of the
+// `black_box`-guarded loop; lock down that the slice signature stays
+// panic-free at both carriers (the array length is compile-time on FixedUInt;
+// heapless passes `&limbs[..n]` with `n <= CAP` by invariant).
+
+type U256Ct = FixedUInt<u32, 8, Ct>;
+type HeaplessU256Ct = HeaplessBigInt<u32, 8, Ct>;
+
+#[no_mangle]
+pub extern "C" fn panic_audit__fixed_cmp_ct(a: u32, b: u32) -> i32 {
+    let x = U256Ct::from(black_box(a));
+    let y = U256Ct::from(black_box(b));
+    black_box(x.cmp(&y) as i32)
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__fixed_leading_zeros_ct(a: u32) -> u32 {
+    let x = U256Ct::from(black_box(a));
+    black_box(PrimBits::leading_zeros(x))
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_cmp_ct(a: u32, b: u32) -> i32 {
+    let x = HeaplessU256Ct::from(black_box(a));
+    let y = HeaplessU256Ct::from(black_box(b));
+    black_box(x.cmp(&y) as i32)
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_leading_zeros_ct(a: u32) -> usize {
+    let x = HeaplessU256Ct::from(black_box(a));
+    black_box(x.leading_zeros())
+}
 
 #[no_mangle]
 pub extern "C" fn panic_audit__to_le_bytes_fixed(seed: u32, out: *mut [u8; 32]) {
@@ -65,6 +102,54 @@ pub extern "C" fn panic_audit__from_be_bytes_fixed(bytes: *const [u8; 32], out: 
     let buf = black_box(unsafe { &*bytes });
     let v: U256 = U256::from_be_bytes_fixed(buf);
     let arr = black_box(*v.words());
+    unsafe { *out = arr };
+}
+
+// ── `HeaplessBigInt::from_{le,be}_bytes` (delegate to `impl_from_*_bytes_slice`) ──
+//
+// Same byte→limb helper as the `from_*_bytes_fixed` fixtures above; these
+// lock down that `HeaplessBigInt`'s decode (oversize guard + `div_ceil` len
+// + the shared scatter) stays panic-free at the Curve25519 shape and at the
+// RSA-scale u8/256 shape where the length-assert fold historically failed.
+
+type HeaplessU256 = HeaplessBigInt<u32, 8>;
+type HeaplessU2048B = HeaplessBigInt<u8, 256>;
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_from_le_bytes(bytes: *const [u8; 32], out: *mut [u32; 8]) {
+    let buf = black_box(unsafe { &*bytes });
+    let v: HeaplessU256 = HeaplessBigInt::from_le_bytes(buf);
+    let arr = black_box(*v.all_limbs());
+    unsafe { *out = arr };
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_from_be_bytes(bytes: *const [u8; 32], out: *mut [u32; 8]) {
+    let buf = black_box(unsafe { &*bytes });
+    let v: HeaplessU256 = HeaplessBigInt::from_be_bytes(buf);
+    let arr = black_box(*v.all_limbs());
+    unsafe { *out = arr };
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_from_le_bytes__u8_256(
+    bytes: *const [u8; 256],
+    out: *mut [u8; 256],
+) {
+    let buf = black_box(unsafe { &*bytes });
+    let v: HeaplessU2048B = HeaplessBigInt::from_le_bytes(buf);
+    let arr = black_box(*v.all_limbs());
+    unsafe { *out = arr };
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_from_be_bytes__u8_256(
+    bytes: *const [u8; 256],
+    out: *mut [u8; 256],
+) {
+    let buf = black_box(unsafe { &*bytes });
+    let v: HeaplessU2048B = HeaplessBigInt::from_be_bytes(buf);
+    let arr = black_box(*v.all_limbs());
     unsafe { *out = arr };
 }
 

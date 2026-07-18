@@ -22,6 +22,7 @@
         const_convert,
         const_default,
         const_clone,
+        const_index,
         generic_const_exprs,
         const_unsigned_bigint_helpers,
         widening_mul
