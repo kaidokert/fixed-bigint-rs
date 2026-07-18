@@ -608,6 +608,35 @@ c0nst::c0nst! {
         }
     }
 
+    // --- BitsPrecision -----------------------------------------------------
+    //
+    // Operating width: for a fixed carrier this is `BIT_SIZE` (= N·word_bits),
+    // value-independent — width == capacity for FixedUInt. Contrast BitWidth
+    // (bit-length, per-value).
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::BitsPrecision for FixedUInt<T, N, P> {
+        fn bits_precision(&self) -> u32 {
+            Self::BIT_SIZE as u32
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::BitsPrecision for &FixedUInt<T, N, P> {
+        fn bits_precision(&self) -> u32 {
+            FixedUInt::<T, N, P>::BIT_SIZE as u32
+        }
+    }
+
+    // --- WithPrecision -----------------------------------------------------
+    //
+    // The operating width is the type (N words), so widening is the identity —
+    // same as the primitive impls.
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> const_num_traits::WithPrecision for FixedUInt<T, N, P> {
+        fn widen_to_precision(self, _bits_precision: u32) -> Self {
+            self
+        }
+    }
+
     // --- IsolateHighestOne / IsolateLowestOne ------------------------------
     //
     // Mask the value down to just its highest / lowest set bit.
@@ -1221,6 +1250,18 @@ mod tests {
         assert_eq!(BitWidth::bit_width(U16::from(255u8)), 8);
         assert_eq!(BitWidth::bit_width(U16::from(256u16)), 9);
         assert_eq!(BitWidth::bit_width(U16::from(0xFFFFu16)), 16);
+    }
+
+    #[test]
+    fn test_bits_precision() {
+        use const_num_traits::BitsPrecision;
+        // Fixed carrier: width == BIT_SIZE, value-independent (= capacity).
+        type U16 = FixedUInt<u8, 2>;
+        type U32 = FixedUInt<u32, 1>;
+        assert_eq!(BitsPrecision::bits_precision(&U16::from(0u8)), 16);
+        assert_eq!(BitsPrecision::bits_precision(&U16::from(0xFFFFu16)), 16);
+        assert_eq!(BitsPrecision::bits_precision(&U32::from(0u8)), 32);
+        assert_eq!(BitsPrecision::bits_precision(&U32::from(7u8)), 32);
     }
 
     #[test]

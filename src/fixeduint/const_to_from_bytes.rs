@@ -26,12 +26,11 @@
 //! itself enable the feature — `#![feature(generic_const_exprs)]` — or the
 //! compiler cannot finish the associated type's well-formedness check and
 //! reports the unhelpful `error[E0275]: overflow evaluating whether [...] is
-//! well-formed`. With the feature enabled downstream it compiles and works.
-//! (This is why the `num_traits` impls live in `to_from_bytes.rs` instead —
-//! they avoid propagating a `generic_const_exprs` bound to callers.)
+//! well-formed`. (This is why the `num_traits` impls live in
+//! `to_from_bytes.rs` instead — they avoid propagating a
+//! `generic_const_exprs` bound to callers.)
 //!
-//! The correct-usage doctest below (a doctest compiles as its own downstream
-//! crate) is the cross-crate coverage.
+//! The doctest below is the cross-crate coverage:
 //!
 //! ```
 //! # #![feature(generic_const_exprs)]

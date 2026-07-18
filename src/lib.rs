@@ -35,6 +35,30 @@
 //! with a compile-time `Personality` (`Nct` or `Ct`) that selects between
 //! value-dependent and constant-time impl bodies at every operator.
 //!
+//! ## Personality and constant-time operations
+//!
+//! `P` is a typestate: `Nct` (non-constant-time, the default) or `Ct`
+//! (constant-time). `Nct` bodies may branch on operand *values*; `Ct` bodies
+//! may not. Operations whose only sensible implementation has **data-dependent
+//! control flow** are therefore provided for `Nct` only — the `Ct` type simply
+//! does not implement the trait, so a misuse is a compile-time *"trait bound
+//! not satisfied"* error, never a silent timing leak. That error names the
+//! missing std/`num-traits` trait (e.g. `FixedUInt<u8, 4, Ct>: Div is not
+//! satisfied`); this table is the explanation, since a custom `#[diagnostic]`
+//! message cannot be attached to a trait defined in another crate.
+//!
+//! | operation | `Nct` | `Ct` | why `Ct` omits it |
+//! |---|---|---|---|
+//! | `+` `-` `*`, `wrapping`/`overflowing`/`carrying`, bit ops, shifts, compare, byte I/O | ✅ | ✅ | branchless |
+//! | `/` `%` (`Div`/`Rem`/`*Assign`), `CheckedDiv`, `Euclid` | ✅ | — | long division early-exits on operand bits |
+//! | `Ilog`/`Ilog2`/`Ilog10`, `Isqrt` | ✅ | — | data-dependent iteration / division |
+//! | `Num::from_str_radix`, `FromStr` | ✅ | — | parse length and digit branches depend on the input |
+//! | `CheckedAdd`/`CheckedMul` on `HeaplessBigInt` | ✅ | — | value-aware overflow report scans content |
+//!
+//! A `Ct` value that needs `x mod modulus` uses Montgomery reduction (the CIOS
+//! driver), not `/` / `%`. Every operator not in the omitted rows has one body
+//! shared by both personalities.
+//!
 //! Basic usage:
 //! ```
 //! use fixed_bigint::FixedUInt;
@@ -64,5 +88,10 @@ pub mod fixeduint;
 /// Machine word and doubleword
 mod machineword;
 
+/// Fixed-capacity, runtime-length unsigned bignum. See the module header.
+pub mod heapless;
+
 pub use crate::fixeduint::{FixedUInt, NonZeroFixedUInt};
 pub use crate::machineword::MachineWord;
+
+pub use crate::heapless::HeaplessBigInt;
