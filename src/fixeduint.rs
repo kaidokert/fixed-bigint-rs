@@ -1047,13 +1047,16 @@ c0nst::c0nst! {
     /// limbs contribute 0 to the total. Used by the `Ct`-personality
     /// arm of `PrimBits::leading_zeros`. Branchless apart from a
     /// `bool -> u32` cast that rustc compiles to a setne.
-    pub(crate) c0nst fn const_leading_zeros_ct<T: [c0nst] ConstMachineWord, const N: usize>(
-        array: &[T; N],
-    ) -> u32 {
+    // Slice-typed so both `FixedUInt` (whole `&self.array`) and
+    // `HeaplessBigInt` (`&self.limbs[..len]`) share one copy of the
+    // `black_box`-guarded scan. `#[inline]` keeps `array.len()` known at each
+    // call site, so the indexed access stays bounds-check-free.
+    #[inline]
+    pub(crate) c0nst fn const_leading_zeros_ct<T: [c0nst] ConstMachineWord>(array: &[T]) -> u32 {
         let mut total: u32 = 0;
         // 0 while still in leading-zero region; u32::MAX once a non-zero limb is seen.
         let mut decided: u32 = 0;
-        let mut index = N;
+        let mut index = array.len();
         while index > 0 {
             index -= 1;
             let v = array[index];
@@ -1232,15 +1235,19 @@ c0nst::c0nst! {
     /// short-circuiting; once the first differing limb is seen, subsequent
     /// limbs cannot overturn the locked decision. Used by the `Ct`-personality
     /// arm of `Ord::cmp` (and therefore `PartialOrd::partial_cmp`).
-    pub(crate) c0nst fn const_cmp_ct<T: [c0nst] ConstMachineWord, const N: usize>(
-        a: &[T; N],
-        b: &[T; N],
+    // Slice-typed (see `const_leading_zeros_ct`): both carriers share this
+    // one `black_box`-guarded scan. Callers pass equal-length slices, kept
+    // provable by `#[inline]`.
+    #[inline]
+    pub(crate) c0nst fn const_cmp_ct<T: [c0nst] ConstMachineWord>(
+        a: &[T],
+        b: &[T],
     ) -> core::cmp::Ordering {
         // result encoding: 2 = Greater, 1 = Less, 0 = Equal.
         let mut result: u8 = 0;
         // 0 while still undecided; u8::MAX once a differing limb has been seen.
         let mut decided: u8 = 0;
-        let mut index = N;
+        let mut index = a.len();
         while index > 0 {
             index -= 1;
             let gt = (a[index] > b[index]) as u8;
