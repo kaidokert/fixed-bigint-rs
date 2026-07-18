@@ -1238,16 +1238,18 @@ c0nst::c0nst! {
     /// limbs cannot overturn the locked decision. Used by the `Ct`-personality
     /// arm of `Ord::cmp` (and therefore `PartialOrd::partial_cmp`).
     // Slice-typed (see `const_leading_zeros_ct`): both carriers share this
-    // one `black_box`-guarded scan. Callers pass equal-length slices; the
-    // loop bounds on `a.len()` and indexes `b[index]` in lockstep, so a
-    // shorter `b` would panic — an equal-length precondition the type no
-    // longer encodes (both `FixedUInt` and heapless satisfy it by
-    // construction).
+    // one `black_box`-guarded scan. The slice signature no longer encodes
+    // that `a` and `b` are equal-length (both carriers pass equal-length
+    // slices by construction); the entry-line pin below makes that explicit.
     #[inline]
     pub(crate) c0nst fn const_cmp_ct<T: [c0nst] ConstMachineWord>(
         a: &[T],
         b: &[T],
     ) -> core::cmp::Ordering {
+        // Pin `b` to `a`'s length so `b[index]` is provably in bounds for the
+        // whole scan: a shorter `b` traps here at entry rather than mid-loop,
+        // and the compiler can drop the per-iteration bounds check.
+        let b = &b[..a.len()];
         // result encoding: 2 = Greater, 1 = Less, 0 = Equal.
         let mut result: u8 = 0;
         // 0 while still undecided; u8::MAX once a differing limb has been seen.
