@@ -68,9 +68,9 @@ mod const_to_from_bytes;
 mod to_from_bytes;
 
 // Re-exported crate-internally so the `heapless` module can reuse the
-// same `BytesHolder` as its `ToBytes`/`FromBytes` associated type.
+// same `BytesHolder` and the shared holder builders for its `ToBytes` impl.
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]
-pub(crate) use to_from_bytes::BytesHolder;
+pub(crate) use to_from_bytes::{BytesHolder, holder_be_from_limbs, holder_le_from_limbs};
 
 pub use has_nonzero_impl::NonZeroFixedUInt;
 

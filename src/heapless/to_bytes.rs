@@ -26,40 +26,15 @@ impl<T, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
 where
     T: MachineWord + core::fmt::Debug,
 {
-    // Full-width big-endian holder: highest limb first, each limb's own
-    // bytes big-endian. Byte writes go through `as_byte_slice_mut` so the
-    // sequence is host-endianness-independent (the `[T; CAP]` typing is
-    // incidental storage for the byte pattern).
+    // Full-width holders over all `CAP` limbs, via the same builders
+    // `FixedUInt`'s `ToBytes` uses (`[T; CAP]` is incidental storage for the
+    // byte pattern; the writes go through `as_byte_slice_mut`).
     fn holder_be(&self) -> BytesHolder<T, CAP> {
-        let mut ret = BytesHolder::default();
-        let word_size = core::mem::size_of::<T>();
-        for (chunk, word) in ret
-            .as_byte_slice_mut()
-            .chunks_exact_mut(word_size)
-            .zip(self.limbs.iter().rev())
-        {
-            let word_bytes = word.to_be_bytes();
-            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-                *dst = *src;
-            }
-        }
-        ret
+        crate::fixeduint::holder_be_from_limbs(&self.limbs)
     }
 
     fn holder_le(&self) -> BytesHolder<T, CAP> {
-        let mut ret = BytesHolder::default();
-        let word_size = core::mem::size_of::<T>();
-        for (chunk, word) in ret
-            .as_byte_slice_mut()
-            .chunks_exact_mut(word_size)
-            .zip(self.limbs.iter())
-        {
-            let word_bytes = word.to_le_bytes();
-            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-                *dst = *src;
-            }
-        }
-        ret
+        crate::fixeduint::holder_le_from_limbs(&self.limbs)
     }
 }
 
