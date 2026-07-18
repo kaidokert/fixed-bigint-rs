@@ -921,33 +921,7 @@ fn trait_overflowing_add_reports_overflow() {
     assert!(overflow);
 }
 
-#[test]
-fn trait_overflowing_sub_reports_borrow() {
-    use const_num_traits::OverflowingSub;
-    let a: H4u32Nct = 1u8.into();
-    let b: H4u32Nct = 2u8.into();
-    let (_, borrow) = <H4u32Nct as OverflowingSub>::overflowing_sub(a, b);
-    assert!(borrow);
-}
-
 // ── Parity ──
-
-#[test]
-fn parity_zero_is_even() {
-    let z = <H4u32Nct as Zero>::zero();
-    assert!(!z.is_odd());
-    assert!(z.is_even());
-}
-
-#[test]
-fn parity_reads_lowest_bit() {
-    let odd: H4u32Nct = 5u32.into();
-    let even: H4u32Nct = 4u32.into();
-    assert!(odd.is_odd());
-    assert!(!odd.is_even());
-    assert!(!even.is_odd());
-    assert!(even.is_even());
-}
 
 #[test]
 fn parity_reads_only_lowest_limb() {
@@ -959,30 +933,11 @@ fn parity_reads_only_lowest_limb() {
 // ── Div / Rem ──
 
 #[test]
-fn div_rem_dividend_less_than_divisor() {
-    let a: H4u32Nct = 3u8.into();
-    let b: H4u32Nct = 10u8.into();
-    assert_eq!(a / b, <H4u32Nct as Zero>::zero());
-    assert_eq!(a % b, a);
-}
-
-#[test]
 fn div_rem_equal() {
     let a: H4u32Nct = 42u32.into();
     let b: H4u32Nct = 42u32.into();
     assert_eq!(a / b, <H4u32Nct as One>::one());
     assert_eq!(a % b, <H4u32Nct as Zero>::zero());
-}
-
-#[test]
-fn div_rem_small_values() {
-    let a: H4u32Nct = 100u32.into();
-    let b: H4u32Nct = 7u8.into();
-    // 100 = 14*7 + 2.
-    let expected_q: H4u32Nct = 14u32.into();
-    let expected_r: H4u32Nct = 2u8.into();
-    assert_eq!(a / b, expected_q);
-    assert_eq!(a % b, expected_r);
 }
 
 #[test]
@@ -1140,19 +1095,6 @@ fn wrapping_mul_trait_matches_inherent() {
 }
 
 // ── CarryingMul at the bigint level ──
-
-#[test]
-fn carrying_mul_small_no_overflow() {
-    use const_num_traits::CarryingMul;
-    // 5 * 7 + 3 = 38. Fits in one limb, hi = 0.
-    let a: H4u32Nct = 5u8.into();
-    let b: H4u32Nct = 7u8.into();
-    let c: H4u32Nct = 3u8.into();
-    let (lo, hi) = a.carrying_mul(b, c);
-    let expected_lo: H4u32Nct = 38u8.into();
-    assert_eq!(lo, expected_lo);
-    assert!(<H4u32Nct as const_num_traits::Zero>::is_zero(&hi));
-}
 
 #[test]
 fn carrying_mul_produces_high_half() {
@@ -1771,18 +1713,6 @@ fn bitxor_and_bitwise_assign_ops() {
     let mut z = a;
     z |= b;
     assert_eq!(z, 0xF0FF_F0FFu32.into());
-}
-
-#[test]
-fn checked_sub_trait_matches_inherent() {
-    use const_num_traits::CheckedSub;
-    let a = H4u32Nct::from(100u32);
-    let b = H4u32Nct::from(40u32);
-    assert_eq!(CheckedSub::checked_sub(a, b), Some(60u32.into()));
-    // Underflow at width 1 → None, like FixedUInt<u32, 1>.
-    let one = H4u32Nct::from(1u32);
-    let two = H4u32Nct::from(2u32);
-    assert_eq!(CheckedSub::checked_sub(one, two), None);
 }
 
 #[test]

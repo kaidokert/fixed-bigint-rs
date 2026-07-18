@@ -10,8 +10,6 @@
 //! the runtime-length width vocabulary) live in each carrier's own suite; this
 //! file is only the surface both share.
 
-#![cfg(feature = "num-traits")]
-
 use const_num_traits::{
     CarryingMul, CheckedAdd, CheckedMul, CheckedSub, FromByteSlice, Nct, OverflowingAdd,
     OverflowingMul, OverflowingSub, Parity, WrappingAdd, WrappingMul, WrappingSub, Zero,
