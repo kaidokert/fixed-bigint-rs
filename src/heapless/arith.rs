@@ -15,9 +15,9 @@
 use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
 use const_num_traits::{
-    BorrowingSub, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, Nct, OverflowingAdd,
-    OverflowingMul, OverflowingSub, Personality, PersonalityTag, WrappingAdd, WrappingMul,
-    WrappingSub,
+    BorrowingSub, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Nct,
+    OverflowingAdd, OverflowingMul, OverflowingSub, Personality, PersonalityTag, WrappingAdd,
+    WrappingMul, WrappingSub,
 };
 use core::marker::PhantomData;
 
@@ -251,6 +251,16 @@ where
     }
 }
 
+impl<T, const CAP: usize> CheckedSub for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = Self;
+    fn checked_sub(self, v: Self) -> Option<Self> {
+        Self::checked_sub(&self, &v)
+    }
+}
+
 // Trim trailing-zero limbs — NCT-implicit content scan sets `len` to
 // `1 + index of highest non-zero limb` (or 0 for the mathematical zero).
 // Called only from Nct code paths; exposed as a public method on the
@@ -407,6 +417,62 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     type Output = HeaplessBigInt<T, CAP, P>;
     fn mul(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
         self.mul(&other)
+    }
+}
+
+// ── Compound-assign forms (delegate to the operator, same panic/wrap rule) ──
+
+impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::AddAssign
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn add_assign(&mut self, other: Self) {
+        self.add_assign(&other);
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality>
+    core::ops::AddAssign<&HeaplessBigInt<T, CAP, P>> for HeaplessBigInt<T, CAP, P>
+{
+    fn add_assign(&mut self, other: &Self) {
+        let (res, overflow) = OverflowingAdd::overflowing_add(*self, *other);
+        panic_on_overflow_if_nct::<P>(overflow, "HeaplessBigInt::add overflow");
+        *self = res;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::SubAssign
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn sub_assign(&mut self, other: Self) {
+        self.sub_assign(&other);
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality>
+    core::ops::SubAssign<&HeaplessBigInt<T, CAP, P>> for HeaplessBigInt<T, CAP, P>
+{
+    fn sub_assign(&mut self, other: &Self) {
+        let (res, borrow) = OverflowingSub::overflowing_sub(*self, *other);
+        panic_on_overflow_if_nct::<P>(borrow, "HeaplessBigInt::sub underflow");
+        *self = res;
+    }
+}
+
+impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
+    core::ops::MulAssign for HeaplessBigInt<T, CAP, P>
+{
+    fn mul_assign(&mut self, other: Self) {
+        self.mul_assign(&other);
+    }
+}
+
+impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
+    core::ops::MulAssign<&HeaplessBigInt<T, CAP, P>> for HeaplessBigInt<T, CAP, P>
+{
+    fn mul_assign(&mut self, other: &Self) {
+        let (res, overflow) = OverflowingMul::overflowing_mul(*self, *other);
+        panic_on_overflow_if_nct::<P>(overflow, "HeaplessBigInt::mul overflow");
+        *self = res;
     }
 }
 

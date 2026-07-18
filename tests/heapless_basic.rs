@@ -1736,3 +1736,51 @@ fn ct_magnitude_and_reference_bit_width() {
     let z = <HeaplessBigInt<u32, 4, Ct> as Zero>::zero();
     assert!(!<HeaplessBigInt<u32, 4, Ct> as One>::is_one(&z));
 }
+
+// ── Parity ops added to match FixedUInt's surface ──
+
+#[test]
+fn arith_assign_ops_match_binary() {
+    let mut x: H4u32Nct = 100u32.into();
+    x += H4u32Nct::from(50u32);
+    assert_eq!(x, 150u32.into());
+    x -= &H4u32Nct::from(30u32);
+    assert_eq!(x, 120u32.into());
+    x *= H4u32Nct::from(2u32);
+    assert_eq!(x, 240u32.into());
+    let mut y: H4u32Nct = 7u32.into();
+    y *= &H4u32Nct::from(3u32);
+    assert_eq!(y, 21u32.into());
+}
+
+#[test]
+fn bitxor_and_bitwise_assign_ops() {
+    let a = H4u32Nct::from(0xF0F0_F0F0u32);
+    let b = H4u32Nct::from(0x00FF_00FFu32);
+    assert_eq!(a ^ b, 0xF00F_F00Fu32.into());
+    assert_eq!(&a ^ &b, 0xF00F_F00Fu32.into());
+    assert_eq!(a ^ &b, 0xF00F_F00Fu32.into());
+    assert!(<H4u32Nct as Zero>::is_zero(&(a ^ a)));
+
+    let mut x = a;
+    x ^= b;
+    assert_eq!(x, 0xF00F_F00Fu32.into());
+    let mut y = a;
+    y &= &b;
+    assert_eq!(y, 0x00F0_00F0u32.into());
+    let mut z = a;
+    z |= b;
+    assert_eq!(z, 0xF0FF_F0FFu32.into());
+}
+
+#[test]
+fn checked_sub_trait_matches_inherent() {
+    use const_num_traits::CheckedSub;
+    let a = H4u32Nct::from(100u32);
+    let b = H4u32Nct::from(40u32);
+    assert_eq!(CheckedSub::checked_sub(a, b), Some(60u32.into()));
+    // Underflow at width 1 → None, like FixedUInt<u32, 1>.
+    let one = H4u32Nct::from(1u32);
+    let two = H4u32Nct::from(2u32);
+    assert_eq!(CheckedSub::checked_sub(one, two), None);
+}
