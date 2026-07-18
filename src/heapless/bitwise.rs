@@ -26,11 +26,14 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitAnd<&HeaplessBigInt<T,
     type Output = HeaplessBigInt<T, CAP, P>;
     fn bitand(self, other: &HeaplessBigInt<T, CAP, P>) -> Self::Output {
         let out_len = core::cmp::min(self.len, other.len);
+        let n = out_len as usize;
         let mut limbs = [zero::<T>(); CAP];
-        let mut i = 0;
-        while i < out_len as usize {
-            limbs[i] = self.limbs[i] & other.limbs[i];
-            i += 1;
+        for ((&ai, &bi), oi) in self.limbs[..n]
+            .iter()
+            .zip(&other.limbs[..n])
+            .zip(&mut limbs[..n])
+        {
+            *oi = ai & bi;
         }
         HeaplessBigInt {
             limbs,
@@ -72,11 +75,14 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitOr<&HeaplessBigInt<T, 
     type Output = HeaplessBigInt<T, CAP, P>;
     fn bitor(self, other: &HeaplessBigInt<T, CAP, P>) -> Self::Output {
         let out_len = core::cmp::max(self.len, other.len);
+        let n = out_len as usize;
         let mut limbs = [zero::<T>(); CAP];
-        let mut i = 0;
-        while i < out_len as usize {
-            limbs[i] = self.limbs[i] | other.limbs[i];
-            i += 1;
+        for ((&ai, &bi), oi) in self.limbs[..n]
+            .iter()
+            .zip(&other.limbs[..n])
+            .zip(&mut limbs[..n])
+        {
+            *oi = ai | bi;
         }
         HeaplessBigInt {
             limbs,
@@ -118,11 +124,14 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitXor<&HeaplessBigInt<T,
     type Output = HeaplessBigInt<T, CAP, P>;
     fn bitxor(self, other: &HeaplessBigInt<T, CAP, P>) -> Self::Output {
         let out_len = core::cmp::max(self.len, other.len);
+        let n = out_len as usize;
         let mut limbs = [zero::<T>(); CAP];
-        let mut i = 0;
-        while i < out_len as usize {
-            limbs[i] = self.limbs[i] ^ other.limbs[i];
-            i += 1;
+        for ((&ai, &bi), oi) in self.limbs[..n]
+            .iter()
+            .zip(&other.limbs[..n])
+            .zip(&mut limbs[..n])
+        {
+            *oi = ai ^ bi;
         }
         HeaplessBigInt {
             limbs,
@@ -157,11 +166,11 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitXor<HeaplessBigInt<T, 
     }
 }
 
-// ── Compound-assign forms (delegate to the binary op) ──
+// ── Compound-assign forms (in-place on `self.limbs`) ──
 
 impl<T: MachineWord, const CAP: usize, P: Personality> BitAndAssign for HeaplessBigInt<T, CAP, P> {
     fn bitand_assign(&mut self, other: Self) {
-        *self = (&*self).bitand(&other);
+        self.bitand_assign(&other);
     }
 }
 
@@ -169,13 +178,26 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitAndAssign<&HeaplessBig
     for HeaplessBigInt<T, CAP, P>
 {
     fn bitand_assign(&mut self, other: &Self) {
-        *self = (&*self).bitand(other);
+        // Result width is `min(len)`: AND the overlap, then clear `self`'s
+        // limbs above `min` (they AND with `other`'s zero-tail = 0).
+        let min_len = core::cmp::min(self.len, other.len) as usize;
+        let self_len = self.len as usize;
+        for (si, &oi) in self.limbs[..min_len]
+            .iter_mut()
+            .zip(&other.limbs[..min_len])
+        {
+            *si &= oi;
+        }
+        for si in &mut self.limbs[min_len..self_len] {
+            *si = zero::<T>();
+        }
+        self.len = min_len as u16;
     }
 }
 
 impl<T: MachineWord, const CAP: usize, P: Personality> BitOrAssign for HeaplessBigInt<T, CAP, P> {
     fn bitor_assign(&mut self, other: Self) {
-        *self = (&*self).bitor(&other);
+        self.bitor_assign(&other);
     }
 }
 
@@ -183,13 +205,30 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitOrAssign<&HeaplessBigI
     for HeaplessBigInt<T, CAP, P>
 {
     fn bitor_assign(&mut self, other: &Self) {
-        *self = (&*self).bitor(other);
+        // Result width is `max(len)`: OR the overlap, then copy `other`'s
+        // high limbs (they OR with `self`'s zero-tail = `other`). The copy
+        // range is empty when `self` is the wider operand.
+        let self_len = self.len as usize;
+        let max_len = core::cmp::max(self_len, other.len as usize);
+        for (si, &oi) in self.limbs[..self_len]
+            .iter_mut()
+            .zip(&other.limbs[..self_len])
+        {
+            *si |= oi;
+        }
+        for (si, &oi) in self.limbs[self_len..max_len]
+            .iter_mut()
+            .zip(&other.limbs[self_len..max_len])
+        {
+            *si = oi;
+        }
+        self.len = max_len as u16;
     }
 }
 
 impl<T: MachineWord, const CAP: usize, P: Personality> BitXorAssign for HeaplessBigInt<T, CAP, P> {
     fn bitxor_assign(&mut self, other: Self) {
-        *self = (&*self).bitxor(&other);
+        self.bitxor_assign(&other);
     }
 }
 
@@ -197,6 +236,23 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitXorAssign<&HeaplessBig
     for HeaplessBigInt<T, CAP, P>
 {
     fn bitxor_assign(&mut self, other: &Self) {
-        *self = (&*self).bitxor(other);
+        // Result width is `max(len)`: XOR the overlap, then copy `other`'s
+        // high limbs (they XOR with `self`'s zero-tail = `other`). The copy
+        // range is empty when `self` is the wider operand.
+        let self_len = self.len as usize;
+        let max_len = core::cmp::max(self_len, other.len as usize);
+        for (si, &oi) in self.limbs[..self_len]
+            .iter_mut()
+            .zip(&other.limbs[..self_len])
+        {
+            *si ^= oi;
+        }
+        for (si, &oi) in self.limbs[self_len..max_len]
+            .iter_mut()
+            .zip(&other.limbs[self_len..max_len])
+        {
+            *si = oi;
+        }
+        self.len = max_len as u16;
     }
 }

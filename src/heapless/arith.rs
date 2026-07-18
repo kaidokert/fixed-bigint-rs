@@ -434,9 +434,11 @@ impl<T: MachineWord, const CAP: usize, P: Personality>
     core::ops::AddAssign<&HeaplessBigInt<T, CAP, P>> for HeaplessBigInt<T, CAP, P>
 {
     fn add_assign(&mut self, other: &Self) {
-        let (res, overflow) = OverflowingAdd::overflowing_add(*self, *other);
+        let out_len = core::cmp::max(self.len as usize, other.len as usize);
+        let mut out = Self::new_zero_with_len(out_len as u16);
+        let overflow = add_slice(&self.limbs, &other.limbs, &mut out.limbs, out_len);
         panic_on_overflow_if_nct::<P>(overflow, "HeaplessBigInt::add overflow");
-        *self = res;
+        *self = out;
     }
 }
 
@@ -452,9 +454,11 @@ impl<T: MachineWord, const CAP: usize, P: Personality>
     core::ops::SubAssign<&HeaplessBigInt<T, CAP, P>> for HeaplessBigInt<T, CAP, P>
 {
     fn sub_assign(&mut self, other: &Self) {
-        let (res, borrow) = OverflowingSub::overflowing_sub(*self, *other);
+        let out_len = core::cmp::max(self.len as usize, other.len as usize);
+        let mut out = Self::new_zero_with_len(out_len as u16);
+        let borrow = sub_slice(&self.limbs, &other.limbs, &mut out.limbs, out_len);
         panic_on_overflow_if_nct::<P>(borrow, "HeaplessBigInt::sub underflow");
-        *self = res;
+        *self = out;
     }
 }
 
@@ -470,9 +474,13 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     core::ops::MulAssign<&HeaplessBigInt<T, CAP, P>> for HeaplessBigInt<T, CAP, P>
 {
     fn mul_assign(&mut self, other: &Self) {
-        let (res, overflow) = OverflowingMul::overflowing_mul(*self, *other);
+        // Mirrors `overflowing_mul`: `carrying_mul` takes `Self` by value, so
+        // this one copy is inherent to the primitive (same as the operator).
+        let zero_v = <Self as const_num_traits::Zero>::zero();
+        let (lo, hi) = <Self as CarryingMul>::carrying_mul(*self, *other, zero_v);
+        let overflow = !<Self as const_num_traits::Zero>::is_zero(&hi);
         panic_on_overflow_if_nct::<P>(overflow, "HeaplessBigInt::mul overflow");
-        *self = res;
+        *self = lo;
     }
 }
 
