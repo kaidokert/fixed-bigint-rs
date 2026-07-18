@@ -1736,3 +1736,92 @@ fn ct_magnitude_and_reference_bit_width() {
     let z = <HeaplessBigInt<u32, 4, Ct> as Zero>::zero();
     assert!(!<HeaplessBigInt<u32, 4, Ct> as One>::is_one(&z));
 }
+
+// ── Parity ops added to match FixedUInt's surface ──
+
+#[test]
+fn arith_assign_ops_match_binary() {
+    let mut x: H4u32Nct = 100u32.into();
+    x += H4u32Nct::from(50u32);
+    assert_eq!(x, 150u32.into());
+    x -= &H4u32Nct::from(30u32);
+    assert_eq!(x, 120u32.into());
+    x *= H4u32Nct::from(2u32);
+    assert_eq!(x, 240u32.into());
+    let mut y: H4u32Nct = 7u32.into();
+    y *= &H4u32Nct::from(3u32);
+    assert_eq!(y, 21u32.into());
+}
+
+#[test]
+fn bitxor_and_bitwise_assign_ops() {
+    let a = H4u32Nct::from(0xF0F0_F0F0u32);
+    let b = H4u32Nct::from(0x00FF_00FFu32);
+    assert_eq!(a ^ b, 0xF00F_F00Fu32.into());
+    assert_eq!(&a ^ &b, 0xF00F_F00Fu32.into());
+    assert_eq!(a ^ &b, 0xF00F_F00Fu32.into());
+    assert!(<H4u32Nct as Zero>::is_zero(&(a ^ a)));
+
+    let mut x = a;
+    x ^= b;
+    assert_eq!(x, 0xF00F_F00Fu32.into());
+    let mut y = a;
+    y &= &b;
+    assert_eq!(y, 0x00F0_00F0u32.into());
+    let mut z = a;
+    z |= b;
+    assert_eq!(z, 0xF0FF_F0FFu32.into());
+}
+
+#[test]
+fn checked_sub_trait_matches_inherent() {
+    use const_num_traits::CheckedSub;
+    let a = H4u32Nct::from(100u32);
+    let b = H4u32Nct::from(40u32);
+    assert_eq!(CheckedSub::checked_sub(a, b), Some(60u32.into()));
+    // Underflow at width 1 → None, like FixedUInt<u32, 1>.
+    let one = H4u32Nct::from(1u32);
+    let two = H4u32Nct::from(2u32);
+    assert_eq!(CheckedSub::checked_sub(one, two), None);
+}
+
+#[test]
+fn bitwise_assign_ops_cross_width() {
+    // The in-place assigns must reshape `len` like the binary ops:
+    // `&=` shrinks to min, `|=`/`^=` grow to max.
+    let wide = H4u32Nct::from_limbs([0xFFFF_FFFF, 0xFFFF_FFFF, 0, 0], 2);
+    let narrow = H4u32Nct::from_limbs([0x0F0F_0F0F, 0, 0, 0], 1);
+
+    let mut a = wide;
+    a &= narrow;
+    assert_eq!(a.len(), 1);
+    assert_eq!(a.limbs()[0], 0x0F0F_0F0F);
+
+    let mut b = narrow;
+    b |= wide;
+    assert_eq!(b.len(), 2);
+    assert_eq!(b.limbs()[0], 0xFFFF_FFFF);
+    assert_eq!(b.limbs()[1], 0xFFFF_FFFF);
+
+    let mut c = narrow;
+    c ^= wide;
+    assert_eq!(c.len(), 2);
+    assert_eq!(c.limbs()[0], 0xF0F0_F0F0);
+    assert_eq!(c.limbs()[1], 0xFFFF_FFFF);
+
+    // Each assign matches the corresponding binary op exactly.
+    assert_eq!(a, wide & narrow);
+    assert_eq!(b, narrow | wide);
+    assert_eq!(c, narrow ^ wide);
+
+    // The other direction (self wider than other) must not index a
+    // start-past-end range.
+    let mut d = wide;
+    d |= narrow;
+    assert_eq!(d, wide | narrow);
+    assert_eq!(d.len(), 2);
+    let mut e = wide;
+    e ^= narrow;
+    assert_eq!(e, wide ^ narrow);
+    assert_eq!(e.len(), 2);
+}
