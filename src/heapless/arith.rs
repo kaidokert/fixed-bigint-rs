@@ -34,6 +34,39 @@ fn panic_on_overflow_if_nct<P: Personality>(overflow: bool, msg: &'static str) {
     }
 }
 
+// The value/mixed receiver forms of `+`/`-`/`*` are uniform pure delegation
+// to the hand-written `&Self op &Self` core (which owns the panic/wrap rule).
+// Trailing tokens after the method name become extra `T` bounds (`Mul` needs
+// `CarryingMul`).
+macro_rules! forward_arith_receivers {
+    ($imp:ident, $method:ident $($bound:tt)*) => {
+        impl<T: MachineWord $($bound)*, const CAP: usize, P: Personality> core::ops::$imp
+            for HeaplessBigInt<T, CAP, P>
+        {
+            type Output = Self;
+            fn $method(self, other: Self) -> Self {
+                (&self).$method(&other)
+            }
+        }
+        impl<T: MachineWord $($bound)*, const CAP: usize, P: Personality>
+            core::ops::$imp<&HeaplessBigInt<T, CAP, P>> for HeaplessBigInt<T, CAP, P>
+        {
+            type Output = Self;
+            fn $method(self, other: &Self) -> Self {
+                (&self).$method(other)
+            }
+        }
+        impl<T: MachineWord $($bound)*, const CAP: usize, P: Personality>
+            core::ops::$imp<HeaplessBigInt<T, CAP, P>> for &HeaplessBigInt<T, CAP, P>
+        {
+            type Output = HeaplessBigInt<T, CAP, P>;
+            fn $method(self, other: HeaplessBigInt<T, CAP, P>) -> HeaplessBigInt<T, CAP, P> {
+                self.$method(&other)
+            }
+        }
+    };
+}
+
 // ── Free-function slice kernels ──
 //
 // Take `&[T]` / `&mut [T]` so a future refactor can share them with
@@ -334,91 +367,12 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     }
 }
 
-// Value + mixed-receiver variants for callers that want by-value operators:
-// owned-owned `+`/`-`/`*`, owned-ref `*`, ref-owned `-`. Each delegates to
-// the `&Self op &Self` variant. `HeaplessBigInt: Copy`, so forwarding
-// by-value operands to references is a no-op at runtime.
-
-impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Add
-    for HeaplessBigInt<T, CAP, P>
-{
-    type Output = Self;
-    fn add(self, other: Self) -> Self {
-        (&self).add(&other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Add<&HeaplessBigInt<T, CAP, P>>
-    for HeaplessBigInt<T, CAP, P>
-{
-    type Output = Self;
-    fn add(self, other: &Self) -> Self {
-        (&self).add(other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Add<HeaplessBigInt<T, CAP, P>>
-    for &HeaplessBigInt<T, CAP, P>
-{
-    type Output = HeaplessBigInt<T, CAP, P>;
-    fn add(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
-        self.add(&other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Sub
-    for HeaplessBigInt<T, CAP, P>
-{
-    type Output = Self;
-    fn sub(self, other: Self) -> Self {
-        (&self).sub(&other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Sub<&HeaplessBigInt<T, CAP, P>>
-    for HeaplessBigInt<T, CAP, P>
-{
-    type Output = Self;
-    fn sub(self, other: &Self) -> Self {
-        (&self).sub(other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> core::ops::Sub<HeaplessBigInt<T, CAP, P>>
-    for &HeaplessBigInt<T, CAP, P>
-{
-    type Output = HeaplessBigInt<T, CAP, P>;
-    fn sub(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
-        self.sub(&other)
-    }
-}
-
-impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
-    core::ops::Mul for HeaplessBigInt<T, CAP, P>
-{
-    type Output = Self;
-    fn mul(self, other: Self) -> Self {
-        (&self).mul(&other)
-    }
-}
-
-impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
-    core::ops::Mul<&HeaplessBigInt<T, CAP, P>> for HeaplessBigInt<T, CAP, P>
-{
-    type Output = Self;
-    fn mul(self, other: &Self) -> Self {
-        (&self).mul(other)
-    }
-}
-
-impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P: Personality>
-    core::ops::Mul<HeaplessBigInt<T, CAP, P>> for &HeaplessBigInt<T, CAP, P>
-{
-    type Output = HeaplessBigInt<T, CAP, P>;
-    fn mul(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
-        self.mul(&other)
-    }
-}
+// Value + mixed-receiver variants for callers that want by-value operators;
+// each delegates to the `&Self op &Self` core. `HeaplessBigInt: Copy`, so
+// forwarding by-value operands to references is a no-op at runtime.
+forward_arith_receivers!(Add, add);
+forward_arith_receivers!(Sub, sub);
+forward_arith_receivers!(Mul, mul + CarryingMul<Unsigned = T, Output = T>);
 
 // ── Compound-assign forms (delegate to the operator, same panic/wrap rule) ──
 

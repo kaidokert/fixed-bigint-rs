@@ -19,6 +19,35 @@ use const_num_traits::Personality;
 use core::marker::PhantomData;
 use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
 
+// The value/mixed receiver forms of each bitwise op are uniform pure
+// delegation to the hand-written `&Self $op &Self` core.
+macro_rules! forward_bitwise_receivers {
+    ($imp:ident, $method:ident) => {
+        impl<T: MachineWord, const CAP: usize, P: Personality> $imp for HeaplessBigInt<T, CAP, P> {
+            type Output = Self;
+            fn $method(self, other: Self) -> Self {
+                (&self).$method(&other)
+            }
+        }
+        impl<T: MachineWord, const CAP: usize, P: Personality> $imp<&HeaplessBigInt<T, CAP, P>>
+            for HeaplessBigInt<T, CAP, P>
+        {
+            type Output = Self;
+            fn $method(self, other: &Self) -> Self {
+                (&self).$method(other)
+            }
+        }
+        impl<T: MachineWord, const CAP: usize, P: Personality> $imp<HeaplessBigInt<T, CAP, P>>
+            for &HeaplessBigInt<T, CAP, P>
+        {
+            type Output = HeaplessBigInt<T, CAP, P>;
+            fn $method(self, other: HeaplessBigInt<T, CAP, P>) -> HeaplessBigInt<T, CAP, P> {
+                self.$method(&other)
+            }
+        }
+    };
+}
+
 // Core: `&Self & &Self`. The value + mixed receiver forms delegate here.
 impl<T: MachineWord, const CAP: usize, P: Personality> BitAnd<&HeaplessBigInt<T, CAP, P>>
     for &HeaplessBigInt<T, CAP, P>
@@ -43,30 +72,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitAnd<&HeaplessBigInt<T,
     }
 }
 
-impl<T: MachineWord, const CAP: usize, P: Personality> BitAnd for HeaplessBigInt<T, CAP, P> {
-    type Output = Self;
-    fn bitand(self, other: Self) -> Self {
-        (&self).bitand(&other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> BitAnd<&HeaplessBigInt<T, CAP, P>>
-    for HeaplessBigInt<T, CAP, P>
-{
-    type Output = Self;
-    fn bitand(self, other: &Self) -> Self {
-        (&self).bitand(other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> BitAnd<HeaplessBigInt<T, CAP, P>>
-    for &HeaplessBigInt<T, CAP, P>
-{
-    type Output = HeaplessBigInt<T, CAP, P>;
-    fn bitand(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
-        self.bitand(&other)
-    }
-}
+forward_bitwise_receivers!(BitAnd, bitand);
 
 // Core: `&Self | &Self`. The value + mixed receiver forms delegate here.
 impl<T: MachineWord, const CAP: usize, P: Personality> BitOr<&HeaplessBigInt<T, CAP, P>>
@@ -92,30 +98,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitOr<&HeaplessBigInt<T, 
     }
 }
 
-impl<T: MachineWord, const CAP: usize, P: Personality> BitOr for HeaplessBigInt<T, CAP, P> {
-    type Output = Self;
-    fn bitor(self, other: Self) -> Self {
-        (&self).bitor(&other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> BitOr<&HeaplessBigInt<T, CAP, P>>
-    for HeaplessBigInt<T, CAP, P>
-{
-    type Output = Self;
-    fn bitor(self, other: &Self) -> Self {
-        (&self).bitor(other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> BitOr<HeaplessBigInt<T, CAP, P>>
-    for &HeaplessBigInt<T, CAP, P>
-{
-    type Output = HeaplessBigInt<T, CAP, P>;
-    fn bitor(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
-        self.bitor(&other)
-    }
-}
+forward_bitwise_receivers!(BitOr, bitor);
 
 // Core: `&Self ^ &Self`. The value + mixed receiver forms delegate here.
 impl<T: MachineWord, const CAP: usize, P: Personality> BitXor<&HeaplessBigInt<T, CAP, P>>
@@ -141,30 +124,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitXor<&HeaplessBigInt<T,
     }
 }
 
-impl<T: MachineWord, const CAP: usize, P: Personality> BitXor for HeaplessBigInt<T, CAP, P> {
-    type Output = Self;
-    fn bitxor(self, other: Self) -> Self {
-        (&self).bitxor(&other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> BitXor<&HeaplessBigInt<T, CAP, P>>
-    for HeaplessBigInt<T, CAP, P>
-{
-    type Output = Self;
-    fn bitxor(self, other: &Self) -> Self {
-        (&self).bitxor(other)
-    }
-}
-
-impl<T: MachineWord, const CAP: usize, P: Personality> BitXor<HeaplessBigInt<T, CAP, P>>
-    for &HeaplessBigInt<T, CAP, P>
-{
-    type Output = HeaplessBigInt<T, CAP, P>;
-    fn bitxor(self, other: HeaplessBigInt<T, CAP, P>) -> Self::Output {
-        self.bitxor(&other)
-    }
-}
+forward_bitwise_receivers!(BitXor, bitxor);
 
 // ── Compound-assign forms (in-place on `self.limbs`) ──
 
