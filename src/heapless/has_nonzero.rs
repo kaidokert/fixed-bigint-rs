@@ -127,8 +127,17 @@ where
 }
 
 // `DivNonZero` is Nct-only because `Div`/`Rem` on `HeaplessBigInt` are
-// (long division is value-dependent). The `NonZero` proof-type discharges the
-// divide-by-zero check, so these never hit the `Div` panic path.
+// (long division is value-dependent).
+//
+// Panic-freeness: the API contract ("no `Result`/`.unwrap()` at the caller
+// boundary") is met — the `NonZeroHeaplessBigInt` proof-type discharges the
+// divide-by-zero check statically. But `self / d.0` still routes through
+// `div_rem_impl`, which keeps a runtime divisor-non-zero assert LLVM can't
+// prove unreachable through the `#[repr(transparent)]` wrapper, so the binary
+// retains a `panic_fmt` symbol. Same accepted residual as
+// `FixedUInt`'s `DivNonZero`; a truly no-check divide would be a separate
+// cross-carrier change. Consumers needing a *binary-level* panic-free divide
+// should audit downstream.
 impl<T, const CAP: usize> DivNonZero for HeaplessBigInt<T, CAP, Nct>
 where
     T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
