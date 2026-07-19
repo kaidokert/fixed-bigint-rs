@@ -77,6 +77,7 @@ mod num_traits_bridge;
 mod parity;
 mod prim_bits;
 mod shift;
+mod string_conversion;
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]
 mod to_bytes;
 #[cfg(feature = "zeroize")]

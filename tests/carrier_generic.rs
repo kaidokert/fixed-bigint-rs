@@ -69,6 +69,7 @@ trait Carrier:
     + CarryingMul<Unsigned = Self, Output = Self>
     + Not<Output = Self>
     + PrimBits
+    + core::fmt::Display
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -421,6 +422,17 @@ fn checked_div_rem() {
         let zero = C::from_u32(0);
         assert_eq!(CheckedDiv::checked_div(a, zero), None);
         assert_eq!(CheckedRem::checked_rem(a, zero), None);
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn display_decimal() {
+    fn body<C: Carrier>() {
+        assert_eq!(std::format!("{}", C::from_u32(0)), "0");
+        assert_eq!(std::format!("{}", C::from_u32(1)), "1");
+        assert_eq!(std::format!("{}", C::from_u32(0xDEAD_BEEF)), "3735928559");
+        assert_eq!(std::format!("{}", C::from_u32(MAX32)), "4294967295");
     }
     for_both_carriers!(body);
 }
