@@ -81,6 +81,7 @@ mod cmp;
 mod div_rem;
 mod euclid;
 mod from_prim;
+mod has_nonzero;
 mod has_personality;
 mod identities;
 mod ilog;
@@ -108,6 +109,8 @@ mod string_conversion;
 mod to_bytes;
 #[cfg(feature = "zeroize")]
 mod zeroize_impl;
+
+pub use has_nonzero::NonZeroHeaplessBigInt;
 
 /// A `len`-word unsigned integer whose width is chosen at runtime.
 ///
