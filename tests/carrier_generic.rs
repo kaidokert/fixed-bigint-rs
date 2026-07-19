@@ -12,9 +12,9 @@
 //! file is only the surface both share.
 
 use const_num_traits::{
-    CarryingMul, CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Nct, OverflowingAdd,
-    OverflowingMul, OverflowingSub, Parity, PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub,
-    WithPrecision, WrappingAdd, WrappingMul, WrappingSub, Zero,
+    CarryingMul, CheckedAdd, CheckedDiv, CheckedMul, CheckedPow, CheckedRem, CheckedSub, Nct,
+    OverflowingAdd, OverflowingMul, OverflowingSub, Parity, PrimBits, SaturatingAdd, SaturatingMul,
+    SaturatingSub, StrictPow, WithPrecision, WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -69,6 +69,8 @@ trait Carrier:
     + CarryingMul<Unsigned = Self, Output = Self>
     + Not<Output = Self>
     + PrimBits
+    + CheckedPow<Output = Self>
+    + StrictPow<Output = Self>
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -429,3 +431,30 @@ fn checked_div_rem() {
 // only implements Display when `num-traits` is on, so a Display bound here would
 // break the feature-free build. HeaplessBigInt's own feature-independent Display
 // is covered in tests/heapless_string.rs.
+
+#[test]
+fn pow() {
+    fn body<C: Carrier>() {
+        assert_eq!(
+            CheckedPow::checked_pow(C::from_u32(2), 10),
+            Some(C::from_u32(1024))
+        );
+        assert_eq!(
+            CheckedPow::checked_pow(C::from_u32(3), 0),
+            Some(C::from_u32(1))
+        ); // x^0 = 1
+        assert_eq!(
+            CheckedPow::checked_pow(C::from_u32(5), 1),
+            Some(C::from_u32(5))
+        );
+        assert_eq!(
+            CheckedPow::checked_pow(C::from_u32(7), 3),
+            Some(C::from_u32(343))
+        );
+        // 2^32 overflows the 32-bit width → None.
+        assert_eq!(CheckedPow::checked_pow(C::from_u32(2), 32), None);
+        // strict_pow returns the value when it fits.
+        assert_eq!(StrictPow::strict_pow(C::from_u32(2), 10), C::from_u32(1024));
+    }
+    for_both_carriers!(body);
+}

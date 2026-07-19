@@ -12,8 +12,8 @@
 use const_num_traits::{CarryingMul, Nct, WithPrecision};
 use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
 use num_traits::{
-    Bounded, CheckedDiv, CheckedRem, FromPrimitive, Num, NumCast, One, Saturating, ToPrimitive,
-    Zero,
+    Bounded, CheckedDiv, CheckedRem, FromPrimitive, Num, NumCast, One, PrimInt, Saturating,
+    ToPrimitive, Zero,
 };
 
 /// The num_traits foundation both carriers implement, pinned to 32 bits.
@@ -33,6 +33,7 @@ trait NumCarrier:
     + Num<FromStrRadixErr = core::num::ParseIntError>
     + core::str::FromStr<Err = core::num::ParseIntError>
     + core::fmt::Display
+    + PrimInt
     + From<u32>
     + WithPrecision
 {
@@ -160,6 +161,26 @@ fn display_decimal() {
         assert_eq!(std::format!("{}", C::at32(1)), "1");
         assert_eq!(std::format!("{}", C::at32(0xDEAD_BEEF)), "3735928559");
         assert_eq!(std::format!("{}", C::at32(0xFFFF_FFFF)), "4294967295");
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn prim_int() {
+    fn body<C: NumCarrier>() {
+        // Delegates to PrimBits; pow to the shared kernel. reverse_bits uses
+        // the num_traits default (as FixedUInt does) — verify it here too.
+        assert_eq!(PrimInt::count_ones(C::at32(0b1011)), 3);
+        assert_eq!(PrimInt::leading_zeros(C::at32(1)), 31);
+        assert_eq!(PrimInt::trailing_zeros(C::at32(0b1000)), 3);
+        assert_eq!(PrimInt::rotate_left(C::at32(1), 4), C::at32(16));
+        assert_eq!(
+            PrimInt::swap_bytes(C::at32(0x0000_00FF)),
+            C::at32(0xFF00_0000)
+        );
+        assert_eq!(PrimInt::reverse_bits(C::at32(1)), C::at32(0x8000_0000));
+        assert_eq!(PrimInt::pow(C::at32(2), 10), C::at32(1024));
+        assert_eq!(PrimInt::pow(C::at32(7), 3), C::at32(343));
     }
     for_both_carriers!(body);
 }

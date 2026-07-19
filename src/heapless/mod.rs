@@ -74,7 +74,10 @@ mod identities;
 #[cfg(feature = "num-traits")]
 mod num_traits_bridge;
 mod parity;
+mod pow;
 mod prim_bits;
+#[cfg(feature = "num-traits")]
+mod prim_int;
 mod shift;
 mod string_conversion;
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]

@@ -313,6 +313,42 @@ where
     }
 }
 
+// ── num_traits Checked{Add,Sub,Mul} (Nct only) ──
+//
+// The `num_traits::PrimInt` supertraits, bridging its by-reference receiver to
+// the inherent by-reference method (same values as the const_num_traits forms
+// above; different crate and receiver shape).
+
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::CheckedAdd for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    fn checked_add(&self, v: &Self) -> Option<Self> {
+        Self::checked_add(self, v)
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::CheckedSub for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    fn checked_sub(&self, v: &Self) -> Option<Self> {
+        Self::checked_sub(self, v)
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::CheckedMul for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn checked_mul(&self, v: &Self) -> Option<Self> {
+        Self::checked_mul(self, v)
+    }
+}
+
 // ── const_num_traits Saturating{Add,Sub,Mul} (Nct only) ──
 //
 // Same gating as the Checked* trait forms above: the value-form trait
