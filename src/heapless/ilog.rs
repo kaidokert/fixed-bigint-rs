@@ -74,6 +74,15 @@ where
         if base < two {
             return None;
         }
+        // Route the common bases through the O(width) bit/decimal paths instead
+        // of the O(width²) divide-down loop.
+        if base == two {
+            return <Self as Ilog2>::checked_ilog2(self);
+        }
+        let ten: Self = From::from(10u8);
+        if base == ten {
+            return <Self as Ilog10>::checked_ilog10(self);
+        }
         let mut n = self;
         let mut count = 0u32;
         while n >= base {
@@ -114,5 +123,25 @@ mod tests {
         // Zero argument and base < 2 are None.
         assert_eq!(Ilog::checked_ilog(H::from(0u8), H::from(2u8)), None);
         assert_eq!(Ilog::checked_ilog(H::from(10u8), H::from(1u8)), None);
+    }
+
+    // The base-2/10 fast paths must agree with both the divide-down loop and
+    // the dedicated ilog2/ilog10.
+    #[test]
+    fn ilog_common_base_fast_paths() {
+        for n in [1u16, 2, 3, 8, 255, 1024, 40000] {
+            assert_eq!(
+                Ilog::ilog(H::from(n), H::from(2u8)),
+                Ilog2::ilog2(H::from(n)),
+                "ilog(base 2, {n})"
+            );
+        }
+        for n in [1u16, 9, 10, 99, 1000, 40000] {
+            assert_eq!(
+                Ilog::ilog(H::from(n), H::from(10u8)),
+                Ilog10::ilog10(H::from(n)),
+                "ilog(base 10, {n})"
+            );
+        }
     }
 }

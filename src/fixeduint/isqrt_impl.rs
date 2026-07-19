@@ -24,31 +24,34 @@ c0nst::c0nst! {
         type Output = Self;
 
         fn isqrt(self) -> Self {
-            // Bit-by-bit algorithm for integer square root.
-            // Returns the largest r such that r * r <= self.
+            // Digit-by-digit (base-2) floor square root: largest r with
+            // r*r <= self, using only add/sub/shift — O(BIT_SIZE²) rather than
+            // the O(BIT_SIZE³) of a per-iteration `candidate * candidate` scan.
             if <Self as Zero>::is_zero(&self) {
                 return <Self as Zero>::zero();
             }
 
-            let mut result = <Self as Zero>::zero();
+            let mut num = self;
+            let mut res = <Self as Zero>::zero();
 
+            // Start at the largest power of four <= self.
             let bit_len = Self::BIT_SIZE - PrimBits::leading_zeros(self) as usize;
-            let start_bit = bit_len.div_ceil(2);
+            let highest_even_bit = (bit_len - 1) & !1;
+            let mut bit = <Self as Zero>::zero();
+            const_set_bit(&mut bit.array, highest_even_bit);
 
-            let mut bit_pos = start_bit;
-            while bit_pos > 0 {
-                bit_pos -= 1;
-
-                let mut candidate = result;
-                const_set_bit(&mut candidate.array, bit_pos);
-
-                let square = candidate * candidate;
-                if square <= self {
-                    result = candidate;
+            while !<Self as Zero>::is_zero(&bit) {
+                let sum = res + bit;
+                if num >= sum {
+                    num -= sum;
+                    res = (res >> 1usize) + bit;
+                } else {
+                    res >>= 1usize;
                 }
+                bit >>= 2usize;
             }
 
-            result
+            res
         }
     }
 
