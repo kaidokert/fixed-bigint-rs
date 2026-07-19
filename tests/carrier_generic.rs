@@ -12,9 +12,10 @@
 //! file is only the surface both share.
 
 use const_num_traits::{
-    CarryingMul, CheckedAdd, CheckedDiv, CheckedMul, CheckedPow, CheckedRem, CheckedSub, Nct,
-    OverflowingAdd, OverflowingMul, OverflowingSub, Parity, PrimBits, SaturatingAdd, SaturatingMul,
-    SaturatingSub, StrictPow, WithPrecision, WrappingAdd, WrappingMul, WrappingSub, Zero,
+    AbsDiff, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid, CheckedMul, CheckedPow,
+    CheckedRem, CheckedSub, Euclid, Midpoint, Nct, OverflowingAdd, OverflowingMul, OverflowingSub,
+    Parity, PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub, StrictPow, WithPrecision,
+    WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -71,6 +72,10 @@ trait Carrier:
     + PrimBits
     + CheckedPow<Output = Self>
     + StrictPow<Output = Self>
+    + Euclid<Output = Self>
+    + CheckedEuclid
+    + AbsDiff<Output = Self>
+    + Midpoint<Output = Self>
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -455,6 +460,65 @@ fn pow() {
         assert_eq!(CheckedPow::checked_pow(C::from_u32(2), 32), None);
         // strict_pow returns the value when it fits.
         assert_eq!(StrictPow::strict_pow(C::from_u32(2), 10), C::from_u32(1024));
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn euclid_absdiff_midpoint() {
+    fn body<C: Carrier>() {
+        // Euclid: unsigned, so == ordinary div/rem.
+        assert_eq!(
+            Euclid::div_euclid(C::from_u32(17), C::from_u32(5)),
+            C::from_u32(3)
+        );
+        assert_eq!(
+            Euclid::rem_euclid(C::from_u32(17), C::from_u32(5)),
+            C::from_u32(2)
+        );
+        assert_eq!(
+            Euclid::div_rem_euclid(C::from_u32(17), C::from_u32(5)),
+            (C::from_u32(3), C::from_u32(2))
+        );
+        assert_eq!(
+            CheckedEuclid::checked_rem_euclid(C::from_u32(17), C::from_u32(5)),
+            Some(C::from_u32(2))
+        );
+        assert_eq!(
+            CheckedEuclid::checked_div_euclid(C::from_u32(17), C::from_u32(0)),
+            None
+        );
+        assert_eq!(
+            CheckedEuclid::checked_rem_euclid(C::from_u32(17), C::from_u32(0)),
+            None
+        );
+        // checked_div_rem_euclid carries its own zero guard — pin both paths.
+        assert_eq!(
+            CheckedEuclid::checked_div_rem_euclid(C::from_u32(17), C::from_u32(5)),
+            Some((C::from_u32(3), C::from_u32(2)))
+        );
+        assert_eq!(
+            CheckedEuclid::checked_div_rem_euclid(C::from_u32(17), C::from_u32(0)),
+            None
+        );
+
+        // abs_diff, both orders.
+        assert_eq!(
+            AbsDiff::abs_diff(C::from_u32(10), C::from_u32(3)),
+            C::from_u32(7)
+        );
+        assert_eq!(
+            AbsDiff::abs_diff(C::from_u32(3), C::from_u32(10)),
+            C::from_u32(7)
+        );
+
+        // midpoint averages without overflow.
+        assert_eq!(
+            Midpoint::midpoint(C::from_u32(10), C::from_u32(20)),
+            C::from_u32(15)
+        );
+        let max = C::from_u32(MAX32);
+        assert_eq!(Midpoint::midpoint(max, max), max); // (max + max) / 2 = max
     }
     for_both_carriers!(body);
 }
