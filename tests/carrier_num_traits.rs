@@ -12,8 +12,8 @@
 use const_num_traits::{CarryingMul, Nct, WithPrecision};
 use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
 use num_traits::{
-    Bounded, CheckedDiv, CheckedRem, FromPrimitive, Num, NumCast, One, PrimInt, Saturating,
-    ToPrimitive, Zero,
+    Bounded, CheckedDiv, CheckedRem, CheckedShl, CheckedShr, FromPrimitive, Num, NumCast, One,
+    PrimInt, Saturating, ToPrimitive, WrappingShl, WrappingShr, Zero,
 };
 
 /// The num_traits foundation both carriers implement, pinned to 32 bits.
@@ -36,6 +36,10 @@ trait NumCarrier:
     + PrimInt
     + num_integer::Integer
     + num_integer::Roots
+    + WrappingShl
+    + WrappingShr
+    + CheckedShl
+    + CheckedShr
     + From<u32>
     + WithPrecision
 {
@@ -240,6 +244,20 @@ fn roots_sqrt_cbrt_nth() {
             let s = xi.sqrt();
             assert!(s.pow(2) <= xi && (s + C::at32(1)).pow(2) > xi, "sqrt({x})");
         }
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn num_traits_shift_wrappers() {
+    fn body<C: NumCarrier>() {
+        // num_traits shift methods take &self and mask the amount.
+        assert_eq!(WrappingShl::wrapping_shl(&C::at32(1), 4), C::at32(16));
+        assert_eq!(WrappingShl::wrapping_shl(&C::at32(1), 32), C::at32(1));
+        assert_eq!(WrappingShr::wrapping_shr(&C::at32(16), 2), C::at32(4));
+        assert_eq!(CheckedShl::checked_shl(&C::at32(1), 5), Some(C::at32(32)));
+        assert_eq!(CheckedShl::checked_shl(&C::at32(1), 32), None);
+        assert_eq!(CheckedShr::checked_shr(&C::at32(1), 32), None);
     }
     for_both_carriers!(body);
 }

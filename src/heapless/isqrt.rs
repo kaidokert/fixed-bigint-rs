@@ -37,7 +37,7 @@ where
             let sum = res + bit;
             if num >= sum {
                 num -= sum;
-                res = (res >> 1) + bit;
+                res = (res >> 1usize) + bit;
             } else {
                 res >>= 1;
             }

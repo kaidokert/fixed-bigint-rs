@@ -29,8 +29,8 @@
 //! | operation | result `len` |
 //! |---|---|
 //! | `wrapping`/`overflowing`/`checked` `add`·`sub`·`mul`, `+` `-` `*` | `max(a.len, b.len)` |
-//! | `Shl` (`<<`) | `self.len` — high bits past the width are discarded |
-//! | `Shr` (`>>`) | `self.len` minus the whole-word shift |
+//! | `Shl` (`<<`), `overflowing`/`wrapping`/`checked`/`unbounded`/`exact` `shl`, `FunnelShl` | `self.len` — high bits past the width are discarded |
+//! | `Shr` (`>>`), `overflowing`/`wrapping`/`checked`/`unbounded`/`exact` `shr`, `FunnelShr` | `self.len` minus the whole-word shift |
 //! | `WideMul` / [`CarryingMul`](const_num_traits::CarryingMul) | `lo` and `hi` each `max(a.len, b.len)`; reconstruct `hi·2^(W·word_bits) + lo` |
 //! | `Div` (`/`), `Rem` (`%`) | `max(dividend.len, divisor.len)` |
 //! | `BitAnd` (`&`), `BitOr`, `BitXor` | `max(a.len, b.len)` |
@@ -99,6 +99,7 @@ mod prim_int;
 #[cfg(feature = "num-traits")]
 mod roots_impl;
 mod shift;
+mod shift_ops;
 mod string_conversion;
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]
 mod to_bytes;

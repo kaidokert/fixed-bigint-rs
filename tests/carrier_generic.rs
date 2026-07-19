@@ -13,11 +13,12 @@
 
 use const_num_traits::{
     AbsDiff, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid, CheckedMul, CheckedPow,
-    CheckedRem, CheckedSub, Euclid, HighestOne, Ilog, Ilog2, Ilog10, IsPowerOfTwo,
-    IsolateHighestOne, IsolateLowestOne, Isqrt, LowestOne, Midpoint, MultipleOf, Nct,
-    NextMultipleOf, NextPowerOfTwo, OverflowingAdd, OverflowingMul, OverflowingSub, Parity,
-    PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub, StrictPow, WithPrecision, WrappingAdd,
-    WrappingMul, WrappingSub, Zero,
+    CheckedRem, CheckedShl, CheckedShr, CheckedSub, Euclid, FunnelShl, FunnelShr, HighestOne, Ilog,
+    Ilog2, Ilog10, IsPowerOfTwo, IsolateHighestOne, IsolateLowestOne, Isqrt, LowestOne, Midpoint,
+    MultipleOf, Nct, NextMultipleOf, NextPowerOfTwo, OverflowingAdd, OverflowingMul,
+    OverflowingShl, OverflowingShr, OverflowingSub, Parity, PrimBits, SaturatingAdd, SaturatingMul,
+    SaturatingSub, ShlExact, ShrExact, StrictPow, UnboundedShl, UnboundedShr, WithPrecision,
+    WrappingAdd, WrappingMul, WrappingShl, WrappingShr, WrappingSub, Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -92,6 +93,18 @@ trait Carrier:
     + IsolateLowestOne<Output = Self>
     + core::iter::Sum
     + core::iter::Product
+    + OverflowingShl<Output = Self>
+    + OverflowingShr<Output = Self>
+    + WrappingShl<Output = Self>
+    + WrappingShr<Output = Self>
+    + CheckedShl<Output = Self>
+    + CheckedShr<Output = Self>
+    + UnboundedShl<Output = Self>
+    + UnboundedShr<Output = Self>
+    + ShlExact<Output = Self>
+    + ShrExact<Output = Self>
+    + FunnelShl<Output = Self>
+    + FunnelShr<Output = Self>
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -665,6 +678,53 @@ fn iter_and_bit_scan() {
             IsolateHighestOne::isolate_highest_one(C::from_u32(0)),
             C::from_u32(0)
         );
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn shift_family() {
+    fn body<C: Carrier>() {
+        let v = C::from_u32(1);
+        // overflowing / wrapping / checked keyed on amount vs 32-bit width.
+        assert_eq!(
+            OverflowingShl::overflowing_shl(v, 4),
+            (C::from_u32(16), false)
+        );
+        assert_eq!(OverflowingShl::overflowing_shl(v, 32), (v, true));
+        assert_eq!(OverflowingShr::overflowing_shr(v, 32), (v, true));
+        assert_eq!(WrappingShl::wrapping_shl(v, 32), v);
+        assert_eq!(
+            WrappingShr::wrapping_shr(C::from_u32(16), 2),
+            C::from_u32(4)
+        );
+        assert_eq!(CheckedShl::checked_shl(v, 5), Some(C::from_u32(32)));
+        assert_eq!(CheckedShl::checked_shl(v, 32), None);
+        assert_eq!(CheckedShr::checked_shr(v, 32), None);
+
+        // unbounded saturates to zero past the width.
+        assert_eq!(
+            UnboundedShl::unbounded_shl(C::from_u32(0xFF), 100),
+            C::from_u32(0)
+        );
+        assert_eq!(
+            UnboundedShr::unbounded_shr(C::from_u32(0xFF), 100),
+            C::from_u32(0)
+        );
+
+        // exact shifts: lossless only.
+        assert_eq!(
+            ShrExact::shr_exact(C::from_u32(0b100), 2),
+            Some(C::from_u32(1))
+        );
+        assert_eq!(ShrExact::shr_exact(C::from_u32(0b100), 3), None);
+        assert_eq!(ShlExact::shl_exact(v, 32), None);
+
+        // funnel over the 32-bit pair.
+        let hi = C::from_u32(0x1234_5678);
+        let lo = C::from_u32(0x9ABC_DEF0);
+        assert_eq!(FunnelShl::funnel_shl(hi, lo, 8), C::from_u32(0x3456_789A));
+        assert_eq!(FunnelShr::funnel_shr(hi, lo, 8), C::from_u32(0x789A_BCDE));
     }
     for_both_carriers!(body);
 }
