@@ -1,52 +1,8 @@
 //! Per-target specifications: triple, toolchain pin, and the mnemonic
 //! tables used by the parser.
 
+use krabi_caliper::host::ct_asm::WholeSurfaceTarget as TargetSpec;
 use krabi_caliper::host::isa as mnemonics;
-
-#[allow(dead_code)]
-// `priority` and `toolchain` are documentation-only fields used by
-// `--list-targets`.
-#[derive(Debug, Clone, Copy)]
-pub struct TargetSpec {
-    pub triple: &'static str,
-    pub priority: u8,
-    /// "stable" | "1.86" | "nightly-YYYY-MM-DD". The driver doesn't
-    /// switch toolchains itself — CI sets up the right one and the
-    /// triple drives `cargo build --target=<triple>`. The pin is here
-    /// for documentation and so the driver can warn if the active
-    /// toolchain doesn't match.
-    pub toolchain: &'static str,
-    /// Regexes that, when they match the mnemonic at any insn line of
-    /// any fixture's body, count as a violation.
-    pub forbidden: &'static [&'static str],
-    /// Regexes that, when matched, are explicitly OK even though they
-    /// look conditional. E.g., aarch64 `csel` / x64 `cmovcc` / thumb
-    /// `IT` predicate execution.
-    pub allowed_cmov: &'static [&'static str],
-    /// Engage the thumb IT-state machine.
-    pub thumb_it_blocks: bool,
-    /// Call-instruction mnemonics for this arch (regex). Used by the
-    /// reachability walker to follow edges from fixtures into helpers;
-    /// these aren't flagged as violations themselves.
-    pub call_mnemonics: &'static [&'static str],
-    /// Helper symbol patterns whose forbidden mnemonics should be
-    /// suppressed — typically because the body is a public-parameter
-    /// loop (`for i in 0..N` where `N` is a compile-time constant),
-    /// which compiles to a branchful but CT-safe `cmp/b.lt`. Static
-    /// pattern matching can't distinguish those from secret-dependent
-    /// branches, so this list is a small per-target escape hatch.
-    pub allowed_helpers: &'static [&'static str],
-    /// Per-target extras layered on top of `allowed_helpers`. Reserved
-    /// for branches whose root cause is architecture-specific (e.g.,
-    /// armv6m lacks the `clz` instruction, so `u32::leading_zeros()`
-    /// lowers to a branchful software polynomial in `core` itself).
-    /// These don't belong in the shared list because every other arch
-    /// should keep grepping for them.
-    pub extra_allowed_helpers: &'static [&'static str],
-    /// Extra cargo args needed for this target (e.g., `-Z build-std=core`
-    /// for AVR).
-    pub extra_cargo_args: &'static [&'static str],
-}
 
 /// All targets we know how to verify, in priority order.
 pub const TARGETS: &[TargetSpec] = &[
@@ -359,7 +315,3 @@ const THUMBV6M_EXTRA_HELPERS: &[&str] = &[
     r"^__udivmodsi4$",
     r"^__aeabi_l?ls[lr]$",
 ];
-
-pub fn lookup(triple: &str) -> Option<&'static TargetSpec> {
-    TARGETS.iter().find(|t| t.triple == triple)
-}

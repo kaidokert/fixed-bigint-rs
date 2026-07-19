@@ -12,6 +12,5 @@ path = "src/main.rs"
 
 [dependencies]
 krabi-caliper = { version = "0.1", features = ["host"] }
-serde_json = "1.0"
 
 [dev-dependencies]
