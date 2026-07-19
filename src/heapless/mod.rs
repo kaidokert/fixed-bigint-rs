@@ -36,6 +36,8 @@
 //! | `BitAnd` (`&`), `BitOr`, `BitXor` | `max(a.len, b.len)` |
 //! | [`NextPowerOfTwo`](const_num_traits::NextPowerOfTwo) `next`/`checked`/`wrapping` | `self.len` — `one` is widened before the shift |
 //! | [`NextMultipleOf`](const_num_traits::NextMultipleOf) `next`/`checked` | `max(self.len, rhs.len)` (via `%` and `+`) |
+//! | [`Isqrt`](const_num_traits::Isqrt), [`Roots::nth_root`](num_integer::Roots) | `self.len` — estimate seeded at the operand width |
+//! | [`Ilog2`](const_num_traits::Ilog2) / `Ilog10` / `Ilog` | returns `u32` — no result width |
 //! | [`widened`](HeaplessBigInt::widened) / `WithPrecision` | the requested width (grow-only) |
 //!
 //! ## Construction & serialization widths
@@ -75,6 +77,8 @@ mod euclid;
 mod from_prim;
 mod has_personality;
 mod identities;
+mod ilog;
+mod isqrt;
 mod midpoint;
 mod multiple;
 #[cfg(feature = "num-traits")]
@@ -87,6 +91,8 @@ mod power_of_two;
 mod prim_bits;
 #[cfg(feature = "num-traits")]
 mod prim_int;
+#[cfg(feature = "num-traits")]
+mod roots_impl;
 mod shift;
 mod string_conversion;
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]

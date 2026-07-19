@@ -35,6 +35,7 @@ trait NumCarrier:
     + core::fmt::Display
     + PrimInt
     + num_integer::Integer
+    + num_integer::Roots
     + From<u32>
     + WithPrecision
 {
@@ -218,6 +219,27 @@ fn integer_gcd_lcm() {
         assert!(C::at32(12).is_even());
         assert!(C::at32(13).is_odd());
         assert!(C::at32(0).is_even());
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn roots_sqrt_cbrt_nth() {
+    fn body<C: NumCarrier>() {
+        // Roots methods come in via the NumCarrier: Roots bound.
+        assert_eq!(C::at32(0).sqrt(), C::at32(0));
+        assert_eq!(C::at32(15).sqrt(), C::at32(3));
+        assert_eq!(C::at32(1_000_000).sqrt(), C::at32(1000));
+        assert_eq!(C::at32(27).cbrt(), C::at32(3));
+        assert_eq!(C::at32(63).cbrt(), C::at32(3));
+        assert_eq!(C::at32(81).nth_root(4), C::at32(3));
+        assert_eq!(C::at32(2).nth_root(100), C::at32(1));
+        // r^n <= x < (r+1)^n across a small range.
+        for x in 1..=200u32 {
+            let xi = C::at32(x);
+            let s = xi.sqrt();
+            assert!(s.pow(2) <= xi && (s + C::at32(1)).pow(2) > xi, "sqrt({x})");
+        }
     }
     for_both_carriers!(body);
 }

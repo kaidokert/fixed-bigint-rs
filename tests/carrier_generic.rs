@@ -13,9 +13,9 @@
 
 use const_num_traits::{
     AbsDiff, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid, CheckedMul, CheckedPow,
-    CheckedRem, CheckedSub, Euclid, IsPowerOfTwo, Midpoint, MultipleOf, Nct, NextMultipleOf,
-    NextPowerOfTwo, OverflowingAdd, OverflowingMul, OverflowingSub, Parity, PrimBits,
-    SaturatingAdd, SaturatingMul, SaturatingSub, StrictPow, WithPrecision, WrappingAdd,
+    CheckedRem, CheckedSub, Euclid, Ilog, Ilog2, Ilog10, IsPowerOfTwo, Isqrt, Midpoint, MultipleOf,
+    Nct, NextMultipleOf, NextPowerOfTwo, OverflowingAdd, OverflowingMul, OverflowingSub, Parity,
+    PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub, StrictPow, WithPrecision, WrappingAdd,
     WrappingMul, WrappingSub, Zero,
 };
 use core::ops::{
@@ -81,6 +81,10 @@ trait Carrier:
     + NextPowerOfTwo<Output = Self>
     + MultipleOf
     + NextMultipleOf<Output = Self>
+    + Isqrt<Output = Self>
+    + Ilog2
+    + Ilog10
+    + Ilog
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -577,6 +581,29 @@ fn power_of_two_and_multiples() {
             NextMultipleOf::checked_next_multiple_of(C::from_u32(MAX32), C::from_u32(10)),
             None
         );
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn isqrt_and_ilogs() {
+    fn body<C: Carrier>() {
+        // isqrt: floor square root.
+        assert_eq!(Isqrt::isqrt(C::from_u32(0)), C::from_u32(0));
+        assert_eq!(Isqrt::isqrt(C::from_u32(15)), C::from_u32(3));
+        assert_eq!(Isqrt::isqrt(C::from_u32(16)), C::from_u32(4));
+        assert_eq!(Isqrt::isqrt(C::from_u32(1_000_000)), C::from_u32(1000));
+        assert_eq!(Isqrt::isqrt(C::from_u32(MAX32)), C::from_u32(0xFFFF));
+
+        // ilog2 / ilog10 / ilog.
+        assert_eq!(Ilog2::ilog2(C::from_u32(8)), 3);
+        assert_eq!(Ilog2::ilog2(C::from_u32(0x8000_0000)), 31);
+        assert_eq!(Ilog2::checked_ilog2(C::from_u32(0)), None);
+        assert_eq!(Ilog10::ilog10(C::from_u32(9999)), 3);
+        assert_eq!(Ilog10::ilog10(C::from_u32(1_000_000_000)), 9);
+        assert_eq!(Ilog10::checked_ilog10(C::from_u32(0)), None);
+        assert_eq!(Ilog::ilog(C::from_u32(27), C::from_u32(3)), 3);
+        assert_eq!(Ilog::checked_ilog(C::from_u32(10), C::from_u32(1)), None);
     }
     for_both_carriers!(body);
 }
