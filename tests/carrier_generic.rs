@@ -12,8 +12,9 @@
 //! file is only the surface both share.
 
 use const_num_traits::{
-    CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Nct, OverflowingAdd, OverflowingMul,
-    OverflowingSub, Parity, PrimBits, WithPrecision, WrappingAdd, WrappingMul, WrappingSub, Zero,
+    CarryingMul, CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Nct, OverflowingAdd,
+    OverflowingMul, OverflowingSub, Parity, PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub,
+    WithPrecision, WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -60,6 +61,11 @@ trait Carrier:
     + CheckedAdd<Output = Self>
     + CheckedSub<Output = Self>
     + CheckedMul<Output = Self>
+    + CheckedDiv<Output = Self>
+    + CheckedRem<Output = Self>
+    + SaturatingAdd<Output = Self>
+    + SaturatingSub<Output = Self>
+    + SaturatingMul<Output = Self>
     + CarryingMul<Unsigned = Self, Output = Self>
     + Not<Output = Self>
     + PrimBits
@@ -369,6 +375,52 @@ fn prim_bits_bit_vocabulary() {
         // complement over the width
         assert_eq!(!C::from_u32(0), C::from_u32(MAX32));
         assert_eq!(!C::from_u32(0x0F0F_0F0F), C::from_u32(0xF0F0_F0F0));
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn saturating() {
+    fn body<C: Carrier>() {
+        let max = C::from_u32(MAX32);
+        let one = C::from_u32(1);
+        // add saturates up to the width max
+        assert_eq!(SaturatingAdd::saturating_add(max, one), max);
+        assert_eq!(
+            SaturatingAdd::saturating_add(C::from_u32(100), C::from_u32(50)),
+            C::from_u32(150)
+        );
+        // sub clamps to zero
+        assert_eq!(
+            SaturatingSub::saturating_sub(one, C::from_u32(2)),
+            C::from_u32(0)
+        );
+        assert_eq!(
+            SaturatingSub::saturating_sub(C::from_u32(500), C::from_u32(200)),
+            C::from_u32(300)
+        );
+        // 2^16 * 2^16 = 2^32 overflows the width → saturates up
+        let x = C::from_u32(0x1_0000);
+        assert_eq!(SaturatingMul::saturating_mul(x, x), max);
+        assert_eq!(
+            SaturatingMul::saturating_mul(C::from_u32(13), C::from_u32(17)),
+            C::from_u32(221)
+        );
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn checked_div_rem() {
+    fn body<C: Carrier>() {
+        let a = C::from_u32(100);
+        let b = C::from_u32(7);
+        assert_eq!(CheckedDiv::checked_div(a, b), Some(C::from_u32(14)));
+        assert_eq!(CheckedRem::checked_rem(a, b), Some(C::from_u32(2)));
+        // divide by zero → None (not a panic)
+        let zero = C::from_u32(0);
+        assert_eq!(CheckedDiv::checked_div(a, zero), None);
+        assert_eq!(CheckedRem::checked_rem(a, zero), None);
     }
     for_both_carriers!(body);
 }
