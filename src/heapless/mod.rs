@@ -34,6 +34,8 @@
 //! | `WideMul` / [`CarryingMul`](const_num_traits::CarryingMul) | `lo` and `hi` each `max(a.len, b.len)`; reconstruct `hi·2^(W·word_bits) + lo` |
 //! | `Div` (`/`), `Rem` (`%`) | `max(dividend.len, divisor.len)` |
 //! | `BitAnd` (`&`), `BitOr`, `BitXor` | `max(a.len, b.len)` |
+//! | [`NextPowerOfTwo`](const_num_traits::NextPowerOfTwo) `next`/`checked`/`wrapping` | `self.len` — `one` is widened before the shift |
+//! | [`NextMultipleOf`](const_num_traits::NextMultipleOf) `next`/`checked` | `max(self.len, rhs.len)` (via `%` and `+`) |
 //! | [`widened`](HeaplessBigInt::widened) / `WithPrecision` | the requested width (grow-only) |
 //!
 //! ## Construction & serialization widths
@@ -74,12 +76,14 @@ mod from_prim;
 mod has_personality;
 mod identities;
 mod midpoint;
+mod multiple;
 #[cfg(feature = "num-traits")]
 mod num_integer_impl;
 #[cfg(feature = "num-traits")]
 mod num_traits_bridge;
 mod parity;
 mod pow;
+mod power_of_two;
 mod prim_bits;
 #[cfg(feature = "num-traits")]
 mod prim_int;

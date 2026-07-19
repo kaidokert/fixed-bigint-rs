@@ -13,9 +13,10 @@
 
 use const_num_traits::{
     AbsDiff, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid, CheckedMul, CheckedPow,
-    CheckedRem, CheckedSub, Euclid, Midpoint, Nct, OverflowingAdd, OverflowingMul, OverflowingSub,
-    Parity, PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub, StrictPow, WithPrecision,
-    WrappingAdd, WrappingMul, WrappingSub, Zero,
+    CheckedRem, CheckedSub, Euclid, IsPowerOfTwo, Midpoint, MultipleOf, Nct, NextMultipleOf,
+    NextPowerOfTwo, OverflowingAdd, OverflowingMul, OverflowingSub, Parity, PrimBits,
+    SaturatingAdd, SaturatingMul, SaturatingSub, StrictPow, WithPrecision, WrappingAdd,
+    WrappingMul, WrappingSub, Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -76,6 +77,10 @@ trait Carrier:
     + CheckedEuclid
     + AbsDiff<Output = Self>
     + Midpoint<Output = Self>
+    + IsPowerOfTwo
+    + NextPowerOfTwo<Output = Self>
+    + MultipleOf
+    + NextMultipleOf<Output = Self>
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -506,6 +511,72 @@ fn euclid_absdiff_midpoint() {
         );
         let max = C::from_u32(MAX32);
         assert_eq!(Midpoint::midpoint(max, max), max); // (max + max) / 2 = max
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn power_of_two_and_multiples() {
+    fn body<C: Carrier>() {
+        // is_power_of_two.
+        assert!(!IsPowerOfTwo::is_power_of_two(C::from_u32(0)));
+        for p in [1u32, 2, 4, 8, 128, 256, 0x8000_0000] {
+            assert!(IsPowerOfTwo::is_power_of_two(C::from_u32(p)));
+        }
+        for np in [3u32, 5, 6, 7, 100, 255] {
+            assert!(!IsPowerOfTwo::is_power_of_two(C::from_u32(np)));
+        }
+
+        // next_power_of_two.
+        assert_eq!(
+            NextPowerOfTwo::next_power_of_two(C::from_u32(0)),
+            C::from_u32(1)
+        );
+        assert_eq!(
+            NextPowerOfTwo::next_power_of_two(C::from_u32(5)),
+            C::from_u32(8)
+        );
+        assert_eq!(
+            NextPowerOfTwo::next_power_of_two(C::from_u32(128)),
+            C::from_u32(128)
+        );
+        assert_eq!(
+            NextPowerOfTwo::checked_next_power_of_two(C::from_u32(100)),
+            Some(C::from_u32(128))
+        );
+        // 2^31 + 1 rounds up to 2^32, which overflows the 32-bit width.
+        assert_eq!(
+            NextPowerOfTwo::checked_next_power_of_two(C::from_u32(0x8000_0001)),
+            None
+        );
+        assert_eq!(
+            NextPowerOfTwo::wrapping_next_power_of_two(C::from_u32(0x8000_0001)),
+            C::from_u32(0)
+        );
+
+        // MultipleOf: zero divisor is false (const-num-traits convention).
+        assert!(MultipleOf::is_multiple_of(C::from_u32(10), C::from_u32(5)));
+        assert!(!MultipleOf::is_multiple_of(C::from_u32(11), C::from_u32(5)));
+        assert!(!MultipleOf::is_multiple_of(C::from_u32(10), C::from_u32(0)));
+
+        // NextMultipleOf.
+        assert_eq!(
+            NextMultipleOf::next_multiple_of(C::from_u32(11), C::from_u32(5)),
+            C::from_u32(15)
+        );
+        assert_eq!(
+            NextMultipleOf::next_multiple_of(C::from_u32(10), C::from_u32(5)),
+            C::from_u32(10)
+        );
+        assert_eq!(
+            NextMultipleOf::checked_next_multiple_of(C::from_u32(10), C::from_u32(0)),
+            None
+        );
+        // self + (rhs - rem) overflows the 32-bit width.
+        assert_eq!(
+            NextMultipleOf::checked_next_multiple_of(C::from_u32(MAX32), C::from_u32(10)),
+            None
+        );
     }
     for_both_carriers!(body);
 }
