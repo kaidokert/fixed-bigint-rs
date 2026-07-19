@@ -26,17 +26,34 @@ use core::ops::{Shl, ShlAssign, Shr, ShrAssign};
 // `Shl<u32>` / `Shr<u32>` delegate to the `usize` impls, matching `FixedUInt`.
 // The `num_traits` shift traits (`WrappingShl`, `CheckedShl`, …) require these
 // as supertraits.
+//
+// An over-width amount is guarded *before* the `as usize` cast: on a 16-bit
+// `usize` target a bare cast of a `u32 >= 2^16` would truncate an over-width
+// count into a small in-range one (e.g. `<< 65536` becoming `<< 0`), so we
+// short-circuit to the over-width result the `usize` impls would produce
+// (`Shl` zeroes at `self.len`, `Shr` empties to len 0). `value_bits()` is a
+// `u32`, so the comparison itself never truncates.
 impl<T: MachineWord, const CAP: usize, P: Personality> Shl<u32> for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
     fn shl(self, bits: u32) -> Self::Output {
-        self << (bits as usize)
+        let value_bits = self.len as u32 * (core::mem::size_of::<T>() as u32 * 8);
+        if bits >= value_bits {
+            Self::new_zero_with_len(self.len())
+        } else {
+            self << (bits as usize)
+        }
     }
 }
 
 impl<T: MachineWord, const CAP: usize, P: Personality> Shr<u32> for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
     fn shr(self, bits: u32) -> Self::Output {
-        self >> (bits as usize)
+        let value_bits = self.len as u32 * (core::mem::size_of::<T>() as u32 * 8);
+        if bits >= value_bits {
+            Self::new_zero_with_len(0)
+        } else {
+            self >> (bits as usize)
+        }
     }
 }
 
