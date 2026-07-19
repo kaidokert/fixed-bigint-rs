@@ -88,3 +88,55 @@ where
         Self::from_le_bytes(bytes.as_ref())
     }
 }
+
+// `num_traits` counterparts, same capacity-width `BytesHolder` surface as
+// `FixedUInt`'s — lets a carrier-generic `num_traits` consumer round-trip a
+// full-precision operand identically on either type.
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize, P: Personality> num_traits::ToBytes for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, CAP>;
+    fn to_be_bytes(&self) -> Self::Bytes {
+        self.holder_be()
+    }
+    fn to_le_bytes(&self) -> Self::Bytes {
+        self.holder_le()
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize, P: Personality> num_traits::FromBytes for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + core::fmt::Debug,
+{
+    type Bytes = BytesHolder<T, CAP>;
+    fn from_be_bytes(bytes: &Self::Bytes) -> Self {
+        Self::from_be_bytes(bytes.as_ref())
+    }
+    fn from_le_bytes(bytes: &Self::Bytes) -> Self {
+        Self::from_le_bytes(bytes.as_ref())
+    }
+}
+
+#[cfg(all(test, feature = "num-traits"))]
+mod num_traits_tests {
+    use super::HeaplessBigInt;
+    use num_traits::{FromBytes, ToBytes};
+
+    // The num_traits trait serialises at capacity width and round-trips at
+    // len == CAP, identically to FixedUInt<T, CAP>.
+    #[test]
+    fn round_trip_capacity_width() {
+        type H = HeaplessBigInt<u8, 4>;
+        let v = H::from(0x1234_5678u32);
+        let le = ToBytes::to_le_bytes(&v);
+        let be = ToBytes::to_be_bytes(&v);
+        let from_le = <H as FromBytes>::from_le_bytes(&le);
+        let from_be = <H as FromBytes>::from_be_bytes(&be);
+        assert_eq!(from_le, v);
+        assert_eq!(from_be, v);
+        assert_eq!(from_le.len(), 4); // capacity width
+    }
+}

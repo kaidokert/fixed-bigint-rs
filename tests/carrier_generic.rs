@@ -13,10 +13,13 @@
 
 use const_num_traits::{
     AbsDiff, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid, CheckedMul, CheckedPow,
-    CheckedRem, CheckedSub, Euclid, IsPowerOfTwo, Midpoint, MultipleOf, Nct, NextMultipleOf,
-    NextPowerOfTwo, OverflowingAdd, OverflowingMul, OverflowingSub, Parity, PrimBits,
-    SaturatingAdd, SaturatingMul, SaturatingSub, StrictPow, WithPrecision, WrappingAdd,
-    WrappingMul, WrappingSub, Zero,
+    CheckedRem, CheckedShl, CheckedShr, CheckedSub, DepositBits, Euclid, ExtractBits, FunnelShl,
+    FunnelShr, HighestOne, Ilog, Ilog2, Ilog10, IsPowerOfTwo, IsolateHighestOne, IsolateLowestOne,
+    Isqrt, LowestOne, Midpoint, MultipleOf, Nct, NextMultipleOf, NextPowerOfTwo, OverflowingAdd,
+    OverflowingMul, OverflowingShl, OverflowingShr, OverflowingSub, Parity, PrimBits,
+    SaturatingAdd, SaturatingMul, SaturatingSub, ShlExact, ShrExact, StrictPow, UnboundedShl,
+    UnboundedShr, WithPrecision, WrappingAdd, WrappingMul, WrappingShl, WrappingShr, WrappingSub,
+    Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -81,6 +84,30 @@ trait Carrier:
     + NextPowerOfTwo<Output = Self>
     + MultipleOf
     + NextMultipleOf<Output = Self>
+    + Isqrt<Output = Self>
+    + Ilog2
+    + Ilog10
+    + Ilog
+    + HighestOne
+    + LowestOne
+    + IsolateHighestOne<Output = Self>
+    + IsolateLowestOne<Output = Self>
+    + core::iter::Sum
+    + core::iter::Product
+    + OverflowingShl<Output = Self>
+    + OverflowingShr<Output = Self>
+    + WrappingShl<Output = Self>
+    + WrappingShr<Output = Self>
+    + CheckedShl<Output = Self>
+    + CheckedShr<Output = Self>
+    + UnboundedShl<Output = Self>
+    + UnboundedShr<Output = Self>
+    + ShlExact<Output = Self>
+    + ShrExact<Output = Self>
+    + FunnelShl<Output = Self>
+    + FunnelShr<Output = Self>
+    + DepositBits<Output = Self>
+    + ExtractBits<Output = Self>
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -595,6 +622,130 @@ fn power_of_two_and_multiples() {
             NextMultipleOf::checked_next_multiple_of(C::from_u32(MAX32), C::from_u32(10)),
             None
         );
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn isqrt_and_ilogs() {
+    fn body<C: Carrier>() {
+        // isqrt: floor square root.
+        assert_eq!(Isqrt::isqrt(C::from_u32(0)), C::from_u32(0));
+        assert_eq!(Isqrt::isqrt(C::from_u32(15)), C::from_u32(3));
+        assert_eq!(Isqrt::isqrt(C::from_u32(16)), C::from_u32(4));
+        assert_eq!(Isqrt::isqrt(C::from_u32(1_000_000)), C::from_u32(1000));
+        assert_eq!(Isqrt::isqrt(C::from_u32(MAX32)), C::from_u32(0xFFFF));
+
+        // ilog2 / ilog10 / ilog.
+        assert_eq!(Ilog2::ilog2(C::from_u32(8)), 3);
+        assert_eq!(Ilog2::ilog2(C::from_u32(0x8000_0000)), 31);
+        assert_eq!(Ilog2::checked_ilog2(C::from_u32(0)), None);
+        assert_eq!(Ilog10::ilog10(C::from_u32(9999)), 3);
+        assert_eq!(Ilog10::ilog10(C::from_u32(1_000_000_000)), 9);
+        assert_eq!(Ilog10::checked_ilog10(C::from_u32(0)), None);
+        assert_eq!(Ilog::ilog(C::from_u32(27), C::from_u32(3)), 3);
+        assert_eq!(Ilog::checked_ilog(C::from_u32(10), C::from_u32(1)), None);
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn iter_and_bit_scan() {
+    fn body<C: Carrier>() {
+        // Sum / Product.
+        let vals = [
+            C::from_u32(1),
+            C::from_u32(2),
+            C::from_u32(3),
+            C::from_u32(4),
+        ];
+        assert_eq!(vals.iter().copied().sum::<C>(), C::from_u32(10));
+        assert_eq!(vals.iter().copied().product::<C>(), C::from_u32(24));
+
+        // HighestOne / LowestOne indices.
+        assert_eq!(HighestOne::highest_one(C::from_u32(0)), None);
+        assert_eq!(HighestOne::highest_one(C::from_u32(0x8000_0000)), Some(31));
+        assert_eq!(LowestOne::lowest_one(C::from_u32(0)), None);
+        assert_eq!(LowestOne::lowest_one(C::from_u32(0xB0)), Some(4));
+
+        // Isolate masks.
+        assert_eq!(
+            IsolateHighestOne::isolate_highest_one(C::from_u32(0xB4)),
+            C::from_u32(0x80)
+        );
+        assert_eq!(
+            IsolateLowestOne::isolate_lowest_one(C::from_u32(0xB4)),
+            C::from_u32(0x04)
+        );
+        assert_eq!(
+            IsolateHighestOne::isolate_highest_one(C::from_u32(0)),
+            C::from_u32(0)
+        );
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn shift_family() {
+    fn body<C: Carrier>() {
+        let v = C::from_u32(1);
+        // overflowing / wrapping / checked keyed on amount vs 32-bit width.
+        assert_eq!(
+            OverflowingShl::overflowing_shl(v, 4),
+            (C::from_u32(16), false)
+        );
+        assert_eq!(OverflowingShl::overflowing_shl(v, 32), (v, true));
+        assert_eq!(OverflowingShr::overflowing_shr(v, 32), (v, true));
+        assert_eq!(WrappingShl::wrapping_shl(v, 32), v);
+        assert_eq!(
+            WrappingShr::wrapping_shr(C::from_u32(16), 2),
+            C::from_u32(4)
+        );
+        assert_eq!(CheckedShl::checked_shl(v, 5), Some(C::from_u32(32)));
+        assert_eq!(CheckedShl::checked_shl(v, 32), None);
+        assert_eq!(CheckedShr::checked_shr(v, 32), None);
+
+        // unbounded saturates to zero past the width.
+        assert_eq!(
+            UnboundedShl::unbounded_shl(C::from_u32(0xFF), 100),
+            C::from_u32(0)
+        );
+        assert_eq!(
+            UnboundedShr::unbounded_shr(C::from_u32(0xFF), 100),
+            C::from_u32(0)
+        );
+
+        // exact shifts: lossless only.
+        assert_eq!(
+            ShrExact::shr_exact(C::from_u32(0b100), 2),
+            Some(C::from_u32(1))
+        );
+        assert_eq!(ShrExact::shr_exact(C::from_u32(0b100), 3), None);
+        assert_eq!(ShlExact::shl_exact(v, 32), None);
+
+        // funnel over the 32-bit pair.
+        let hi = C::from_u32(0x1234_5678);
+        let lo = C::from_u32(0x9ABC_DEF0);
+        assert_eq!(FunnelShl::funnel_shl(hi, lo, 8), C::from_u32(0x3456_789A));
+        assert_eq!(FunnelShr::funnel_shr(hi, lo, 8), C::from_u32(0x789A_BCDE));
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn deposit_extract_bits() {
+    fn body<C: Carrier>() {
+        let mask = C::from_u32(0x5555_5555);
+        let src = C::from_u32(0b1011);
+        let dep = DepositBits::deposit_bits(src, mask);
+        assert_eq!(dep, C::from_u32(0b0100_0101));
+        // extract is the inverse over the same mask.
+        assert_eq!(ExtractBits::extract_bits(dep, mask), src);
+        // full mask is the identity both ways.
+        let full = C::from_u32(MAX32);
+        let v = C::from_u32(0x1234_5678);
+        assert_eq!(DepositBits::deposit_bits(v, full), v);
+        assert_eq!(ExtractBits::extract_bits(v, full), v);
     }
     for_both_carriers!(body);
 }

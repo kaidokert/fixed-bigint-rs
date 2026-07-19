@@ -12,8 +12,8 @@
 use const_num_traits::{CarryingMul, Nct, WithPrecision};
 use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
 use num_traits::{
-    Bounded, CheckedDiv, CheckedRem, FromPrimitive, Num, NumCast, One, PrimInt, Saturating,
-    ToPrimitive, Zero,
+    Bounded, CheckedDiv, CheckedRem, CheckedShl, CheckedShr, FromPrimitive, Num, NumCast, One,
+    PrimInt, Saturating, ToPrimitive, WrappingShl, WrappingShr, Zero,
 };
 
 /// The num_traits foundation both carriers implement, pinned to 32 bits.
@@ -35,6 +35,11 @@ trait NumCarrier:
     + core::fmt::Display
     + PrimInt
     + num_integer::Integer
+    + num_integer::Roots
+    + WrappingShl
+    + WrappingShr
+    + CheckedShl
+    + CheckedShr
     + From<u32>
     + WithPrecision
 {
@@ -218,6 +223,41 @@ fn integer_gcd_lcm() {
         assert!(C::at32(12).is_even());
         assert!(C::at32(13).is_odd());
         assert!(C::at32(0).is_even());
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn roots_sqrt_cbrt_nth() {
+    fn body<C: NumCarrier>() {
+        // Roots methods come in via the NumCarrier: Roots bound.
+        assert_eq!(C::at32(0).sqrt(), C::at32(0));
+        assert_eq!(C::at32(15).sqrt(), C::at32(3));
+        assert_eq!(C::at32(1_000_000).sqrt(), C::at32(1000));
+        assert_eq!(C::at32(27).cbrt(), C::at32(3));
+        assert_eq!(C::at32(63).cbrt(), C::at32(3));
+        assert_eq!(C::at32(81).nth_root(4), C::at32(3));
+        assert_eq!(C::at32(2).nth_root(100), C::at32(1));
+        // r^n <= x < (r+1)^n across a small range.
+        for x in 1..=200u32 {
+            let xi = C::at32(x);
+            let s = xi.sqrt();
+            assert!(s.pow(2) <= xi && (s + C::at32(1)).pow(2) > xi, "sqrt({x})");
+        }
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn num_traits_shift_wrappers() {
+    fn body<C: NumCarrier>() {
+        // num_traits shift methods take &self and mask the amount.
+        assert_eq!(WrappingShl::wrapping_shl(&C::at32(1), 4), C::at32(16));
+        assert_eq!(WrappingShl::wrapping_shl(&C::at32(1), 32), C::at32(1));
+        assert_eq!(WrappingShr::wrapping_shr(&C::at32(16), 2), C::at32(4));
+        assert_eq!(CheckedShl::checked_shl(&C::at32(1), 5), Some(C::at32(32)));
+        assert_eq!(CheckedShl::checked_shl(&C::at32(1), 32), None);
+        assert_eq!(CheckedShr::checked_shr(&C::at32(1), 32), None);
     }
     for_both_carriers!(body);
 }
