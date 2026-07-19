@@ -33,7 +33,8 @@ use fixed_bigint::{FixedUInt, HeaplessBigInt};
 
 type U256 = FixedUInt<u32, 8>; // 32-byte / 256-bit, Curve25519-shaped
 
-// ── Ct branchless scans (shared `const_cmp_ct` / `const_leading_zeros_ct`) ──
+// ── Ct branchless scans (shared `const_cmp_ct` / `const_leading_zeros_ct` /
+//    `const_trailing_zeros_ct`) ──
 //
 // These moved from `&[T; N]` to `&[T]` so both carriers share one copy of the
 // `black_box`-guarded loop; lock down that the slice signature stays
@@ -64,9 +65,21 @@ pub extern "C" fn panic_audit__heapless_cmp_ct(a: u32, b: u32) -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn panic_audit__heapless_leading_zeros_ct(a: u32) -> usize {
+pub extern "C" fn panic_audit__heapless_leading_zeros_ct(a: u32) -> u32 {
     let x = HeaplessU256Ct::from(black_box(a));
-    black_box(x.leading_zeros())
+    black_box(PrimBits::leading_zeros(x))
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__fixed_trailing_zeros_ct(a: u32) -> u32 {
+    let x = U256Ct::from(black_box(a));
+    black_box(PrimBits::trailing_zeros(x))
+}
+
+#[no_mangle]
+pub extern "C" fn panic_audit__heapless_trailing_zeros_ct(a: u32) -> u32 {
+    let x = HeaplessU256Ct::from(black_box(a));
+    black_box(PrimBits::trailing_zeros(x))
 }
 
 #[no_mangle]

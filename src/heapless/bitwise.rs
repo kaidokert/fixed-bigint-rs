@@ -17,7 +17,7 @@ use super::{HeaplessBigInt, zero};
 use crate::MachineWord;
 use const_num_traits::Personality;
 use core::marker::PhantomData;
-use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
+use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
 // The value/mixed receiver forms of each bitwise op are uniform pure
 // delegation to the hand-written `&Self $op &Self` core.
@@ -125,6 +125,33 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitXor<&HeaplessBigInt<T,
 }
 
 forward_bitwise_receivers!(BitXor, bitxor);
+
+// Complement over the value width (`len` limbs); the result stays at `len`,
+// so `!x` matches the same-width `FixedUInt` bit-for-bit. `CAP` never enters
+// — the words beyond `len` do not exist. Data-independent, hence uniform
+// across personalities and inherently constant-time.
+impl<T: MachineWord, const CAP: usize, P: Personality> Not for HeaplessBigInt<T, CAP, P> {
+    type Output = Self;
+    fn not(self) -> Self {
+        let n = self.len as usize;
+        let mut limbs = [zero::<T>(); CAP];
+        for (o, &s) in limbs[..n].iter_mut().zip(&self.limbs[..n]) {
+            *o = !s;
+        }
+        HeaplessBigInt {
+            limbs,
+            len: self.len,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> Not for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn not(self) -> Self::Output {
+        !*self
+    }
+}
 
 // ── Compound-assign forms (in-place on `self.limbs`) ──
 
