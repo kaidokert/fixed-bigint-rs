@@ -14,7 +14,7 @@
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
-use const_num_traits::{CarryingMul, Ct, DivNonZero, HasNonZero, Nct, Personality, Zero};
+use const_num_traits::{CarryingMul, Ct, DivNonZero, HasNonZero, Nct, One, Personality, Zero};
 
 /// Non-zero [`HeaplessBigInt`]. Constructed via [`HasNonZero::into_nonzero`].
 ///
@@ -68,16 +68,21 @@ impl<T: MachineWord, const CAP: usize, P: Personality> AssertNonzeroCarrier
     );
 }
 
-// `Default` is the smallest non-zero value (1), the same convention as
-// `core::num::NonZero`. Needed by `subtle::CtOption` combinators, whose bound
-// is `T: Default + ConditionallySelectable` on the wrapped type.
+// `Default` is the non-zero value 1, the same convention as
+// `core::num::NonZero`, carried at **full capacity** (`len == CAP`) — the
+// CAP-width analog of FixedUInt's N-width `NonZeroFixedUInt::default()`. Built
+// value-based via `One` (not the source-width `From<u8>`) then widened. Needed
+// by `subtle::CtOption` combinators whose bound is `T: Default +
+// ConditionallySelectable`; `conditional_select` handles any len safely
+// (output width is `max(len)`, choice-independent), but matching FixedUInt's
+// full width keeps the two carriers' Default shapes aligned.
 impl<T, const CAP: usize, P: Personality> Default for NonZeroHeaplessBigInt<T, CAP, P>
 where
     T: MachineWord,
 {
     fn default() -> Self {
         let _ = <Self as AssertNonzeroCarrier>::CHECK;
-        NonZeroHeaplessBigInt(HeaplessBigInt::from(1u8))
+        NonZeroHeaplessBigInt(<HeaplessBigInt<T, CAP, P> as One>::one().widened(CAP as u16))
     }
 }
 
@@ -166,6 +171,14 @@ mod tests {
     fn into_nonzero_some_none() {
         assert!(H::from(5u32).into_nonzero().is_some());
         assert!(H::from(0u32).into_nonzero().is_none());
+    }
+
+    #[test]
+    fn default_is_one_at_full_capacity() {
+        // Value 1, carried at CAP (matching FixedUInt's full-width default).
+        let d = <NonZeroHeaplessBigInt<u8, 4, Nct> as Default>::default();
+        assert_eq!(d.get(), H::from(1u8));
+        assert_eq!(d.get().len(), 4);
     }
 
     #[test]
