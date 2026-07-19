@@ -139,11 +139,13 @@ mod tests {
 
     #[test]
     fn wide_value_roundtrip() {
-        // Values wider than 32 bits (multi-limb u64 assembly, and the
-        // >u64-max `Bounded` path where to_u64 of the 256-bit max is None)
-        // round-trip in a carrier wide enough to hold them.
+        // Values wider than 32 bits round-trip via multi-limb u64 assembly in
+        // a carrier wide enough to hold them.
         for v in [0x1_0000_0000u64, 0x1234_5678_9ABC, 0xFFFF_FFFF_FFFF_FFFF] {
             assert_eq!(H32x8::from_u64(v).unwrap().to_u64(), Some(v));
         }
+        // The 256-bit max exceeds u64, so to_u64 saturates to None — the
+        // branch from_u64 relies on to accept every u64 above.
+        assert_eq!(<H32x8 as num_traits::Bounded>::max_value().to_u64(), None);
     }
 }
