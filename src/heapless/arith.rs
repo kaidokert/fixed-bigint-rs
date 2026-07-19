@@ -226,25 +226,6 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         let (res, borrow) = self.overflowing_sub(other);
         if borrow { None } else { Some(res) }
     }
-
-    /// Saturating addition: on overflow, the all-ones value at the operands'
-    /// width `max(a.len, b.len)` (not the CAP-wide max), matching
-    /// `FixedUInt<T, width>::saturating_add`.
-    pub fn saturating_add(&self, other: &Self) -> Self {
-        let (res, overflow) = self.overflowing_add(other);
-        if overflow { max_at_len(res.len) } else { res }
-    }
-
-    /// Saturating subtraction: clamps to zero at the operands' width on
-    /// underflow.
-    pub fn saturating_sub(&self, other: &Self) -> Self {
-        let (res, borrow) = self.overflowing_sub(other);
-        if borrow {
-            Self::new_zero_with_len(res.len)
-        } else {
-            res
-        }
-    }
 }
 
 // Mul lives in its own impl block because `CarryingMul` is not part of
@@ -290,13 +271,6 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
     pub fn checked_mul(&self, other: &Self) -> Option<Self> {
         let (res, overflow) = self.overflowing_mul(other);
         if overflow { None } else { Some(res) }
-    }
-
-    /// Saturating multiplication: on overflow, the all-ones value at the
-    /// operands' width `max(a.len, b.len)`.
-    pub fn saturating_mul(&self, other: &Self) -> Self {
-        let (res, overflow) = self.overflowing_mul(other);
-        if overflow { max_at_len(res.len) } else { res }
     }
 }
 
@@ -422,6 +396,40 @@ impl<T: MachineWord, const CAP: usize> HeaplessBigInt<T, CAP, Nct> {
     #[inline]
     pub fn trim(self) -> Self {
         trim_content(self)
+    }
+
+    /// Saturating addition: on overflow, the all-ones value at the operands'
+    /// width `max(a.len, b.len)` (not the CAP-wide max), matching
+    /// `FixedUInt<T, width>::saturating_add`. Nct-only: the branch on the
+    /// overflow flag is not constant-time, so `Ct` does not expose it (a
+    /// branchless Ct saturating, like FixedUInt's `const_ct_select`, is not
+    /// yet provided).
+    pub fn saturating_add(&self, other: &Self) -> Self {
+        let (res, overflow) = self.overflowing_add(other);
+        if overflow { max_at_len(res.len) } else { res }
+    }
+
+    /// Saturating subtraction: clamps to zero at the operands' width on
+    /// underflow. Nct-only, same reason as `saturating_add`.
+    pub fn saturating_sub(&self, other: &Self) -> Self {
+        let (res, borrow) = self.overflowing_sub(other);
+        if borrow {
+            Self::new_zero_with_len(res.len)
+        } else {
+            res
+        }
+    }
+}
+
+impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize>
+    HeaplessBigInt<T, CAP, Nct>
+{
+    /// Saturating multiplication: on overflow, the all-ones value at the
+    /// operands' width `max(a.len, b.len)`. Nct-only, same reason as
+    /// `saturating_add`.
+    pub fn saturating_mul(&self, other: &Self) -> Self {
+        let (res, overflow) = self.overflowing_mul(other);
+        if overflow { max_at_len(res.len) } else { res }
     }
 }
 
