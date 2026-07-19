@@ -8,7 +8,7 @@
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
-use const_num_traits::{Bounded, CarryingMul, ConstOne, ConstZero, Personality, Zero};
+use const_num_traits::{Bounded, CarryingMul, ConstOne, ConstZero, Nct, Personality, Zero};
 
 impl<T: MachineWord, const CAP: usize, P: Personality> num_traits::Zero
     for HeaplessBigInt<T, CAP, P>
@@ -116,6 +116,12 @@ impl<T: MachineWord, const CAP: usize, P: Personality> num_traits::NumCast
     fn from<X: num_traits::ToPrimitive>(arg: X) -> Option<Self> {
         <Self as num_traits::FromPrimitive>::from_u64(arg.to_u64()?)
     }
+}
+
+// Marker: an unsigned `Num`. Nct-only, since `Num` (via `from_str_radix`) is.
+impl<T, const CAP: usize> num_traits::Unsigned for HeaplessBigInt<T, CAP, Nct> where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>
+{
 }
 
 #[cfg(test)]

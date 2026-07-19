@@ -14,7 +14,7 @@
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
-use const_num_traits::{CarryingMul, CheckedDiv, CheckedRem, Nct, One, Zero};
+use const_num_traits::{CarryingMul, CheckedAdd, CheckedDiv, CheckedRem, DivCeil, Nct, One, Zero};
 
 fn div_rem_impl<T, const CAP: usize>(
     dividend: &HeaplessBigInt<T, CAP, Nct>,
@@ -165,6 +165,20 @@ where
             Some(div_rem_impl(self, other).1)
         }
     }
+
+    /// Ceiling division. `None` on divide-by-zero or when rounding up
+    /// overflows the value width. Result width is `max(self.len, other.len)`.
+    pub fn checked_div_ceil(&self, other: &Self) -> Option<Self> {
+        if <Self as Zero>::is_zero(other) {
+            return None;
+        }
+        let (q, r) = div_rem_impl(self, other);
+        if <Self as Zero>::is_zero(&r) {
+            Some(q)
+        } else {
+            CheckedAdd::checked_add(q, <Self as One>::one())
+        }
+    }
 }
 
 // Value-form trait bridges to the by-reference inherent methods (free,
@@ -187,6 +201,19 @@ where
     type Output = Self;
     fn checked_rem(self, v: Self) -> Option<Self> {
         Self::checked_rem(&self, &v)
+    }
+}
+
+impl<T, const CAP: usize> DivCeil for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = Self;
+    fn div_ceil(self, rhs: Self) -> Self {
+        match Self::checked_div_ceil(&self, &rhs) {
+            Some(v) => v,
+            None => panic!("HeaplessBigInt::div_ceil: division by zero or overflow"),
+        }
     }
 }
 
@@ -250,5 +277,32 @@ where
 {
     fn rem_assign(&mut self, other: &Self) {
         *self = div_rem_impl::<T, CAP>(self, other).1;
+    }
+}
+
+#[cfg(test)]
+mod div_ceil_tests {
+    use super::HeaplessBigInt;
+    use const_num_traits::DivCeil;
+
+    type H = HeaplessBigInt<u8, 4>;
+
+    #[test]
+    fn div_ceil_rounds_up() {
+        assert_eq!(DivCeil::div_ceil(H::from(10u8), H::from(5u8)), H::from(2u8));
+        assert_eq!(DivCeil::div_ceil(H::from(11u8), H::from(3u8)), H::from(4u8));
+        assert_eq!(DivCeil::div_ceil(H::from(1u8), H::from(5u8)), H::from(1u8));
+        assert_eq!(DivCeil::div_ceil(H::from(0u8), H::from(5u8)), H::from(0u8));
+    }
+
+    #[test]
+    fn checked_div_ceil_edges() {
+        // Divide-by-zero and rounding overflow both yield None.
+        assert_eq!(H::from(10u8).checked_div_ceil(&H::from(0u8)), None);
+        // MAX / 2 rounds to 2^31, still fits the 32-bit width.
+        assert_eq!(
+            H::from(u32::MAX).checked_div_ceil(&H::from(2u8)),
+            Some(H::from(0x8000_0000u32))
+        );
     }
 }
