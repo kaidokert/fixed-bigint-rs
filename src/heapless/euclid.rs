@@ -27,22 +27,16 @@ impl<T, const CAP: usize> CheckedEuclid for HeaplessBigInt<T, CAP, Nct>
 where
     T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
 {
+    // Unsigned Euclidean == ordinary; delegate to the inherent checked div/rem
+    // so the zero-divisor guard lives in one tested place.
     fn checked_div_euclid(self, v: Self) -> Option<Self> {
-        if <Self as Zero>::is_zero(&v) {
-            None
-        } else {
-            Some(self / v)
-        }
+        self.checked_div(&v)
     }
     fn checked_rem_euclid(self, v: Self) -> Option<Self> {
-        if <Self as Zero>::is_zero(&v) {
-            None
-        } else {
-            Some(self % v)
-        }
+        self.checked_rem(&v)
     }
     fn checked_div_rem_euclid(self, v: Self) -> Option<(Self, Self)> {
-        if <Self as Zero>::is_zero(&v) {
+        if v.is_zero() {
             None
         } else {
             Some(self.div_rem(&v))

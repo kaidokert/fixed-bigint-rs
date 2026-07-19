@@ -517,6 +517,19 @@ fn euclid_absdiff_midpoint() {
             CheckedEuclid::checked_div_euclid(C::from_u32(17), C::from_u32(0)),
             None
         );
+        assert_eq!(
+            CheckedEuclid::checked_rem_euclid(C::from_u32(17), C::from_u32(0)),
+            None
+        );
+        // checked_div_rem_euclid carries its own zero guard — pin both paths.
+        assert_eq!(
+            CheckedEuclid::checked_div_rem_euclid(C::from_u32(17), C::from_u32(5)),
+            Some((C::from_u32(3), C::from_u32(2)))
+        );
+        assert_eq!(
+            CheckedEuclid::checked_div_rem_euclid(C::from_u32(17), C::from_u32(0)),
+            None
+        );
 
         // abs_diff, both orders.
         assert_eq!(
@@ -590,6 +603,11 @@ fn power_of_two_and_multiples() {
         );
         assert_eq!(
             NextMultipleOf::next_multiple_of(C::from_u32(10), C::from_u32(5)),
+            C::from_u32(10)
+        );
+        // rhs greater than self: the next multiple is rhs itself.
+        assert_eq!(
+            NextMultipleOf::next_multiple_of(C::from_u32(3), C::from_u32(10)),
             C::from_u32(10)
         );
         assert_eq!(
