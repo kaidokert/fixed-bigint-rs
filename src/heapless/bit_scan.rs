@@ -104,5 +104,11 @@ mod tests {
         let z = H::new_zero_with_len(8);
         assert_eq!(IsolateHighestOne::isolate_highest_one(z).len(), 8);
         assert_eq!(IsolateLowestOne::isolate_lowest_one(z).len(), 8);
+
+        // A len-0 operand stays len 0: `zero()` (the neg seed) is itself len 0,
+        // so `wrapping_sub`/`&` resolve at max(0, 0) = 0.
+        let z0 = H::new_zero_with_len(0);
+        assert_eq!(IsolateHighestOne::isolate_highest_one(z0).len(), 0);
+        assert_eq!(IsolateLowestOne::isolate_lowest_one(z0).len(), 0);
     }
 }
