@@ -40,6 +40,7 @@
 //! | [`Ilog2`](const_num_traits::Ilog2) / `Ilog10` / `Ilog` | returns `u32` — no result width |
 //! | [`HighestOne`](const_num_traits::HighestOne) / `LowestOne` | returns `Option<u32>` — no result width |
 //! | [`IsolateHighestOne`](const_num_traits::IsolateHighestOne) / `IsolateLowestOne` | `self.len` — the single-bit mask carries the operand width |
+//! | [`DepositBits`](const_num_traits::DepositBits) / `ExtractBits` | `max(self.len, mask.len)` |
 //! | [`Sum`](core::iter::Sum) / [`Product`](core::iter::Product) | `max(operand len)`; empty iterator yields the minimal-width identity |
 //! | [`widened`](HeaplessBigInt::widened) / `WithPrecision` | the requested width (grow-only) |
 //!
@@ -69,6 +70,7 @@ use core::marker::PhantomData;
 
 mod abs_diff;
 mod arith;
+mod bit_deposit;
 mod bit_scan;
 mod bits;
 mod bitwise;
