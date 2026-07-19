@@ -133,7 +133,12 @@ impl<T: MachineWord, const CAP: usize, P: Personality> ShrExact for HeaplessBigI
     type Output = Self;
     fn shr_exact(self, rhs: u32) -> Option<Self> {
         if rhs < self.value_bits() && rhs <= PrimBits::trailing_zeros(self) {
-            Some(self >> (rhs as usize))
+            // A whole-limb `>>` narrows `len`; an *exact* (reversible) shift
+            // must keep the operand width so `<<` by the same amount recovers
+            // the input. No bits are lost (the trailing-zero check passed), so
+            // widening back is value-preserving.
+            let width = self.len();
+            Some((self >> (rhs as usize)).widened(width))
         } else {
             None
         }
@@ -141,33 +146,42 @@ impl<T: MachineWord, const CAP: usize, P: Personality> ShrExact for HeaplessBigI
 }
 
 // Funnel shifts: the double-width `(self, rhs)` shifted by `n`, one half
-// returned. `n` is a public amount, so the `n >= value width` panic is
-// value-independent.
+// returned. Both halves are taken at `self`'s width — `rhs` must share it, or
+// its high limbs (outside the funnel word) would leak into the result — so a
+// width mismatch is a caller error, asserted for `n > 0`. `n == 0` is a no-op
+// checked first, so it never trips the width/range asserts (a `len == 0`
+// operand has `value_bits() == 0`, against which `n < bits` would fail).
 impl<T: MachineWord, const CAP: usize, P: Personality> FunnelShl for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
     fn funnel_shl(self, rhs: Self, n: u32) -> Self {
+        if n == 0 {
+            return self;
+        }
+        assert!(
+            self.len() == rhs.len(),
+            "HeaplessBigInt::funnel_shl: operands must share a width"
+        );
         let bits = self.value_bits();
         assert!(n < bits, "HeaplessBigInt::funnel_shl: n out of range");
-        if n == 0 {
-            self
-        } else {
-            let lo_shift = bits - n;
-            (self << (n as usize)) | (rhs >> (lo_shift as usize))
-        }
+        let lo_shift = bits - n;
+        (self << (n as usize)) | (rhs >> (lo_shift as usize))
     }
 }
 
 impl<T: MachineWord, const CAP: usize, P: Personality> FunnelShr for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
     fn funnel_shr(self, rhs: Self, n: u32) -> Self {
+        if n == 0 {
+            return rhs;
+        }
+        assert!(
+            self.len() == rhs.len(),
+            "HeaplessBigInt::funnel_shr: operands must share a width"
+        );
         let bits = self.value_bits();
         assert!(n < bits, "HeaplessBigInt::funnel_shr: n out of range");
-        if n == 0 {
-            rhs
-        } else {
-            let hi_shift = bits - n;
-            (rhs >> (n as usize)) | (self << (hi_shift as usize))
-        }
+        let hi_shift = bits - n;
+        (rhs >> (n as usize)) | (self << (hi_shift as usize))
     }
 }
 
@@ -252,6 +266,46 @@ mod tests {
         // shl by more than leading_zeros drops the top bit.
         assert!(ShlExact::shl_exact(H::from(1u8).widened(4), 31).is_some());
         assert_eq!(ShlExact::shl_exact(H::from(1u8).widened(4), 32), None);
+    }
+
+    // A whole-limb exact shr must keep the operand width so it's reversible.
+    #[test]
+    fn shr_exact_preserves_width() {
+        let v = H::from(256u16).widened(4); // [0, 1, 0, 0], len 4
+        let r = ShrExact::shr_exact(v, 8).unwrap();
+        assert_eq!(r, H::from(1u8));
+        assert_eq!(r.len(), 4, "exact shr must not narrow away the width");
+        // Reversible: shifting back left recovers the input.
+        assert_eq!(r << 8usize, H::from(256u16));
+    }
+
+    // Over-width `Shl<u32>` / `Shr<u32>` zero out without truncating the count
+    // (the 16-bit-usize hazard); Shl keeps the width, Shr empties.
+    #[test]
+    fn u32_operator_shifts_handle_over_width() {
+        let v = H::from(0xFFu8).widened(4);
+        let sl = core::ops::Shl::<u32>::shl(v, 100);
+        assert!(<H as const_num_traits::Zero>::is_zero(&sl));
+        assert_eq!(sl.len(), 4);
+        let sr = core::ops::Shr::<u32>::shr(v, 100);
+        assert!(<H as const_num_traits::Zero>::is_zero(&sr));
+    }
+
+    // funnel with n == 0 is a no-op even on a len-0 operand (value_bits() == 0
+    // would otherwise trip the `n < bits` assert).
+    #[test]
+    fn funnel_zero_shift_on_empty_operand() {
+        let z0 = H::new_zero_with_len(0);
+        assert_eq!(FunnelShl::funnel_shl(z0, z0, 0).len(), 0);
+        assert_eq!(FunnelShr::funnel_shr(z0, z0, 0).len(), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "must share a width")]
+    fn funnel_rejects_width_mismatch() {
+        let narrow = H::from(1u8); // len 1
+        let wide = H::from(1u8).widened(4); // len 4
+        FunnelShl::funnel_shl(narrow, wide, 1);
     }
 
     #[test]
