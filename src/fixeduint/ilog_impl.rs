@@ -78,6 +78,15 @@ c0nst::c0nst! {
             if base < two {
                 return None;
             }
+            // Route the common bases through the O(BIT_SIZE) bit/decimal paths
+            // instead of the O(BIT_SIZE²) divide-down loop.
+            if base == two {
+                return <Self as Ilog2>::checked_ilog2(self);
+            }
+            let ten: Self = core::convert::From::from(10u8);
+            if base == ten {
+                return <Self as Ilog10>::checked_ilog10(self);
+            }
             // Count how many times we can divide by base
             let mut n = self;
             let mut count = 0u32;
