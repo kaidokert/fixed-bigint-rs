@@ -95,4 +95,4 @@ pub mod heapless;
 pub use crate::fixeduint::{FixedUInt, NonZeroFixedUInt};
 pub use crate::machineword::MachineWord;
 
-pub use crate::heapless::HeaplessBigInt;
+pub use crate::heapless::{HeaplessBigInt, NonZeroHeaplessBigInt};
