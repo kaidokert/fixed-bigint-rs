@@ -16,11 +16,11 @@ is broken.
 
 To run it locally on a Linux host: `cargo build --release -p
 ct-ctgrind && valgrind --tool=memcheck --error-exitcode=0 -q
-target/release/ct-ctgrind`. Valgrind isn't available on macOS
-aarch64 or Windows, so on those hosts the crate still compiles (via
-no-op stubs in `src/valgrind/stub.rs`) but `cargo run -p ct-ctgrind`
-just prints a "must be run under valgrind" error and exits. CI runs
-the full gate on `x86_64-unknown-linux-gnu`. To extend the fixture
-set, add the corresponding macro invocation in
-`src/fixtures_cat_*.rs` and the matching `ct_fix_*!` entry in
+target/release/ct-ctgrind`. The shared fixture registry, taint helpers,
+positive/negative classification, and campaign runner come from
+`krabi-caliper`'s `ctgrind` feature. That feature is Linux-only because
+Valgrind is unavailable natively on macOS and Windows; use the container
+workflow there. CI runs the full gate on `x86_64-unknown-linux-gnu`. To
+extend the fixture set, add the corresponding shared ABI macro invocation
+in `src/fixtures_cat_*.rs` and the matching `ct_fix_*!` entry in
 `ct-fixtures` — the two files mirror each other one-for-one.

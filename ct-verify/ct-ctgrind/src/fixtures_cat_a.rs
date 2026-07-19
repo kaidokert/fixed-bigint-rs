@@ -1,6 +1,6 @@
 //! Category A fixture registrations — mirror of ct-fixtures' cat_a.
 
-use crate::{ctgrind_bin, ctgrind_count, ctgrind_pred, ctgrind_shift, ctgrind_un};
+use krabi_caliper::{ctgrind_bin, ctgrind_count, ctgrind_pred, ctgrind_shift, ctgrind_un};
 
 // sat_add / sat_sub / sat_mul
 ctgrind_bin!(ct_fix__A__sat_add__u8__N16, u8, 16);

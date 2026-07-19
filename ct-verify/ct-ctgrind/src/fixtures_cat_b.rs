@@ -1,6 +1,6 @@
 //! Category B fixture registrations — mirror of ct-fixtures' cat_b.
 
-use crate::{
+use krabi_caliper::{
     ctgrind_checked_bin, ctgrind_checked_scalar, ctgrind_checked_un, ctgrind_cond_select,
     ctgrind_pred2, ctgrind_un,
 };

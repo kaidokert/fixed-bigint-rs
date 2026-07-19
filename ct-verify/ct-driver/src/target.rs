@@ -1,7 +1,7 @@
 //! Per-target specifications: triple, toolchain pin, and the mnemonic
 //! tables used by the parser.
 
-use crate::mnemonics;
+use krabi_caliper::host::isa as mnemonics;
 
 #[allow(dead_code)]
 // `priority` and `toolchain` are documentation-only fields used by

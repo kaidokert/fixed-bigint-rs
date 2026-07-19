@@ -1,6 +1,6 @@
 //! Category C fixture registrations — mirror of ct-fixtures' cat_c.
 
-use crate::{ctgrind_bin, ctgrind_carrying_add, ctgrind_count, ctgrind_un};
+use krabi_caliper::{ctgrind_bin, ctgrind_carrying_add, ctgrind_count, ctgrind_un};
 
 // Bitwise — not is unary, and/or/xor are binary.
 ctgrind_un!(ct_fix__C__not__u8__N16, u8, 16);

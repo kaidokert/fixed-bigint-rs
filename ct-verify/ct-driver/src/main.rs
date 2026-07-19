@@ -9,7 +9,6 @@
 //!   6. exit non-zero if any ct_fix__* fixture has a violation
 //!      OR any nct_fix__neg__* fixture has zero violations
 
-mod mnemonics;
 mod parse;
 mod report;
 mod target;

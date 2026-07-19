@@ -16,15 +16,4 @@ path = "src/main.rs"
 # ct-fixtures' `#[panic_handler]` so std's panic handler is used.
 ct-fixtures = { path = "../ct-fixtures", default-features = false }
 
-# Distributed-slice collection for the fixture registry.
-inventory = "0.3"
-
-# Identifier concatenation in macros (for `run_<fixture_name>`).
-paste = "1.0"
-
-# Valgrind client-request wrapper, Linux-only (Valgrind itself doesn't
-# support macOS aarch64 or Windows). The driver compiles on every host
-# via stubs in `src/valgrind/stub.rs`, but only Linux can actually run
-# the gate under valgrind.
-[target.'cfg(target_os = "linux")'.dependencies]
-crabgrind = "0.1"
+krabi-caliper = { version = "0.1", features = ["ctgrind"] }
