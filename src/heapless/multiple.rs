@@ -40,10 +40,41 @@ where
         }
         let rem = self % rhs;
         if <Self as Zero>::is_zero(&rem) {
-            Some(self)
+            // Already a multiple, but the result width is max(self.len, rhs.len)
+            // (the non-zero path resolves there via `%`/`+`); widen so this
+            // early return doesn't narrow below the contract.
+            Some(self.widened(core::cmp::max(self.len(), rhs.len())))
         } else {
             // self + (rhs - rem), None on overflow.
             CheckedAdd::checked_add(self, rhs - rem)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HeaplessBigInt;
+    use const_num_traits::NextMultipleOf;
+
+    type H = HeaplessBigInt<u8, 8>;
+
+    // The already-a-multiple early return must carry max(self.len, rhs.len),
+    // not the narrow self width. The value-based shared harness can't see this
+    // (its operands are all one width), so pin it here.
+    #[test]
+    fn already_multiple_preserves_wider_rhs_width() {
+        let self_narrow = H::from(10u8); // len 1
+        let rhs_wide = H::from(5u8).widened(8); // len 8
+        assert_eq!(self_narrow.len(), 1);
+        let out = NextMultipleOf::checked_next_multiple_of(self_narrow, rhs_wide).unwrap();
+        assert_eq!(out, H::from(10u8));
+        assert_eq!(out.len(), 8, "result must widen to max(self.len, rhs.len)");
+    }
+
+    #[test]
+    fn rhs_larger_than_self_is_rhs() {
+        // 3's next multiple of 10 is 10 itself (the `self + (rhs - rem)` path).
+        let out = NextMultipleOf::next_multiple_of(H::from(3u8), H::from(10u8));
+        assert_eq!(out, H::from(10u8));
     }
 }

@@ -581,6 +581,11 @@ fn power_of_two_and_multiples() {
             NextMultipleOf::next_multiple_of(C::from_u32(10), C::from_u32(5)),
             C::from_u32(10)
         );
+        // rhs greater than self: the next multiple is rhs itself.
+        assert_eq!(
+            NextMultipleOf::next_multiple_of(C::from_u32(3), C::from_u32(10)),
+            C::from_u32(10)
+        );
         assert_eq!(
             NextMultipleOf::checked_next_multiple_of(C::from_u32(10), C::from_u32(0)),
             None
