@@ -1,6 +1,6 @@
 use crate::fixeduint::FixedUInt;
 use crate::machineword::MachineWord;
-use const_num_traits::Nct;
+use const_num_traits::{CheckedPow, Nct};
 use num_integer::Roots;
 use num_traits::{FromPrimitive, One, Zero};
 
@@ -31,15 +31,16 @@ impl<T: MachineWord, const N: usize> Roots for FixedUInt<T, N, Nct> {
         let n_val = Self::from_u32(n).expect("n too large for FixedUInt");
         let n_minus_1 = Self::from_u32(n - 1).expect("n too large for FixedUInt");
 
-        // Newton's method iteration
+        // Newton's method iteration. Power evaluations go through `checked_pow`:
+        // an over-width `x^k` would panic (Nct multiply overflow), so overflow
+        // is treated as "arbitrarily large" — the quotient `self / x^(n-1)` is 0
+        // and the upper probe `(x+1)^n` counts as greater than `self`.
         loop {
-            let x_pow_n_minus_1 = x.pow(n - 1);
-
-            if x_pow_n_minus_1.is_zero() {
-                break;
-            }
-
-            let quotient = *self / x_pow_n_minus_1;
+            let quotient = match CheckedPow::checked_pow(x, n - 1) {
+                Some(p) if p.is_zero() => break,
+                Some(p) => *self / p,
+                None => Self::zero(),
+            };
 
             let numerator = x * n_minus_1 + quotient;
             let x_new = numerator / n_val;
@@ -51,13 +52,14 @@ impl<T: MachineWord, const N: usize> Roots for FixedUInt<T, N, Nct> {
             x = x_new;
         }
 
-        // Final adjustment to ensure r^n <= self < (r+1)^n
-        while x.pow(n) > *self {
+        // Final adjustment to ensure r^n <= self < (r+1)^n. `self` fits the
+        // width, so an over-width `x^n` (None) is necessarily greater.
+        while CheckedPow::checked_pow(x, n).is_none_or(|p| p > *self) {
             x -= Self::one();
         }
 
         let mut x_plus_one = x + Self::one();
-        while x_plus_one.pow(n) <= *self {
+        while CheckedPow::checked_pow(x_plus_one, n).is_some_and(|p| p <= *self) {
             x += Self::one();
             x_plus_one = x + Self::one();
         }
@@ -174,5 +176,29 @@ mod tests {
             assert!(root4_x.pow(4) <= x_int);
             assert!((root4_x + TestInt::one()).pow(4) > x_int);
         }
+    }
+
+    // sqrt of the max value when the type width == value width: the upper
+    // probe (x+1)^2 = 2^BITS overflows and used to panic in the Nct multiply.
+    // checked_pow now reads that overflow as "> self".
+    #[test]
+    fn sqrt_of_max_does_not_overflow_panic() {
+        assert_eq!(
+            FixedUInt::<u32, 1>::from(u32::MAX).sqrt(),
+            FixedUInt::<u32, 1>::from(0xFFFFu32)
+        );
+        assert_eq!(
+            FixedUInt::<u8, 1>::from(255u8).sqrt(),
+            FixedUInt::<u8, 1>::from(15u8)
+        );
+        // A perfect square at the top of the range, and its neighbours.
+        assert_eq!(
+            FixedUInt::<u16, 1>::from(65025u16).sqrt(),
+            FixedUInt::<u16, 1>::from(255u16)
+        ); // 255^2
+        assert_eq!(
+            FixedUInt::<u16, 1>::from(65535u16).sqrt(),
+            FixedUInt::<u16, 1>::from(255u16)
+        );
     }
 }
