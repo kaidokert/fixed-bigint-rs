@@ -181,6 +181,18 @@ fn prim_int() {
         assert_eq!(PrimInt::reverse_bits(C::at32(1)), C::at32(0x8000_0000));
         assert_eq!(PrimInt::pow(C::at32(2), 10), C::at32(1024));
         assert_eq!(PrimInt::pow(C::at32(7), 3), C::at32(343));
+
+        // Shifts (delegated via PrimBits): unsigned == signed for the unsigned
+        // carrier, and both stay fixed-width.
+        assert_eq!(PrimInt::unsigned_shl(C::at32(1), 31), C::at32(0x8000_0000));
+        assert_eq!(PrimInt::unsigned_shr(C::at32(0x8000_0000), 31), C::at32(1));
+        assert_eq!(PrimInt::signed_shl(C::at32(1), 31), C::at32(0x8000_0000));
+        assert_eq!(PrimInt::signed_shr(C::at32(0x8000_0000), 31), C::at32(1));
+
+        // Endianness conversions round-trip.
+        let v = C::at32(0x1234_5678);
+        assert_eq!(PrimInt::from_be(PrimInt::to_be(v)), v);
+        assert_eq!(PrimInt::from_le(PrimInt::to_le(v)), v);
     }
     for_both_carriers!(body);
 }

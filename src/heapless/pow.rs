@@ -19,7 +19,11 @@ pub(crate) fn pow_impl<T, const CAP: usize>(
 where
     T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
 {
-    let mut result = <HeaplessBigInt<T, CAP, Nct> as One>::one();
+    // x^0 is 1 at the operand's width (`base.len`), matching FixedUInt<k>;
+    // widen the identity so the `exp == 0` early path doesn't return a narrow
+    // (len-1) value. For `exp > 0` the first multiply would widen it anyway.
+    let mut result =
+        <HeaplessBigInt<T, CAP, Nct> as One>::one().widened(core::cmp::max(1, base.len));
     let mut b = base;
     let mut e = exp;
     while e > 0 {
@@ -51,7 +55,7 @@ where
 {
     type Output = Self;
     fn checked_pow(self, exp: u32) -> Option<Self> {
-        let mut result = <Self as One>::one();
+        let mut result = <Self as One>::one().widened(core::cmp::max(1, self.len));
         let mut base = self;
         let mut e = exp;
         while e > 0 {
@@ -94,7 +98,11 @@ mod tests {
         let r = base.pow(10);
         assert_eq!(r.len, 1);
         assert_eq!(r.limbs[0], 1024);
-        assert_eq!(base.pow(0).limbs[0], 1); // x^0 = 1
+        // x^0 = 1 at the operand width, not a narrowed len-1 value.
+        assert_eq!(base.pow(0).len, 1);
+        let base2 = base.widened(2);
+        assert_eq!(base2.pow(0).len, 2);
+        assert_eq!(base2.pow(0).limbs[0], 1);
         // 2^32 overflows the 32-bit width → None, matching FixedUInt<u32, 1>.
         assert_eq!(CheckedPow::checked_pow(base, 32), None);
         assert_eq!(
