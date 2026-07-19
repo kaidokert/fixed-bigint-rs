@@ -77,10 +77,28 @@ where
     }
 }
 
+// `CtIsPowerOfTwo` — masked-return `is_power_of_two`, the same subtle-predicate
+// style as `CtIsZero`/`CtParity` (`nonzero & is_zero(x & (x - 1))` composed of
+// `Choice`s). No `const_ct_select` needed, so it's personality-generic.
+impl<T, const CAP: usize, P: Personality> const_num_traits::ops::ct::CtIsPowerOfTwo
+    for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + subtle::ConstantTimeEq,
+{
+    fn ct_is_power_of_two(&self) -> subtle::Choice {
+        use const_num_traits::ops::ct::CtIsZero;
+        let nonzero = !self.ct_is_zero();
+        let one = <Self as const_num_traits::ConstOne>::ONE;
+        let masked = *self & <Self as WrappingSub>::wrapping_sub(*self, one);
+        nonzero & masked.ct_is_zero()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::HeaplessBigInt;
     use const_num_traits::NextPowerOfTwo;
+    use const_num_traits::ops::ct::CtIsPowerOfTwo;
 
     type H = HeaplessBigInt<u8, 8>;
 
@@ -115,5 +133,14 @@ mod tests {
         let w = NextPowerOfTwo::wrapping_next_power_of_two(x);
         assert_eq!(w, HeaplessBigInt::<u8, 8>::from(0u8));
         assert_eq!(w.len(), 1);
+    }
+
+    #[test]
+    fn ct_is_power_of_two_matches_bool() {
+        for v in [0u32, 1, 2, 3, 4, 100, 255, 256, 0x8000_0000] {
+            let h = H::from(v);
+            let ct = bool::from(h.ct_is_power_of_two());
+            assert_eq!(ct, v != 0 && v & (v - 1) == 0, "ct_is_power_of_two({v})");
+        }
     }
 }
