@@ -13,11 +13,11 @@
 
 use const_num_traits::{
     CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Nct, OverflowingAdd, OverflowingMul,
-    OverflowingSub, Parity, WithPrecision, WrappingAdd, WrappingMul, WrappingSub, Zero,
+    OverflowingSub, Parity, PrimBits, WithPrecision, WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
-    Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Mul, MulAssign, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
 
@@ -61,6 +61,8 @@ trait Carrier:
     + CheckedSub<Output = Self>
     + CheckedMul<Output = Self>
     + CarryingMul<Unsigned = Self, Output = Self>
+    + Not<Output = Self>
+    + PrimBits
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -310,6 +312,63 @@ fn div_rem() {
         let mut r = a;
         r %= b;
         assert_eq!(r, C::from_u32(2));
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn prim_bits_bit_vocabulary() {
+    // Both carriers, pinned to 32-bit width, must return identical results
+    // for the whole PrimBits surface plus `Not`. Absolute expectations, so
+    // FixedUInt and HeaplessBigInt are checked against the same truth.
+    fn body<C: Carrier>() {
+        // population counts
+        assert_eq!(PrimBits::count_ones(C::from_u32(0b1011)), 3);
+        assert_eq!(PrimBits::count_zeros(C::from_u32(0b1011)), 29);
+        // leading / trailing scans over the 32-bit width
+        assert_eq!(PrimBits::leading_zeros(C::from_u32(0)), 32);
+        assert_eq!(PrimBits::leading_zeros(C::from_u32(1)), 31);
+        assert_eq!(PrimBits::trailing_zeros(C::from_u32(0b1000)), 3);
+        assert_eq!(PrimBits::trailing_zeros(C::from_u32(0)), 32);
+        assert_eq!(PrimBits::leading_ones(C::from_u32(MAX32)), 32);
+        assert_eq!(PrimBits::trailing_ones(C::from_u32(0b0111)), 3);
+        // rotates wrap within the 32-bit width
+        assert_eq!(PrimBits::rotate_left(C::from_u32(1), 4), C::from_u32(16));
+        assert_eq!(PrimBits::rotate_right(C::from_u32(16), 4), C::from_u32(1));
+        assert_eq!(
+            PrimBits::rotate_left(C::from_u32(0x8000_0000), 1),
+            C::from_u32(1)
+        );
+        assert_eq!(
+            PrimBits::rotate_right(C::from_u32(1), 1),
+            C::from_u32(0x8000_0000)
+        );
+        // shifts (unsigned == signed on an unsigned carrier)
+        assert_eq!(PrimBits::unsigned_shl(C::from_u32(1), 4), C::from_u32(16));
+        assert_eq!(PrimBits::unsigned_shr(C::from_u32(0x10), 4), C::from_u32(1));
+        assert_eq!(PrimBits::signed_shl(C::from_u32(1), 4), C::from_u32(16));
+        assert_eq!(PrimBits::signed_shr(C::from_u32(0x10), 4), C::from_u32(1));
+        // byte / bit order
+        assert_eq!(
+            PrimBits::swap_bytes(C::from_u32(0x1234_5678)),
+            C::from_u32(0x7856_3412)
+        );
+        assert_eq!(
+            PrimBits::reverse_bits(C::from_u32(1)),
+            C::from_u32(0x8000_0000)
+        );
+        assert_eq!(
+            PrimBits::to_be(C::from_u32(0x0000_00FF)),
+            C::from_u32(0xFF00_0000)
+        );
+        assert_eq!(
+            PrimBits::from_be(C::from_u32(0xFF00_0000)),
+            C::from_u32(0x0000_00FF)
+        );
+        assert_eq!(PrimBits::to_le(C::from_u32(0x1234)), C::from_u32(0x1234));
+        // complement over the width
+        assert_eq!(!C::from_u32(0), C::from_u32(MAX32));
+        assert_eq!(!C::from_u32(0x0F0F_0F0F), C::from_u32(0xF0F0_F0F0));
     }
     for_both_carriers!(body);
 }

@@ -241,20 +241,10 @@ mod tests {
         }
     }
 
-    #[test]
-    fn parity_full_width() {
-        // 32 bytes, top byte non-zero → both carriers at 8 limbs.
-        let b = [
-            0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x10, 0x32, 0x54, 0x76, 0x98, 0xBA,
-            0xDC, 0xFE, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,
-            0xCC, 0xDD, 0xEE, 0xFF,
-        ];
-        assert_parity(
-            HeaplessBigInt::<u32, 8, Nct>::from_le_bytes(&b),
-            FixedUInt::<u32, 8, Nct>::from_le_bytes(&b),
-        );
-    }
-
+    // Full-width parity across both carriers lives in the generic
+    // `tests/carrier_generic.rs` harness (`prim_bits_bit_vocabulary`). What
+    // stays here is heapless-only: the sub-capacity value-width guarantee and
+    // the Ct-scan behavior, neither of which the fixed-width harness can reach.
     #[test]
     fn parity_sub_capacity_is_value_width() {
         // 8 bytes → len 2 inside a CAP-8 carrier. Must mirror FixedUInt<u32,2>,
