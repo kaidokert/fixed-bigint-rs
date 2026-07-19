@@ -72,6 +72,8 @@ mod from_prim;
 mod has_personality;
 mod identities;
 #[cfg(feature = "num-traits")]
+mod num_integer_impl;
+#[cfg(feature = "num-traits")]
 mod num_traits_bridge;
 mod parity;
 mod pow;

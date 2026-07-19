@@ -34,6 +34,7 @@ trait NumCarrier:
     + core::str::FromStr<Err = core::num::ParseIntError>
     + core::fmt::Display
     + PrimInt
+    + num_integer::Integer
     + From<u32>
     + WithPrecision
 {
@@ -193,6 +194,30 @@ fn prim_int() {
         let v = C::at32(0x1234_5678);
         assert_eq!(PrimInt::from_be(PrimInt::to_be(v)), v);
         assert_eq!(PrimInt::from_le(PrimInt::to_le(v)), v);
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn integer_gcd_lcm() {
+    fn body<C: NumCarrier>() {
+        // Integer methods come in via the NumCarrier: Integer bound.
+        // gcd / lcm
+        assert_eq!(C::at32(12).gcd(&C::at32(18)), C::at32(6));
+        assert_eq!(C::at32(12).lcm(&C::at32(18)), C::at32(36));
+        assert_eq!(C::at32(17).gcd(&C::at32(5)), C::at32(1)); // coprime
+        assert_eq!(C::at32(0).gcd(&C::at32(9)), C::at32(9)); // gcd(0, x) = x
+        assert_eq!(C::at32(0).lcm(&C::at32(0)), C::at32(0));
+        // div_floor / mod_floor / div_rem (unsigned: floor == truncating)
+        assert_eq!(C::at32(17).div_floor(&C::at32(5)), C::at32(3));
+        assert_eq!(C::at32(17).mod_floor(&C::at32(5)), C::at32(2));
+        assert_eq!(C::at32(17).div_rem(&C::at32(5)), (C::at32(3), C::at32(2)));
+        // divisibility / parity
+        assert!(C::at32(12).is_multiple_of(&C::at32(4)));
+        assert!(!C::at32(13).is_multiple_of(&C::at32(4)));
+        assert!(C::at32(12).is_even());
+        assert!(C::at32(13).is_odd());
+        assert!(C::at32(0).is_even());
     }
     for_both_carriers!(body);
 }
