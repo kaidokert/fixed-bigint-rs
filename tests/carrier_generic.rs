@@ -13,8 +13,9 @@
 
 use const_num_traits::{
     AbsDiff, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid, CheckedMul, CheckedPow,
-    CheckedRem, CheckedSub, Euclid, Ilog, Ilog2, Ilog10, IsPowerOfTwo, Isqrt, Midpoint, MultipleOf,
-    Nct, NextMultipleOf, NextPowerOfTwo, OverflowingAdd, OverflowingMul, OverflowingSub, Parity,
+    CheckedRem, CheckedSub, Euclid, HighestOne, Ilog, Ilog2, Ilog10, IsPowerOfTwo,
+    IsolateHighestOne, IsolateLowestOne, Isqrt, LowestOne, Midpoint, MultipleOf, Nct,
+    NextMultipleOf, NextPowerOfTwo, OverflowingAdd, OverflowingMul, OverflowingSub, Parity,
     PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub, StrictPow, WithPrecision, WrappingAdd,
     WrappingMul, WrappingSub, Zero,
 };
@@ -85,6 +86,12 @@ trait Carrier:
     + Ilog2
     + Ilog10
     + Ilog
+    + HighestOne
+    + LowestOne
+    + IsolateHighestOne<Output = Self>
+    + IsolateLowestOne<Output = Self>
+    + core::iter::Sum
+    + core::iter::Product
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -622,6 +629,42 @@ fn isqrt_and_ilogs() {
         assert_eq!(Ilog10::checked_ilog10(C::from_u32(0)), None);
         assert_eq!(Ilog::ilog(C::from_u32(27), C::from_u32(3)), 3);
         assert_eq!(Ilog::checked_ilog(C::from_u32(10), C::from_u32(1)), None);
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn iter_and_bit_scan() {
+    fn body<C: Carrier>() {
+        // Sum / Product.
+        let vals = [
+            C::from_u32(1),
+            C::from_u32(2),
+            C::from_u32(3),
+            C::from_u32(4),
+        ];
+        assert_eq!(vals.iter().copied().sum::<C>(), C::from_u32(10));
+        assert_eq!(vals.iter().copied().product::<C>(), C::from_u32(24));
+
+        // HighestOne / LowestOne indices.
+        assert_eq!(HighestOne::highest_one(C::from_u32(0)), None);
+        assert_eq!(HighestOne::highest_one(C::from_u32(0x8000_0000)), Some(31));
+        assert_eq!(LowestOne::lowest_one(C::from_u32(0)), None);
+        assert_eq!(LowestOne::lowest_one(C::from_u32(0xB0)), Some(4));
+
+        // Isolate masks.
+        assert_eq!(
+            IsolateHighestOne::isolate_highest_one(C::from_u32(0xB4)),
+            C::from_u32(0x80)
+        );
+        assert_eq!(
+            IsolateLowestOne::isolate_lowest_one(C::from_u32(0xB4)),
+            C::from_u32(0x04)
+        );
+        assert_eq!(
+            IsolateHighestOne::isolate_highest_one(C::from_u32(0)),
+            C::from_u32(0)
+        );
     }
     for_both_carriers!(body);
 }

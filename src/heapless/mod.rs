@@ -38,6 +38,9 @@
 //! | [`NextMultipleOf`](const_num_traits::NextMultipleOf) `next`/`checked` | `max(self.len, rhs.len)` (via `%` and `+`) |
 //! | [`Isqrt`](const_num_traits::Isqrt), [`Roots::nth_root`](num_integer::Roots) | `self.len` — estimate seeded at the operand width |
 //! | [`Ilog2`](const_num_traits::Ilog2) / `Ilog10` / `Ilog` | returns `u32` — no result width |
+//! | [`HighestOne`](const_num_traits::HighestOne) / `LowestOne` | returns `Option<u32>` — no result width |
+//! | [`IsolateHighestOne`](const_num_traits::IsolateHighestOne) / `IsolateLowestOne` | `self.len` — the single-bit mask carries the operand width |
+//! | [`Sum`](core::iter::Sum) / [`Product`](core::iter::Product) | `max(operand len)`; empty iterator yields the minimal-width identity |
 //! | [`widened`](HeaplessBigInt::widened) / `WithPrecision` | the requested width (grow-only) |
 //!
 //! ## Construction & serialization widths
@@ -66,6 +69,7 @@ use core::marker::PhantomData;
 
 mod abs_diff;
 mod arith;
+mod bit_scan;
 mod bits;
 mod bitwise;
 mod bytes;
@@ -79,6 +83,7 @@ mod has_personality;
 mod identities;
 mod ilog;
 mod isqrt;
+mod iter;
 mod midpoint;
 mod multiple;
 #[cfg(feature = "num-traits")]
