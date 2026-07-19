@@ -54,17 +54,19 @@ where
 
     fn lcm(&self, other: &Self) -> Self {
         if <Self as Zero>::is_zero(self) && <Self as Zero>::is_zero(other) {
-            return <Self as Zero>::zero();
+            // Zero at the operand width, not the minimal-width `zero()`.
+            return <Self as Zero>::zero().widened(core::cmp::max(self.len(), other.len()));
         }
         let gcd = self.gcd(other);
         *self * (*other / gcd)
     }
 
-    fn divides(&self, other: &Self) -> bool {
-        self.is_multiple_of(other)
-    }
-
     fn is_multiple_of(&self, other: &Self) -> bool {
+        // Guard the zero divisor (as num_integer's primitive impls do): 0 is a
+        // multiple of 0, nothing else is — no `% 0` panic.
+        if <Self as Zero>::is_zero(other) {
+            return <Self as Zero>::is_zero(self);
+        }
         *self % *other == <Self as Zero>::zero()
     }
 
@@ -113,5 +115,22 @@ mod tests {
         assert_eq!(a.gcd(&b), H::from_le_bytes(&0x8000_0000u64.to_le_bytes())); // 2^31
         // lcm(2^32, 3·2^31) = 3·2^32
         assert_eq!(a.lcm(&b), H::from_le_bytes(&0x3_0000_0000u64.to_le_bytes()));
+    }
+
+    #[test]
+    fn is_multiple_of_zero_divisor_no_panic() {
+        // num_integer contract: is_multiple_of(&0) is a predicate, not a panic.
+        let zero = H::from_le_bytes(&0u32.to_le_bytes());
+        let five = H::from_le_bytes(&5u32.to_le_bytes());
+        assert!(zero.is_multiple_of(&zero)); // 0 is a multiple of 0
+        assert!(!five.is_multiple_of(&zero)); // 5 is not
+    }
+
+    #[test]
+    fn lcm_of_zeros_keeps_operand_width() {
+        // lcm(0, 0) = 0 at the operand width, not the minimal len-0 zero.
+        let z = H::from_le_bytes(&0u64.to_le_bytes()); // len 2 (8 zero bytes)
+        assert_eq!(z.len(), 2);
+        assert_eq!(z.lcm(&z).len(), 2);
     }
 }
