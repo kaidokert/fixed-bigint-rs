@@ -14,7 +14,7 @@
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
-use const_num_traits::{CarryingMul, Nct, One, Zero};
+use const_num_traits::{CarryingMul, CheckedDiv, CheckedRem, Nct, One, Zero};
 
 fn div_rem_impl<T, const CAP: usize>(
     dividend: &HeaplessBigInt<T, CAP, Nct>,
@@ -131,6 +131,78 @@ div_impls!(
     &HeaplessBigInt<T, CAP, Nct>,
     HeaplessBigInt<T, CAP, Nct>
 );
+
+// ── Checked division / remainder ──
+//
+// Nct-only, like `Div`/`Rem`. Return `None` on divide-by-zero instead of the
+// `div_rem_impl` assert; the quotient/remainder is the value-width result the
+// same-width `FixedUInt` gives.
+
+impl<T, const CAP: usize> HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    /// Checked division. `None` on divide-by-zero.
+    pub fn checked_div(&self, other: &Self) -> Option<Self> {
+        if <Self as Zero>::is_zero(other) {
+            None
+        } else {
+            Some(div_rem_impl(self, other).0)
+        }
+    }
+
+    /// Checked remainder. `None` on divide-by-zero.
+    pub fn checked_rem(&self, other: &Self) -> Option<Self> {
+        if <Self as Zero>::is_zero(other) {
+            None
+        } else {
+            Some(div_rem_impl(self, other).1)
+        }
+    }
+}
+
+// Value-form trait bridges to the by-reference inherent methods (free,
+// `HeaplessBigInt: Copy`). Nct-only, matching Div/Rem.
+
+impl<T, const CAP: usize> CheckedDiv for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = Self;
+    fn checked_div(self, v: Self) -> Option<Self> {
+        Self::checked_div(&self, &v)
+    }
+}
+
+impl<T, const CAP: usize> CheckedRem for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = Self;
+    fn checked_rem(self, v: Self) -> Option<Self> {
+        Self::checked_rem(&self, &v)
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::CheckedDiv for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn checked_div(&self, v: &Self) -> Option<Self> {
+        Self::checked_div(self, v)
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::CheckedRem for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn checked_rem(&self, v: &Self) -> Option<Self> {
+        Self::checked_rem(self, v)
+    }
+}
 
 // ── DivAssign / RemAssign ──
 //

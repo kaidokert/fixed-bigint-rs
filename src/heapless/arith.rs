@@ -15,9 +15,9 @@
 use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
 use const_num_traits::{
-    BorrowingSub, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Nct,
-    OverflowingAdd, OverflowingMul, OverflowingSub, Personality, PersonalityTag, WrappingAdd,
-    WrappingMul, WrappingSub,
+    BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Nct,
+    OverflowingAdd, OverflowingMul, OverflowingSub, Personality, PersonalityTag, SaturatingAdd,
+    SaturatingMul, SaturatingSub, WrappingAdd, WrappingMul, WrappingSub,
 };
 use core::marker::PhantomData;
 
@@ -26,6 +26,25 @@ use core::marker::PhantomData;
 // runs for `Nct` only; the `Ct` arm wraps silently (like `wrapping_*`),
 // keeping control flow value-independent. Mirrors `FixedUInt`'s
 // `maybe_panic_if::<P>`.
+// All-ones value at a given width (`len` limbs saturated). This is the
+// saturation target for add/mul overflow: the max at the *operand* width
+// `max(a.len, b.len)`, matching `FixedUInt<T, width>::max_value()`. It is NOT
+// `Bounded::max_value()`, which on this carrier is the CAP-wide max.
+#[inline]
+fn max_at_len<T: MachineWord, const CAP: usize, P: Personality>(
+    len: u16,
+) -> HeaplessBigInt<T, CAP, P> {
+    let mut limbs = [zero::<T>(); CAP];
+    for l in &mut limbs[..len as usize] {
+        *l = <T as Bounded>::max_value();
+    }
+    HeaplessBigInt {
+        limbs,
+        len,
+        _p: PhantomData,
+    }
+}
+
 #[inline]
 fn panic_on_overflow_if_nct<P: Personality>(overflow: bool, msg: &'static str) {
     match P::TAG {
@@ -207,6 +226,25 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
         let (res, borrow) = self.overflowing_sub(other);
         if borrow { None } else { Some(res) }
     }
+
+    /// Saturating addition: on overflow, the all-ones value at the operands'
+    /// width `max(a.len, b.len)` (not the CAP-wide max), matching
+    /// `FixedUInt<T, width>::saturating_add`.
+    pub fn saturating_add(&self, other: &Self) -> Self {
+        let (res, overflow) = self.overflowing_add(other);
+        if overflow { max_at_len(res.len) } else { res }
+    }
+
+    /// Saturating subtraction: clamps to zero at the operands' width on
+    /// underflow.
+    pub fn saturating_sub(&self, other: &Self) -> Self {
+        let (res, borrow) = self.overflowing_sub(other);
+        if borrow {
+            Self::new_zero_with_len(res.len)
+        } else {
+            res
+        }
+    }
 }
 
 // Mul lives in its own impl block because `CarryingMul` is not part of
@@ -253,6 +291,13 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
         let (res, overflow) = self.overflowing_mul(other);
         if overflow { None } else { Some(res) }
     }
+
+    /// Saturating multiplication: on overflow, the all-ones value at the
+    /// operands' width `max(a.len, b.len)`.
+    pub fn saturating_mul(&self, other: &Self) -> Self {
+        let (res, overflow) = self.overflowing_mul(other);
+        if overflow { max_at_len(res.len) } else { res }
+    }
 }
 
 // ── const_num_traits CheckedAdd / CheckedMul (Nct only) ──
@@ -291,6 +336,58 @@ where
     type Output = Self;
     fn checked_sub(self, v: Self) -> Option<Self> {
         Self::checked_sub(&self, &v)
+    }
+}
+
+// ── const_num_traits Saturating{Add,Sub,Mul} (Nct only) ──
+//
+// Same gating as the Checked* trait forms above: the value-form trait
+// delegates to the by-reference inherent method (free, `HeaplessBigInt: Copy`).
+// The saturation target is the operand-width max/zero, not the CAP-wide
+// `Bounded` — see `max_at_len`.
+
+impl<T, const CAP: usize> SaturatingAdd for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = Self;
+    fn saturating_add(self, v: Self) -> Self {
+        Self::saturating_add(&self, &v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingSub for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = Self;
+    fn saturating_sub(self, v: Self) -> Self {
+        Self::saturating_sub(&self, &v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingMul for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = Self;
+    fn saturating_mul(self, v: Self) -> Self {
+        Self::saturating_mul(&self, &v)
+    }
+}
+
+// `num_traits::Saturating` (add/sub only) — deprecated upstream but still
+// required by `num_traits::PrimInt`. Nct-only, matching the trait forms above.
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::Saturating for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    fn saturating_add(self, v: Self) -> Self {
+        <Self as SaturatingAdd>::saturating_add(self, v)
+    }
+    fn saturating_sub(self, v: Self) -> Self {
+        <Self as SaturatingSub>::saturating_sub(self, v)
     }
 }
 
@@ -744,4 +841,51 @@ pub(crate) fn zero_tail_ok<T: MachineWord>(limbs: &[T], used: usize) -> bool {
         i += 1;
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use const_num_traits::Zero;
+
+    type H = HeaplessBigInt<u32, 8, Nct>; // 256-bit CAP
+
+    #[test]
+    fn saturation_is_operand_width_not_cap() {
+        // Two len-1 (32-bit) values in a CAP-8 carrier: overflow saturates to
+        // the 32-bit operand-width max, NOT the 256-bit CAP max — matching
+        // FixedUInt<u32, 1>. This is what the fixed-width carrier harness can't
+        // reach (its backings have width == CAP).
+        let a = H::from_le_bytes(&0xFFFF_FFFFu32.to_le_bytes()); // len 1
+        let one = H::from_le_bytes(&1u32.to_le_bytes());
+        let s = SaturatingAdd::saturating_add(a, one);
+        assert_eq!(s.len, 1);
+        assert_eq!(s.limbs[0], 0xFFFF_FFFF);
+
+        // 2^16 * 2^16 = 2^32 overflows the 32-bit width; saturates the same way.
+        let big = H::from_le_bytes(&0x1_0000u32.to_le_bytes());
+        let m = SaturatingMul::saturating_mul(big, big);
+        assert_eq!(m.len, 1);
+        assert_eq!(m.limbs[0], 0xFFFF_FFFF);
+    }
+
+    #[test]
+    fn saturating_sub_clamps_to_zero_at_width() {
+        let one = H::from_le_bytes(&1u32.to_le_bytes()); // len 1
+        let two = H::from_le_bytes(&2u32.to_le_bytes());
+        let s = SaturatingSub::saturating_sub(one, two);
+        assert_eq!(s.len, 1);
+        assert!(<H as Zero>::is_zero(&s));
+    }
+
+    #[test]
+    fn checked_div_rem_by_zero_is_none() {
+        let a = H::from_le_bytes(&100u32.to_le_bytes());
+        let z = <H as Zero>::zero();
+        assert_eq!(a.checked_div(&z), None);
+        assert_eq!(a.checked_rem(&z), None);
+        let seven = H::from_le_bytes(&7u32.to_le_bytes());
+        assert_eq!(a.checked_div(&seven).unwrap().limbs[0], 14);
+        assert_eq!(a.checked_rem(&seven).unwrap().limbs[0], 2);
+    }
 }

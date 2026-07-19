@@ -11,7 +11,9 @@
 
 use const_num_traits::{CarryingMul, Nct, WithPrecision};
 use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
-use num_traits::{Bounded, FromPrimitive, NumCast, One, ToPrimitive, Zero};
+use num_traits::{
+    Bounded, CheckedDiv, CheckedRem, FromPrimitive, NumCast, One, Saturating, ToPrimitive, Zero,
+};
 
 /// The num_traits foundation both carriers implement, pinned to 32 bits.
 trait NumCarrier:
@@ -24,6 +26,9 @@ trait NumCarrier:
     + ToPrimitive
     + FromPrimitive
     + NumCast
+    + Saturating
+    + CheckedDiv
+    + CheckedRem
     + From<u32>
     + WithPrecision
 {
@@ -96,6 +101,27 @@ fn numcast() {
         let a: C = NumCast::from(255u32).unwrap();
         assert_eq!(a.to_u64(), Some(255));
         assert!(<C as NumCast>::from(0x1_0000_0000u64).is_none());
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+#[allow(deprecated)] // num_traits::Saturating is deprecated but PrimInt needs it
+fn saturating_and_checked_div() {
+    fn body<C: NumCarrier>() {
+        let max = C::at32(0xFFFF_FFFF);
+        // num_traits::Saturating (add/sub only)
+        assert_eq!(Saturating::saturating_add(max, C::at32(1)), max);
+        assert_eq!(
+            Saturating::saturating_sub(C::at32(1), C::at32(2)),
+            C::at32(0)
+        );
+        // num_traits::CheckedDiv / CheckedRem, incl. the divide-by-zero None
+        let a = C::at32(100);
+        assert_eq!(CheckedDiv::checked_div(&a, &C::at32(7)), Some(C::at32(14)));
+        assert_eq!(CheckedRem::checked_rem(&a, &C::at32(7)), Some(C::at32(2)));
+        assert_eq!(CheckedDiv::checked_div(&a, &C::at32(0)), None);
+        assert_eq!(CheckedRem::checked_rem(&a, &C::at32(0)), None);
     }
     for_both_carriers!(body);
 }
