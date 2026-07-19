@@ -142,6 +142,8 @@ macro_rules! emit_carrying_add {
             }
             core::hint::black_box(co as u8)
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_carrying_add!($name, $T, $N););
     };
 }
 emit_carrying_add!(ct_fix__C__carrying_add__u8__N16, u8, 16);

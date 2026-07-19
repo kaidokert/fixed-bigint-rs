@@ -15,8 +15,8 @@ negative-control fixtures from `ct-fixtures` are reused: every
 is broken.
 
 To run it locally on a Linux host: `cargo build --release -p
-ct-ctgrind && valgrind --tool=memcheck --error-exitcode=0 -q
-target/release/ct-ctgrind`. The shared fixture registry, taint helpers,
+ct-ctgrind && cargo krabi-caliper ctgrind target/release/ct-ctgrind`.
+The shared fixture registry, taint helpers,
 positive/negative classification, and campaign runner come from
 `krabi-caliper`'s `ctgrind` feature. That feature is Linux-only because
 Valgrind is unavailable natively on macOS and Windows; use the container
