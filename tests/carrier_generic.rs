@@ -13,12 +13,13 @@
 
 use const_num_traits::{
     AbsDiff, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid, CheckedMul, CheckedPow,
-    CheckedRem, CheckedShl, CheckedShr, CheckedSub, Euclid, FunnelShl, FunnelShr, HighestOne, Ilog,
-    Ilog2, Ilog10, IsPowerOfTwo, IsolateHighestOne, IsolateLowestOne, Isqrt, LowestOne, Midpoint,
-    MultipleOf, Nct, NextMultipleOf, NextPowerOfTwo, OverflowingAdd, OverflowingMul,
-    OverflowingShl, OverflowingShr, OverflowingSub, Parity, PrimBits, SaturatingAdd, SaturatingMul,
-    SaturatingSub, ShlExact, ShrExact, StrictPow, UnboundedShl, UnboundedShr, WithPrecision,
-    WrappingAdd, WrappingMul, WrappingShl, WrappingShr, WrappingSub, Zero,
+    CheckedRem, CheckedShl, CheckedShr, CheckedSub, DepositBits, Euclid, ExtractBits, FunnelShl,
+    FunnelShr, HighestOne, Ilog, Ilog2, Ilog10, IsPowerOfTwo, IsolateHighestOne, IsolateLowestOne,
+    Isqrt, LowestOne, Midpoint, MultipleOf, Nct, NextMultipleOf, NextPowerOfTwo, OverflowingAdd,
+    OverflowingMul, OverflowingShl, OverflowingShr, OverflowingSub, Parity, PrimBits,
+    SaturatingAdd, SaturatingMul, SaturatingSub, ShlExact, ShrExact, StrictPow, UnboundedShl,
+    UnboundedShr, WithPrecision, WrappingAdd, WrappingMul, WrappingShl, WrappingShr, WrappingSub,
+    Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -105,6 +106,8 @@ trait Carrier:
     + ShrExact<Output = Self>
     + FunnelShl<Output = Self>
     + FunnelShr<Output = Self>
+    + DepositBits<Output = Self>
+    + ExtractBits<Output = Self>
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -707,6 +710,24 @@ fn shift_family() {
         let lo = C::from_u32(0x9ABC_DEF0);
         assert_eq!(FunnelShl::funnel_shl(hi, lo, 8), C::from_u32(0x3456_789A));
         assert_eq!(FunnelShr::funnel_shr(hi, lo, 8), C::from_u32(0x789A_BCDE));
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn deposit_extract_bits() {
+    fn body<C: Carrier>() {
+        let mask = C::from_u32(0x5555_5555);
+        let src = C::from_u32(0b1011);
+        let dep = DepositBits::deposit_bits(src, mask);
+        assert_eq!(dep, C::from_u32(0b0100_0101));
+        // extract is the inverse over the same mask.
+        assert_eq!(ExtractBits::extract_bits(dep, mask), src);
+        // full mask is the identity both ways.
+        let full = C::from_u32(MAX32);
+        let v = C::from_u32(0x1234_5678);
+        assert_eq!(DepositBits::deposit_bits(v, full), v);
+        assert_eq!(ExtractBits::extract_bits(v, full), v);
     }
     for_both_carriers!(body);
 }
