@@ -44,7 +44,7 @@
 //!
 //! | path | width |
 //! |---|---|
-//! | `From<u8/u16/u32>` | `ceil(size_of::<uN>() / word)` — the source int's width |
+//! | `From<u8/u16/u32/u64>` | `ceil(size_of::<uN>() / word)` — the source int's width |
 //! | inherent [`from_le_bytes`](HeaplessBigInt::from_le_bytes) / `from_be_bytes(&[u8])` | `ceil(slice.len() / word)` — the slice width |
 //! | [`new_zero_with_len`](HeaplessBigInt::new_zero_with_len) / [`from_limbs`](HeaplessBigInt::from_limbs) | exactly the given `len` |
 //! | `FromBytes` **trait** (`BytesHolder<T, CAP>`) | **`CAP`** — an owned holder can't be runtime-sized |
@@ -60,6 +60,7 @@ use crate::MachineWord;
 use const_num_traits::{Ct, Nct, Personality};
 use core::marker::PhantomData;
 
+mod abs_diff;
 mod arith;
 mod bits;
 mod bitwise;
@@ -68,9 +69,11 @@ mod bytes;
 mod cios;
 mod cmp;
 mod div_rem;
+mod euclid;
 mod from_prim;
 mod has_personality;
 mod identities;
+mod midpoint;
 #[cfg(feature = "num-traits")]
 mod num_integer_impl;
 #[cfg(feature = "num-traits")]
