@@ -20,7 +20,7 @@ The arithmetic operands ( +, -, .add() ) panic on overflow, just like native int
 
 In addition to basic arithmetic, two main traits are implemented: [num_traits::PrimInt](https://docs.rs/num-traits/latest/num_traits/int/trait.PrimInt.html) and [num_integer::Integer](https://docs.rs/num/latest/num/integer/trait.Integer.html).
 
-An optional `zeroize` feature wipes a value's backing store on drop, for handling sensitive data.
+An optional `zeroize` feature implements the `Zeroize` trait, so sensitive values can be cleared explicitly with `.zeroize()`, or wiped on scope exit by wrapping them in `zeroize::Zeroizing`. (The integer types are `Copy`, so they do not wipe on drop by themselves.)
 
 ## Const Support
 
