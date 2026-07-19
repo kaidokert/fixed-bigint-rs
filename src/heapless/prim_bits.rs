@@ -20,6 +20,27 @@ use crate::MachineWord;
 use const_num_traits::{Personality, PersonalityTag, PrimBits};
 use core::marker::PhantomData;
 
+/// Value width in bits (`len·word_bits`) — the width every PrimBits member
+/// operates over. `len <= u16::MAX` and `word_bits <= 64`, so it fits `u32`.
+#[inline]
+fn value_bits<T: MachineWord, const CAP: usize, P: Personality>(
+    v: &HeaplessBigInt<T, CAP, P>,
+) -> u32 {
+    v.len as u32 * (core::mem::size_of::<T>() as u32 * 8)
+}
+
+/// Fixed-width zero at a given `len` (all `CAP` limbs zero).
+#[inline]
+fn zero_at<T: MachineWord, const CAP: usize, P: Personality>(
+    len: u16,
+) -> HeaplessBigInt<T, CAP, P> {
+    HeaplessBigInt {
+        limbs: [zero::<T>(); CAP],
+        len,
+        _p: PhantomData,
+    }
+}
+
 impl<T: MachineWord, const CAP: usize, P: Personality> PrimBits for HeaplessBigInt<T, CAP, P> {
     fn count_ones(self) -> u32 {
         let n = self.len as usize;
@@ -53,16 +74,14 @@ impl<T: MachineWord, const CAP: usize, P: Personality> PrimBits for HeaplessBigI
         let n = self.len as usize;
         match P::TAG {
             PersonalityTag::Nct => {
-                // LSB-to-MSB; stop at the first non-zero limb.
+                // LSB-to-MSB; stop at the first non-zero limb. Iterating the
+                // slice keeps the loop bounds-check-free.
                 let mut ret = 0u32;
-                let mut i = 0;
-                while i < n {
-                    let v = self.limbs[i];
+                for &v in &self.limbs[..n] {
                     ret += <T as PrimBits>::trailing_zeros(v);
                     if !is_zero(&v) {
                         break;
                     }
-                    i += 1;
                 }
                 ret
             }
@@ -75,10 +94,8 @@ impl<T: MachineWord, const CAP: usize, P: Personality> PrimBits for HeaplessBigI
         // Reverse limb order over the value width, each limb byte-swapped.
         let n = self.len as usize;
         let mut limbs = [zero::<T>(); CAP];
-        let mut i = 0;
-        while i < n {
-            limbs[i] = self.limbs[n - 1 - i].swap_bytes();
-            i += 1;
+        for (o, i) in limbs[..n].iter_mut().zip(self.limbs[..n].iter().rev()) {
+            *o = i.swap_bytes();
         }
         Self {
             limbs,
@@ -91,10 +108,8 @@ impl<T: MachineWord, const CAP: usize, P: Personality> PrimBits for HeaplessBigI
         // Reverse limb order and every limb's bits, over the value width.
         let n = self.len as usize;
         let mut limbs = [zero::<T>(); CAP];
-        let mut i = 0;
-        while i < n {
-            limbs[n - 1 - i] = self.limbs[i].reverse_bits();
-            i += 1;
+        for (o, i) in limbs[..n].iter_mut().rev().zip(self.limbs[..n].iter()) {
+            *o = i.reverse_bits();
         }
         Self {
             limbs,
@@ -104,43 +119,66 @@ impl<T: MachineWord, const CAP: usize, P: Personality> PrimBits for HeaplessBigI
     }
 
     fn rotate_left(self, n: u32) -> Self {
-        let bit_size = self.len as u32 * (core::mem::size_of::<T>() as u32 * 8);
-        if bit_size == 0 {
+        let bits = value_bits(&self);
+        if bits == 0 {
             return self;
         }
-        let shift = (n % bit_size) as usize;
-        let a = self << shift;
-        let b = self >> (bit_size as usize - shift);
+        let shift = n % bits;
+        if shift == 0 {
+            return self;
+        }
+        // `shift` and `bits - shift` are both in `1..bits` (< u16::MAX·64),
+        // so the usize casts are lossless even where `usize` is 16-bit.
+        let a = self << shift as usize;
+        let b = self >> (bits - shift) as usize;
         a | b
     }
 
     fn rotate_right(self, n: u32) -> Self {
-        let bit_size = self.len as u32 * (core::mem::size_of::<T>() as u32 * 8);
-        if bit_size == 0 {
+        let bits = value_bits(&self);
+        if bits == 0 {
             return self;
         }
-        let shift = (n % bit_size) as usize;
-        let a = self >> shift;
-        let b = self << (bit_size as usize - shift);
+        let shift = n % bits;
+        if shift == 0 {
+            return self;
+        }
+        let a = self >> shift as usize;
+        let b = self << (bits - shift) as usize;
         a | b
     }
 
     fn unsigned_shl(self, n: u32) -> Self {
-        self << (n as usize)
+        // Shifting by >= the value width clears it. The guard also keeps the
+        // `as usize` cast below lossless on a 16-bit-`usize` target.
+        if n >= value_bits(&self) {
+            return zero_at(self.len);
+        }
+        self << n as usize
     }
 
     fn unsigned_shr(self, n: u32) -> Self {
-        self >> (n as usize)
+        if n >= value_bits(&self) {
+            return zero_at(self.len);
+        }
+        // `>>` narrows `len` on whole-word shifts, but PrimBits is fixed-width:
+        // restore the operand width so downstream width-sensitive ops
+        // (count_zeros, leading_zeros) match FixedUInt. The freed high limbs
+        // are already zero, so bumping `len` back is value-preserving.
+        let mut r = self >> n as usize;
+        r.len = self.len;
+        r
     }
 
     fn signed_shl(self, n: u32) -> Self {
-        // Unsigned carrier: identical to unsigned_shl.
-        self << (n as usize)
+        // Unsigned carrier: identical to unsigned_shl (mirrors FixedUInt).
+        <Self as PrimBits>::unsigned_shl(self, n)
     }
 
     fn signed_shr(self, n: u32) -> Self {
-        // Unsigned carrier: the sign bit is always 0, so logical == arithmetic.
-        self >> (n as usize)
+        // Unsigned carrier: heapless mirrors FixedUInt, which shifts logically
+        // (treats the value as unsigned), keeping the two carriers bit-for-bit.
+        <Self as PrimBits>::unsigned_shr(self, n)
     }
 
     // Little-endian host: in-memory order already matches, so to/from_le are
@@ -254,6 +292,29 @@ mod tests {
             HeaplessBigInt::<u32, 8, Nct>::from_le_bytes(&b),
             FixedUInt::<u32, 2, Nct>::from_le_bytes(&b),
         );
+    }
+
+    #[test]
+    fn shr_preserves_value_width() {
+        // PrimBits shifts are fixed-width, unlike the `>>` operator which
+        // narrows `len` on whole-word shifts. Without width preservation,
+        // count_zeros/leading_zeros after the shift report the wrong width.
+        let h = HeaplessBigInt::<u32, 8, Nct>::from_le_bytes(&[0, 0, 0, 0, 0, 0, 0, 0x80]); // len 2
+        let f = FixedUInt::<u32, 2, Nct>::from_le_bytes(&[0, 0, 0, 0, 0, 0, 0, 0x80]);
+        let hs = PrimBits::unsigned_shr(h, 32);
+        assert_eq!(hs.len, 2, "shr must preserve the operand width");
+        assert_eq!(
+            PrimBits::count_zeros(hs),
+            PrimBits::count_zeros(f >> 32usize)
+        );
+        assert_eq!(
+            PrimBits::leading_zeros(hs),
+            PrimBits::leading_zeros(f >> 32usize)
+        );
+        // Over-shift clears to a fixed-width zero, not a narrowed one.
+        let hz = PrimBits::unsigned_shr(h, 999);
+        assert_eq!(hz.len, 2);
+        assert_eq!(PrimBits::count_zeros(hz), 64);
     }
 
     #[test]
