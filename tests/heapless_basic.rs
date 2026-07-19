@@ -1346,6 +1346,13 @@ fn bitand_output_len_is_max_of_operand_lens() {
     assert_eq!(out.limbs()[1], 0);
     assert_eq!(out.limbs()[2], 0);
 
+    // Narrow value on the left resolves at the same wider width.
+    let out2 = &mask & &a;
+    assert_eq!(out2.len(), 3);
+    assert_eq!(out2.limbs()[0], 0x0000_00FF);
+    assert_eq!(out2.limbs()[1], 0);
+    assert_eq!(out2.limbs()[2], 0);
+
     // The compound-assign form agrees, in both operand orders.
     let mut x = a;
     x &= mask;

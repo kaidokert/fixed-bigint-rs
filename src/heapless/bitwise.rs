@@ -168,21 +168,24 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitAndAssign<&HeaplessBig
     for HeaplessBigInt<T, CAP, P>
 {
     fn bitand_assign(&mut self, other: &Self) {
-        // Result width is `max(len)` (operand width). AND the overlap; every
-        // limb above `min` ANDs with a zero-tail (whichever operand is shorter),
-        // so it becomes zero.
+        // Result width is `max(len)` (operand width). AND the overlap, then
+        // clear `self`'s own limbs above it — they AND with `other`'s zero-tail,
+        // so they go to zero. When `other` is the wider operand `[min..self.len]`
+        // is empty: `self`'s high limbs are already zero, and the wider result
+        // width is reached just by bumping `len`.
         let min_len = core::cmp::min(self.len, other.len) as usize;
-        let max_len = core::cmp::max(self.len, other.len) as usize;
+        let self_len = self.len as usize;
+        let max_len = core::cmp::max(self.len, other.len);
         for (si, &oi) in self.limbs[..min_len]
             .iter_mut()
             .zip(&other.limbs[..min_len])
         {
             *si &= oi;
         }
-        for si in &mut self.limbs[min_len..max_len] {
+        for si in &mut self.limbs[min_len..self_len] {
             *si = zero::<T>();
         }
-        self.len = max_len as u16;
+        self.len = max_len;
     }
 }
 
