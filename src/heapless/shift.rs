@@ -23,6 +23,23 @@ use const_num_traits::Personality;
 use core::marker::PhantomData;
 use core::ops::{Shl, ShlAssign, Shr, ShrAssign};
 
+// `Shl<u32>` / `Shr<u32>` delegate to the `usize` impls, matching `FixedUInt`.
+// The `num_traits` shift traits (`WrappingShl`, `CheckedShl`, …) require these
+// as supertraits.
+impl<T: MachineWord, const CAP: usize, P: Personality> Shl<u32> for HeaplessBigInt<T, CAP, P> {
+    type Output = Self;
+    fn shl(self, bits: u32) -> Self::Output {
+        self << (bits as usize)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> Shr<u32> for HeaplessBigInt<T, CAP, P> {
+    type Output = Self;
+    fn shr(self, bits: u32) -> Self::Output {
+        self >> (bits as usize)
+    }
+}
+
 impl<T: MachineWord, const CAP: usize, P: Personality> Shl<usize> for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
 
