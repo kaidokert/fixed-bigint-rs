@@ -24,15 +24,22 @@ where
         // positions of `mask`, lowest to highest.
         let width = core::cmp::max(self.len(), mask.len());
         let mut result = Self::new_zero_with_len(width);
+        // Nothing to scatter for an all-zero mask (which is the only way
+        // `width == 0`); returning early also avoids `one().widened(0)`, which
+        // rejects the grow. A non-zero mask has `len >= 1`, so `width >= 1`.
+        if <Self as Zero>::is_zero(&mask) {
+            return result;
+        }
+        let one = <Self as One>::one();
         let mut remaining = mask;
-        let mut bb = <Self as One>::one().widened(width);
+        let mut bb = one.widened(width);
         while !<Self as Zero>::is_zero(&remaining) {
             let lowest = IsolateLowestOne::isolate_lowest_one(remaining);
             if !<Self as Zero>::is_zero(&(self & bb)) {
                 result |= lowest;
             }
             // Clear the lowest set bit of `remaining` (`x & (x - 1)`).
-            remaining &= WrappingSub::wrapping_sub(remaining, <Self as One>::one());
+            remaining &= WrappingSub::wrapping_sub(remaining, one);
             bb = WrappingShl::wrapping_shl(bb, 1);
         }
         result
@@ -49,14 +56,20 @@ where
         // mirror of `deposit_bits`.
         let width = core::cmp::max(self.len(), mask.len());
         let mut result = Self::new_zero_with_len(width);
+        // See `deposit_bits`: an all-zero mask (the only `width == 0` case)
+        // gathers nothing and would otherwise trip `one().widened(0)`.
+        if <Self as Zero>::is_zero(&mask) {
+            return result;
+        }
+        let one = <Self as One>::one();
         let mut remaining = mask;
-        let mut bb = <Self as One>::one().widened(width);
+        let mut bb = one.widened(width);
         while !<Self as Zero>::is_zero(&remaining) {
             let lowest = IsolateLowestOne::isolate_lowest_one(remaining);
             if !<Self as Zero>::is_zero(&(self & lowest)) {
                 result |= bb;
             }
-            remaining &= WrappingSub::wrapping_sub(remaining, <Self as One>::one());
+            remaining &= WrappingSub::wrapping_sub(remaining, one);
             bb = WrappingShl::wrapping_shl(bb, 1);
         }
         result
@@ -92,5 +105,20 @@ mod tests {
         let v = H::from(0x1234_5678u32);
         assert_eq!(DepositBits::deposit_bits(v, mask), v);
         assert_eq!(ExtractBits::extract_bits(v, mask), v);
+    }
+
+    // An all-zero mask scatters/gathers nothing and returns zero — including
+    // the len-0 shape, which would otherwise panic on one().widened(0).
+    #[test]
+    fn zero_mask_returns_zero_without_panic() {
+        let src = H::from(0x1234_5678u32);
+        let zero_mask = H::new_zero_with_len(4);
+        assert_eq!(DepositBits::deposit_bits(src, zero_mask), H::from(0u8));
+        assert_eq!(ExtractBits::extract_bits(src, zero_mask), H::from(0u8));
+
+        // Both operands the minimal len-0 zero shape (width 0).
+        let z0 = H::new_zero_with_len(0);
+        assert_eq!(DepositBits::deposit_bits(z0, z0).len(), 0);
+        assert_eq!(ExtractBits::extract_bits(z0, z0).len(), 0);
     }
 }
