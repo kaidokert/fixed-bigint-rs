@@ -69,7 +69,6 @@ trait Carrier:
     + CarryingMul<Unsigned = Self, Output = Self>
     + Not<Output = Self>
     + PrimBits
-    + core::fmt::Display
 {
     /// Build `v` pinned to the carrier's full 32-bit width. `From<u32>`
     /// alone is minimal-width on HeaplessBigInt (100 → one limb), so
@@ -426,13 +425,7 @@ fn checked_div_rem() {
     for_both_carriers!(body);
 }
 
-#[test]
-fn display_decimal() {
-    fn body<C: Carrier>() {
-        assert_eq!(std::format!("{}", C::from_u32(0)), "0");
-        assert_eq!(std::format!("{}", C::from_u32(1)), "1");
-        assert_eq!(std::format!("{}", C::from_u32(0xDEAD_BEEF)), "3735928559");
-        assert_eq!(std::format!("{}", C::from_u32(MAX32)), "4294967295");
-    }
-    for_both_carriers!(body);
-}
+// Display is tested in the num-traits harness (carrier_num_traits.rs): FixedUInt
+// only implements Display when `num-traits` is on, so a Display bound here would
+// break the feature-free build. HeaplessBigInt's own feature-independent Display
+// is covered in tests/heapless_string.rs.

@@ -20,7 +20,10 @@ where
     T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        const MAX_DIGITS: usize = 20; // decimal digits per u64-sized block
+        // A limb is at most u64 (the widest MachineWord), whose decimal form
+        // is <= 20 digits; `CAP` such blocks cover the widest value. (A
+        // per-limb `size_of::<T>() * 3` would need generic_const_exprs.)
+        const MAX_DIGITS: usize = 20;
 
         if <Self as Zero>::is_zero(self) {
             return f.write_char('0');
@@ -52,10 +55,10 @@ where
 impl<T, const CAP: usize> HeaplessBigInt<T, CAP, Nct>
 where
     T: MachineWord,
-    u8: core::convert::TryFrom<T>,
 {
     // MSB-to-LSB over the value width, suppressing leading-zero nibbles. Zero
     // renders empty (as `FixedUInt` does); callers that need "0" use `Display`.
+    // `to_be_bytes` gives each limb's bytes most-significant-first directly.
     fn hex_fmt(
         &self,
         formatter: &mut core::fmt::Formatter<'_>,
@@ -70,7 +73,6 @@ where
             }
         }
 
-        let word_size = core::mem::size_of::<T>();
         let mut leading_zero = true;
         let mut maybe_write = |nibble: char| -> core::fmt::Result {
             leading_zero &= nibble == '0';
@@ -81,12 +83,7 @@ where
         };
 
         for index in (0..self.len as usize).rev() {
-            let val = self.limbs[index];
-            let mask: T = 0xff.into();
-            for j in (0..word_size as u32).rev() {
-                let masked = val & mask.shl((j * 8) as usize);
-                let byte =
-                    u8::try_from(masked.shr((j * 8) as usize)).map_err(|_| core::fmt::Error)?;
+            for &byte in self.limbs[index].to_be_bytes().as_ref() {
                 maybe_write(to_casedigit((byte & 0xf0) >> 4, uppercase)?)?;
                 maybe_write(to_casedigit(byte & 0x0f, uppercase)?)?;
             }
@@ -98,7 +95,6 @@ where
 impl<T, const CAP: usize> core::fmt::UpperHex for HeaplessBigInt<T, CAP, Nct>
 where
     T: MachineWord,
-    u8: core::convert::TryFrom<T>,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.hex_fmt(f, true)
@@ -108,7 +104,6 @@ where
 impl<T, const CAP: usize> core::fmt::LowerHex for HeaplessBigInt<T, CAP, Nct>
 where
     T: MachineWord,
-    u8: core::convert::TryFrom<T>,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.hex_fmt(f, false)
@@ -142,10 +137,10 @@ where
             Some(x) => &input[x..],
             _ => input,
         };
+        let radix_val = Self::from(radix as u8);
         for c in range.chars() {
             let digit = c.to_digit(radix).ok_or_else(make_parse_int_err)?;
-            ret = CheckedMul::checked_mul(ret, Self::from(radix as u8))
-                .ok_or_else(make_overflow_err)?;
+            ret = CheckedMul::checked_mul(ret, radix_val).ok_or_else(make_overflow_err)?;
             ret = CheckedAdd::checked_add(ret, Self::from(digit as u8))
                 .ok_or_else(make_overflow_err)?;
         }
