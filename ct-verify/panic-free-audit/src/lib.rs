@@ -27,6 +27,9 @@
 #![no_std]
 #![allow(non_snake_case)]
 
+#[cfg(feature = "neg-controls")]
+mod neg_controls;
+
 #[cfg(feature = "diagnostic-ct-scans")]
 use const_num_traits::{Ct, PrimBits};
 use core::hint::black_box;

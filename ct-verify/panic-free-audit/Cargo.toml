@@ -13,10 +13,11 @@ description = "Linker-DCE audit: confirm `FixedUInt::*_bytes_fixed` synthesises 
 # the established byte-serialization audit permanently red.
 diagnostic-ct-scans = []
 diagnostic-nonzero-div = []
+neg-controls = []
 
 [lib]
-# staticlib so a cross-target build produces a `.a` that `cargo nm` can
-# read without needing a linker script or runtime. Same shape as
+# staticlib so a cross-target build produces a `.a` that krabi-caliper can
+# inspect without needing a linker script or runtime. Same shape as
 # `ct-verify/ct-fixtures`.
 crate-type = ["staticlib"]
 
