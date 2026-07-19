@@ -7,7 +7,7 @@
 
 use super::{AssertCapFits, HeaplessBigInt, zero};
 use crate::MachineWord;
-use const_num_traits::{ConstOne, ConstZero, One, Personality, PersonalityTag, Zero};
+use const_num_traits::{Bounded, ConstOne, ConstZero, One, Personality, PersonalityTag, Zero};
 use core::marker::PhantomData;
 
 // ── const_num_traits::Zero / One ──
@@ -145,4 +145,25 @@ impl<T: MachineWord, const CAP: usize, P: Personality> ConstZero for HeaplessBig
 
 impl<T: MachineWord, const CAP: usize, P: Personality> ConstOne for HeaplessBigInt<T, CAP, P> {
     const ONE: Self = Self::const_one();
+}
+
+// ── const_num_traits::Bounded ──
+//
+// `min = 0` (len 0). `max` is the capacity bound: every one of `CAP` limbs
+// saturated, `len = CAP`. This is the one answer `CAP` legitimately sets —
+// it is the widest value the storage can represent, not a value width.
+impl<T: MachineWord, const CAP: usize, P: Personality> Bounded for HeaplessBigInt<T, CAP, P> {
+    #[inline]
+    fn min_value() -> Self {
+        <Self as ConstZero>::ZERO
+    }
+
+    #[inline]
+    fn max_value() -> Self {
+        Self {
+            limbs: [<T as Bounded>::max_value(); CAP],
+            len: CAP as u16,
+            _p: PhantomData,
+        }
+    }
 }

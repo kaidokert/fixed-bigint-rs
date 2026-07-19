@@ -72,6 +72,8 @@ mod div_rem;
 mod from_prim;
 mod has_personality;
 mod identities;
+#[cfg(feature = "num-traits")]
+mod num_traits_bridge;
 mod parity;
 mod shift;
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]
