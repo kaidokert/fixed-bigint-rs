@@ -102,6 +102,7 @@ mod prim_int;
 mod roots_impl;
 mod shift;
 mod shift_ops;
+mod strict;
 mod string_conversion;
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]
 mod to_bytes;
