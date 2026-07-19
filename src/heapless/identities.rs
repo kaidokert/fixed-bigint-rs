@@ -160,6 +160,9 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Bounded for HeaplessBigIn
 
     #[inline]
     fn max_value() -> Self {
+        // `len = CAP` here, so CAP must fit u16 — assert it the same way the
+        // shape-setting constructors do, rather than silently truncating.
+        let () = <Self as AssertCapFits>::CHECK;
         Self {
             limbs: [<T as Bounded>::max_value(); CAP],
             len: CAP as u16,

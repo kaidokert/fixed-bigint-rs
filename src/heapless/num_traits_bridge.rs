@@ -121,7 +121,9 @@ impl<T: MachineWord, const CAP: usize, P: Personality> num_traits::NumCast
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_traits::{FromPrimitive, NumCast, One, ToPrimitive, Zero};
+    // Alias so the assertions exercise the *num_traits* bridge, not the
+    // `const_num_traits::Bounded` pulled in by `super::*`.
+    use num_traits::{Bounded as NumBounded, FromPrimitive, NumCast, One, ToPrimitive, Zero};
 
     type H8x4 = HeaplessBigInt<u8, 4>; // 32-bit carrier
     type H32x8 = HeaplessBigInt<u32, 8>; // 256-bit carrier
@@ -131,9 +133,9 @@ mod tests {
         assert!(<H8x4 as Zero>::zero().is_zero());
         assert!(!<H8x4 as One>::one().is_zero());
         // max is capacity-wide (all CAP limbs saturated).
-        let max = <H8x4 as Bounded>::max_value();
+        let max = <H8x4 as NumBounded>::max_value();
         assert_eq!(max.to_u64(), Some(0xFFFF_FFFF));
-        assert!(<H8x4 as Bounded>::min_value().is_zero());
+        assert!(<H8x4 as NumBounded>::min_value().is_zero());
     }
 
     #[test]
