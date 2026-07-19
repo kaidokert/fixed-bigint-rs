@@ -1334,13 +1334,27 @@ fn bitand_masks_bits() {
 }
 
 #[test]
-fn bitand_output_len_is_min_of_operand_lens() {
-    // a spans 3 limbs, mask spans 1 → result can only have limb 0 set.
+fn bitand_output_len_is_max_of_operand_lens() {
+    // a spans 3 limbs, mask spans 1. AND masks to limb 0, but the result
+    // resolves at the wider operand width like every other binary op — the
+    // high limbs are zero (masked against the shorter operand's zero-tail).
     let a = H4u32Nct::from_limbs([0xFFFF_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF, 0], 3);
     let mask: H4u32Nct = 0x0000_00FFu32.into(); // len 1
     let out = &a & &mask;
-    assert_eq!(out.len(), 1);
+    assert_eq!(out.len(), 3);
     assert_eq!(out.limbs()[0], 0x0000_00FF);
+    assert_eq!(out.limbs()[1], 0);
+    assert_eq!(out.limbs()[2], 0);
+
+    // The compound-assign form agrees, in both operand orders.
+    let mut x = a;
+    x &= mask;
+    assert_eq!(x.len(), 3);
+    assert_eq!(x.limbs()[0], 0x0000_00FF);
+    let mut y = mask;
+    y &= a;
+    assert_eq!(y.len(), 3);
+    assert_eq!(y.limbs()[0], 0x0000_00FF);
 }
 
 #[test]
@@ -1364,12 +1378,16 @@ fn bitand_all_receiver_forms_agree() {
 
 #[test]
 fn bitand_with_full_width_mask() {
-    // Masking a short value by a full-CAP all-ones mask returns the value.
+    // Masking a short value by a full-CAP all-ones mask returns the value at
+    // the wider (mask) width — high limbs zero.
     let v: H4u32Nct = 0x1234_5678u32.into(); // len 1
     let mask = H4u32Nct::from_limbs([u32::MAX; 4], 4);
     let out = v & mask;
+    assert_eq!(out.len(), 4);
     assert_eq!(out.limbs()[0], 0x1234_5678);
-    assert_eq!(out.len(), 1);
+    assert_eq!(out.limbs()[1], 0);
+    assert_eq!(out.limbs()[2], 0);
+    assert_eq!(out.limbs()[3], 0);
 }
 
 // ── BitOr ──
@@ -1742,15 +1760,16 @@ fn bitxor_and_bitwise_assign_ops() {
 
 #[test]
 fn bitwise_assign_ops_cross_width() {
-    // The in-place assigns must reshape `len` like the binary ops:
-    // `&=` shrinks to min, `|=`/`^=` grow to max.
+    // The in-place assigns reshape `len` like the binary ops — all resolve at
+    // max(len), including `&=` (its high limbs mask to zero).
     let wide = H4u32Nct::from_limbs([0xFFFF_FFFF, 0xFFFF_FFFF, 0, 0], 2);
     let narrow = H4u32Nct::from_limbs([0x0F0F_0F0F, 0, 0, 0], 1);
 
     let mut a = wide;
     a &= narrow;
-    assert_eq!(a.len(), 1);
+    assert_eq!(a.len(), 2);
     assert_eq!(a.limbs()[0], 0x0F0F_0F0F);
+    assert_eq!(a.limbs()[1], 0);
 
     let mut b = narrow;
     b |= wide;
