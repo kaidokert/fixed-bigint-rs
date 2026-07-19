@@ -9,17 +9,16 @@
 //!   6. exit non-zero if any ct_fix__* fixture has a violation
 //!      OR any nct_fix__neg__* fixture has zero violations
 
-mod parse;
-mod report;
 mod target;
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use crate::parse::{Patterns, Violation};
-use crate::report::{Report, ViolationOut};
-use crate::target::{lookup, TargetSpec, TARGETS};
+use crate::target::{TARGETS, TargetSpec, lookup};
+use krabi_caliper::host::ct_asm::{
+    self as parse, Patterns, Violation, ViolationOut, WholeSurfaceReport as Report,
+};
 
 #[derive(Default)]
 struct Args {
@@ -144,7 +143,7 @@ fn main() -> ExitCode {
 
     // 4. Parse + scan.
     let blocks = parse::split_blocks(&objdump_text);
-    let pat = Patterns::build(spec);
+    let pat = patterns(spec);
     // Reachability: fixtures plus every helper transitively reachable
     // through call edges. Helpers that aren't reached from any fixture
     // are out of scope (probably dead code in the staticlib).
@@ -163,13 +162,13 @@ fn main() -> ExitCode {
         // bodies are expected to contain forbidden mnemonics.
         if parse::is_positive_fixture(&block.symbol) {
             ct_fixture_count += 1;
-            ct_violations.extend(parse::scan_block(block, spec, &pat));
+            ct_violations.extend(parse::scan_block(block, &pat, spec.thumb_it_blocks));
             continue;
         }
         if parse::is_negative_control(&block.symbol) {
             let canonical = block.symbol.trim_start_matches('_').to_string();
             neg_seen.insert(canonical.clone());
-            if !parse::scan_block(block, spec, &pat).is_empty() {
+            if !parse::scan_block(block, &pat, spec.thumb_it_blocks).is_empty() {
                 neg_tripped.insert(canonical);
             }
             continue;
@@ -186,7 +185,7 @@ fn main() -> ExitCode {
             continue;
         }
         helpers_scanned += 1;
-        helper_violations.extend(parse::scan_block(block, spec, &pat));
+        helper_violations.extend(parse::scan_block(block, &pat, spec.thumb_it_blocks));
     }
     let neg_fixture_count = neg_seen.len();
     let neg_failed: Vec<String> = neg_seen.difference(&neg_tripped).cloned().collect();
@@ -228,7 +227,9 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
     if neg_fixture_count == 0 {
-        eprintln!("error: no nct_fix__neg__* negative controls found in archive — harness self-test failed");
+        eprintln!(
+            "error: no nct_fix__neg__* negative controls found in archive — harness self-test failed"
+        );
         return ExitCode::FAILURE;
     }
 
@@ -237,6 +238,16 @@ fn main() -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+fn patterns(spec: &TargetSpec) -> Patterns {
+    Patterns::new(
+        spec.forbidden,
+        spec.allowed_cmov,
+        spec.call_mnemonics,
+        spec.allowed_helpers,
+        spec.extra_allowed_helpers,
+    )
 }
 
 fn host_triple() -> Option<String> {
