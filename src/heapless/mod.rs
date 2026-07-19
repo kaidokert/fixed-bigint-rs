@@ -33,8 +33,7 @@
 //! | `Shr` (`>>`) | `self.len` minus the whole-word shift |
 //! | `WideMul` / [`CarryingMul`](const_num_traits::CarryingMul) | `lo` and `hi` each `max(a.len, b.len)`; reconstruct `hi·2^(W·word_bits) + lo` |
 //! | `Div` (`/`), `Rem` (`%`) | `max(dividend.len, divisor.len)` |
-//! | `BitAnd` (`&`) | `min(a.len, b.len)` |
-//! | `BitOr` | `max(a.len, b.len)` |
+//! | `BitAnd` (`&`), `BitOr`, `BitXor` | `max(a.len, b.len)` |
 //! | [`widened`](HeaplessBigInt::widened) / `WithPrecision` | the requested width (grow-only) |
 //!
 //! ## Construction & serialization widths
