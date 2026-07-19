@@ -12,7 +12,8 @@
 use const_num_traits::{CarryingMul, Nct, WithPrecision};
 use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
 use num_traits::{
-    Bounded, CheckedDiv, CheckedRem, FromPrimitive, NumCast, One, Saturating, ToPrimitive, Zero,
+    Bounded, CheckedDiv, CheckedRem, FromPrimitive, Num, NumCast, One, Saturating, ToPrimitive,
+    Zero,
 };
 
 /// The num_traits foundation both carriers implement, pinned to 32 bits.
@@ -29,6 +30,9 @@ trait NumCarrier:
     + Saturating
     + CheckedDiv
     + CheckedRem
+    + Num<FromStrRadixErr = core::num::ParseIntError>
+    + core::str::FromStr<Err = core::num::ParseIntError>
+    + core::fmt::Display
     + From<u32>
     + WithPrecision
 {
@@ -122,6 +126,40 @@ fn saturating_and_checked_div() {
         assert_eq!(CheckedRem::checked_rem(&a, &C::at32(7)), Some(C::at32(2)));
         assert_eq!(CheckedDiv::checked_div(&a, &C::at32(0)), None);
         assert_eq!(CheckedRem::checked_rem(&a, &C::at32(0)), None);
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn num_from_str_radix_and_fromstr() {
+    fn body<C: NumCarrier>() {
+        // decimal + hex parse
+        assert_eq!(Num::from_str_radix("255", 10), Ok(C::at32(255)));
+        assert_eq!(Num::from_str_radix("ff", 16), Ok(C::at32(255)));
+        assert_eq!(Num::from_str_radix("FF", 16), Ok(C::at32(255))); // uppercase hex
+        assert_eq!(Num::from_str_radix("0", 10), Ok(C::at32(0)));
+        // leading zeros are stripped
+        assert_eq!(Num::from_str_radix("000255", 10), Ok(C::at32(255)));
+        assert_eq!(Num::from_str_radix("0000", 10), Ok(C::at32(0)));
+        // FromStr is decimal
+        assert_eq!("4294967295".parse::<C>(), Ok(C::at32(0xFFFF_FFFF)));
+        // errors: empty, bad char, both radix bounds, and 32-bit overflow
+        assert!(<C as Num>::from_str_radix("", 10).is_err());
+        assert!(<C as Num>::from_str_radix("12x", 10).is_err());
+        assert!(<C as Num>::from_str_radix("1", 1).is_err()); // radix < 2
+        assert!(<C as Num>::from_str_radix("1", 99).is_err()); // radix > 16
+        assert!(<C as Num>::from_str_radix("4294967296", 10).is_err()); // 2^32 > width
+    }
+    for_both_carriers!(body);
+}
+
+#[test]
+fn display_decimal() {
+    fn body<C: NumCarrier>() {
+        assert_eq!(std::format!("{}", C::at32(0)), "0");
+        assert_eq!(std::format!("{}", C::at32(1)), "1");
+        assert_eq!(std::format!("{}", C::at32(0xDEAD_BEEF)), "3735928559");
+        assert_eq!(std::format!("{}", C::at32(0xFFFF_FFFF)), "4294967295");
     }
     for_both_carriers!(body);
 }

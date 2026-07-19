@@ -142,6 +142,12 @@ impl<T, const CAP: usize> HeaplessBigInt<T, CAP, Nct>
 where
     T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
 {
+    /// Quotient and remainder in one pass. Panics on divide-by-zero, like the
+    /// `Div`/`Rem` operators; use `checked_div`/`checked_rem` to avoid the panic.
+    pub fn div_rem(&self, other: &Self) -> (Self, Self) {
+        div_rem_impl(self, other)
+    }
+
     /// Checked division. `None` on divide-by-zero.
     pub fn checked_div(&self, other: &Self) -> Option<Self> {
         if <Self as Zero>::is_zero(other) {

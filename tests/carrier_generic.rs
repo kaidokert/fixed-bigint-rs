@@ -424,3 +424,8 @@ fn checked_div_rem() {
     }
     for_both_carriers!(body);
 }
+
+// Display is tested in the num-traits harness (carrier_num_traits.rs): FixedUInt
+// only implements Display when `num-traits` is on, so a Display bound here would
+// break the feature-free build. HeaplessBigInt's own feature-independent Display
+// is covered in tests/heapless_string.rs.

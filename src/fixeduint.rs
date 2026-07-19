@@ -1601,15 +1601,15 @@ c0nst::c0nst! {
 
 // This is slightly less than ideal, but PIE isn't directly constructible
 // due to unstable members.
-fn make_parse_int_err() -> core::num::ParseIntError {
+pub(crate) fn make_parse_int_err() -> core::num::ParseIntError {
     <u8>::from_str_radix("-", 2).err().unwrap()
 }
 #[cfg(feature = "num-traits")]
-fn make_overflow_err() -> core::num::ParseIntError {
+pub(crate) fn make_overflow_err() -> core::num::ParseIntError {
     <u8>::from_str_radix("101", 16).err().unwrap()
 }
 #[cfg(feature = "num-traits")]
-fn make_empty_error() -> core::num::ParseIntError {
+pub(crate) fn make_empty_error() -> core::num::ParseIntError {
     <u8>::from_str_radix("", 8).err().unwrap()
 }
 
