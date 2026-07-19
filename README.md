@@ -12,11 +12,15 @@ Unsigned BigInt implementation, backed by a fixed-size array.
 `FixedUInt<u8,4>`,`FixedUInt<u16,2>` or `FixedUInt<u32,1>` all create a 32-bit unsigned integer, that behaves mostly the same as builtin `u32`.
 `FixedUInt<u32, 64>` creates a 2048-bit value, that uses native 32-bit math. If running on 8-bit CPU, `FixedUInt<u8, 2048>` would work the same, just very much slower.
 
+When the width isn't known until runtime, `HeaplessBigInt<T, CAP>` keeps a runtime length in the same fixed-size storage: the `CAP`-word buffer holds any value up to that width, and at each width it behaves like the equivalent `FixedUInt`. That lets a single buffer be sized for the largest case while smaller values still work.
+
 The crate is written for `no_std` and `no_alloc` environments with option for panic-free operation, i.e. embedded MCUs. At least for now, focus is on correctness first and then generated code size, performance comes last. The aim is not to bring in 64-bit math dependencies on 32-bit CPU, to save code space.
 
-The arithmetic operands ( +, -, .add() ) panic on overflow, just like native integer types. Panic-free alternatives like `overlowing_add` and `wrapping_add` are supported.
+The arithmetic operands ( +, -, .add() ) panic on overflow, just like native integer types. Panic-free alternatives like `overflowing_add` and `wrapping_add` are supported.
 
 In addition to basic arithmetic, two main traits are implemented: [num_traits::PrimInt](https://docs.rs/num-traits/latest/num_traits/int/trait.PrimInt.html) and [num_integer::Integer](https://docs.rs/num/latest/num/integer/trait.Integer.html).
+
+An optional `zeroize` feature wipes a value's backing store on drop, for handling sensitive data.
 
 ## Const Support
 
@@ -25,11 +29,6 @@ Most arithmetic operations are const-compatible via the [c0nst](https://crates.i
 ## Constant time
 
 Constant-time execution is implemented for a subset of core operations. Ct mode is selected by a type parameter, allowing individual calling contexts to use either mode. This is purely experimental, not audited or thoroughly verified.
-
-_TODO list_:
- * Implement experimental `unchecked_math` operands, unchecked_mul, unchecked_div etc.
- * Probably needs its own error structs instead of reusing core::fmt::Error and core::num::ParseIntError
- * Maybe implement signed version as well.
 
 _Note:_ This crate is mostly written as an exercise for learning the Rust type system and understanding how well it works on microcontrollers, its fitness for any particular purpose or quality has precisely zero guarantees.
 
