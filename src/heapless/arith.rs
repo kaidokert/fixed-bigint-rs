@@ -32,7 +32,7 @@ use core::marker::PhantomData;
 // `max(a.len, b.len)`, matching `FixedUInt<T, width>::max_value()`. It is NOT
 // `Bounded::max_value()`, which on this carrier is the CAP-wide max.
 #[inline]
-fn max_at_len<T: MachineWord, const CAP: usize, P: Personality>(
+pub(crate) fn max_at_len<T: MachineWord, const CAP: usize, P: Personality>(
     len: u16,
 ) -> HeaplessBigInt<T, CAP, P> {
     let mut limbs = [zero::<T>(); CAP];
@@ -425,6 +425,47 @@ where
     fn saturating_mul(self, v: Self) -> Self {
         let (res, overflow) = OverflowingMul::overflowing_mul(self, v);
         ct_select(&res, &max_at_len(res.len), overflow)
+    }
+}
+
+// ── Ct checked arithmetic: masked-return `CtOption` ──
+//
+// The overflow flag gates the `CtOption` mask instead of a branch, so a
+// secret operand's overflow isn't leaked through an `Option` discriminant.
+// No `ct_select` (or `ConditionallySelectable` bound) needed — the value is
+// always the wrapped result; only its observability is masked. P-generic,
+// like FixedUInt's.
+
+impl<T, const CAP: usize, P: Personality> const_num_traits::ops::ct::CtCheckedAdd
+    for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    fn ct_checked_add(&self, v: &Self) -> subtle::CtOption<Self> {
+        let (val, overflow) = self.overflowing_add(v);
+        subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
+    }
+}
+
+impl<T, const CAP: usize, P: Personality> const_num_traits::ops::ct::CtCheckedSub
+    for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    fn ct_checked_sub(&self, v: &Self) -> subtle::CtOption<Self> {
+        let (val, borrow) = self.overflowing_sub(v);
+        subtle::CtOption::new(val, subtle::Choice::from(!borrow as u8))
+    }
+}
+
+impl<T, const CAP: usize, P: Personality> const_num_traits::ops::ct::CtCheckedMul
+    for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn ct_checked_mul(&self, v: &Self) -> subtle::CtOption<Self> {
+        let (val, overflow) = self.overflowing_mul(v);
+        subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
     }
 }
 
@@ -972,6 +1013,38 @@ mod tests {
         let seven = H::from_le_bytes(&7u32.to_le_bytes());
         assert_eq!(a.checked_div(&seven).unwrap().limbs[0], 14);
         assert_eq!(a.checked_rem(&seven).unwrap().limbs[0], 2);
+    }
+
+    // CtCheckedAdd/Sub/Mul: the value is always the wrapped result; is_some
+    // masks overflow. Matches the plain checked_* value + overflow status.
+    #[test]
+    fn ct_checked_arithmetic() {
+        use const_num_traits::ops::ct::{CtCheckedAdd, CtCheckedMul, CtCheckedSub};
+        type Cc = HeaplessBigInt<u8, 4, Ct>;
+
+        // No overflow: is_some, value matches.
+        let a = Cc::from(100u32);
+        let b = Cc::from(50u32);
+        let s = a.ct_checked_add(&b);
+        assert!(bool::from(s.is_some()));
+        assert_eq!(s.unwrap(), Cc::from(150u32));
+        assert!(bool::from(a.ct_checked_sub(&b).is_some()));
+        assert!(bool::from(
+            Cc::from(7u32).ct_checked_mul(&Cc::from(9u32)).is_some()
+        ));
+
+        // Overflow / underflow: is_none (masked).
+        assert!(!bool::from(
+            Cc::from(u32::MAX).ct_checked_add(&Cc::from(1u32)).is_some()
+        ));
+        assert!(!bool::from(
+            Cc::from(0u32).ct_checked_sub(&Cc::from(1u32)).is_some()
+        ));
+        assert!(!bool::from(
+            Cc::from(0x1_0000u32)
+                .ct_checked_mul(&Cc::from(0x1_0000u32))
+                .is_some()
+        ));
     }
 
     // The branchless Ct saturating impls must produce the same values as the
