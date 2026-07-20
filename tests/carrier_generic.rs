@@ -12,15 +12,15 @@
 //! file is only the surface both share.
 
 use const_num_traits::{
-    AbsDiff, BorrowingSub, CarryingAdd, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid,
-    CheckedMul, CheckedPow, CheckedRem, CheckedShl, CheckedShr, CheckedSub, DepositBits, DivCeil,
-    Euclid, ExtractBits, FunnelShl, FunnelShr, HighestOne, Ilog, Ilog2, Ilog10, IsPowerOfTwo,
-    IsolateHighestOne, IsolateLowestOne, Isqrt, LowestOne, Midpoint, MultipleOf, Nct,
-    NextMultipleOf, NextPowerOfTwo, OverflowingAdd, OverflowingMul, OverflowingShl, OverflowingShr,
-    OverflowingSub, Parity, PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub, ShlExact,
-    ShrExact, StrictAdd, StrictDiv, StrictMul, StrictPow, StrictRem, StrictShl, StrictShr,
-    StrictSub, UnboundedShl, UnboundedShr, WithPrecision, WrappingAdd, WrappingMul, WrappingShl,
-    WrappingShr, WrappingSub, Zero,
+    AbsDiff, BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedAdd, CheckedDiv,
+    CheckedEuclid, CheckedMul, CheckedPow, CheckedRem, CheckedShl, CheckedShr, CheckedSub,
+    DepositBits, DivCeil, Euclid, ExtractBits, FunnelShl, FunnelShr, HighestOne, Ilog, Ilog2,
+    Ilog10, IsPowerOfTwo, IsolateHighestOne, IsolateLowestOne, Isqrt, LowestOne, Midpoint,
+    MultipleOf, Nct, NextMultipleOf, NextPowerOfTwo, One, OverflowingAdd, OverflowingMul,
+    OverflowingShl, OverflowingShr, OverflowingSub, Parity, PrimBits, SaturatingAdd, SaturatingMul,
+    SaturatingSub, ShlExact, ShrExact, StrictAdd, StrictDiv, StrictMul, StrictPow, StrictRem,
+    StrictShl, StrictShr, StrictSub, UnboundedShl, UnboundedShr, WithPrecision, WrappingAdd,
+    WrappingMul, WrappingShl, WrappingShr, WrappingSub, Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -35,6 +35,8 @@ trait Carrier:
     + PartialEq
     + PartialOrd
     + Zero
+    + One
+    + Bounded
     + Parity
     + From<u32>
     + WithPrecision
@@ -700,6 +702,63 @@ fn div_ceil() {
             DivCeil::div_ceil(C::from_u32(MAX32), C::from_u32(1)),
             C::from_u32(MAX32)
         );
+    }
+    for_both_carriers!(body);
+}
+
+// Identity (`one`) and the width bounds (`min`/`max`). At the pinned 32-bit
+// width, min is zero and max is the 32-bit max on every backing.
+#[test]
+fn one_and_bounds() {
+    fn body<C: Carrier>() {
+        assert_eq!(<C as One>::one(), C::from_u32(1));
+        assert!(One::is_one(&C::from_u32(1)));
+        assert!(!One::is_one(&C::from_u32(0)));
+
+        assert_eq!(<C as Bounded>::min_value(), C::from_u32(0));
+        assert_eq!(<C as Bounded>::max_value(), C::from_u32(MAX32));
+    }
+    for_both_carriers!(body);
+}
+
+// `num_integer::Roots` and `num_integer::Integer` are compiled only under the
+// `num-traits` feature (which pulls in `num-integer`), so their shared coverage
+// is gated to match — unlike the always-available const-num-traits surface.
+#[cfg(feature = "num-traits")]
+#[test]
+fn roots_and_integer() {
+    fn body<C: Carrier + num_integer::Roots + num_integer::Integer>() {
+        use num_integer::{Integer, Roots};
+
+        // Roots truncate toward zero.
+        assert_eq!(Roots::sqrt(&C::from_u32(144)), C::from_u32(12));
+        assert_eq!(Roots::sqrt(&C::from_u32(145)), C::from_u32(12));
+        assert_eq!(Roots::cbrt(&C::from_u32(27)), C::from_u32(3));
+        assert_eq!(Roots::nth_root(&C::from_u32(81), 4), C::from_u32(3));
+
+        // Integer: gcd / lcm / floored div-mod / div_rem / parity.
+        assert_eq!(
+            Integer::gcd(&C::from_u32(48), &C::from_u32(36)),
+            C::from_u32(12)
+        );
+        assert_eq!(
+            Integer::lcm(&C::from_u32(4), &C::from_u32(6)),
+            C::from_u32(12)
+        );
+        assert_eq!(
+            Integer::div_floor(&C::from_u32(17), &C::from_u32(5)),
+            C::from_u32(3)
+        );
+        assert_eq!(
+            Integer::mod_floor(&C::from_u32(17), &C::from_u32(5)),
+            C::from_u32(2)
+        );
+        assert_eq!(
+            Integer::div_rem(&C::from_u32(17), &C::from_u32(5)),
+            (C::from_u32(3), C::from_u32(2))
+        );
+        assert!(Integer::is_even(&C::from_u32(10)));
+        assert!(Integer::is_odd(&C::from_u32(7)));
     }
     for_both_carriers!(body);
 }
