@@ -12,14 +12,15 @@
 //! file is only the surface both share.
 
 use const_num_traits::{
-    AbsDiff, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid, CheckedMul, CheckedPow,
-    CheckedRem, CheckedShl, CheckedShr, CheckedSub, DepositBits, Euclid, ExtractBits, FunnelShl,
-    FunnelShr, HighestOne, Ilog, Ilog2, Ilog10, IsPowerOfTwo, IsolateHighestOne, IsolateLowestOne,
-    Isqrt, LowestOne, Midpoint, MultipleOf, Nct, NextMultipleOf, NextPowerOfTwo, OverflowingAdd,
-    OverflowingMul, OverflowingShl, OverflowingShr, OverflowingSub, Parity, PrimBits,
-    SaturatingAdd, SaturatingMul, SaturatingSub, ShlExact, ShrExact, StrictPow, UnboundedShl,
-    UnboundedShr, WithPrecision, WrappingAdd, WrappingMul, WrappingShl, WrappingShr, WrappingSub,
-    Zero,
+    AbsDiff, BorrowingSub, CarryingAdd, CarryingMul, CheckedAdd, CheckedDiv, CheckedEuclid,
+    CheckedMul, CheckedPow, CheckedRem, CheckedShl, CheckedShr, CheckedSub, DepositBits, DivCeil,
+    Euclid, ExtractBits, FunnelShl, FunnelShr, HighestOne, Ilog, Ilog2, Ilog10, IsPowerOfTwo,
+    IsolateHighestOne, IsolateLowestOne, Isqrt, LowestOne, Midpoint, MultipleOf, Nct,
+    NextMultipleOf, NextPowerOfTwo, OverflowingAdd, OverflowingMul, OverflowingShl, OverflowingShr,
+    OverflowingSub, Parity, PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub, ShlExact,
+    ShrExact, StrictAdd, StrictDiv, StrictMul, StrictPow, StrictRem, StrictShl, StrictShr,
+    StrictSub, UnboundedShl, UnboundedShr, WithPrecision, WrappingAdd, WrappingMul, WrappingShl,
+    WrappingShr, WrappingSub, Zero,
 };
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -76,6 +77,16 @@ trait Carrier:
     + PrimBits
     + CheckedPow<Output = Self>
     + StrictPow<Output = Self>
+    + StrictAdd<Output = Self>
+    + StrictSub<Output = Self>
+    + StrictMul<Output = Self>
+    + StrictDiv<Output = Self>
+    + StrictRem<Output = Self>
+    + StrictShl<Output = Self>
+    + StrictShr<Output = Self>
+    + CarryingAdd<Output = Self>
+    + BorrowingSub<Output = Self>
+    + DivCeil<Output = Self>
     + Euclid<Output = Self>
     + CheckedEuclid
     + AbsDiff<Output = Self>
@@ -588,6 +599,90 @@ fn pow() {
         assert_eq!(CheckedPow::checked_pow(C::from_u32(2), 32), None);
         // strict_pow returns the value when it fits.
         assert_eq!(StrictPow::strict_pow(C::from_u32(2), 10), C::from_u32(1024));
+    }
+    for_both_carriers!(body);
+}
+
+// The `strict_*` family returns the value on the in-range path (the overflow
+// panic is width-dependent, so it lives in each carrier's own suite).
+#[test]
+fn strict_arithmetic() {
+    fn body<C: Carrier>() {
+        assert_eq!(
+            StrictAdd::strict_add(C::from_u32(100), C::from_u32(50)),
+            C::from_u32(150)
+        );
+        assert_eq!(
+            StrictSub::strict_sub(C::from_u32(150), C::from_u32(50)),
+            C::from_u32(100)
+        );
+        assert_eq!(
+            StrictMul::strict_mul(C::from_u32(13), C::from_u32(17)),
+            C::from_u32(221)
+        );
+        assert_eq!(
+            StrictDiv::strict_div(C::from_u32(221), C::from_u32(17)),
+            C::from_u32(13)
+        );
+        assert_eq!(
+            StrictRem::strict_rem(C::from_u32(223), C::from_u32(17)),
+            C::from_u32(2)
+        );
+        assert_eq!(
+            StrictShl::strict_shl(C::from_u32(1), 8),
+            C::from_u32(0x0000_0100)
+        );
+        assert_eq!(
+            StrictShr::strict_shr(C::from_u32(0x0000_0100), 8),
+            C::from_u32(1)
+        );
+    }
+    for_both_carriers!(body);
+}
+
+// Extended add/sub with carry/borrow in and out, at the 32-bit width boundary.
+#[test]
+fn carrying_add_borrowing_sub() {
+    fn body<C: Carrier>() {
+        let (s, c) = CarryingAdd::carrying_add(C::from_u32(100), C::from_u32(50), false);
+        assert_eq!((s, c), (C::from_u32(150), false));
+        let (s, c) = CarryingAdd::carrying_add(C::from_u32(100), C::from_u32(50), true);
+        assert_eq!((s, c), (C::from_u32(151), false));
+        // width max + 1 carries out, wrapping to zero.
+        let (s, c) = CarryingAdd::carrying_add(C::from_u32(MAX32), C::from_u32(1), false);
+        assert_eq!((s, c), (C::from_u32(0), true));
+
+        let (d, b) = BorrowingSub::borrowing_sub(C::from_u32(150), C::from_u32(50), false);
+        assert_eq!((d, b), (C::from_u32(100), false));
+        let (d, b) = BorrowingSub::borrowing_sub(C::from_u32(150), C::from_u32(50), true);
+        assert_eq!((d, b), (C::from_u32(99), false));
+        // 0 - 1 borrows out, wrapping to the width max.
+        let (d, b) = BorrowingSub::borrowing_sub(C::from_u32(0), C::from_u32(1), false);
+        assert_eq!((d, b), (C::from_u32(MAX32), true));
+    }
+    for_both_carriers!(body);
+}
+
+// Ceiling division: rounds up on any remainder.
+#[test]
+fn div_ceil() {
+    fn body<C: Carrier>() {
+        assert_eq!(
+            DivCeil::div_ceil(C::from_u32(10), C::from_u32(5)),
+            C::from_u32(2)
+        );
+        assert_eq!(
+            DivCeil::div_ceil(C::from_u32(11), C::from_u32(5)),
+            C::from_u32(3)
+        );
+        assert_eq!(
+            DivCeil::div_ceil(C::from_u32(0), C::from_u32(5)),
+            C::from_u32(0)
+        );
+        assert_eq!(
+            DivCeil::div_ceil(C::from_u32(MAX32), C::from_u32(1)),
+            C::from_u32(MAX32)
+        );
     }
     for_both_carriers!(body);
 }
