@@ -651,6 +651,12 @@ fn carrying_add_borrowing_sub() {
         // width max + 1 carries out, wrapping to zero.
         let (s, c) = CarryingAdd::carrying_add(C::from_u32(MAX32), C::from_u32(1), false);
         assert_eq!((s, c), (C::from_u32(0), true));
+        // carry_in alone tips width max over: max + 0 + 1 wraps to zero, carries.
+        let (s, c) = CarryingAdd::carrying_add(C::from_u32(MAX32), C::from_u32(0), true);
+        assert_eq!((s, c), (C::from_u32(0), true));
+        // max + max + 1 = 2^33 - 1: low half is max, carries out.
+        let (s, c) = CarryingAdd::carrying_add(C::from_u32(MAX32), C::from_u32(MAX32), true);
+        assert_eq!((s, c), (C::from_u32(MAX32), true));
 
         let (d, b) = BorrowingSub::borrowing_sub(C::from_u32(150), C::from_u32(50), false);
         assert_eq!((d, b), (C::from_u32(100), false));
@@ -659,6 +665,12 @@ fn carrying_add_borrowing_sub() {
         // 0 - 1 borrows out, wrapping to the width max.
         let (d, b) = BorrowingSub::borrowing_sub(C::from_u32(0), C::from_u32(1), false);
         assert_eq!((d, b), (C::from_u32(MAX32), true));
+        // borrow_in alone underflows zero: 0 - 0 - 1 wraps to width max, borrows.
+        let (d, b) = BorrowingSub::borrowing_sub(C::from_u32(0), C::from_u32(0), true);
+        assert_eq!((d, b), (C::from_u32(MAX32), true));
+        // 0 - max - 1 = -2^32: wraps back to zero, still borrows.
+        let (d, b) = BorrowingSub::borrowing_sub(C::from_u32(0), C::from_u32(MAX32), true);
+        assert_eq!((d, b), (C::from_u32(0), true));
     }
     for_both_carriers!(body);
 }
@@ -678,6 +690,11 @@ fn div_ceil() {
         assert_eq!(
             DivCeil::div_ceil(C::from_u32(0), C::from_u32(5)),
             C::from_u32(0)
+        );
+        // Dividend below divisor still rounds up to one.
+        assert_eq!(
+            DivCeil::div_ceil(C::from_u32(3), C::from_u32(10)),
+            C::from_u32(1)
         );
         assert_eq!(
             DivCeil::div_ceil(C::from_u32(MAX32), C::from_u32(1)),
