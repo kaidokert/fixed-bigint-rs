@@ -314,6 +314,41 @@ where
     }
 }
 
+// Reference-receiver mirrors: `(&h).checked_add(&g)` binds the same generic
+// trait bound as the value form. The receiver and operand are already `&Self`,
+// so these forward to the inherent by-ref methods (`checked_add(&self, &Self)`)
+// rather than the by-value trait — no `[T; CAP]` copy of either operand.
+
+impl<T, const CAP: usize> CheckedAdd for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn checked_add(self, v: Self) -> Option<Self::Output> {
+        HeaplessBigInt::<T, CAP, Nct>::checked_add(self, v)
+    }
+}
+
+impl<T, const CAP: usize> CheckedMul for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn checked_mul(self, v: Self) -> Option<Self::Output> {
+        HeaplessBigInt::<T, CAP, Nct>::checked_mul(self, v)
+    }
+}
+
+impl<T, const CAP: usize> CheckedSub for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn checked_sub(self, v: Self) -> Option<Self::Output> {
+        HeaplessBigInt::<T, CAP, Nct>::checked_sub(self, v)
+    }
+}
+
 // ── num_traits Checked{Add,Sub,Mul} (Nct only) ──
 //
 // The `num_traits::PrimInt` supertraits, bridging its by-reference receiver to
@@ -425,6 +460,70 @@ where
     fn saturating_mul(self, v: Self) -> Self {
         let (res, overflow) = OverflowingMul::overflowing_mul(self, v);
         ct_select(&res, &max_at_len(res.len), overflow)
+    }
+}
+
+// Reference-receiver mirrors for both personalities: deref and forward to the
+// matching value impl (`HeaplessBigInt: Copy`), so `(&h).saturating_add(&g)`
+// resolves the same way `h.saturating_add(g)` does.
+
+impl<T, const CAP: usize> SaturatingAdd for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn saturating_add(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as SaturatingAdd>::saturating_add(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingSub for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn saturating_sub(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as SaturatingSub>::saturating_sub(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingMul for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn saturating_mul(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as SaturatingMul>::saturating_mul(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingAdd for &HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = HeaplessBigInt<T, CAP, Ct>;
+    fn saturating_add(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Ct> as SaturatingAdd>::saturating_add(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingSub for &HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = HeaplessBigInt<T, CAP, Ct>;
+    fn saturating_sub(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Ct> as SaturatingSub>::saturating_sub(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingMul for &HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T> + subtle::ConditionallySelectable,
+{
+    type Output = HeaplessBigInt<T, CAP, Ct>;
+    fn saturating_mul(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Ct> as SaturatingMul>::saturating_mul(*self, *v)
     }
 }
 
@@ -814,6 +913,18 @@ where
     }
 }
 
+// Reference-receiver mirror (deref and forward, `HeaplessBigInt: Copy`).
+
+impl<T, const CAP: usize, P: Personality> CarryingAdd for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn carrying_add(self, rhs: Self, carry_in: bool) -> (Self::Output, bool) {
+        <HeaplessBigInt<T, CAP, P> as CarryingAdd>::carrying_add(*self, *rhs, carry_in)
+    }
+}
+
 // `self - rhs - borrow_in` with borrow_out, over the operands' width
 // (`max(self.len, rhs.len)`) — same width rule as `wrapping_sub`, so
 // underflow wraps at the value's width. Used by multi-precision reduction.
@@ -843,6 +954,18 @@ where
             },
             borrow,
         )
+    }
+}
+
+// Reference-receiver mirror (deref and forward, `HeaplessBigInt: Copy`).
+
+impl<T, const CAP: usize, P: Personality> BorrowingSub for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn borrowing_sub(self, rhs: Self, borrow_in: bool) -> (Self::Output, bool) {
+        <HeaplessBigInt<T, CAP, P> as BorrowingSub>::borrowing_sub(*self, *rhs, borrow_in)
     }
 }
 
@@ -954,6 +1077,26 @@ where
             _p: PhantomData,
         };
         (lo, hi)
+    }
+}
+
+// Reference-receiver mirror: both widening-mul methods deref and forward to
+// the value impl (`HeaplessBigInt: Copy`). Mirrors `FixedUInt`'s `&Self`
+// `CarryingMul` in `extended_precision_impl.rs`.
+
+impl<T, const CAP: usize, P: Personality> CarryingMul for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Unsigned = HeaplessBigInt<T, CAP, P>;
+    type Output = HeaplessBigInt<T, CAP, P>;
+
+    fn carrying_mul(self, rhs: Self, carry: Self) -> (Self::Unsigned, Self::Output) {
+        <HeaplessBigInt<T, CAP, P> as CarryingMul>::carrying_mul(*self, *rhs, *carry)
+    }
+
+    fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self::Unsigned, Self::Output) {
+        <HeaplessBigInt<T, CAP, P> as CarryingMul>::carrying_mul_add(*self, *rhs, *carry, *add)
     }
 }
 
@@ -1074,5 +1217,64 @@ mod tests {
                 Cn::from(a.saturating_add(b))
             );
         }
+    }
+
+    // Reference-receiver trait forms resolve to the same value as the by-value
+    // forms — one representative per family (Checked / Saturating / Carrying /
+    // Borrowing), covering both the Nct and Ct saturating personalities.
+    #[test]
+    fn by_ref_matches_value() {
+        let a = H::from(100u32);
+        let b = H::from(7u32);
+        assert_eq!(
+            CheckedAdd::checked_add(&a, &b),
+            CheckedAdd::checked_add(a, b)
+        );
+        assert_eq!(
+            CheckedSub::checked_sub(&a, &b),
+            CheckedSub::checked_sub(a, b)
+        );
+        assert_eq!(
+            CheckedMul::checked_mul(&a, &b),
+            CheckedMul::checked_mul(a, b)
+        );
+        assert_eq!(
+            SaturatingAdd::saturating_add(&a, &b),
+            SaturatingAdd::saturating_add(a, b)
+        );
+        assert_eq!(
+            SaturatingSub::saturating_sub(&a, &b),
+            SaturatingSub::saturating_sub(a, b)
+        );
+        assert_eq!(
+            SaturatingMul::saturating_mul(&a, &b),
+            SaturatingMul::saturating_mul(a, b)
+        );
+        assert_eq!(
+            CarryingAdd::carrying_add(&a, &b, true),
+            CarryingAdd::carrying_add(a, b, true)
+        );
+        assert_eq!(
+            BorrowingSub::borrowing_sub(&a, &b, true),
+            BorrowingSub::borrowing_sub(a, b, true)
+        );
+        let z = <H as Zero>::zero();
+        assert_eq!(
+            CarryingMul::carrying_mul(&a, &b, &z),
+            CarryingMul::carrying_mul(a, b, z)
+        );
+        assert_eq!(
+            CarryingMul::carrying_mul_add(&a, &b, &z, &b),
+            CarryingMul::carrying_mul_add(a, b, z, b)
+        );
+
+        // Ct saturating &Self mirror resolves to the value form too.
+        type Cc = HeaplessBigInt<u8, 4, Ct>;
+        let ca = Cc::from(u32::MAX);
+        let cb = Cc::from(1u32);
+        assert_eq!(
+            SaturatingAdd::saturating_add(&ca, &cb),
+            SaturatingAdd::saturating_add(ca, cb)
+        );
     }
 }

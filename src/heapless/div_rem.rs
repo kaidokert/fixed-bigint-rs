@@ -217,6 +217,40 @@ where
     }
 }
 
+// Reference-receiver mirrors: `(&h).checked_div(&g)` binds the same generic
+// trait bound as the value form. `HeaplessBigInt: Copy`, so the deref-and-
+// forward is a no-op at runtime. Nct-only, matching the value forms.
+
+impl<T, const CAP: usize> CheckedDiv for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn checked_div(self, v: Self) -> Option<Self::Output> {
+        <HeaplessBigInt<T, CAP, Nct> as CheckedDiv>::checked_div(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> CheckedRem for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn checked_rem(self, v: Self) -> Option<Self::Output> {
+        <HeaplessBigInt<T, CAP, Nct> as CheckedRem>::checked_rem(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> DivCeil for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn div_ceil(self, rhs: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as DivCeil>::div_ceil(*self, *rhs)
+    }
+}
+
 #[cfg(feature = "num-traits")]
 impl<T, const CAP: usize> num_traits::CheckedDiv for HeaplessBigInt<T, CAP, Nct>
 where
@@ -283,7 +317,7 @@ where
 #[cfg(test)]
 mod div_ceil_tests {
     use super::HeaplessBigInt;
-    use const_num_traits::DivCeil;
+    use const_num_traits::{CheckedDiv, CheckedRem, DivCeil};
 
     type H = HeaplessBigInt<u8, 4>;
 
@@ -304,5 +338,22 @@ mod div_ceil_tests {
             H::from(u32::MAX).checked_div_ceil(&H::from(2u8)),
             Some(H::from(0x8000_0000u32))
         );
+    }
+
+    // Reference-receiver trait forms resolve to the same value as the by-value
+    // forms for the const_num_traits div/rem/ceil family.
+    #[test]
+    fn by_ref_matches_value() {
+        let a = H::from(100u8);
+        let b = H::from(7u8);
+        assert_eq!(
+            CheckedDiv::checked_div(&a, &b),
+            CheckedDiv::checked_div(a, b)
+        );
+        assert_eq!(
+            CheckedRem::checked_rem(&a, &b),
+            CheckedRem::checked_rem(a, b)
+        );
+        assert_eq!(DivCeil::div_ceil(&a, &b), DivCeil::div_ceil(a, b));
     }
 }

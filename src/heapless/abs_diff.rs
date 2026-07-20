@@ -38,6 +38,27 @@ where
     }
 }
 
+// `&Self` mirrors so `(&h).abs_diff(&g)` resolves without an explicit copy.
+impl<T, const CAP: usize> AbsDiff for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn abs_diff(self, other: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as AbsDiff>::abs_diff(*self, *other)
+    }
+}
+
+impl<T, const CAP: usize> AbsDiff for &HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = HeaplessBigInt<T, CAP, Ct>;
+    fn abs_diff(self, other: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Ct> as AbsDiff>::abs_diff(*self, *other)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::HeaplessBigInt;
@@ -60,5 +81,13 @@ mod tests {
                 HN::from(expected)
             );
         }
+    }
+
+    #[test]
+    fn byref_matches_value() {
+        let (an, bn) = (HN::from(10u8), HN::from(3u8));
+        assert_eq!(AbsDiff::abs_diff(&an, &bn), AbsDiff::abs_diff(an, bn));
+        let (ac, bc) = (HC::from(3u8), HC::from(10u8));
+        assert_eq!(AbsDiff::abs_diff(&ac, &bc), AbsDiff::abs_diff(ac, bc));
     }
 }

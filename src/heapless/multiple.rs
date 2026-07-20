@@ -51,6 +51,31 @@ where
     }
 }
 
+// `&Self` mirrors so `(&h).is_multiple_of(&g)` resolves without an explicit copy.
+impl<T, const CAP: usize> MultipleOf for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn is_multiple_of(self, rhs: Self) -> bool {
+        <HeaplessBigInt<T, CAP, Nct> as MultipleOf>::is_multiple_of(*self, *rhs)
+    }
+}
+
+impl<T, const CAP: usize> NextMultipleOf for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+
+    fn next_multiple_of(self, rhs: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as NextMultipleOf>::next_multiple_of(*self, *rhs)
+    }
+
+    fn checked_next_multiple_of(self, rhs: Self) -> Option<Self::Output> {
+        <HeaplessBigInt<T, CAP, Nct> as NextMultipleOf>::checked_next_multiple_of(*self, *rhs)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::HeaplessBigInt;
@@ -76,5 +101,24 @@ mod tests {
         // 3's next multiple of 10 is 10 itself (the `self + (rhs - rem)` path).
         let out = NextMultipleOf::next_multiple_of(H::from(3u8), H::from(10u8));
         assert_eq!(out, H::from(10u8));
+    }
+
+    #[test]
+    fn byref_matches_value() {
+        use const_num_traits::MultipleOf;
+        let a = H::from(12u8);
+        let b = H::from(5u8);
+        assert_eq!(
+            MultipleOf::is_multiple_of(&a, &b),
+            MultipleOf::is_multiple_of(a, b)
+        );
+        assert_eq!(
+            NextMultipleOf::next_multiple_of(&a, &b),
+            NextMultipleOf::next_multiple_of(a, b)
+        );
+        assert_eq!(
+            NextMultipleOf::checked_next_multiple_of(&a, &b),
+            NextMultipleOf::checked_next_multiple_of(a, b)
+        );
     }
 }
