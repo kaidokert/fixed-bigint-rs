@@ -315,8 +315,9 @@ where
 }
 
 // Reference-receiver mirrors: `(&h).checked_add(&g)` binds the same generic
-// trait bound as the value form. `HeaplessBigInt: Copy`, so the deref-and-
-// forward is a no-op at runtime.
+// trait bound as the value form. The receiver and operand are already `&Self`,
+// so these forward to the inherent by-ref methods (`checked_add(&self, &Self)`)
+// rather than the by-value trait — no `[T; CAP]` copy of either operand.
 
 impl<T, const CAP: usize> CheckedAdd for &HeaplessBigInt<T, CAP, Nct>
 where
@@ -324,7 +325,7 @@ where
 {
     type Output = HeaplessBigInt<T, CAP, Nct>;
     fn checked_add(self, v: Self) -> Option<Self::Output> {
-        <HeaplessBigInt<T, CAP, Nct> as CheckedAdd>::checked_add(*self, *v)
+        HeaplessBigInt::<T, CAP, Nct>::checked_add(self, v)
     }
 }
 
@@ -334,7 +335,7 @@ where
 {
     type Output = HeaplessBigInt<T, CAP, Nct>;
     fn checked_mul(self, v: Self) -> Option<Self::Output> {
-        <HeaplessBigInt<T, CAP, Nct> as CheckedMul>::checked_mul(*self, *v)
+        HeaplessBigInt::<T, CAP, Nct>::checked_mul(self, v)
     }
 }
 
@@ -344,7 +345,7 @@ where
 {
     type Output = HeaplessBigInt<T, CAP, Nct>;
     fn checked_sub(self, v: Self) -> Option<Self::Output> {
-        <HeaplessBigInt<T, CAP, Nct> as CheckedSub>::checked_sub(*self, *v)
+        HeaplessBigInt::<T, CAP, Nct>::checked_sub(self, v)
     }
 }
 
