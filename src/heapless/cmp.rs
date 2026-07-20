@@ -176,6 +176,29 @@ where
     }
 }
 
+/// Branchless select for the `Ct` arms of value-returning ops: returns
+/// `if_true` when `flag`, else `if_false`, with no branch on `flag`. A thin
+/// wrapper over `conditional_select` (the whole-value masked select above) —
+/// the runtime-impl analog of `FixedUInt::const_ct_select` (heapless doesn't
+/// need a `const fn` variant since its impls aren't const-evaluated). The
+/// result width is `max(if_false.len, if_true.len)`, a public shape, never
+/// derived from `flag`.
+#[inline]
+pub(crate) fn ct_select<T, const CAP: usize, P: Personality>(
+    if_false: &HeaplessBigInt<T, CAP, P>,
+    if_true: &HeaplessBigInt<T, CAP, P>,
+    flag: bool,
+) -> HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    <HeaplessBigInt<T, CAP, P> as subtle::ConditionallySelectable>::conditional_select(
+        if_false,
+        if_true,
+        subtle::Choice::from(flag as u8),
+    )
+}
+
 // ── const_num_traits::CtIsZero ──
 
 impl<T, const CAP: usize, P: Personality> const_num_traits::ops::ct::CtIsZero
