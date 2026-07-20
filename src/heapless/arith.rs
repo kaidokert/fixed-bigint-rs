@@ -12,10 +12,11 @@
 //! "len is public" invariant regardless of Personality — the Nct and Ct
 //! arms share one body.
 
+use super::cmp::ct_select;
 use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
 use const_num_traits::{
-    BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Nct,
+    BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Ct, Nct,
     OverflowingAdd, OverflowingMul, OverflowingSub, Personality, PersonalityTag, SaturatingAdd,
     SaturatingMul, SaturatingSub, WrappingAdd, WrappingMul, WrappingSub,
 };
@@ -386,6 +387,47 @@ where
     }
 }
 
+// ── Ct saturating: branchless select on the overflow/borrow flag ──
+//
+// The `Nct` forms above branch on the flag; the `Ct` forms pick the
+// saturated sentinel vs the wrapped result with `ct_select` (the whole-value
+// masked select), so timing doesn't reveal whether saturation happened. The
+// sentinel is the operand-width max/zero, same as the Nct path. Additive —
+// the `Nct` impls are untouched.
+
+impl<T, const CAP: usize> SaturatingAdd for HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = Self;
+    fn saturating_add(self, v: Self) -> Self {
+        let (res, overflow) = OverflowingAdd::overflowing_add(self, v);
+        ct_select(&res, &max_at_len(res.len), overflow)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingSub for HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = Self;
+    fn saturating_sub(self, v: Self) -> Self {
+        let (res, borrow) = OverflowingSub::overflowing_sub(self, v);
+        ct_select(&res, &Self::new_zero_with_len(res.len), borrow)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingMul for HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T> + subtle::ConditionallySelectable,
+{
+    type Output = Self;
+    fn saturating_mul(self, v: Self) -> Self {
+        let (res, overflow) = OverflowingMul::overflowing_mul(self, v);
+        ct_select(&res, &max_at_len(res.len), overflow)
+    }
+}
+
 // `num_traits::Saturating` (add/sub only) — deprecated upstream but still
 // required by `num_traits::PrimInt`. Nct-only, matching the trait forms above.
 #[cfg(feature = "num-traits")]
@@ -436,10 +478,9 @@ impl<T: MachineWord, const CAP: usize> HeaplessBigInt<T, CAP, Nct> {
 
     /// Saturating addition: on overflow, the all-ones value at the operands'
     /// width `max(a.len, b.len)` (not the CAP-wide max), matching
-    /// `FixedUInt<T, width>::saturating_add`. Nct-only: the branch on the
-    /// overflow flag is not constant-time, so `Ct` does not expose it (a
-    /// branchless Ct saturating, like FixedUInt's `const_ct_select`, is not
-    /// yet provided).
+    /// `FixedUInt<T, width>::saturating_add`. This inherent form branches on
+    /// the overflow flag; the `Ct` carrier's branchless `SaturatingAdd` impl
+    /// (via `ct_select`) is defined separately.
     pub fn saturating_add(&self, other: &Self) -> Self {
         let (res, overflow) = self.overflowing_add(other);
         if overflow { max_at_len(res.len) } else { res }
@@ -931,5 +972,34 @@ mod tests {
         let seven = H::from_le_bytes(&7u32.to_le_bytes());
         assert_eq!(a.checked_div(&seven).unwrap().limbs[0], 14);
         assert_eq!(a.checked_rem(&seven).unwrap().limbs[0], 2);
+    }
+
+    // The branchless Ct saturating impls must produce the same values as the
+    // Nct ones (including the saturate/clamp cases), at the operand width.
+    #[test]
+    fn ct_saturating_matches_nct() {
+        type Cn = HeaplessBigInt<u8, 4, Nct>;
+        type Cc = HeaplessBigInt<u8, 4, Ct>;
+        let cases = [(100u32, 50u32), (u32::MAX, 1), (u32::MAX, u32::MAX), (5, 9)];
+        for (a, b) in cases {
+            assert_eq!(
+                SaturatingAdd::saturating_add(Cc::from(a), Cc::from(b)),
+                Cc::from(a.saturating_add(b)),
+                "ct saturating_add({a},{b})"
+            );
+            assert_eq!(
+                SaturatingSub::saturating_sub(Cc::from(a), Cc::from(b)),
+                Cc::from(a.saturating_sub(b))
+            );
+            assert_eq!(
+                SaturatingMul::saturating_mul(Cc::from(a), Cc::from(b)),
+                Cc::from(a.saturating_mul(b))
+            );
+            // Cross-check the Nct forms agree with std too.
+            assert_eq!(
+                SaturatingAdd::saturating_add(Cn::from(a), Cn::from(b)),
+                Cn::from(a.saturating_add(b))
+            );
+        }
     }
 }
