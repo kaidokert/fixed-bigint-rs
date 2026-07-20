@@ -189,6 +189,100 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Shr<usize> for HeaplessBi
     }
 }
 
+// ── Ref-receiver / ref-RHS operand forms ──
+//
+// The value `Shl<usize>`/`Shr<usize>` (and their `u32` forms above) carry the
+// shift logic; every remaining operand form deref-and-forwards to them.
+// `HeaplessBigInt: Copy`, so each deref is a no-op at runtime. This completes
+// the same operand matrix `FixedUInt` exposes — receiver ∈ {value, &}, RHS ∈
+// {usize, u32, &usize, &u32} — given the value/`usize` and value/`u32` forms.
+macro_rules! shift_operand_forms {
+    ($imp:ident, $method:ident, $op:tt, $scalar:ty) => {
+        impl<T: MachineWord, const CAP: usize, P: Personality> $imp<&$scalar>
+            for HeaplessBigInt<T, CAP, P>
+        {
+            type Output = HeaplessBigInt<T, CAP, P>;
+            fn $method(self, bits: &$scalar) -> Self::Output {
+                self $op *bits
+            }
+        }
+
+        impl<T: MachineWord, const CAP: usize, P: Personality> $imp<$scalar>
+            for &HeaplessBigInt<T, CAP, P>
+        {
+            type Output = HeaplessBigInt<T, CAP, P>;
+            fn $method(self, bits: $scalar) -> Self::Output {
+                *self $op bits
+            }
+        }
+
+        impl<T: MachineWord, const CAP: usize, P: Personality> $imp<&$scalar>
+            for &HeaplessBigInt<T, CAP, P>
+        {
+            type Output = HeaplessBigInt<T, CAP, P>;
+            fn $method(self, bits: &$scalar) -> Self::Output {
+                *self $op *bits
+            }
+        }
+    };
+}
+
+shift_operand_forms!(Shl, shl, <<, usize);
+shift_operand_forms!(Shl, shl, <<, u32);
+shift_operand_forms!(Shr, shr, >>, usize);
+shift_operand_forms!(Shr, shr, >>, u32);
+
+// Assign forms. `ShlAssign<usize>`/`ShrAssign<usize>` are hand-written above;
+// these add the `u32`, `&usize`, and `&u32` RHS variants so `x <<= n` accepts
+// the same amounts as `x << n`.
+impl<T: MachineWord, const CAP: usize, P: Personality> ShlAssign<u32>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shl_assign(&mut self, bits: u32) {
+        *self = *self << bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShrAssign<u32>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shr_assign(&mut self, bits: u32) {
+        *self = *self >> bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShlAssign<&usize>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shl_assign(&mut self, bits: &usize) {
+        *self = *self << *bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShrAssign<&usize>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shr_assign(&mut self, bits: &usize) {
+        *self = *self >> *bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShlAssign<&u32>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shl_assign(&mut self, bits: &u32) {
+        *self = *self << *bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShrAssign<&u32>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shr_assign(&mut self, bits: &u32) {
+        *self = *self >> *bits;
+    }
+}
+
 #[cfg(test)]
 mod ct_shl_tests {
     use super::{HeaplessBigInt, ct_shl};
@@ -210,5 +304,70 @@ mod ct_shl_tests {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+// The point of these tests is to exercise every ref/value operand form.
+#[allow(clippy::op_ref)]
+mod operand_form_tests {
+    use super::HeaplessBigInt;
+    use const_num_traits::Nct;
+
+    type H = HeaplessBigInt<u8, 4, Nct>;
+
+    // Every receiver × RHS operand form forwards to the value `usize` shift,
+    // so all forms must equal it. `<< 5usize` pins the amount type since both
+    // `Shl<usize>` and `Shl<u32>` are in scope.
+    #[test]
+    fn shift_operator_matrix() {
+        let a = H::from(0x12u8).widened(4);
+        let su: usize = 5;
+        let s3: u32 = 5;
+
+        let l = a << su;
+        assert_eq!(a << &su, l);
+        assert_eq!(a << s3, l);
+        assert_eq!(a << &s3, l);
+        assert_eq!(&a << su, l);
+        assert_eq!(&a << &su, l);
+        assert_eq!(&a << s3, l);
+        assert_eq!(&a << &s3, l);
+
+        let r = a >> su;
+        assert_eq!(a >> &su, r);
+        assert_eq!(a >> s3, r);
+        assert_eq!(a >> &s3, r);
+        assert_eq!(&a >> su, r);
+        assert_eq!(&a >> &su, r);
+        assert_eq!(&a >> s3, r);
+        assert_eq!(&a >> &s3, r);
+    }
+
+    #[test]
+    fn shift_assign_matrix() {
+        let a = H::from(0x12u8).widened(4);
+
+        let l = a << 5usize;
+        let mut x = a;
+        x <<= 5u32;
+        assert_eq!(x, l);
+        let mut x = a;
+        x <<= &5usize;
+        assert_eq!(x, l);
+        let mut x = a;
+        x <<= &5u32;
+        assert_eq!(x, l);
+
+        let r = a >> 5usize;
+        let mut x = a;
+        x >>= 5u32;
+        assert_eq!(x, r);
+        let mut x = a;
+        x >>= &5usize;
+        assert_eq!(x, r);
+        let mut x = a;
+        x >>= &5u32;
+        assert_eq!(x, r);
     }
 }

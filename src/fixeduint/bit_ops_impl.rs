@@ -21,6 +21,13 @@ c0nst::c0nst! {
         }
     }
 
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::Not for &FixedUInt<T, N, P> {
+        type Output = FixedUInt<T, N, P>;
+        fn not(self) -> Self::Output {
+            <FixedUInt<T, N, P> as core::ops::Not>::not(FixedUInt::from_array(self.array))
+        }
+    }
+
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitAnd<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn bitand(self, other: &FixedUInt<T, N, P>) -> Self::Output {
@@ -57,6 +64,16 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitAndAssign for FixedUInt<T, N, P> {
         fn bitand_assign(&mut self, other: Self) {
+            let mut i = 0;
+            while i < N {
+                self.array[i] &= other.array[i];
+                i += 1;
+            }
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitAndAssign<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
+        fn bitand_assign(&mut self, other: &FixedUInt<T, N, P>) {
             let mut i = 0;
             while i < N {
                 self.array[i] &= other.array[i];
@@ -109,6 +126,16 @@ c0nst::c0nst! {
         }
     }
 
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitOrAssign<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
+        fn bitor_assign(&mut self, other: &FixedUInt<T, N, P>) {
+            let mut i = 0;
+            while i < N {
+                self.array[i] |= other.array[i];
+                i += 1;
+            }
+        }
+    }
+
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitXor<&FixedUInt<T, N, P>> for &FixedUInt<T, N, P> {
         type Output = FixedUInt<T, N, P>;
         fn bitxor(self, other: &FixedUInt<T, N, P>) -> Self::Output {
@@ -145,6 +172,16 @@ c0nst::c0nst! {
 
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitXorAssign for FixedUInt<T, N, P> {
         fn bitxor_assign(&mut self, other: Self) {
+            let mut i = 0;
+            while i < N {
+                self.array[i] ^= other.array[i];
+                i += 1;
+            }
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::BitXorAssign<&FixedUInt<T, N, P>> for FixedUInt<T, N, P> {
+        fn bitxor_assign(&mut self, other: &FixedUInt<T, N, P>) {
             let mut i = 0;
             while i < N {
                 self.array[i] ^= other.array[i];
@@ -311,6 +348,32 @@ c0nst::c0nst! {
                 PersonalityTag::Nct => const_shr_impl(self, *bits),
                 PersonalityTag::Ct => const_shr_ct(self, *bits),
             }
+        }
+    }
+
+    // `u32`/`&u32` assign forms route through the same over-width-collapsing
+    // helper as `Shl<u32>`/`Shr<u32>`, so `x <<= n` and `x = x << n` agree.
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::ShlAssign<u32> for FixedUInt<T, N, P> {
+        fn shl_assign(&mut self, bits: u32) {
+            *self = const_unbounded_shl_u32(*self, bits);
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::ShrAssign<u32> for FixedUInt<T, N, P> {
+        fn shr_assign(&mut self, bits: u32) {
+            *self = const_unbounded_shr_u32(*self, bits);
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::ShlAssign<&u32> for FixedUInt<T, N, P> {
+        fn shl_assign(&mut self, bits: &u32) {
+            *self = const_unbounded_shl_u32(*self, *bits);
+        }
+    }
+
+    c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> core::ops::ShrAssign<&u32> for FixedUInt<T, N, P> {
+        fn shr_assign(&mut self, bits: &u32) {
+            *self = const_unbounded_shr_u32(*self, *bits);
         }
     }
 
@@ -951,6 +1014,49 @@ mod tests {
         assert_eq!(&a ^ b, expected);
         // ref ^ ref
         assert_eq!(&a ^ &b, expected);
+    }
+
+    #[test]
+    fn test_not_ref_and_bit_assign_ref() {
+        type T = FixedUInt<u8, 2>;
+        let a = T::from(0b1100u8);
+        let b = T::from(0b1010u8);
+
+        // `Not` on `&Self` matches the value form.
+        assert_eq!(!&a, !a);
+
+        // `Bit*Assign<&Self>` matches the value-RHS assign.
+        let mut x = a;
+        x &= &b;
+        assert_eq!(x, a & b);
+        let mut x = a;
+        x |= &b;
+        assert_eq!(x, a | b);
+        let mut x = a;
+        x ^= &b;
+        assert_eq!(x, a ^ b);
+    }
+
+    #[test]
+    fn test_shift_assign_u32() {
+        type T = FixedUInt<u8, 2>; // 16-bit
+        let base = T::from(1u8);
+        let hi = T::from(0x100u16);
+
+        // `<<= u32` / `<<= &u32` agree with `<< u32`.
+        let mut x = base;
+        x <<= 4u32;
+        assert_eq!(x, base << 4u32);
+        let mut x = base;
+        x <<= &4u32;
+        assert_eq!(x, base << 4u32);
+
+        let mut x = hi;
+        x >>= 4u32;
+        assert_eq!(x, hi >> 4u32);
+        let mut x = hi;
+        x >>= &4u32;
+        assert_eq!(x, hi >> 4u32);
     }
 
     #[test]

@@ -39,9 +39,9 @@ where
                 num -= sum;
                 res = (res >> 1usize) + bit;
             } else {
-                res >>= 1;
+                res >>= 1usize;
             }
-            bit >>= 2;
+            bit >>= 2usize;
         }
         res
     }
