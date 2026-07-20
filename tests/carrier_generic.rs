@@ -299,6 +299,102 @@ fn shifts() {
     for_both_carriers!(body);
 }
 
+// Both carriers must expose the identical shift/bitwise operand matrix:
+// receiver ∈ {value, `&`}, RHS ∈ {usize, u32, &usize, &u32} for the shift
+// operators and their assigns, `Not` on `&Self`, and the `Bit*Assign<&Self>`
+// forms. The `where`-clause is the contract — if either carrier is missing a
+// form this fails to compile for that instantiation. The extra bounds live
+// here rather than on `Carrier` so the value-`usize`-only bare literals in the
+// other tests stay unambiguous.
+#[test]
+#[allow(clippy::op_ref)]
+fn shift_bitwise_operand_forms() {
+    fn body<C>()
+    where
+        C: Carrier + Shl<u32, Output = C> + Shr<u32, Output = C> + ShlAssign<u32> + ShrAssign<u32>,
+        for<'a> C: Shl<&'a usize, Output = C>
+            + Shl<&'a u32, Output = C>
+            + Shr<&'a usize, Output = C>
+            + Shr<&'a u32, Output = C>
+            + ShlAssign<&'a usize>
+            + ShlAssign<&'a u32>
+            + ShrAssign<&'a usize>
+            + ShrAssign<&'a u32>
+            + BitAndAssign<&'a C>
+            + BitOrAssign<&'a C>
+            + BitXorAssign<&'a C>,
+        for<'a> &'a C: Not<Output = C>
+            + Shl<usize, Output = C>
+            + Shl<u32, Output = C>
+            + Shl<&'a usize, Output = C>
+            + Shl<&'a u32, Output = C>
+            + Shr<usize, Output = C>
+            + Shr<u32, Output = C>
+            + Shr<&'a usize, Output = C>
+            + Shr<&'a u32, Output = C>,
+    {
+        let a = C::from_u32(0x1234_5678);
+        let b = C::from_u32(0x0F0F_0F0F);
+        let su: usize = 5;
+        let s3: u32 = 5;
+
+        // Every `<<` operand form equals the value/usize form.
+        let l = a << su;
+        assert_eq!(a << &su, l);
+        assert_eq!(a << s3, l);
+        assert_eq!(a << &s3, l);
+        assert_eq!(&a << su, l);
+        assert_eq!(&a << &su, l);
+        assert_eq!(&a << s3, l);
+        assert_eq!(&a << &s3, l);
+
+        // Same for `>>`.
+        let r = a >> su;
+        assert_eq!(a >> &su, r);
+        assert_eq!(a >> s3, r);
+        assert_eq!(a >> &s3, r);
+        assert_eq!(&a >> su, r);
+        assert_eq!(&a >> &su, r);
+        assert_eq!(&a >> s3, r);
+        assert_eq!(&a >> &s3, r);
+
+        // `Not` on `&Self` matches the value form.
+        assert_eq!(!&a, !a);
+
+        // Assign forms agree with the operator.
+        let mut x = a;
+        x <<= s3;
+        assert_eq!(x, l);
+        let mut x = a;
+        x <<= &su;
+        assert_eq!(x, l);
+        let mut x = a;
+        x <<= &s3;
+        assert_eq!(x, l);
+        let mut x = a;
+        x >>= s3;
+        assert_eq!(x, r);
+        let mut x = a;
+        x >>= &su;
+        assert_eq!(x, r);
+        let mut x = a;
+        x >>= &s3;
+        assert_eq!(x, r);
+
+        // `Bit*Assign<&Self>` matches the value-RHS assign.
+        let mut x = a;
+        x &= &b;
+        assert_eq!(x, a & b);
+        let mut x = a;
+        x |= &b;
+        assert_eq!(x, a | b);
+        let mut x = a;
+        x ^= &b;
+        assert_eq!(x, a ^ b);
+    }
+    for_both_carriers!(body);
+}
+
 #[test]
 fn compare() {
     fn body<C: Carrier>() {

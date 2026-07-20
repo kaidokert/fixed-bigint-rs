@@ -1017,49 +1017,6 @@ mod tests {
     }
 
     #[test]
-    fn test_not_ref_and_bit_assign_ref() {
-        type T = FixedUInt<u8, 2>;
-        let a = T::from(0b1100u8);
-        let b = T::from(0b1010u8);
-
-        // `Not` on `&Self` matches the value form.
-        assert_eq!(!&a, !a);
-
-        // `Bit*Assign<&Self>` matches the value-RHS assign.
-        let mut x = a;
-        x &= &b;
-        assert_eq!(x, a & b);
-        let mut x = a;
-        x |= &b;
-        assert_eq!(x, a | b);
-        let mut x = a;
-        x ^= &b;
-        assert_eq!(x, a ^ b);
-    }
-
-    #[test]
-    fn test_shift_assign_u32() {
-        type T = FixedUInt<u8, 2>; // 16-bit
-        let base = T::from(1u8);
-        let hi = T::from(0x100u16);
-
-        // `<<= u32` / `<<= &u32` agree with `<< u32`.
-        let mut x = base;
-        x <<= 4u32;
-        assert_eq!(x, base << 4u32);
-        let mut x = base;
-        x <<= &4u32;
-        assert_eq!(x, base << 4u32);
-
-        let mut x = hi;
-        x >>= 4u32;
-        assert_eq!(x, hi >> 4u32);
-        let mut x = hi;
-        x >>= &4u32;
-        assert_eq!(x, hi >> 4u32);
-    }
-
-    #[test]
     fn test_shl_combinations() {
         let a = FixedUInt::<u8, 2>::from(2u8); // 0010
         let shift: usize = 2;
