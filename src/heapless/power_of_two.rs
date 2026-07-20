@@ -1,17 +1,24 @@
 //! `const_num_traits::IsPowerOfTwo` / `NextPowerOfTwo` for `HeaplessBigInt`.
 //!
 //! `is_power_of_two` is personality-generic (the Ct arm is `black_box`-guarded,
-//! no branch). `NextPowerOfTwo` is Nct-only: its Ct variant needs a branchless
-//! whole-value select (FixedUInt's `const_ct_select`), which heapless doesn't
-//! carry, and even FixedUInt notes `checked_next_power_of_two` isn't CT.
+//! no branch). `NextPowerOfTwo` is implemented for both personalities: the
+//! `Nct` arm branches on overflow (panic / wrap-to-zero); the `Ct` arm is
+//! constant-time — the `1 << bits` shift by a secret `bits` goes through the
+//! [`ct_shl`](super::shift::ct_shl) barrel shifter (a plain `<<` would leak the
+//! magnitude), and the overflow/zero selects use [`ct_select`]. Both arms share
+//! the value-based `checked_next_pow2` helper; `checked_next_power_of_two`
+//! itself stays branchful (its `Option` reveals the overflow bit) — not CT,
+//! same caveat as FixedUInt — so Ct callers use `next`/`wrapping`.
 //!
-//! Result width is the operand width: `one` is widened before the `<< bits`
-//! so the power of two lands at `len`, not the minimal identity width.
+//! Result width is the operand width: `one` is widened before the shift so the
+//! power of two lands at `len`, not the minimal identity width.
 
-use super::HeaplessBigInt;
+use super::cmp::ct_select;
+use super::shift::ct_shl;
+use super::{HeaplessBigInt, arith::max_at_len};
 use crate::MachineWord;
 use const_num_traits::{
-    IsPowerOfTwo, Nct, NextPowerOfTwo, One, Personality, PersonalityTag, PrimBits, WrappingSub,
+    Ct, IsPowerOfTwo, Nct, NextPowerOfTwo, One, Personality, PersonalityTag, PrimBits, WrappingSub,
     Zero,
 };
 
@@ -39,6 +46,31 @@ where
     }
 }
 
+// Shared value-based checked next-power-of-two, P-generic. Branchful (the
+// `Option` reveals the overflow bit), so on `Ct` it is NOT constant-time — Ct
+// callers use `next`/`wrapping`, which are constant-time. `wrapping_sub` keeps
+// it usable on `Ct` without the Nct underflow panic; `self` is non-zero there.
+impl<T, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    fn checked_next_pow2(self) -> Option<Self> {
+        let width = self.len();
+        let word_bits = core::mem::size_of::<T>() as u32 * 8;
+        let width_bits = width as u32 * word_bits;
+        if <Self as Zero>::is_zero(&self) {
+            return Some(<Self as One>::one().widened(core::cmp::max(1, width)));
+        }
+        // `(n - 1).leading_zeros()` gives the position of the next power of two.
+        let m_one = <Self as WrappingSub>::wrapping_sub(self, <Self as One>::one());
+        let bits = width_bits - PrimBits::leading_zeros(m_one);
+        if bits >= width_bits {
+            return None; // 2^width_bits doesn't fit the value width
+        }
+        Some(<Self as One>::one().widened(core::cmp::max(1, width)) << (bits as usize))
+    }
+}
+
 impl<T, const CAP: usize> NextPowerOfTwo for HeaplessBigInt<T, CAP, Nct>
 where
     T: MachineWord,
@@ -47,33 +79,68 @@ where
 
     fn wrapping_next_power_of_two(self) -> Self {
         let width = self.len();
-        match self.checked_next_power_of_two() {
-            Some(v) => v,
-            None => Self::new_zero_with_len(width), // overflow wraps to zero
-        }
+        self.checked_next_pow2()
+            .unwrap_or_else(|| Self::new_zero_with_len(width))
     }
 
     fn next_power_of_two(self) -> Self {
-        match self.checked_next_power_of_two() {
-            Some(v) => v,
-            None => panic!("HeaplessBigInt::next_power_of_two overflow: exceeds the value width"),
-        }
+        self.checked_next_pow2().unwrap_or_else(|| {
+            panic!("HeaplessBigInt::next_power_of_two overflow: exceeds the value width")
+        })
     }
 
     fn checked_next_power_of_two(self) -> Option<Self> {
-        let width = self.len();
-        let word_bits = core::mem::size_of::<T>() as u32 * 8;
-        let width_bits = width as u32 * word_bits;
-        if <Self as Zero>::is_zero(&self) {
-            return Some(<Self as One>::one().widened(core::cmp::max(1, width)));
-        }
-        // `(n - 1).leading_zeros()` gives the position of the next power of two.
-        let m_one = self - <Self as One>::one();
-        let bits = width_bits - PrimBits::leading_zeros(m_one);
-        if bits >= width_bits {
-            return None; // 2^width_bits doesn't fit the value width
-        }
-        Some(<Self as One>::one().widened(core::cmp::max(1, width)) << (bits as usize))
+        self.checked_next_pow2()
+    }
+}
+
+// Constant-time Ct core, shared by `next`/`wrapping` (differ only in the
+// `overflow_sentinel`: width-max for `next`, zero for `wrapping`). Mirrors
+// FixedUInt's Ct `next_power_of_two` but the secret-amount `1 << bits` shift
+// goes through `ct_shl` (a barrel shifter) rather than the leaky `<<`, and the
+// overflow flag is combined with `&` (not short-circuiting `&&`) so nothing
+// branches on the secret.
+#[inline]
+fn ct_next_pow2<T, const CAP: usize>(
+    x: HeaplessBigInt<T, CAP, Ct>,
+    overflow_sentinel: HeaplessBigInt<T, CAP, Ct>,
+) -> HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type H<T, const CAP: usize> = HeaplessBigInt<T, CAP, Ct>;
+    let width = x.len();
+    let word_bits = core::mem::size_of::<T>() as u32 * 8;
+    let width_bits = width as u32 * word_bits;
+    let one_w = <H<T, CAP> as One>::one().widened(core::cmp::max(1, width));
+    let m_one = <H<T, CAP> as WrappingSub>::wrapping_sub(x, one_w);
+    let bits = width_bits - PrimBits::leading_zeros(m_one);
+    let shifted = ct_shl(one_w, bits); // CT shift by the secret `bits`
+    let is_zero = <H<T, CAP> as Zero>::is_zero(&x);
+    let overflow = (bits >= width_bits) & !is_zero;
+    let saturated = ct_select(&shifted, &overflow_sentinel, overflow);
+    ct_select(&saturated, &one_w, is_zero)
+}
+
+impl<T, const CAP: usize> NextPowerOfTwo for HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = Self;
+
+    fn next_power_of_two(self) -> Self {
+        // Saturate to the width-max on overflow (the Nct panic is value-
+        // dependent, so unavailable here — a defined sentinel beats a wrong one).
+        ct_next_pow2(self, max_at_len(self.len()))
+    }
+
+    fn wrapping_next_power_of_two(self) -> Self {
+        ct_next_pow2(self, Self::new_zero_with_len(self.len()))
+    }
+
+    fn checked_next_power_of_two(self) -> Option<Self> {
+        // Branchful (see `checked_next_pow2`): NOT constant-time on Ct.
+        self.checked_next_pow2()
     }
 }
 
@@ -142,5 +209,37 @@ mod tests {
             let ct = bool::from(h.ct_is_power_of_two());
             assert_eq!(ct, v != 0 && v & (v - 1) == 0, "ct_is_power_of_two({v})");
         }
+    }
+
+    #[test]
+    fn ct_next_power_of_two_matches_and_saturates() {
+        use const_num_traits::Ct;
+        type HC = HeaplessBigInt<u8, 4, Ct>;
+
+        // Non-overflow values agree with std (via the CT barrel-shift path).
+        for v in [1u32, 5, 128, 0x4000_0000] {
+            assert_eq!(
+                NextPowerOfTwo::next_power_of_two(HC::from(v)),
+                HC::from(v.next_power_of_two()),
+                "ct next_power_of_two({v})"
+            );
+        }
+        // 0 -> 1 at the operand width.
+        assert_eq!(
+            NextPowerOfTwo::next_power_of_two(HC::from(0u8).widened(4)),
+            HC::from(1u8)
+        );
+        // 2^31+1 rounds to 2^32, past the 32-bit width: `next` saturates to the
+        // width-max, `wrapping` wraps to zero, `checked` is None.
+        let big = HC::from(0x8000_0001u32);
+        assert_eq!(
+            NextPowerOfTwo::next_power_of_two(big),
+            HC::from(0xFFFF_FFFFu32)
+        );
+        assert_eq!(
+            NextPowerOfTwo::wrapping_next_power_of_two(big),
+            HC::from(0u8)
+        );
+        assert_eq!(NextPowerOfTwo::checked_next_power_of_two(big), None);
     }
 }

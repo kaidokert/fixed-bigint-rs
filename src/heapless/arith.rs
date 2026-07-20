@@ -32,7 +32,7 @@ use core::marker::PhantomData;
 // `max(a.len, b.len)`, matching `FixedUInt<T, width>::max_value()`. It is NOT
 // `Bounded::max_value()`, which on this carrier is the CAP-wide max.
 #[inline]
-fn max_at_len<T: MachineWord, const CAP: usize, P: Personality>(
+pub(crate) fn max_at_len<T: MachineWord, const CAP: usize, P: Personality>(
     len: u16,
 ) -> HeaplessBigInt<T, CAP, P> {
     let mut limbs = [zero::<T>(); CAP];
