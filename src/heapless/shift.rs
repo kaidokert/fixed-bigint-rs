@@ -49,7 +49,10 @@ where
     // Public loop bound: stages cover bit positions `0..ceil(log2(width_bits))`.
     let mut k = 0u32;
     while (1u32 << k) < width_bits {
-        let shifted = result << (1usize << k); // fixed, public shift by 2^k
+        // Stage amount `2^k` stays in `u32` (< width_bits < 2^32) — `1usize << k`
+        // would overflow on a 16-bit-usize target once k >= 16. The `Shl<u32>`
+        // it routes through carries the same over-width cast guard as elsewhere.
+        let shifted = result << (1u32 << k); // fixed, public shift by 2^k
         let bit_k = (amount >> k) & 1;
         result = ct_select(&result, &shifted, bit_k != 0);
         k += 1;
