@@ -1080,7 +1080,7 @@ fn mul_owned_owned_matches_ref_ref() {
 fn shr_assign_matches_shr() {
     let a: H4u32Nct = 0xABCD_EF01u32.into();
     let mut x = a;
-    x >>= 8;
+    x >>= 8usize;
     assert_eq!(x, a >> 8usize);
 }
 
@@ -1088,7 +1088,7 @@ fn shr_assign_matches_shr() {
 fn shl_assign_matches_shl() {
     let a: H4u32Nct = 0xABCDu32.into();
     let mut x = a;
-    x <<= 12;
+    x <<= 12usize;
     assert_eq!(x, a << 12usize);
 }
 

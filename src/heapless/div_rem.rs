@@ -79,8 +79,8 @@ where
         if shift == 0 {
             break;
         }
-        shifted >>= 1;
-        bit >>= 1;
+        shifted >>= 1usize;
+        bit >>= 1usize;
         shift -= 1;
     }
 

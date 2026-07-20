@@ -189,6 +189,100 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Shr<usize> for HeaplessBi
     }
 }
 
+// ── Ref-receiver / ref-RHS operand forms ──
+//
+// The value `Shl<usize>`/`Shr<usize>` (and their `u32` forms above) carry the
+// shift logic; every remaining operand form deref-and-forwards to them.
+// `HeaplessBigInt: Copy`, so each deref is a no-op at runtime. This completes
+// the same operand matrix `FixedUInt` exposes — receiver ∈ {value, &}, RHS ∈
+// {usize, u32, &usize, &u32} — given the value/`usize` and value/`u32` forms.
+macro_rules! shift_operand_forms {
+    ($imp:ident, $method:ident, $op:tt, $scalar:ty) => {
+        impl<T: MachineWord, const CAP: usize, P: Personality> $imp<&$scalar>
+            for HeaplessBigInt<T, CAP, P>
+        {
+            type Output = HeaplessBigInt<T, CAP, P>;
+            fn $method(self, bits: &$scalar) -> Self::Output {
+                self $op *bits
+            }
+        }
+
+        impl<T: MachineWord, const CAP: usize, P: Personality> $imp<$scalar>
+            for &HeaplessBigInt<T, CAP, P>
+        {
+            type Output = HeaplessBigInt<T, CAP, P>;
+            fn $method(self, bits: $scalar) -> Self::Output {
+                *self $op bits
+            }
+        }
+
+        impl<T: MachineWord, const CAP: usize, P: Personality> $imp<&$scalar>
+            for &HeaplessBigInt<T, CAP, P>
+        {
+            type Output = HeaplessBigInt<T, CAP, P>;
+            fn $method(self, bits: &$scalar) -> Self::Output {
+                *self $op *bits
+            }
+        }
+    };
+}
+
+shift_operand_forms!(Shl, shl, <<, usize);
+shift_operand_forms!(Shl, shl, <<, u32);
+shift_operand_forms!(Shr, shr, >>, usize);
+shift_operand_forms!(Shr, shr, >>, u32);
+
+// Assign forms. `ShlAssign<usize>`/`ShrAssign<usize>` are hand-written above;
+// these add the `u32`, `&usize`, and `&u32` RHS variants so `x <<= n` accepts
+// the same amounts as `x << n`.
+impl<T: MachineWord, const CAP: usize, P: Personality> ShlAssign<u32>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shl_assign(&mut self, bits: u32) {
+        *self = *self << bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShrAssign<u32>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shr_assign(&mut self, bits: u32) {
+        *self = *self >> bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShlAssign<&usize>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shl_assign(&mut self, bits: &usize) {
+        *self = *self << *bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShrAssign<&usize>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shr_assign(&mut self, bits: &usize) {
+        *self = *self >> *bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShlAssign<&u32>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shl_assign(&mut self, bits: &u32) {
+        *self = *self << *bits;
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShrAssign<&u32>
+    for HeaplessBigInt<T, CAP, P>
+{
+    fn shr_assign(&mut self, bits: &u32) {
+        *self = *self >> *bits;
+    }
+}
+
 #[cfg(test)]
 mod ct_shl_tests {
     use super::{HeaplessBigInt, ct_shl};
