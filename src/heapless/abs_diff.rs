@@ -8,7 +8,7 @@
 use super::HeaplessBigInt;
 use super::cmp::ct_select;
 use crate::MachineWord;
-use const_num_traits::{AbsDiff, Ct, Nct, WrappingSub, Zero};
+use const_num_traits::{AbsDiff, Ct, Nct, OverflowingSub, WrappingSub, Zero};
 
 impl<T, const CAP: usize> AbsDiff for HeaplessBigInt<T, CAP, Nct>
 where
@@ -32,9 +32,8 @@ where
     fn abs_diff(self, other: Self) -> Self {
         // `a - b` wraps to `-(b - a)` when `a < b` (borrow set), so the branchless
         // result is `select(diff, -diff, borrow)`.
-        let (diff, borrow) =
-            <Self as const_num_traits::OverflowingSub>::overflowing_sub(self, other);
-        let neg_diff = <Self as WrappingSub>::wrapping_sub(<Self as Zero>::zero(), diff);
+        let (diff, borrow) = OverflowingSub::overflowing_sub(self, other);
+        let neg_diff = WrappingSub::wrapping_sub(Self::zero(), diff);
         ct_select(&diff, &neg_diff, borrow)
     }
 }
