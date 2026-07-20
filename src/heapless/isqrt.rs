@@ -47,6 +47,17 @@ where
     }
 }
 
+// `&Self` mirror so `(&h).isqrt()` resolves without an explicit copy.
+impl<T, const CAP: usize> Isqrt for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn isqrt(self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as Isqrt>::isqrt(*self)
+    }
+}
+
 impl<T, const CAP: usize> HeaplessBigInt<T, CAP, Nct>
 where
     T: MachineWord,
@@ -111,5 +122,11 @@ mod tests {
         // Zero keeps its width too.
         let z = H::new_zero_with_len(8);
         assert_eq!(Isqrt::isqrt(z).len(), 8);
+    }
+
+    #[test]
+    fn byref_matches_value() {
+        let a = H::from(10000u16);
+        assert_eq!(Isqrt::isqrt(&a), Isqrt::isqrt(a));
     }
 }

@@ -72,6 +72,48 @@ where
     }
 }
 
+// Reference-receiver mirrors (`&HeaplessBigInt`), so `(&h).highest_one()` etc.
+// resolve. `HeaplessBigInt` is `Copy`, so each delegates to the value impl on
+// `*self`.
+
+impl<T, const CAP: usize, P: Personality> HighestOne for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    fn highest_one(self) -> Option<u32> {
+        <HeaplessBigInt<T, CAP, P> as HighestOne>::highest_one(*self)
+    }
+}
+
+impl<T, const CAP: usize, P: Personality> LowestOne for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    fn lowest_one(self) -> Option<u32> {
+        <HeaplessBigInt<T, CAP, P> as LowestOne>::lowest_one(*self)
+    }
+}
+
+impl<T, const CAP: usize, P: Personality> IsolateHighestOne for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn isolate_highest_one(self) -> HeaplessBigInt<T, CAP, P> {
+        <HeaplessBigInt<T, CAP, P> as IsolateHighestOne>::isolate_highest_one(*self)
+    }
+}
+
+impl<T, const CAP: usize, P: Personality> IsolateLowestOne for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn isolate_lowest_one(self) -> HeaplessBigInt<T, CAP, P> {
+        <HeaplessBigInt<T, CAP, P> as IsolateLowestOne>::isolate_lowest_one(*self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::HeaplessBigInt;
@@ -110,5 +152,22 @@ mod tests {
         let z0 = H::new_zero_with_len(0);
         assert_eq!(IsolateHighestOne::isolate_highest_one(z0).len(), 0);
         assert_eq!(IsolateLowestOne::isolate_lowest_one(z0).len(), 0);
+    }
+
+    // The `&Self` mirrors agree with the value impls.
+    #[test]
+    fn by_ref_matches_value() {
+        let v = H::from(0xB4u8).widened(8);
+        let r = &v; // dispatch through the `&Self` mirror
+        assert_eq!(HighestOne::highest_one(r), HighestOne::highest_one(v));
+        assert_eq!(LowestOne::lowest_one(r), LowestOne::lowest_one(v));
+        assert_eq!(
+            IsolateHighestOne::isolate_highest_one(r),
+            IsolateHighestOne::isolate_highest_one(v)
+        );
+        assert_eq!(
+            IsolateLowestOne::isolate_lowest_one(r),
+            IsolateLowestOne::isolate_lowest_one(v)
+        );
     }
 }

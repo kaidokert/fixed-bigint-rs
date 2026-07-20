@@ -144,6 +144,54 @@ where
     }
 }
 
+// `&Self` mirrors so `(&h).next_power_of_two()` resolves without an explicit copy.
+impl<T, const CAP: usize, P: Personality> IsPowerOfTwo for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    fn is_power_of_two(self) -> bool {
+        <HeaplessBigInt<T, CAP, P> as IsPowerOfTwo>::is_power_of_two(*self)
+    }
+}
+
+impl<T, const CAP: usize> NextPowerOfTwo for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+
+    fn wrapping_next_power_of_two(self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as NextPowerOfTwo>::wrapping_next_power_of_two(*self)
+    }
+
+    fn next_power_of_two(self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as NextPowerOfTwo>::next_power_of_two(*self)
+    }
+
+    fn checked_next_power_of_two(self) -> Option<Self::Output> {
+        <HeaplessBigInt<T, CAP, Nct> as NextPowerOfTwo>::checked_next_power_of_two(*self)
+    }
+}
+
+impl<T, const CAP: usize> NextPowerOfTwo for &HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = HeaplessBigInt<T, CAP, Ct>;
+
+    fn next_power_of_two(self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Ct> as NextPowerOfTwo>::next_power_of_two(*self)
+    }
+
+    fn wrapping_next_power_of_two(self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Ct> as NextPowerOfTwo>::wrapping_next_power_of_two(*self)
+    }
+
+    fn checked_next_power_of_two(self) -> Option<Self::Output> {
+        <HeaplessBigInt<T, CAP, Ct> as NextPowerOfTwo>::checked_next_power_of_two(*self)
+    }
+}
+
 // `CtIsPowerOfTwo` — masked-return `is_power_of_two`, the same subtle-predicate
 // style as `CtIsZero`/`CtParity` (`nonzero & is_zero(x & (x - 1))` composed of
 // `Choice`s). No `const_ct_select` needed, so it's personality-generic.
@@ -241,5 +289,35 @@ mod tests {
             HC::from(0u8)
         );
         assert_eq!(NextPowerOfTwo::checked_next_power_of_two(big), None);
+    }
+
+    #[test]
+    fn byref_matches_value() {
+        use const_num_traits::{Ct, IsPowerOfTwo};
+        let a = H::from(5u8);
+        let r = &a; // dispatch through the `&Self` mirror
+        assert_eq!(
+            IsPowerOfTwo::is_power_of_two(r),
+            IsPowerOfTwo::is_power_of_two(a)
+        );
+        assert_eq!(
+            NextPowerOfTwo::next_power_of_two(r),
+            NextPowerOfTwo::next_power_of_two(a)
+        );
+        assert_eq!(
+            NextPowerOfTwo::wrapping_next_power_of_two(r),
+            NextPowerOfTwo::wrapping_next_power_of_two(a)
+        );
+        assert_eq!(
+            NextPowerOfTwo::checked_next_power_of_two(r),
+            NextPowerOfTwo::checked_next_power_of_two(a)
+        );
+
+        type HC = HeaplessBigInt<u8, 4, Ct>;
+        let c = HC::from(5u8);
+        assert_eq!(
+            NextPowerOfTwo::next_power_of_two(&c),
+            NextPowerOfTwo::next_power_of_two(c)
+        );
     }
 }

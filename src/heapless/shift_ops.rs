@@ -185,6 +185,98 @@ impl<T: MachineWord, const CAP: usize, P: Personality> FunnelShr for HeaplessBig
     }
 }
 
+// Reference-receiver mirrors (`&HeaplessBigInt`), so `(&h).wrapping_shl(n)` etc.
+// resolve. `HeaplessBigInt` is `Copy`; each delegates to the value impl on
+// `*self` (and `*rhs` for the funnel operand). `u32` amounts pass through.
+
+impl<T: MachineWord, const CAP: usize, P: Personality> OverflowingShl
+    for &HeaplessBigInt<T, CAP, P>
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn overflowing_shl(self, bits: u32) -> (HeaplessBigInt<T, CAP, P>, bool) {
+        <HeaplessBigInt<T, CAP, P> as OverflowingShl>::overflowing_shl(*self, bits)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> OverflowingShr
+    for &HeaplessBigInt<T, CAP, P>
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn overflowing_shr(self, bits: u32) -> (HeaplessBigInt<T, CAP, P>, bool) {
+        <HeaplessBigInt<T, CAP, P> as OverflowingShr>::overflowing_shr(*self, bits)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> WrappingShl for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn wrapping_shl(self, bits: u32) -> HeaplessBigInt<T, CAP, P> {
+        <HeaplessBigInt<T, CAP, P> as WrappingShl>::wrapping_shl(*self, bits)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> WrappingShr for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn wrapping_shr(self, bits: u32) -> HeaplessBigInt<T, CAP, P> {
+        <HeaplessBigInt<T, CAP, P> as WrappingShr>::wrapping_shr(*self, bits)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> CheckedShl for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn checked_shl(self, bits: u32) -> Option<HeaplessBigInt<T, CAP, P>> {
+        <HeaplessBigInt<T, CAP, P> as CheckedShl>::checked_shl(*self, bits)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> CheckedShr for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn checked_shr(self, bits: u32) -> Option<HeaplessBigInt<T, CAP, P>> {
+        <HeaplessBigInt<T, CAP, P> as CheckedShr>::checked_shr(*self, bits)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> UnboundedShl for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn unbounded_shl(self, rhs: u32) -> HeaplessBigInt<T, CAP, P> {
+        <HeaplessBigInt<T, CAP, P> as UnboundedShl>::unbounded_shl(*self, rhs)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> UnboundedShr for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn unbounded_shr(self, rhs: u32) -> HeaplessBigInt<T, CAP, P> {
+        <HeaplessBigInt<T, CAP, P> as UnboundedShr>::unbounded_shr(*self, rhs)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShlExact for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn shl_exact(self, rhs: u32) -> Option<HeaplessBigInt<T, CAP, P>> {
+        <HeaplessBigInt<T, CAP, P> as ShlExact>::shl_exact(*self, rhs)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> ShrExact for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn shr_exact(self, rhs: u32) -> Option<HeaplessBigInt<T, CAP, P>> {
+        <HeaplessBigInt<T, CAP, P> as ShrExact>::shr_exact(*self, rhs)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> FunnelShl for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn funnel_shl(self, rhs: Self, n: u32) -> HeaplessBigInt<T, CAP, P> {
+        <HeaplessBigInt<T, CAP, P> as FunnelShl>::funnel_shl(*self, *rhs, n)
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> FunnelShr for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn funnel_shr(self, rhs: Self, n: u32) -> HeaplessBigInt<T, CAP, P> {
+        <HeaplessBigInt<T, CAP, P> as FunnelShr>::funnel_shr(*self, *rhs, n)
+    }
+}
+
 // num_traits wrappers — delegate to the const-num-traits impls above.
 #[cfg(feature = "num-traits")]
 impl<T: MachineWord, const CAP: usize, P: Personality> num_traits::WrappingShl
@@ -320,5 +412,40 @@ mod tests {
         assert_eq!(FunnelShr::funnel_shr(hi, lo, 8), H::from(0x789A_BCDEu32));
         assert_eq!(FunnelShl::funnel_shl(hi, lo, 0), hi);
         assert_eq!(FunnelShr::funnel_shr(hi, lo, 0), lo);
+    }
+
+    // The `&Self` mirrors agree with the value impls.
+    #[test]
+    fn by_ref_matches_value() {
+        let v = H::from(1u8).widened(4);
+        assert_eq!(
+            OverflowingShl::overflowing_shl(&v, 4),
+            OverflowingShl::overflowing_shl(v, 4)
+        );
+        assert_eq!(
+            WrappingShl::wrapping_shl(&v, 5),
+            WrappingShl::wrapping_shl(v, 5)
+        );
+        assert_eq!(
+            CheckedShl::checked_shl(&v, 5),
+            CheckedShl::checked_shl(v, 5)
+        );
+        assert_eq!(
+            UnboundedShl::unbounded_shl(&v, 100),
+            UnboundedShl::unbounded_shl(v, 100)
+        );
+        assert_eq!(ShlExact::shl_exact(&v, 3), ShlExact::shl_exact(v, 3));
+        assert_eq!(ShrExact::shr_exact(&v, 0), ShrExact::shr_exact(v, 0));
+
+        let hi = H::from(0x1234_5678u32);
+        let lo = H::from(0x9ABC_DEF0u32);
+        assert_eq!(
+            FunnelShl::funnel_shl(&hi, &lo, 8),
+            FunnelShl::funnel_shl(hi, lo, 8)
+        );
+        assert_eq!(
+            FunnelShr::funnel_shr(&hi, &lo, 8),
+            FunnelShr::funnel_shr(hi, lo, 8)
+        );
     }
 }

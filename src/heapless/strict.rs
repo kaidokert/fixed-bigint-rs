@@ -102,6 +102,79 @@ where
     }
 }
 
+// `&Self` reference-receiver mirrors. `HeaplessBigInt` is `Copy`, so each
+// mirror derefs its receiver/operands and forwards to the value impl above.
+
+impl<T, const CAP: usize> StrictAdd for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn strict_add(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as StrictAdd>::strict_add(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> StrictSub for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn strict_sub(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as StrictSub>::strict_sub(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> StrictMul for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn strict_mul(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as StrictMul>::strict_mul(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> StrictDiv for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn strict_div(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as StrictDiv>::strict_div(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> StrictRem for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn strict_rem(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as StrictRem>::strict_rem(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> StrictShl for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn strict_shl(self, rhs: u32) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as StrictShl>::strict_shl(*self, rhs)
+    }
+}
+
+impl<T, const CAP: usize> StrictShr for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn strict_shr(self, rhs: u32) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as StrictShr>::strict_shr(*self, rhs)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::HeaplessBigInt;
@@ -131,5 +204,12 @@ mod tests {
     #[should_panic(expected = "strict_shl shift exceeds")]
     fn strict_shl_over_width_panics() {
         StrictShl::strict_shl(H::from(1u8).widened(4), 32);
+    }
+
+    #[test]
+    fn byref_matches_value() {
+        let a = H::from(10u8).widened(4);
+        let b = H::from(20u8);
+        assert_eq!(StrictAdd::strict_add(&a, &b), StrictAdd::strict_add(a, b));
     }
 }

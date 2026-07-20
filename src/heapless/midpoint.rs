@@ -18,3 +18,29 @@ where
         (self & rhs) + ((self ^ rhs) >> 1usize)
     }
 }
+
+// `&Self` mirror so `(&h).midpoint(&g)` resolves without an explicit copy.
+impl<T, const CAP: usize, P: Personality> Midpoint for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn midpoint(self, rhs: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, P> as Midpoint>::midpoint(*self, *rhs)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HeaplessBigInt;
+    use const_num_traits::Midpoint;
+
+    type H = HeaplessBigInt<u8, 4>;
+
+    #[test]
+    fn byref_matches_value() {
+        let a = H::from(10u8);
+        let b = H::from(21u8);
+        assert_eq!(Midpoint::midpoint(&a, &b), Midpoint::midpoint(a, b));
+    }
+}

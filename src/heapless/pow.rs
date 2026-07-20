@@ -84,6 +84,29 @@ where
     }
 }
 
+// `&Self` reference-receiver mirrors. `HeaplessBigInt` is `Copy`, so each
+// mirror derefs its receiver and forwards to the value impl above.
+
+impl<T, const CAP: usize> CheckedPow for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn checked_pow(self, exp: u32) -> Option<Self::Output> {
+        <HeaplessBigInt<T, CAP, Nct> as CheckedPow>::checked_pow(*self, exp)
+    }
+}
+
+impl<T, const CAP: usize> StrictPow for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn strict_pow(self, exp: u32) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as StrictPow>::strict_pow(*self, exp)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,5 +140,18 @@ mod tests {
     fn strict_pow_panics_on_overflow() {
         let base = H::from_le_bytes(&2u32.to_le_bytes());
         let _ = StrictPow::strict_pow(base, 32);
+    }
+
+    #[test]
+    fn byref_matches_value() {
+        let base = H::from_le_bytes(&2u32.to_le_bytes());
+        assert_eq!(
+            CheckedPow::checked_pow(&base, 10),
+            CheckedPow::checked_pow(base, 10)
+        );
+        assert_eq!(
+            StrictPow::strict_pow(&base, 10),
+            StrictPow::strict_pow(base, 10)
+        );
     }
 }

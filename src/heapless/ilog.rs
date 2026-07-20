@@ -93,6 +93,46 @@ where
     }
 }
 
+// `&Self` mirrors so `(&h).ilog(&base)` resolves without an explicit copy.
+impl<T, const CAP: usize> Ilog2 for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    fn ilog2(self) -> u32 {
+        <HeaplessBigInt<T, CAP, Nct> as Ilog2>::ilog2(*self)
+    }
+
+    fn checked_ilog2(self) -> Option<u32> {
+        <HeaplessBigInt<T, CAP, Nct> as Ilog2>::checked_ilog2(*self)
+    }
+}
+
+impl<T, const CAP: usize> Ilog10 for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn ilog10(self) -> u32 {
+        <HeaplessBigInt<T, CAP, Nct> as Ilog10>::ilog10(*self)
+    }
+
+    fn checked_ilog10(self) -> Option<u32> {
+        <HeaplessBigInt<T, CAP, Nct> as Ilog10>::checked_ilog10(*self)
+    }
+}
+
+impl<T, const CAP: usize> Ilog for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn ilog(self, base: Self) -> u32 {
+        <HeaplessBigInt<T, CAP, Nct> as Ilog>::ilog(*self, *base)
+    }
+
+    fn checked_ilog(self, base: Self) -> Option<u32> {
+        <HeaplessBigInt<T, CAP, Nct> as Ilog>::checked_ilog(*self, *base)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::HeaplessBigInt;
@@ -143,5 +183,18 @@ mod tests {
                 "ilog(base 10, {n})"
             );
         }
+    }
+
+    #[test]
+    fn byref_matches_value() {
+        let a = H::from(27u8);
+        let base = H::from(3u8);
+        let r = &a; // dispatch through the `&Self` mirror
+        assert_eq!(Ilog2::ilog2(r), Ilog2::ilog2(a));
+        assert_eq!(Ilog2::checked_ilog2(r), Ilog2::checked_ilog2(a));
+        assert_eq!(Ilog10::ilog10(r), Ilog10::ilog10(a));
+        assert_eq!(Ilog10::checked_ilog10(r), Ilog10::checked_ilog10(a));
+        assert_eq!(Ilog::ilog(r, &base), Ilog::ilog(a, base));
+        assert_eq!(Ilog::checked_ilog(r, &base), Ilog::checked_ilog(a, base));
     }
 }

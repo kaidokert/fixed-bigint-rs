@@ -76,6 +76,30 @@ where
     }
 }
 
+// Reference-receiver mirrors (`&HeaplessBigInt`), so `(&h).deposit_bits(m)`
+// resolves. `HeaplessBigInt` is `Copy`; each delegates to the value impl,
+// dereferencing both `self` and the `mask` operand.
+
+impl<T, const CAP: usize> DepositBits for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn deposit_bits(self, mask: Self) -> HeaplessBigInt<T, CAP, Nct> {
+        <HeaplessBigInt<T, CAP, Nct> as DepositBits>::deposit_bits(*self, *mask)
+    }
+}
+
+impl<T, const CAP: usize> ExtractBits for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn extract_bits(self, mask: Self) -> HeaplessBigInt<T, CAP, Nct> {
+        <HeaplessBigInt<T, CAP, Nct> as ExtractBits>::extract_bits(*self, *mask)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::HeaplessBigInt;
@@ -120,5 +144,20 @@ mod tests {
         let z0 = H::new_zero_with_len(0);
         assert_eq!(DepositBits::deposit_bits(z0, z0).len(), 0);
         assert_eq!(ExtractBits::extract_bits(z0, z0).len(), 0);
+    }
+
+    // The `&Self` mirrors agree with the value impls.
+    #[test]
+    fn by_ref_matches_value() {
+        let mask = H::from(0b0101_0101u8).widened(4);
+        let src = H::from(0b1011u8).widened(4);
+        assert_eq!(
+            DepositBits::deposit_bits(&src, &mask),
+            DepositBits::deposit_bits(src, mask)
+        );
+        assert_eq!(
+            ExtractBits::extract_bits(&src, &mask),
+            ExtractBits::extract_bits(src, mask)
+        );
     }
 }
