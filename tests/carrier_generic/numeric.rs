@@ -5,12 +5,12 @@ use crate::harness::*;
 #[test]
 fn one_and_bounds() {
     fn body<C: Carrier>() {
-        assert_eq!(<C as One>::one(), C::from_u32(1));
+        assert_eq!(C::one(), C::from_u32(1));
         assert!(One::is_one(&C::from_u32(1)));
         assert!(!One::is_one(&C::from_u32(0)));
 
-        assert_eq!(<C as Bounded>::min_value(), C::from_u32(0));
-        assert_eq!(<C as Bounded>::max_value(), C::from_u32(MAX32));
+        assert_eq!(C::min_value(), C::from_u32(0));
+        assert_eq!(C::max_value(), C::from_u32(MAX32));
     }
     for_both_carriers!(body);
 }
@@ -24,16 +24,43 @@ fn roots_and_integer() {
     fn body<C: Carrier + num_integer::Roots + num_integer::Integer>() {
         use num_integer::{Integer, Roots};
 
-        // Roots truncate toward zero.
+        // Roots truncate toward zero, including at the width extremes.
+        assert_eq!(Roots::sqrt(&C::from_u32(0)), C::from_u32(0));
         assert_eq!(Roots::sqrt(&C::from_u32(144)), C::from_u32(12));
         assert_eq!(Roots::sqrt(&C::from_u32(145)), C::from_u32(12));
+        // floor(sqrt(2^32 - 1)) = 0xFFFF.
+        assert_eq!(Roots::sqrt(&C::max_value()), C::from_u32(0xFFFF));
+        assert_eq!(Roots::cbrt(&C::from_u32(0)), C::from_u32(0));
         assert_eq!(Roots::cbrt(&C::from_u32(27)), C::from_u32(3));
+        // floor(cbrt(2^32 - 1)) = 1625 (1625^3 <= max < 1626^3).
+        assert_eq!(Roots::cbrt(&C::max_value()), C::from_u32(1625));
         assert_eq!(Roots::nth_root(&C::from_u32(81), 4), C::from_u32(3));
 
-        // Integer: gcd / lcm / floored div-mod / div_rem / parity.
+        // Integer: gcd / lcm / floored div-mod / div_rem / parity, with the
+        // zero-operand identities pinned (gcd(x,0)=x, lcm anything-0 = 0).
+        assert_eq!(
+            Integer::gcd(&C::from_u32(0), &C::from_u32(0)),
+            C::from_u32(0)
+        );
+        assert_eq!(
+            Integer::gcd(&C::from_u32(10), &C::from_u32(0)),
+            C::from_u32(10)
+        );
+        assert_eq!(
+            Integer::gcd(&C::max_value(), &C::from_u32(0)),
+            C::max_value()
+        );
         assert_eq!(
             Integer::gcd(&C::from_u32(48), &C::from_u32(36)),
             C::from_u32(12)
+        );
+        assert_eq!(
+            Integer::lcm(&C::from_u32(0), &C::from_u32(0)),
+            C::from_u32(0)
+        );
+        assert_eq!(
+            Integer::lcm(&C::from_u32(10), &C::from_u32(0)),
+            C::from_u32(0)
         );
         assert_eq!(
             Integer::lcm(&C::from_u32(4), &C::from_u32(6)),
