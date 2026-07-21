@@ -17,5 +17,7 @@ mod arithmetic;
 mod bits_and_compare;
 #[path = "carrier_generic/numeric.rs"]
 mod numeric;
+#[path = "carrier_generic/serialization.rs"]
+mod serialization;
 #[path = "carrier_generic/shifts_and_bitwise.rs"]
 mod shifts_and_bitwise;
