@@ -86,7 +86,10 @@ impl<T: MachineWord, const CAP: usize, P: Personality> PrimBits for HeaplessBigI
                 ret
             }
             // Shared full-width branchless scan (see `const_trailing_zeros_ct`).
-            PersonalityTag::Ct => crate::fixeduint::const_trailing_zeros_ct(&self.limbs[..n]),
+            PersonalityTag::Ct => {
+                let s = self.limbs.get(..n).unwrap_or(&self.limbs);
+                crate::fixeduint::const_trailing_zeros_ct(s)
+            }
         }
     }
 

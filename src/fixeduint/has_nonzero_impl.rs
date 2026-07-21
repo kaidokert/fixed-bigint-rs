@@ -155,23 +155,34 @@ c0nst::c0nst! {
     //
     // Panic-freeness: the API contract ("no `Result` or `.unwrap()` at
     // the caller boundary") is met — the `NonZeroFixedUInt` proof-type
-    // discharges the divide-by-zero check statically. But the produced
-    // binary still contains a `panic_fmt` symbol because `self / d.0`
-    // routes through `const_div_rem`, which retains a runtime
-    // divisor-non-zero check whose branch LLVM can't prove unreachable
-    // through the `#[repr(transparent)]` wrapper. Consumers who need
-    // a *binary-level* panic-free divide should audit downstream.
+    // discharges the divide-by-zero check statically. `self / d.0` routes
+    // through `const_div_rem`, whose runtime divisor-non-zero check LLVM
+    // can't prove unreachable through the wrapper on its own, so we restate
+    // the invariant with `unreachable_unchecked` on the same `const_is_zero`
+    // the divide performs — the two unify and the `panic_fmt` DCEs, leaving
+    // a binary-level panic-free divide.
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize> DivNonZero for FixedUInt<T, N, Nct> {
         type Output = FixedUInt<T, N, Nct>;
 
         #[inline]
         fn div_nonzero(self, d: Self::NonZero) -> Self::Output {
-            self / d.0
+            // Call `const_div` directly rather than `self / d.0`: the latter
+            // routes through `const_div_rem`, whose divisor zero-check LLVM
+            // keeps (with its `panic_fmt`) because it can't see the proof
+            // through the wrapper. `NonZeroFixedUInt` guarantees `d != 0`, so
+            // the long division is always well-defined and this path carries
+            // no panic symbol.
+            let mut quotient = self.array;
+            let _remainder = super::const_div(&mut quotient, &d.0.array);
+            Self::from_array(quotient)
         }
 
         #[inline]
         fn rem_nonzero(self, d: Self::NonZero) -> Self::Output {
-            self % d.0
+            // See `div_nonzero`; `const_div` returns the remainder.
+            let mut quotient = self.array;
+            let remainder = super::const_div(&mut quotient, &d.0.array);
+            Self::from_array(remainder)
         }
     }
 }

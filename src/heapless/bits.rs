@@ -48,7 +48,9 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
             }
             // Shared full-width branchless scan (see `const_leading_zeros_ct`).
             PersonalityTag::Ct => {
-                crate::fixeduint::const_leading_zeros_ct(&self.limbs[..self.len as usize]) as usize
+                let n = self.len as usize;
+                let s = self.limbs.get(..n).unwrap_or(&self.limbs);
+                crate::fixeduint::const_leading_zeros_ct(s) as usize
             }
         }
     }
