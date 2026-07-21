@@ -22,6 +22,10 @@ fn formatting() {
         assert_eq!(format!("{}", C::from_u32(4660)), "4660");
         assert_eq!(format!("{}", C::from_u32(MAX32)), "4294967295");
 
+        // Hex suppresses leading zeros on both carriers, so zero renders as
+        // the empty string (not "0") — pin that shared, non-standard quirk.
+        assert_eq!(format!("{:x}", C::from_u32(0)), "");
+        assert_eq!(format!("{:X}", C::from_u32(0)), "");
         assert_eq!(format!("{:x}", C::from_u32(0x1234)), "1234");
         assert_eq!(format!("{:x}", C::from_u32(0xDEAD_BEEF)), "deadbeef");
         assert_eq!(format!("{:X}", C::from_u32(0xDEAD_BEEF)), "DEADBEEF");
@@ -42,18 +46,45 @@ fn parse_decimal_and_radix() {
         assert_eq!("4660".parse::<C>().unwrap(), C::from_u32(4660));
         assert_eq!("4294967295".parse::<C>().unwrap(), C::from_u32(MAX32));
 
+        // Leading zeros are tolerated on the decimal path.
+        assert_eq!("00010".parse::<C>().unwrap(), C::from_u32(10));
+
+        // Radices across the 2..=16 span, with leading-zero and uppercase-digit
+        // variants for hex.
         assert_eq!(
             <C as num_traits::Num>::from_str_radix("1010", 2).unwrap(),
             C::from_u32(10)
+        );
+        assert_eq!(
+            <C as num_traits::Num>::from_str_radix("777", 8).unwrap(),
+            C::from_u32(511)
+        );
+        assert_eq!(
+            <C as num_traits::Num>::from_str_radix("123", 10).unwrap(),
+            C::from_u32(123)
         );
         assert_eq!(
             <C as num_traits::Num>::from_str_radix("ff", 16).unwrap(),
             C::from_u32(255)
         );
         assert_eq!(
+            <C as num_traits::Num>::from_str_radix("00FF", 16).unwrap(),
+            C::from_u32(255)
+        );
+        assert_eq!(
             <C as num_traits::Num>::from_str_radix("deadbeef", 16).unwrap(),
             C::from_u32(0xDEAD_BEEF)
         );
+
+        // Error paths: empty, invalid digit, over-width value, out-of-range
+        // radix. Both carriers are 32-bit here, so 2^32 overflows.
+        assert!("".parse::<C>().is_err());
+        assert!("abc".parse::<C>().is_err());
+        assert!("12a34".parse::<C>().is_err());
+        assert!("4294967296".parse::<C>().is_err());
+        assert!(<C as num_traits::Num>::from_str_radix("1", 1).is_err());
+        assert!(<C as num_traits::Num>::from_str_radix("1", 17).is_err());
+        assert!(<C as num_traits::Num>::from_str_radix("2", 2).is_err());
     }
     for_both_carriers!(body);
 }
