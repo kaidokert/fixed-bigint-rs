@@ -49,8 +49,15 @@ fn parse_decimal_and_radix() {
         // Leading zeros are tolerated on the decimal path.
         assert_eq!("00010".parse::<C>().unwrap(), C::from_u32(10));
 
-        // Radices across the 2..=16 span, with leading-zero and uppercase-digit
-        // variants for hex.
+        // Every radix in the supported 2..=16 span: "100" in base r is r^2.
+        for r in 2u32..=16 {
+            assert_eq!(
+                <C as num_traits::Num>::from_str_radix("100", r).unwrap(),
+                C::from_u32(r * r)
+            );
+        }
+
+        // Spot-checks with leading-zero and uppercase-digit variants for hex.
         assert_eq!(
             <C as num_traits::Num>::from_str_radix("1010", 2).unwrap(),
             C::from_u32(10)
