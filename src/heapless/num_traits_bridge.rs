@@ -8,7 +8,7 @@
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
-use const_num_traits::{Bounded, CarryingMul, ConstOne, ConstZero, Personality, Zero};
+use const_num_traits::{Bounded, CarryingMul, ConstOne, ConstZero, Nct, Personality, Zero};
 
 impl<T: MachineWord, const CAP: usize, P: Personality> num_traits::Zero
     for HeaplessBigInt<T, CAP, P>
@@ -118,67 +118,22 @@ impl<T: MachineWord, const CAP: usize, P: Personality> num_traits::NumCast
     }
 }
 
+// Marker: an unsigned `Num`. Nct-only, since `Num` (via `from_str_radix`) is.
+impl<T, const CAP: usize> num_traits::Unsigned for HeaplessBigInt<T, CAP, Nct> where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>
+{
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Alias so the assertions exercise the *num_traits* bridge, not the
-    // `const_num_traits::Bounded` pulled in by `super::*`.
-    use num_traits::{Bounded as NumBounded, FromPrimitive, NumCast, One, ToPrimitive, Zero};
+    use num_traits::{FromPrimitive, ToPrimitive};
 
-    type H8x4 = HeaplessBigInt<u8, 4>; // 32-bit carrier
     type H32x8 = HeaplessBigInt<u32, 8>; // 256-bit carrier
 
-    #[test]
-    fn zero_one_bounded() {
-        assert!(<H8x4 as Zero>::zero().is_zero());
-        assert!(!<H8x4 as One>::one().is_zero());
-        // max is capacity-wide (all CAP limbs saturated).
-        let max = <H8x4 as NumBounded>::max_value();
-        assert_eq!(max.to_u64(), Some(0xFFFF_FFFF));
-        assert!(<H8x4 as NumBounded>::min_value().is_zero());
-    }
-
-    #[test]
-    fn to_u64_roundtrips_and_overflows() {
-        // Fits.
-        assert_eq!(
-            H32x8::from_u64(0x1234_5678_9ABC).unwrap().to_u64(),
-            Some(0x1234_5678_9ABC)
-        );
-        // 32-bit carrier can't hold a value above u32::MAX → to_u64 None path
-        // is only reachable when higher limbs are set; here the value is built
-        // from_u64 so overflow surfaces at construction instead.
-        assert_eq!(H8x4::from_u64(0x1_0000_0000), None); // > u32::MAX
-        assert_eq!(
-            H8x4::from_u64(0xFFFF_FFFF).unwrap().to_u64(),
-            Some(0xFFFF_FFFF)
-        );
-        assert_eq!(H8x4::from_u64(0).unwrap().to_u64(), Some(0));
-    }
-
-    #[test]
-    fn numcast_between_widths() {
-        let a: H32x8 = NumCast::from(255u32).unwrap();
-        assert_eq!(a.to_u64(), Some(255));
-        assert!(<H8x4 as NumCast>::from(0x1_0000_0000u64).is_none());
-    }
-
-    #[test]
-    fn matches_fixeduint_reference() {
-        // The bridge mirrors `FixedUInt`'s; at equal width the primitive
-        // casts must agree value-for-value.
-        type F32x8 = crate::FixedUInt<u32, 8>;
-        for v in [0u64, 1, 0xFF, 0x1_0000, 0x1234_5678_9ABC_DEF0] {
-            assert_eq!(
-                H32x8::from_u64(v).unwrap().to_u64(),
-                F32x8::from_u64(v).unwrap().to_u64(),
-                "to_u64 mismatch for {v:#x}"
-            );
-        }
-        // Overflow verdict agrees on a narrow (32-bit) carrier.
-        assert!(H8x4::from_u64(0x1_0000_0000).is_none());
-        assert!(crate::FixedUInt::<u8, 4>::from_u64(0x1_0000_0000).is_none());
-    }
+    // The 32-bit foundation surface (Zero/One/Bounded/NumCast, round-trip and
+    // overflow) is covered for both carriers in tests/carrier_num_traits.rs.
+    // These two exercise heapless behavior the fixed-width harness can't reach.
 
     #[test]
     fn from_u64_is_natural_width() {
@@ -186,5 +141,17 @@ mod tests {
         use const_num_traits::BitsPrecision;
         let small = H32x8::from_u64(1).unwrap();
         assert_eq!(small.bits_precision(), 32); // one u32 limb, not 8
+    }
+
+    #[test]
+    fn wide_value_roundtrip() {
+        // Values wider than 32 bits round-trip via multi-limb u64 assembly in
+        // a carrier wide enough to hold them.
+        for v in [0x1_0000_0000u64, 0x1234_5678_9ABC, 0xFFFF_FFFF_FFFF_FFFF] {
+            assert_eq!(H32x8::from_u64(v).unwrap().to_u64(), Some(v));
+        }
+        // The 256-bit max exceeds u64, so to_u64 saturates to None — the
+        // branch from_u64 relies on to accept every u64 above.
+        assert_eq!(<H32x8 as num_traits::Bounded>::max_value().to_u64(), None);
     }
 }

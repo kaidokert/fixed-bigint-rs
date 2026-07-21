@@ -29,12 +29,19 @@
 //! | operation | result `len` |
 //! |---|---|
 //! | `wrapping`/`overflowing`/`checked` `add`·`sub`·`mul`, `+` `-` `*` | `max(a.len, b.len)` |
-//! | `Shl` (`<<`) | `self.len` — high bits past the width are discarded |
-//! | `Shr` (`>>`) | `self.len` minus the whole-word shift |
+//! | `Shl` (`<<`), `overflowing`/`wrapping`/`checked`/`unbounded`/`exact` `shl`, `FunnelShl` | `self.len` — high bits past the width are discarded |
+//! | `Shr` (`>>`), `overflowing`/`wrapping`/`checked`/`unbounded`/`exact` `shr`, `FunnelShr` | `self.len` minus the whole-word shift |
 //! | `WideMul` / [`CarryingMul`](const_num_traits::CarryingMul) | `lo` and `hi` each `max(a.len, b.len)`; reconstruct `hi·2^(W·word_bits) + lo` |
 //! | `Div` (`/`), `Rem` (`%`) | `max(dividend.len, divisor.len)` |
-//! | `BitAnd` (`&`) | `min(a.len, b.len)` |
-//! | `BitOr` | `max(a.len, b.len)` |
+//! | `BitAnd` (`&`), `BitOr`, `BitXor` | `max(a.len, b.len)` |
+//! | [`NextPowerOfTwo`](const_num_traits::NextPowerOfTwo) `next`/`checked`/`wrapping` | `self.len` — `one` is widened before the shift |
+//! | [`NextMultipleOf`](const_num_traits::NextMultipleOf) `next`/`checked` | `max(self.len, rhs.len)` (via `%` and `+`) |
+//! | [`Isqrt`](const_num_traits::Isqrt), [`Roots::nth_root`](num_integer::Roots) | `self.len` — estimate seeded at the operand width |
+//! | [`Ilog2`](const_num_traits::Ilog2) / `Ilog10` / `Ilog` | returns `u32` — no result width |
+//! | [`HighestOne`](const_num_traits::HighestOne) / `LowestOne` | returns `Option<u32>` — no result width |
+//! | [`IsolateHighestOne`](const_num_traits::IsolateHighestOne) / `IsolateLowestOne` | `self.len` — the single-bit mask carries the operand width |
+//! | [`DepositBits`](const_num_traits::DepositBits) / `ExtractBits` | `max(self.len, mask.len)` |
+//! | [`Sum`](core::iter::Sum) / [`Product`](core::iter::Product) | `max(operand len)`; empty iterator yields the minimal-width identity |
 //! | [`widened`](HeaplessBigInt::widened) / `WithPrecision` | the requested width (grow-only) |
 //!
 //! ## Construction & serialization widths
@@ -45,7 +52,7 @@
 //!
 //! | path | width |
 //! |---|---|
-//! | `From<u8/u16/u32>` | `ceil(size_of::<uN>() / word)` — the source int's width |
+//! | `From<u8/u16/u32/u64>` | `ceil(size_of::<uN>() / word)` — the source int's width |
 //! | inherent [`from_le_bytes`](HeaplessBigInt::from_le_bytes) / `from_be_bytes(&[u8])` | `ceil(slice.len() / word)` — the slice width |
 //! | [`new_zero_with_len`](HeaplessBigInt::new_zero_with_len) / [`from_limbs`](HeaplessBigInt::from_limbs) | exactly the given `len` |
 //! | `FromBytes` **trait** (`BytesHolder<T, CAP>`) | **`CAP`** — an owned holder can't be runtime-sized |
@@ -61,7 +68,10 @@ use crate::MachineWord;
 use const_num_traits::{Ct, Nct, Personality};
 use core::marker::PhantomData;
 
+mod abs_diff;
 mod arith;
+mod bit_deposit;
+mod bit_scan;
 mod bits;
 mod bitwise;
 mod bytes;
@@ -69,17 +79,38 @@ mod bytes;
 mod cios;
 mod cmp;
 mod div_rem;
+mod euclid;
 mod from_prim;
+mod has_nonzero;
 mod has_personality;
 mod identities;
+mod ilog;
+mod isqrt;
+mod iter;
+mod midpoint;
+mod multiple;
+#[cfg(feature = "num-traits")]
+mod num_integer_impl;
 #[cfg(feature = "num-traits")]
 mod num_traits_bridge;
 mod parity;
+mod pow;
+mod power_of_two;
+mod prim_bits;
+#[cfg(feature = "num-traits")]
+mod prim_int;
+#[cfg(feature = "num-traits")]
+mod roots_impl;
 mod shift;
+mod shift_ops;
+mod strict;
+mod string_conversion;
 #[cfg(any(feature = "nightly", feature = "use-unsafe"))]
 mod to_bytes;
 #[cfg(feature = "zeroize")]
 mod zeroize_impl;
+
+pub use has_nonzero::NonZeroHeaplessBigInt;
 
 /// A `len`-word unsigned integer whose width is chosen at runtime.
 ///

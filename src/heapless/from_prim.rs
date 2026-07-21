@@ -26,4 +26,18 @@ macro_rules! from_primitive {
     )+ };
 }
 
-from_primitive!(u8, u16, u32);
+from_primitive!(u8, u16, u32, u64);
+
+#[cfg(test)]
+mod tests {
+    use super::HeaplessBigInt;
+
+    #[test]
+    fn from_u64_source_width() {
+        // From<u64> constructs at the source-int width (8 bytes → 2 u32 limbs).
+        let v: HeaplessBigInt<u32, 8> = 0x1234_5678_9ABCu64.into();
+        assert_eq!(v.len(), 2);
+        assert_eq!(v.limbs()[0], 0x5678_9ABC);
+        assert_eq!(v.limbs()[1], 0x0000_1234);
+    }
+}

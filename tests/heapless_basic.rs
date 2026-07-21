@@ -508,7 +508,7 @@ fn ct_lt_and_eq_partition_ordering() {
 #[test]
 fn shl_by_zero_is_identity() {
     let a = H4u32Nct::from_limbs([0xDEADBEEF, 0, 0, 0], 1);
-    let b = a << 0;
+    let b = a << 0usize;
     assert_eq!(a, b);
     assert_eq!(a.len(), b.len());
 }
@@ -516,7 +516,7 @@ fn shl_by_zero_is_identity() {
 #[test]
 fn shl_within_a_limb() {
     let a = H4u32Nct::from_limbs([0x0000_00AB, 0, 0, 0], 1);
-    let b = a << 8;
+    let b = a << 8usize;
     // 0xAB << 8 = 0xAB00, still fits in limb 0.
     assert_eq!(b.limbs()[0], 0x0000_AB00);
 }
@@ -526,13 +526,13 @@ fn shl_crosses_a_limb_within_width() {
     // Width-preserving: at width 1 (len 1) the top byte shifts out, like
     // FixedUInt<u32,1>. 0xAB000000 << 8 = 0 (mod 2^32).
     let a = H4u32Nct::from_limbs([0xAB000000, 0, 0, 0], 1);
-    let b = a << 8;
+    let b = a << 8usize;
     assert_eq!(b.len(), 1);
     assert_eq!(b.limbs()[0], 0);
 
     // At width 2 (len 2) the same byte has room to carry into limb 1.
     let a2 = H4u32Nct::from_limbs([0xAB000000, 0, 0, 0], 2);
-    let b2 = a2 << 8;
+    let b2 = a2 << 8usize;
     assert_eq!(b2.len(), 2);
     assert_eq!(b2.limbs()[0], 0);
     assert_eq!(b2.limbs()[1], 0x000000AB);
@@ -543,7 +543,7 @@ fn shl_by_full_word_preserves_width() {
     // Width 2 (len 2): << 32 shifts limb 0 into limb 1; the old limb 1
     // (value 2) shifts out of the width. Matches FixedUInt<u32,2>.
     let a = H4u32Nct::from_limbs([1, 2, 0, 0], 2);
-    let b = a << 32;
+    let b = a << 32usize;
     assert_eq!(b.len(), 2);
     assert_eq!(b.limbs()[0], 0);
     assert_eq!(b.limbs()[1], 1);
@@ -554,7 +554,7 @@ fn shl_beyond_width_is_zero() {
     // Width 1 (len 1, 32 bits): shifting by >= the width gives zero, like
     // FixedUInt<u32,1>. Width is preserved (len stays 1); CAP is irrelevant.
     let a = H4u32Nct::from_limbs([1, 0, 0, 0], 1);
-    let b = a << 128;
+    let b = a << 128usize;
     assert!(<H4u32Nct as Zero>::is_zero(&b));
     assert_eq!(b.len(), 1);
 }
@@ -564,7 +564,7 @@ fn shl_beyond_width_is_zero() {
 #[test]
 fn shr_by_zero_is_identity() {
     let a = H4u32Nct::from_limbs([0xDEADBEEF, 0x12345678, 0, 0], 2);
-    let b = a >> 0;
+    let b = a >> 0usize;
     assert_eq!(a, b);
     assert_eq!(a.len(), b.len());
 }
@@ -572,14 +572,14 @@ fn shr_by_zero_is_identity() {
 #[test]
 fn shr_within_a_limb() {
     let a = H4u32Nct::from_limbs([0x0000_AB00, 0, 0, 0], 1);
-    let b = a >> 8;
+    let b = a >> 8usize;
     assert_eq!(b.limbs()[0], 0x0000_00AB);
 }
 
 #[test]
 fn shr_crosses_a_limb() {
     let a = H4u32Nct::from_limbs([0, 0x0000_00AB, 0, 0], 2);
-    let b = a >> 32;
+    let b = a >> 32usize;
     assert_eq!(b.limbs()[0], 0x0000_00AB);
     assert_eq!(b.len(), 1);
 }
@@ -588,7 +588,7 @@ fn shr_crosses_a_limb() {
 fn shr_bit_carries_from_higher_limb() {
     // limb1 = 0x00000001. Shr by 1 puts that bit at the top of limb 0.
     let a = H4u32Nct::from_limbs([0, 1, 0, 0], 2);
-    let b = a >> 1;
+    let b = a >> 1usize;
     assert_eq!(b.limbs()[0], 0x8000_0000);
     assert_eq!(b.len(), 2);
 }
@@ -596,7 +596,7 @@ fn shr_bit_carries_from_higher_limb() {
 #[test]
 fn shr_by_more_than_value_bits_zeros() {
     let a = H4u32Nct::from_limbs([0xDEADBEEF, 0, 0, 0], 1);
-    let b = a >> 64;
+    let b = a >> 64usize;
     assert!(<H4u32Nct as Zero>::is_zero(&b));
     assert_eq!(b.len(), 0);
 }
@@ -1080,16 +1080,16 @@ fn mul_owned_owned_matches_ref_ref() {
 fn shr_assign_matches_shr() {
     let a: H4u32Nct = 0xABCD_EF01u32.into();
     let mut x = a;
-    x >>= 8;
-    assert_eq!(x, a >> 8);
+    x >>= 8usize;
+    assert_eq!(x, a >> 8usize);
 }
 
 #[test]
 fn shl_assign_matches_shl() {
     let a: H4u32Nct = 0xABCDu32.into();
     let mut x = a;
-    x <<= 12;
-    assert_eq!(x, a << 12);
+    x <<= 12usize;
+    assert_eq!(x, a << 12usize);
 }
 
 // ── WrappingMul trait ──
@@ -1334,13 +1334,34 @@ fn bitand_masks_bits() {
 }
 
 #[test]
-fn bitand_output_len_is_min_of_operand_lens() {
-    // a spans 3 limbs, mask spans 1 → result can only have limb 0 set.
+fn bitand_output_len_is_max_of_operand_lens() {
+    // a spans 3 limbs, mask spans 1. AND masks to limb 0, but the result
+    // resolves at the wider operand width like every other binary op — the
+    // high limbs are zero (masked against the shorter operand's zero-tail).
     let a = H4u32Nct::from_limbs([0xFFFF_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF, 0], 3);
     let mask: H4u32Nct = 0x0000_00FFu32.into(); // len 1
     let out = &a & &mask;
-    assert_eq!(out.len(), 1);
+    assert_eq!(out.len(), 3);
     assert_eq!(out.limbs()[0], 0x0000_00FF);
+    assert_eq!(out.limbs()[1], 0);
+    assert_eq!(out.limbs()[2], 0);
+
+    // Narrow value on the left resolves at the same wider width.
+    let out2 = &mask & &a;
+    assert_eq!(out2.len(), 3);
+    assert_eq!(out2.limbs()[0], 0x0000_00FF);
+    assert_eq!(out2.limbs()[1], 0);
+    assert_eq!(out2.limbs()[2], 0);
+
+    // The compound-assign form agrees, in both operand orders.
+    let mut x = a;
+    x &= mask;
+    assert_eq!(x.len(), 3);
+    assert_eq!(x.limbs()[0], 0x0000_00FF);
+    let mut y = mask;
+    y &= a;
+    assert_eq!(y.len(), 3);
+    assert_eq!(y.limbs()[0], 0x0000_00FF);
 }
 
 #[test]
@@ -1364,12 +1385,16 @@ fn bitand_all_receiver_forms_agree() {
 
 #[test]
 fn bitand_with_full_width_mask() {
-    // Masking a short value by a full-CAP all-ones mask returns the value.
+    // Masking a short value by a full-CAP all-ones mask returns the value at
+    // the wider (mask) width — high limbs zero.
     let v: H4u32Nct = 0x1234_5678u32.into(); // len 1
     let mask = H4u32Nct::from_limbs([u32::MAX; 4], 4);
     let out = v & mask;
+    assert_eq!(out.len(), 4);
     assert_eq!(out.limbs()[0], 0x1234_5678);
-    assert_eq!(out.len(), 1);
+    assert_eq!(out.limbs()[1], 0);
+    assert_eq!(out.limbs()[2], 0);
+    assert_eq!(out.limbs()[3], 0);
 }
 
 // ── BitOr ──
@@ -1742,15 +1767,16 @@ fn bitxor_and_bitwise_assign_ops() {
 
 #[test]
 fn bitwise_assign_ops_cross_width() {
-    // The in-place assigns must reshape `len` like the binary ops:
-    // `&=` shrinks to min, `|=`/`^=` grow to max.
+    // The in-place assigns reshape `len` like the binary ops — all resolve at
+    // max(len), including `&=` (its high limbs mask to zero).
     let wide = H4u32Nct::from_limbs([0xFFFF_FFFF, 0xFFFF_FFFF, 0, 0], 2);
     let narrow = H4u32Nct::from_limbs([0x0F0F_0F0F, 0, 0, 0], 1);
 
     let mut a = wide;
     a &= narrow;
-    assert_eq!(a.len(), 1);
+    assert_eq!(a.len(), 2);
     assert_eq!(a.limbs()[0], 0x0F0F_0F0F);
+    assert_eq!(a.limbs()[1], 0);
 
     let mut b = narrow;
     b |= wide;
