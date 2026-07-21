@@ -30,7 +30,6 @@
 #[cfg(feature = "neg-controls")]
 mod neg_controls;
 
-#[cfg(feature = "diagnostic-ct-scans")]
 use const_num_traits::{Ct, PrimBits};
 use core::hint::black_box;
 use fixed_bigint::{FixedUInt, HeaplessBigInt};
@@ -45,12 +44,9 @@ type U256 = FixedUInt<u32, 8>; // 32-byte / 256-bit, Curve25519-shaped
 // panic-free at both carriers (the array length is compile-time on FixedUInt;
 // heapless passes `&limbs[..n]` with `n <= CAP` by invariant).
 
-#[cfg(feature = "diagnostic-ct-scans")]
 type U256Ct = FixedUInt<u32, 8, Ct>;
-#[cfg(feature = "diagnostic-ct-scans")]
 type HeaplessU256Ct = HeaplessBigInt<u32, 8, Ct>;
 
-#[cfg(feature = "diagnostic-ct-scans")]
 #[no_mangle]
 pub extern "C" fn panic_audit__fixed_cmp_ct(a: u32, b: u32) -> i32 {
     let x = U256Ct::from(black_box(a));
@@ -58,14 +54,12 @@ pub extern "C" fn panic_audit__fixed_cmp_ct(a: u32, b: u32) -> i32 {
     black_box(x.cmp(&y) as i32)
 }
 
-#[cfg(feature = "diagnostic-ct-scans")]
 #[no_mangle]
 pub extern "C" fn panic_audit__fixed_leading_zeros_ct(a: u32) -> u32 {
     let x = U256Ct::from(black_box(a));
     black_box(PrimBits::leading_zeros(x))
 }
 
-#[cfg(feature = "diagnostic-ct-scans")]
 #[no_mangle]
 pub extern "C" fn panic_audit__heapless_cmp_ct(a: u32, b: u32) -> i32 {
     let x = HeaplessU256Ct::from(black_box(a));
@@ -73,21 +67,18 @@ pub extern "C" fn panic_audit__heapless_cmp_ct(a: u32, b: u32) -> i32 {
     black_box(x.cmp(&y) as i32)
 }
 
-#[cfg(feature = "diagnostic-ct-scans")]
 #[no_mangle]
 pub extern "C" fn panic_audit__heapless_leading_zeros_ct(a: u32) -> u32 {
     let x = HeaplessU256Ct::from(black_box(a));
     black_box(PrimBits::leading_zeros(x))
 }
 
-#[cfg(feature = "diagnostic-ct-scans")]
 #[no_mangle]
 pub extern "C" fn panic_audit__fixed_trailing_zeros_ct(a: u32) -> u32 {
     let x = U256Ct::from(black_box(a));
     black_box(PrimBits::trailing_zeros(x))
 }
 
-#[cfg(feature = "diagnostic-ct-scans")]
 #[no_mangle]
 pub extern "C" fn panic_audit__heapless_trailing_zeros_ct(a: u32) -> u32 {
     let x = HeaplessU256Ct::from(black_box(a));
@@ -300,20 +291,15 @@ pub extern "C" fn panic_audit__num_traits_to_le_bytes__u64_32(
 //
 // Tests whether `div_nonzero` / `rem_nonzero` survive DCE without
 // dragging in `panic_fmt` from `FixedUInt`'s `Div`/`Rem` zero check.
-// The trait contract guarantees `d != 0`, but the underlying
-// `FixedUInt::Div` impl still has a runtime zero check internally —
-// the open question is whether LLVM proves it unreachable through the
-// `NonZeroFixedUInt` wrapper. Same DCE question as `*_bytes_fixed`.
+// The trait contract guarantees `d != 0`; lock down that the underlying
+// division implementation does not retain its otherwise-valid zero check
+// through the `NonZeroFixedUInt` wrapper.
 
-#[cfg(feature = "diagnostic-nonzero-div")]
 use const_num_traits::{DivNonZero, HasNonZero, Nct};
-#[cfg(feature = "diagnostic-nonzero-div")]
 use fixed_bigint::NonZeroFixedUInt;
 
-#[cfg(feature = "diagnostic-nonzero-div")]
 type U256Nct = FixedUInt<u32, 8, Nct>;
 
-#[cfg(feature = "diagnostic-nonzero-div")]
 #[no_mangle]
 pub extern "C" fn panic_audit__div_nonzero(seed_a: u32, seed_m: u32, out: *mut [u32; 8]) {
     let a = U256Nct::from(black_box(seed_a));
@@ -337,7 +323,6 @@ pub extern "C" fn panic_audit__div_nonzero(seed_a: u32, seed_m: u32, out: *mut [
     unsafe { *out = arr };
 }
 
-#[cfg(feature = "diagnostic-nonzero-div")]
 #[no_mangle]
 pub extern "C" fn panic_audit__rem_nonzero(seed_a: u32, seed_m: u32, out: *mut [u32; 8]) {
     let a = U256Nct::from(black_box(seed_a));
