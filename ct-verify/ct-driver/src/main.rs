@@ -5,7 +5,7 @@ mod target;
 use std::path::Path;
 use std::process::ExitCode;
 
-use krabi_caliper::host::ct_asm::{DriverConfig, WholeSurfaceConfig, run_whole_surface};
+use krabi_caliper::host::ct_asm::{run_whole_surface, DriverConfig, WholeSurfaceConfig};
 
 fn main() -> ExitCode {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
