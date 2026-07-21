@@ -20,7 +20,7 @@ jobs:
           targets: ${{ matrix.triple }}
           components: llvm-tools-preview
       - name: Install krabi-caliper
-        run: cargo install krabi-caliper --git https://github.com/kaidokert/krabi-caliper-rs --tag v0.1.0-alpha.1 --features cli,campaign
+        run: cargo install krabi-caliper --git https://github.com/kaidokert/krabi-caliper-rs --tag v0.1.0-alpha.2 --features cli,campaign
       - name: Run panic-free audit
         run: |
           cargo krabi-caliper panic-audit \
@@ -49,7 +49,7 @@ jobs:
           targets: ${{ matrix.triple }}
           components: llvm-tools-preview
       - name: Install krabi-caliper
-        run: cargo install krabi-caliper --git https://github.com/kaidokert/krabi-caliper-rs --tag v0.1.0-alpha.1 --features cli,campaign
+        run: cargo install krabi-caliper --git https://github.com/kaidokert/krabi-caliper-rs --tag v0.1.0-alpha.2 --features cli,campaign
       - name: Run diagnostic panic-free audit
         run: |
           cargo krabi-caliper panic-audit \

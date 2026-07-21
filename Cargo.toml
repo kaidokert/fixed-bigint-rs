@@ -9,7 +9,7 @@ members = [
 resolver = "2"
 
 [patch.crates-io]
-krabi-caliper = { git = "https://github.com/kaidokert/krabi-caliper-rs", tag = "v0.1.0-alpha.1" }
+krabi-caliper = { git = "https://github.com/kaidokert/krabi-caliper-rs", tag = "v0.1.0-alpha.2" }
 
 # Pinned release profile: deterministic codegen so a passing PR locks
 # the inspection output.
