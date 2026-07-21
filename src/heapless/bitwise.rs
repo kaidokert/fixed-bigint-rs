@@ -1,23 +1,23 @@
 //! `BitAnd` / `BitOr` / `BitXor` for `HeaplessBigInt` (all four receiver
 //! forms each), plus the compound-assign forms.
 //!
-//! Limb-wise, width-based, `CAP` never enters:
-//! - `BitAnd` → `len = min(a.len, b.len)`: at or above that bound one
-//!   operand is in its zero-tail, so the AND is zero — `min` is
-//!   value-tight and satisfies the zero-tail invariant.
-//! - `BitOr` / `BitXor` → `len = max(a.len, b.len)`: they leave a bit set
-//!   wherever exactly one operand has it, so the result spans the wider
-//!   operand; the shorter operand's zero-tail leaves the wider operand's
-//!   limbs unchanged there.
+//! All three resolve at `len = max(a.len, b.len)` — the same operand-width
+//! rule as the arithmetic ops, so every binary op hands back one consistent
+//! width. `CAP` never enters. Above `min(len)` the shorter operand is in its
+//! zero-tail, so `AND` yields zero there while `OR` / `XOR` leave the wider
+//! operand's limbs unchanged; the result is value-correct at the wider width.
+//! (`AND` could store the value in `min(len)` — its high limbs are zero — but
+//! a narrower result than the sibling ops would desync widths for a following
+//! width-sensitive op such as `Not` / `count_zeros`.)
 //!
-//! Both lens are public shape parameters, so the body is identical for
-//! Nct and Ct. The compound-assign forms delegate to the binary op.
+//! `len` is a public shape parameter, so the body is identical for Nct and
+//! Ct. The compound-assign forms delegate to (or mirror) the binary op.
 
 use super::{HeaplessBigInt, zero};
 use crate::MachineWord;
 use const_num_traits::Personality;
 use core::marker::PhantomData;
-use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
+use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
 // The value/mixed receiver forms of each bitwise op are uniform pure
 // delegation to the hand-written `&Self $op &Self` core.
@@ -54,7 +54,10 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitAnd<&HeaplessBigInt<T,
 {
     type Output = HeaplessBigInt<T, CAP, P>;
     fn bitand(self, other: &HeaplessBigInt<T, CAP, P>) -> Self::Output {
-        let out_len = core::cmp::min(self.len, other.len);
+        // Operand width, like every other binary op. Above `min(len)` one
+        // operand's zero-tail forces the AND to zero, so the extra high limbs
+        // stay zero — value-correct at the wider width.
+        let out_len = core::cmp::max(self.len, other.len);
         let n = out_len as usize;
         let mut limbs = [zero::<T>(); CAP];
         for ((&ai, &bi), oi) in self.limbs[..n]
@@ -126,6 +129,33 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitXor<&HeaplessBigInt<T,
 
 forward_bitwise_receivers!(BitXor, bitxor);
 
+// Complement over the value width (`len` limbs); the result stays at `len`,
+// so `!x` matches the same-width `FixedUInt` bit-for-bit. `CAP` never enters
+// — the words beyond `len` do not exist. Data-independent, hence uniform
+// across personalities and inherently constant-time.
+impl<T: MachineWord, const CAP: usize, P: Personality> Not for HeaplessBigInt<T, CAP, P> {
+    type Output = Self;
+    fn not(self) -> Self {
+        let n = self.len as usize;
+        let mut limbs = [zero::<T>(); CAP];
+        for (o, &s) in limbs[..n].iter_mut().zip(&self.limbs[..n]) {
+            *o = !s;
+        }
+        HeaplessBigInt {
+            limbs,
+            len: self.len,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<T: MachineWord, const CAP: usize, P: Personality> Not for &HeaplessBigInt<T, CAP, P> {
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn not(self) -> Self::Output {
+        !*self
+    }
+}
+
 // ── Compound-assign forms (in-place on `self.limbs`) ──
 
 impl<T: MachineWord, const CAP: usize, P: Personality> BitAndAssign for HeaplessBigInt<T, CAP, P> {
@@ -138,10 +168,14 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitAndAssign<&HeaplessBig
     for HeaplessBigInt<T, CAP, P>
 {
     fn bitand_assign(&mut self, other: &Self) {
-        // Result width is `min(len)`: AND the overlap, then clear `self`'s
-        // limbs above `min` (they AND with `other`'s zero-tail = 0).
+        // Result width is `max(len)` (operand width). AND the overlap, then
+        // clear `self`'s own limbs above it — they AND with `other`'s zero-tail,
+        // so they go to zero. When `other` is the wider operand `[min..self.len]`
+        // is empty: `self`'s high limbs are already zero, and the wider result
+        // width is reached just by bumping `len`.
         let min_len = core::cmp::min(self.len, other.len) as usize;
         let self_len = self.len as usize;
+        let max_len = core::cmp::max(self.len, other.len);
         for (si, &oi) in self.limbs[..min_len]
             .iter_mut()
             .zip(&other.limbs[..min_len])
@@ -151,7 +185,7 @@ impl<T: MachineWord, const CAP: usize, P: Personality> BitAndAssign<&HeaplessBig
         for si in &mut self.limbs[min_len..self_len] {
             *si = zero::<T>();
         }
-        self.len = min_len as u16;
+        self.len = max_len;
     }
 }
 

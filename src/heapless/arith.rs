@@ -12,12 +12,13 @@
 //! "len is public" invariant regardless of Personality — the Nct and Ct
 //! arms share one body.
 
+use super::cmp::ct_select;
 use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
 use const_num_traits::{
-    BorrowingSub, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Nct,
-    OverflowingAdd, OverflowingMul, OverflowingSub, Personality, PersonalityTag, WrappingAdd,
-    WrappingMul, WrappingSub,
+    BorrowingSub, Bounded, CarryingAdd, CarryingMul, CheckedAdd, CheckedMul, CheckedSub, Ct, Nct,
+    OverflowingAdd, OverflowingMul, OverflowingSub, Personality, PersonalityTag, SaturatingAdd,
+    SaturatingMul, SaturatingSub, WrappingAdd, WrappingMul, WrappingSub,
 };
 use core::marker::PhantomData;
 
@@ -26,6 +27,25 @@ use core::marker::PhantomData;
 // runs for `Nct` only; the `Ct` arm wraps silently (like `wrapping_*`),
 // keeping control flow value-independent. Mirrors `FixedUInt`'s
 // `maybe_panic_if::<P>`.
+// All-ones value at a given width (`len` limbs saturated). This is the
+// saturation target for add/mul overflow: the max at the *operand* width
+// `max(a.len, b.len)`, matching `FixedUInt<T, width>::max_value()`. It is NOT
+// `Bounded::max_value()`, which on this carrier is the CAP-wide max.
+#[inline]
+pub(crate) fn max_at_len<T: MachineWord, const CAP: usize, P: Personality>(
+    len: u16,
+) -> HeaplessBigInt<T, CAP, P> {
+    let mut limbs = [zero::<T>(); CAP];
+    for l in &mut limbs[..len as usize] {
+        *l = <T as Bounded>::max_value();
+    }
+    HeaplessBigInt {
+        limbs,
+        len,
+        _p: PhantomData,
+    }
+}
+
 #[inline]
 fn panic_on_overflow_if_nct<P: Personality>(overflow: bool, msg: &'static str) {
     match P::TAG {
@@ -294,6 +314,275 @@ where
     }
 }
 
+// Reference-receiver mirrors: `(&h).checked_add(&g)` binds the same generic
+// trait bound as the value form. The receiver and operand are already `&Self`,
+// so these forward to the inherent by-ref methods (`checked_add(&self, &Self)`)
+// rather than the by-value trait — no `[T; CAP]` copy of either operand.
+
+impl<T, const CAP: usize> CheckedAdd for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn checked_add(self, v: Self) -> Option<Self::Output> {
+        HeaplessBigInt::<T, CAP, Nct>::checked_add(self, v)
+    }
+}
+
+impl<T, const CAP: usize> CheckedMul for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn checked_mul(self, v: Self) -> Option<Self::Output> {
+        HeaplessBigInt::<T, CAP, Nct>::checked_mul(self, v)
+    }
+}
+
+impl<T, const CAP: usize> CheckedSub for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn checked_sub(self, v: Self) -> Option<Self::Output> {
+        HeaplessBigInt::<T, CAP, Nct>::checked_sub(self, v)
+    }
+}
+
+// ── num_traits Checked{Add,Sub,Mul} (Nct only) ──
+//
+// The `num_traits::PrimInt` supertraits, bridging its by-reference receiver to
+// the inherent by-reference method (same values as the const_num_traits forms
+// above; different crate and receiver shape).
+
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::CheckedAdd for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    fn checked_add(&self, v: &Self) -> Option<Self> {
+        Self::checked_add(self, v)
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::CheckedSub for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    fn checked_sub(&self, v: &Self) -> Option<Self> {
+        Self::checked_sub(self, v)
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::CheckedMul for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn checked_mul(&self, v: &Self) -> Option<Self> {
+        Self::checked_mul(self, v)
+    }
+}
+
+// ── const_num_traits Saturating{Add,Sub,Mul} (Nct only) ──
+//
+// Same gating as the Checked* trait forms above: the value-form trait
+// delegates to the by-reference inherent method (free, `HeaplessBigInt: Copy`).
+// The saturation target is the operand-width max/zero, not the CAP-wide
+// `Bounded` — see `max_at_len`.
+
+impl<T, const CAP: usize> SaturatingAdd for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = Self;
+    fn saturating_add(self, v: Self) -> Self {
+        Self::saturating_add(&self, &v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingSub for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = Self;
+    fn saturating_sub(self, v: Self) -> Self {
+        Self::saturating_sub(&self, &v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingMul for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = Self;
+    fn saturating_mul(self, v: Self) -> Self {
+        Self::saturating_mul(&self, &v)
+    }
+}
+
+// ── Ct saturating: branchless select on the overflow/borrow flag ──
+//
+// The `Nct` forms above branch on the flag; the `Ct` forms pick the
+// saturated sentinel vs the wrapped result with `ct_select` (the whole-value
+// masked select), so timing doesn't reveal whether saturation happened. The
+// sentinel is the operand-width max/zero, same as the Nct path. Additive —
+// the `Nct` impls are untouched.
+
+impl<T, const CAP: usize> SaturatingAdd for HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = Self;
+    fn saturating_add(self, v: Self) -> Self {
+        let (res, overflow) = OverflowingAdd::overflowing_add(self, v);
+        ct_select(&res, &max_at_len(res.len), overflow)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingSub for HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = Self;
+    fn saturating_sub(self, v: Self) -> Self {
+        let (res, borrow) = OverflowingSub::overflowing_sub(self, v);
+        ct_select(&res, &Self::new_zero_with_len(res.len), borrow)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingMul for HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T> + subtle::ConditionallySelectable,
+{
+    type Output = Self;
+    fn saturating_mul(self, v: Self) -> Self {
+        let (res, overflow) = OverflowingMul::overflowing_mul(self, v);
+        ct_select(&res, &max_at_len(res.len), overflow)
+    }
+}
+
+// Reference-receiver mirrors for both personalities: deref and forward to the
+// matching value impl (`HeaplessBigInt: Copy`), so `(&h).saturating_add(&g)`
+// resolves the same way `h.saturating_add(g)` does.
+
+impl<T, const CAP: usize> SaturatingAdd for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn saturating_add(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as SaturatingAdd>::saturating_add(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingSub for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn saturating_sub(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as SaturatingSub>::saturating_sub(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingMul for &HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Output = HeaplessBigInt<T, CAP, Nct>;
+    fn saturating_mul(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Nct> as SaturatingMul>::saturating_mul(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingAdd for &HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = HeaplessBigInt<T, CAP, Ct>;
+    fn saturating_add(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Ct> as SaturatingAdd>::saturating_add(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingSub for &HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + subtle::ConditionallySelectable,
+{
+    type Output = HeaplessBigInt<T, CAP, Ct>;
+    fn saturating_sub(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Ct> as SaturatingSub>::saturating_sub(*self, *v)
+    }
+}
+
+impl<T, const CAP: usize> SaturatingMul for &HeaplessBigInt<T, CAP, Ct>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T> + subtle::ConditionallySelectable,
+{
+    type Output = HeaplessBigInt<T, CAP, Ct>;
+    fn saturating_mul(self, v: Self) -> Self::Output {
+        <HeaplessBigInt<T, CAP, Ct> as SaturatingMul>::saturating_mul(*self, *v)
+    }
+}
+
+// ── Ct checked arithmetic: masked-return `CtOption` ──
+//
+// The overflow flag gates the `CtOption` mask instead of a branch, so a
+// secret operand's overflow isn't leaked through an `Option` discriminant.
+// No `ct_select` (or `ConditionallySelectable` bound) needed — the value is
+// always the wrapped result; only its observability is masked. P-generic,
+// like FixedUInt's.
+
+impl<T, const CAP: usize, P: Personality> const_num_traits::ops::ct::CtCheckedAdd
+    for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    fn ct_checked_add(&self, v: &Self) -> subtle::CtOption<Self> {
+        let (val, overflow) = self.overflowing_add(v);
+        subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
+    }
+}
+
+impl<T, const CAP: usize, P: Personality> const_num_traits::ops::ct::CtCheckedSub
+    for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    fn ct_checked_sub(&self, v: &Self) -> subtle::CtOption<Self> {
+        let (val, borrow) = self.overflowing_sub(v);
+        subtle::CtOption::new(val, subtle::Choice::from(!borrow as u8))
+    }
+}
+
+impl<T, const CAP: usize, P: Personality> const_num_traits::ops::ct::CtCheckedMul
+    for HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    fn ct_checked_mul(&self, v: &Self) -> subtle::CtOption<Self> {
+        let (val, overflow) = self.overflowing_mul(v);
+        subtle::CtOption::new(val, subtle::Choice::from(!overflow as u8))
+    }
+}
+
+// `num_traits::Saturating` (add/sub only) — deprecated upstream but still
+// required by `num_traits::PrimInt`. Nct-only, matching the trait forms above.
+#[cfg(feature = "num-traits")]
+impl<T, const CAP: usize> num_traits::Saturating for HeaplessBigInt<T, CAP, Nct>
+where
+    T: MachineWord,
+{
+    fn saturating_add(self, v: Self) -> Self {
+        <Self as SaturatingAdd>::saturating_add(self, v)
+    }
+    fn saturating_sub(self, v: Self) -> Self {
+        <Self as SaturatingSub>::saturating_sub(self, v)
+    }
+}
+
 // Trim trailing-zero limbs — NCT-implicit content scan sets `len` to
 // `1 + index of highest non-zero limb` (or 0 for the mathematical zero).
 // Called only from Nct code paths; exposed as a public method on the
@@ -325,6 +614,39 @@ impl<T: MachineWord, const CAP: usize> HeaplessBigInt<T, CAP, Nct> {
     #[inline]
     pub fn trim(self) -> Self {
         trim_content(self)
+    }
+
+    /// Saturating addition: on overflow, the all-ones value at the operands'
+    /// width `max(a.len, b.len)` (not the CAP-wide max), matching
+    /// `FixedUInt<T, width>::saturating_add`. This inherent form branches on
+    /// the overflow flag; the `Ct` carrier's branchless `SaturatingAdd` impl
+    /// (via `ct_select`) is defined separately.
+    pub fn saturating_add(&self, other: &Self) -> Self {
+        let (res, overflow) = self.overflowing_add(other);
+        if overflow { max_at_len(res.len) } else { res }
+    }
+
+    /// Saturating subtraction: clamps to zero at the operands' width on
+    /// underflow. Nct-only, same reason as `saturating_add`.
+    pub fn saturating_sub(&self, other: &Self) -> Self {
+        let (res, borrow) = self.overflowing_sub(other);
+        if borrow {
+            Self::new_zero_with_len(res.len)
+        } else {
+            res
+        }
+    }
+}
+
+impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize>
+    HeaplessBigInt<T, CAP, Nct>
+{
+    /// Saturating multiplication: on overflow, the all-ones value at the
+    /// operands' width `max(a.len, b.len)`. Nct-only, same reason as
+    /// `saturating_add`.
+    pub fn saturating_mul(&self, other: &Self) -> Self {
+        let (res, overflow) = self.overflowing_mul(other);
+        if overflow { max_at_len(res.len) } else { res }
     }
 }
 
@@ -591,6 +913,18 @@ where
     }
 }
 
+// Reference-receiver mirror (deref and forward, `HeaplessBigInt: Copy`).
+
+impl<T, const CAP: usize, P: Personality> CarryingAdd for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn carrying_add(self, rhs: Self, carry_in: bool) -> (Self::Output, bool) {
+        <HeaplessBigInt<T, CAP, P> as CarryingAdd>::carrying_add(*self, *rhs, carry_in)
+    }
+}
+
 // `self - rhs - borrow_in` with borrow_out, over the operands' width
 // (`max(self.len, rhs.len)`) — same width rule as `wrapping_sub`, so
 // underflow wraps at the value's width. Used by multi-precision reduction.
@@ -620,6 +954,18 @@ where
             },
             borrow,
         )
+    }
+}
+
+// Reference-receiver mirror (deref and forward, `HeaplessBigInt: Copy`).
+
+impl<T, const CAP: usize, P: Personality> BorrowingSub for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord,
+{
+    type Output = HeaplessBigInt<T, CAP, P>;
+    fn borrowing_sub(self, rhs: Self, borrow_in: bool) -> (Self::Output, bool) {
+        <HeaplessBigInt<T, CAP, P> as BorrowingSub>::borrowing_sub(*self, *rhs, borrow_in)
     }
 }
 
@@ -734,6 +1080,26 @@ where
     }
 }
 
+// Reference-receiver mirror: both widening-mul methods deref and forward to
+// the value impl (`HeaplessBigInt: Copy`). Mirrors `FixedUInt`'s `&Self`
+// `CarryingMul` in `extended_precision_impl.rs`.
+
+impl<T, const CAP: usize, P: Personality> CarryingMul for &HeaplessBigInt<T, CAP, P>
+where
+    T: MachineWord + CarryingMul<Unsigned = T, Output = T>,
+{
+    type Unsigned = HeaplessBigInt<T, CAP, P>;
+    type Output = HeaplessBigInt<T, CAP, P>;
+
+    fn carrying_mul(self, rhs: Self, carry: Self) -> (Self::Unsigned, Self::Output) {
+        <HeaplessBigInt<T, CAP, P> as CarryingMul>::carrying_mul(*self, *rhs, *carry)
+    }
+
+    fn carrying_mul_add(self, rhs: Self, carry: Self, add: Self) -> (Self::Unsigned, Self::Output) {
+        <HeaplessBigInt<T, CAP, P> as CarryingMul>::carrying_mul_add(*self, *rhs, *carry, *add)
+    }
+}
+
 #[inline]
 pub(crate) fn zero_tail_ok<T: MachineWord>(limbs: &[T], used: usize) -> bool {
     let mut i = used;
@@ -744,4 +1110,171 @@ pub(crate) fn zero_tail_ok<T: MachineWord>(limbs: &[T], used: usize) -> bool {
         i += 1;
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use const_num_traits::Zero;
+
+    type H = HeaplessBigInt<u32, 8, Nct>; // 256-bit CAP
+
+    #[test]
+    fn saturation_is_operand_width_not_cap() {
+        // Two len-1 (32-bit) values in a CAP-8 carrier: overflow saturates to
+        // the 32-bit operand-width max, NOT the 256-bit CAP max — matching
+        // FixedUInt<u32, 1>. This is what the fixed-width carrier harness can't
+        // reach (its backings have width == CAP).
+        let a = H::from_le_bytes(&0xFFFF_FFFFu32.to_le_bytes()); // len 1
+        let one = H::from_le_bytes(&1u32.to_le_bytes());
+        let s = SaturatingAdd::saturating_add(a, one);
+        assert_eq!(s.len, 1);
+        assert_eq!(s.limbs[0], 0xFFFF_FFFF);
+
+        // 2^16 * 2^16 = 2^32 overflows the 32-bit width; saturates the same way.
+        let big = H::from_le_bytes(&0x1_0000u32.to_le_bytes());
+        let m = SaturatingMul::saturating_mul(big, big);
+        assert_eq!(m.len, 1);
+        assert_eq!(m.limbs[0], 0xFFFF_FFFF);
+    }
+
+    #[test]
+    fn saturating_sub_clamps_to_zero_at_width() {
+        let one = H::from_le_bytes(&1u32.to_le_bytes()); // len 1
+        let two = H::from_le_bytes(&2u32.to_le_bytes());
+        let s = SaturatingSub::saturating_sub(one, two);
+        assert_eq!(s.len, 1);
+        assert!(<H as Zero>::is_zero(&s));
+    }
+
+    #[test]
+    fn checked_div_rem_by_zero_is_none() {
+        let a = H::from_le_bytes(&100u32.to_le_bytes());
+        let z = <H as Zero>::zero();
+        assert_eq!(a.checked_div(&z), None);
+        assert_eq!(a.checked_rem(&z), None);
+        let seven = H::from_le_bytes(&7u32.to_le_bytes());
+        assert_eq!(a.checked_div(&seven).unwrap().limbs[0], 14);
+        assert_eq!(a.checked_rem(&seven).unwrap().limbs[0], 2);
+    }
+
+    // CtCheckedAdd/Sub/Mul: the value is always the wrapped result; is_some
+    // masks overflow. Matches the plain checked_* value + overflow status.
+    #[test]
+    fn ct_checked_arithmetic() {
+        use const_num_traits::ops::ct::{CtCheckedAdd, CtCheckedMul, CtCheckedSub};
+        type Cc = HeaplessBigInt<u8, 4, Ct>;
+
+        // No overflow: is_some, value matches.
+        let a = Cc::from(100u32);
+        let b = Cc::from(50u32);
+        let s = a.ct_checked_add(&b);
+        assert!(bool::from(s.is_some()));
+        assert_eq!(s.unwrap(), Cc::from(150u32));
+        assert!(bool::from(a.ct_checked_sub(&b).is_some()));
+        assert!(bool::from(
+            Cc::from(7u32).ct_checked_mul(&Cc::from(9u32)).is_some()
+        ));
+
+        // Overflow / underflow: is_none (masked).
+        assert!(!bool::from(
+            Cc::from(u32::MAX).ct_checked_add(&Cc::from(1u32)).is_some()
+        ));
+        assert!(!bool::from(
+            Cc::from(0u32).ct_checked_sub(&Cc::from(1u32)).is_some()
+        ));
+        assert!(!bool::from(
+            Cc::from(0x1_0000u32)
+                .ct_checked_mul(&Cc::from(0x1_0000u32))
+                .is_some()
+        ));
+    }
+
+    // The branchless Ct saturating impls must produce the same values as the
+    // Nct ones (including the saturate/clamp cases), at the operand width.
+    #[test]
+    fn ct_saturating_matches_nct() {
+        type Cn = HeaplessBigInt<u8, 4, Nct>;
+        type Cc = HeaplessBigInt<u8, 4, Ct>;
+        let cases = [(100u32, 50u32), (u32::MAX, 1), (u32::MAX, u32::MAX), (5, 9)];
+        for (a, b) in cases {
+            assert_eq!(
+                SaturatingAdd::saturating_add(Cc::from(a), Cc::from(b)),
+                Cc::from(a.saturating_add(b)),
+                "ct saturating_add({a},{b})"
+            );
+            assert_eq!(
+                SaturatingSub::saturating_sub(Cc::from(a), Cc::from(b)),
+                Cc::from(a.saturating_sub(b))
+            );
+            assert_eq!(
+                SaturatingMul::saturating_mul(Cc::from(a), Cc::from(b)),
+                Cc::from(a.saturating_mul(b))
+            );
+            // Cross-check the Nct forms agree with std too.
+            assert_eq!(
+                SaturatingAdd::saturating_add(Cn::from(a), Cn::from(b)),
+                Cn::from(a.saturating_add(b))
+            );
+        }
+    }
+
+    // Reference-receiver trait forms resolve to the same value as the by-value
+    // forms — one representative per family (Checked / Saturating / Carrying /
+    // Borrowing), covering both the Nct and Ct saturating personalities.
+    #[test]
+    fn by_ref_matches_value() {
+        let a = H::from(100u32);
+        let b = H::from(7u32);
+        assert_eq!(
+            CheckedAdd::checked_add(&a, &b),
+            CheckedAdd::checked_add(a, b)
+        );
+        assert_eq!(
+            CheckedSub::checked_sub(&a, &b),
+            CheckedSub::checked_sub(a, b)
+        );
+        assert_eq!(
+            CheckedMul::checked_mul(&a, &b),
+            CheckedMul::checked_mul(a, b)
+        );
+        assert_eq!(
+            SaturatingAdd::saturating_add(&a, &b),
+            SaturatingAdd::saturating_add(a, b)
+        );
+        assert_eq!(
+            SaturatingSub::saturating_sub(&a, &b),
+            SaturatingSub::saturating_sub(a, b)
+        );
+        assert_eq!(
+            SaturatingMul::saturating_mul(&a, &b),
+            SaturatingMul::saturating_mul(a, b)
+        );
+        assert_eq!(
+            CarryingAdd::carrying_add(&a, &b, true),
+            CarryingAdd::carrying_add(a, b, true)
+        );
+        assert_eq!(
+            BorrowingSub::borrowing_sub(&a, &b, true),
+            BorrowingSub::borrowing_sub(a, b, true)
+        );
+        let z = <H as Zero>::zero();
+        assert_eq!(
+            CarryingMul::carrying_mul(&a, &b, &z),
+            CarryingMul::carrying_mul(a, b, z)
+        );
+        assert_eq!(
+            CarryingMul::carrying_mul_add(&a, &b, &z, &b),
+            CarryingMul::carrying_mul_add(a, b, z, b)
+        );
+
+        // Ct saturating &Self mirror resolves to the value form too.
+        type Cc = HeaplessBigInt<u8, 4, Ct>;
+        let ca = Cc::from(u32::MAX);
+        let cb = Cc::from(1u32);
+        assert_eq!(
+            SaturatingAdd::saturating_add(&ca, &cb),
+            SaturatingAdd::saturating_add(ca, cb)
+        );
+    }
 }

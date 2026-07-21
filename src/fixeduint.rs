@@ -1096,15 +1096,17 @@ c0nst::c0nst! {
     /// CT variant of `const_trailing_zeros`: scans LSB-to-MSB without
     /// short-circuiting. Mirror of `const_leading_zeros_ct` — see that
     /// helper for the rationale. Used by the `Ct`-personality arm of
-    /// `PrimBits::trailing_zeros`.
-    pub(crate) c0nst fn const_trailing_zeros_ct<T: [c0nst] ConstMachineWord, const N: usize>(
-        array: &[T; N],
-    ) -> u32 {
+    /// `PrimBits::trailing_zeros` on both carriers (`FixedUInt` passes the
+    /// whole `&self.array`, `HeaplessBigInt` passes `&self.limbs[..len]`),
+    /// so it takes a slice; `#[inline]` keeps the length provable at each
+    /// call site.
+    #[inline]
+    pub(crate) c0nst fn const_trailing_zeros_ct<T: [c0nst] ConstMachineWord>(array: &[T]) -> u32 {
         let mut total: u32 = 0;
         // 0 while still in trailing-zero region; u32::MAX once a non-zero limb is seen.
         let mut decided: u32 = 0;
         let mut index = 0;
-        while index < N {
+        while index < array.len() {
             let v = array[index];
             let v_tz = <T as PrimBits>::trailing_zeros(v);
             // See `const_leading_zeros_ct` / `const_ct_select` for why
@@ -1599,15 +1601,15 @@ c0nst::c0nst! {
 
 // This is slightly less than ideal, but PIE isn't directly constructible
 // due to unstable members.
-fn make_parse_int_err() -> core::num::ParseIntError {
+pub(crate) fn make_parse_int_err() -> core::num::ParseIntError {
     <u8>::from_str_radix("-", 2).err().unwrap()
 }
 #[cfg(feature = "num-traits")]
-fn make_overflow_err() -> core::num::ParseIntError {
+pub(crate) fn make_overflow_err() -> core::num::ParseIntError {
     <u8>::from_str_radix("101", 16).err().unwrap()
 }
 #[cfg(feature = "num-traits")]
-fn make_empty_error() -> core::num::ParseIntError {
+pub(crate) fn make_empty_error() -> core::num::ParseIntError {
     <u8>::from_str_radix("", 8).err().unwrap()
 }
 
