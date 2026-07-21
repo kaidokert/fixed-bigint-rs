@@ -80,12 +80,14 @@ pub extern "C" fn panic_audit__heapless_leading_zeros_ct(a: u32) -> u32 {
     black_box(PrimBits::leading_zeros(x))
 }
 
+#[cfg(feature = "diagnostic-ct-scans")]
 #[no_mangle]
 pub extern "C" fn panic_audit__fixed_trailing_zeros_ct(a: u32) -> u32 {
     let x = U256Ct::from(black_box(a));
     black_box(PrimBits::trailing_zeros(x))
 }
 
+#[cfg(feature = "diagnostic-ct-scans")]
 #[no_mangle]
 pub extern "C" fn panic_audit__heapless_trailing_zeros_ct(a: u32) -> u32 {
     let x = HeaplessU256Ct::from(black_box(a));
