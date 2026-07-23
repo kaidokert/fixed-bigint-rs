@@ -21,7 +21,7 @@ jobs:
 
     - name: Generate coverage data
       run: |
-        cargo llvm-cov --lcov --output-path lcov.info --features use-unsafe,zeroize
+        cargo llvm-cov --package fixed-bigint --lcov --output-path lcov.info --features use-unsafe,zeroize
 
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@v2
