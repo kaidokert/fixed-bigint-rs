@@ -2,7 +2,7 @@
 
 use core::hint::black_box;
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn panic_audit__neg__bounds_check(index: usize, out: *mut u8) {
     if out.is_null() {
         return;
@@ -12,7 +12,7 @@ pub extern "C" fn panic_audit__neg__bounds_check(index: usize, out: *mut u8) {
     unsafe { *out = black_box(value) };
 }
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn panic_audit__neg__unwrap(out: *mut u8) {
     if out.is_null() {
         return;
@@ -21,7 +21,7 @@ pub extern "C" fn panic_audit__neg__unwrap(out: *mut u8) {
     unsafe { *out = black_box(value) };
 }
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn panic_audit__neg__expect(out: *mut u8) {
     if out.is_null() {
         return;

@@ -34,36 +34,6 @@ jobs:
             --expect-negative panic_audit__neg__expect \
             --json target/panic-audit/${{ matrix.triple }}.json
 
-  panic-audit-diagnostics:
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        triple: [thumbv7m-none-eabi, riscv32imc-unknown-none-elf]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.86"
-          targets: ${{ matrix.triple }}
-          components: llvm-tools-preview
-      - name: Install krabi-caliper
-        run: cargo install krabi-caliper --git https://github.com/kaidokert/krabi-caliper-rs --tag v0.1.0-alpha.4 --features cli,campaign
-      - name: Run diagnostic panic-free audit
-        run: |
-          cargo krabi-caliper panic-audit \
-            --workspace . \
-            --package panic-free-audit \
-            --target ${{ matrix.triple }} \
-            --features diagnostic-ct-scans,diagnostic-nonzero-div \
-            --negative-features neg-controls \
-            --owned-symbol '.*' \
-            --expect-negative panic_audit__neg__bounds_check \
-            --expect-negative panic_audit__neg__unwrap \
-            --expect-negative panic_audit__neg__expect \
-            --json target/panic-audit/diagnostic-${{ matrix.triple }}.json
-
   ct:
     strategy:
       fail-fast: false

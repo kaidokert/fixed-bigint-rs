@@ -1248,10 +1248,17 @@ c0nst::c0nst! {
         a: &[T],
         b: &[T],
     ) -> core::cmp::Ordering {
-        // Pin `b` to `a`'s length so `b[index]` is provably in bounds for the
-        // whole scan: a shorter `b` traps here at entry rather than mid-loop,
-        // and the compiler can drop the per-iteration bounds check.
-        let b = &b[..a.len()];
+        // Pin `b` to `a`'s length via `get` (not `&b[..a.len()]`, whose
+        // length assert lowers to a panic path at MSRV/`-Oz`). With `b` now
+        // the same length as `a`, `b[index]` folds its bounds check exactly
+        // like the single-slice `array[index]` in `const_leading_zeros_ct`.
+        // Callers pass equal-length slices, so the `None` arm is unreachable
+        // for them; Equal is a safe don't-care. Lengths are public shape
+        // parameters, so this leaks nothing.
+        let b = match b.get(..a.len()) {
+            Some(b) => b,
+            None => return core::cmp::Ordering::Equal,
+        };
         // result encoding: 2 = Greater, 1 = Less, 0 = Equal.
         let mut result: u8 = 0;
         // 0 while still undecided; u8::MAX once a differing limb has been seen.

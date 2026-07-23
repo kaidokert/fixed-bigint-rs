@@ -84,11 +84,16 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
     #[inline]
     pub fn to_le_bytes_fixed<'a, const M: usize>(&self, out: &'a mut [u8; M]) -> &'a [u8] {
         let _ = <Self as AssertBufferFits<M>>::CHECK;
-        let word_size = Self::WORD_SIZE;
-        for (chunk, word) in out.chunks_exact_mut(word_size).zip(self.array.iter()) {
+        // Advance one flat byte iterator per limb rather than
+        // `chunks_exact_mut(WORD_SIZE)`, whose `size()` divides by the
+        // (runtime-field) chunk size — a division rustc at MSRV can't prove
+        // non-zero, leaving a div-by-zero panic guard at `-Oz`. `by_ref().zip`
+        // over `iter_mut()` has no such division and stays panic-free.
+        let mut dst = out.iter_mut();
+        for word in self.array.iter() {
             let word_bytes = word.to_le_bytes();
-            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-                *dst = *src;
+            for (&src, slot) in word_bytes.as_ref().iter().zip(dst.by_ref()) {
+                *slot = src;
             }
         }
         &out[..Self::BYTE_WIDTH]
@@ -113,18 +118,16 @@ impl<T: MachineWord, const N: usize, P: Personality> FixedUInt<T, N, P> {
     #[inline]
     pub fn to_be_bytes_fixed<'a, const M: usize>(&self, out: &'a mut [u8; M]) -> &'a [u8] {
         let _ = <Self as AssertBufferFits<M>>::CHECK;
-        let word_size = Self::WORD_SIZE;
         let start = M - Self::BYTE_WIDTH;
         // Walk words from MSB to LSB so the output is BE. Align to the
         // trailing window so oversized buffers round-trip through
-        // `from_be_bytes_fixed`.
-        for (chunk, word) in out[start..]
-            .chunks_exact_mut(word_size)
-            .zip(self.array.iter().rev())
-        {
+        // `from_be_bytes_fixed`. See `to_le_bytes_fixed` for why this avoids
+        // `chunks_exact_mut`.
+        let mut dst = out[start..].iter_mut();
+        for word in self.array.iter().rev() {
             let word_bytes = word.to_be_bytes();
-            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-                *dst = *src;
+            for (&src, slot) in word_bytes.as_ref().iter().zip(dst.by_ref()) {
+                *slot = src;
             }
         }
         &out[start..]
