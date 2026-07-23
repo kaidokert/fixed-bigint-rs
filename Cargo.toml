@@ -7,13 +7,6 @@ members = [
     "ct-verify/cyccnt-hardware",
     "ct-verify/panic-free-audit",
 ]
-default-members = [
-    ".",
-    "ct-verify/ct-fixtures",
-    "ct-verify/ct-driver",
-    "ct-verify/ct-ctgrind",
-    "ct-verify/panic-free-audit",
-]
 resolver = "2"
 
 [patch.crates-io]
