@@ -397,9 +397,10 @@ impl<T: MachineWord, const CAP: usize, P: Personality> ShrAssign<&u32>
 #[cfg(test)]
 mod ct_shl_tests {
     use super::{HeaplessBigInt, ct_shl};
-    use const_num_traits::Ct;
+    use const_num_traits::{Ct, Nct};
 
     type HC = HeaplessBigInt<u8, 4, Ct>; // 32-bit width
+    type HN = HeaplessBigInt<u8, 4, Nct>;
 
     #[test]
     fn ct_shl_matches_plain_shift_all_amounts() {
@@ -412,6 +413,37 @@ mod ct_shl_tests {
                     ct_shl(v, amount),
                     v << (amount as usize),
                     "ct_shl({raw:#x}, {amount})"
+                );
+            }
+        }
+    }
+
+    // The Ct barrels (`const_shl_ct` / `const_shr_ct`) must produce the same
+    // VALUE as the Nct reference shift at the full operand width — only timing
+    // differs. The CT fixtures check the barrels are branchless, not that they
+    // compute the right answer, so pin correctness here across both directions
+    // and all amounts (including over-width, which yields 0). `all_limbs`
+    // compares the full array, so the Ct width-preserving `>>` and the Nct
+    // len-shrinking `>>` still match limb-for-limb via the zero tail.
+    #[test]
+    fn ct_shifts_match_nct_reference() {
+        let cases = [
+            [1u8, 0, 0, 0],
+            [0x78, 0x56, 0x34, 0x12],
+            [0xFF, 0xFF, 0xFF, 0xFF],
+            [0, 0, 0, 0x80],
+        ];
+        for a in cases {
+            for amount in 0usize..=40 {
+                assert_eq!(
+                    (HC::from_limbs(a, 4) << amount).all_limbs(),
+                    (HN::from_limbs(a, 4) << amount).all_limbs(),
+                    "shl {a:?} << {amount}"
+                );
+                assert_eq!(
+                    (HC::from_limbs(a, 4) >> amount).all_limbs(),
+                    (HN::from_limbs(a, 4) >> amount).all_limbs(),
+                    "shr {a:?} >> {amount}"
                 );
             }
         }
