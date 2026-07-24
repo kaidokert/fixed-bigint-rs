@@ -1,0 +1,35 @@
+# Standalone smoke test for the Pi 5 self-hosted runner + ct-ci container.
+# Not part of CI — just proves the bench picks up a job and the toolchain is
+# reachable. Safe to delete once the real CT workflows are wired up.
+#
+# Triggers: pull_request only (+ manual). Deliberately NO `push:` — having both
+# push and pull_request is the usual cause of every commit running twice.
+# concurrency cancels superseded runs on the same ref.
+name: Pi Smoketest
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+concurrency:
+  group: pi-smoketest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hi:
+    runs-on: [self-hosted, rust, ct, arm64]
+    container:
+      image: localhost:5000/ct-ci:latest
+    steps:
+      - name: Hi from the Pi
+        shell: bash
+        run: |
+          echo "hi from $(uname -n) — $(uname -srm)"
+          grep PRETTY_NAME /etc/os-release
+
+      - name: Toolchain is reachable
+        shell: bash
+        run: |
+          rustc +1.86 --version
+          cargo +nightly --version
+          valgrind --version | head -1

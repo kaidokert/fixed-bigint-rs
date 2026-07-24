@@ -1,0 +1,80 @@
+# Bench-wide hardware check: read the ARM core ID (SCB CPUID @ 0xE000ED00) from
+# every libusb debug probe attached to the Pi. One matrix entry per board.
+#
+# Uses probe-rs GENERIC core targets (cortex-m3 / cortex-m4) so it doesn't depend
+# on exact chip part numbers — the CPUID register lives in the ARM System Control
+# Space, identical across a given Cortex-M core.
+#
+# The nEDBG (Microchip EDBG) CMSIS-DAP HID probe is intentionally excluded: it's
+# janky on recent probe-rs (needs a patched build) and is HID rather than libusb.
+#
+# The job invokes `docker run` itself (not a `container:` block) to keep control
+# of the USB device flags. NOTE: only one runner is registered to this repo, and
+# a self-hosted runner takes one job at a time, so the matrix legs run
+# sequentially here — add more runners (or fan out inside one job) for true
+# parallelism.
+name: Pi Bench Matrix
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+concurrency:
+  group: pi-bench-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-id:
+    runs-on: [self-hosted, rust, ct, arm64]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: "NUCLEO-F429ZI (ST-Link)"
+            probe: "0483:374b:0672FF494849887767184220"
+            chip: "cortex-m4"
+            expect: "c24"
+          - board: "STM32 M3 (ST-Link)"
+            probe: "0483:374b:0670FF373146363143155341"
+            chip: "cortex-m3"
+            expect: "c23"
+          - board: "nRF52833 (J-Link)"
+            probe: "1366:1025:000685893034"
+            chip: "cortex-m4"
+            expect: "c24"
+          - board: "STM32 M4 (J-Trace)"
+            probe: "1366:1020:001224000224"
+            chip: "cortex-m4"
+            expect: "c24"
+    name: ${{ matrix.board }}
+    env:
+      IMAGE: localhost:5000/hwprobe:latest
+      PROBE: ${{ matrix.probe }}
+      CHIP: ${{ matrix.chip }}
+      EXPECT_PART: ${{ matrix.expect }}
+    steps:
+      - name: Read ARM core ID
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --device-cgroup-rule='c 189:* rmw' \
+            -v /dev/bus/usb:/dev/bus/usb \
+            -e PROBE -e CHIP -e EXPECT_PART \
+            "$IMAGE" bash -c '
+              set -euo pipefail
+              CPUID=$(probe-rs read --chip "$CHIP" --probe "$PROBE" b32 0xE000ED00 1 2>/dev/null | tr -d "[:space:]")
+              [ -n "$CPUID" ] || { echo "::error::empty CPUID (probe not responding)"; exit 1; }
+              v=$((16#$CPUID))
+              imp=$(( (v>>24)&0xff )); var=$(( (v>>20)&0xf )); part=$(( (v>>4)&0xfff )); rev=$(( v&0xf ))
+              ph=$(printf "%03x" "$part")
+              case "$ph" in
+                c20) core="Cortex-M0";;  c60) core="Cortex-M0+";; c21) core="Cortex-M1";;
+                c23) core="Cortex-M3";;  c24) core="Cortex-M4";;  c27) core="Cortex-M7";;
+                d20) core="Cortex-M23";; d21) core="Cortex-M33";; *) core="unknown";;
+              esac
+              echo "CPUID    = 0x$CPUID"
+              printf  "ARM core = %s (implementer 0x%02x, part 0x%s, r%dp%d)\n" "$core" "$imp" "$ph" "$var" "$rev"
+              [ "$ph" = "$EXPECT_PART" ] || { echo "::error::expected part 0x$EXPECT_PART, got 0x$ph"; exit 1; }
+              echo "✅ $core alive (CPUID 0x$CPUID)"
+            '
