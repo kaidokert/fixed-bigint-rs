@@ -1,0 +1,47 @@
+[profiles.jtrace-f407]
+runner = "command"
+target = "thumbv7em-none-eabihf"
+board = "jtrace-reference-board"
+mcu = "STM32F407VG"
+transport = "rtt"
+probe = "${KRABI_PROBE}"
+clock-frequency-hz = 16000000
+executable = "probe-rs"
+args = [
+  "run",
+  "--chip", "STM32F407VGTx",
+  "--protocol", "swd",
+  "--probe", "${KRABI_PROBE}",
+  "--non-interactive",
+  "--disable-progressbars",
+  "--no-location",
+  "{artifact}",
+]
+completion-marker = "EM_SUMMARY"
+completion-action = "interrupt"
+timeout-seconds = 120
+target-dir = "target"
+artifact-extension = ""
+
+[[case-sets.fixed-bigint-cyccnt]]
+name = "u32x8"
+binary = "fixed-bigint-cyccnt-hardware"
+features = ["carrier-u32x8"]
+expected-suite = "fixed-bigint-cyccnt"
+
+[[case-sets.fixed-bigint-cyccnt]]
+name = "u32x16"
+binary = "fixed-bigint-cyccnt-hardware"
+features = ["carrier-u32x16"]
+expected-suite = "fixed-bigint-cyccnt"
+
+[[case-sets.fixed-bigint-cyccnt]]
+name = "u8x32"
+binary = "fixed-bigint-cyccnt-hardware"
+features = ["carrier-u8x32"]
+expected-suite = "fixed-bigint-cyccnt"
+
+[campaigns.fixed-bigint-jtrace-f407]
+profile = "jtrace-f407"
+case-set = "fixed-bigint-cyccnt"
+constant-time = { welch-threshold = 4.5, minimum-samples-per-class = 4, protected-classes = ["positive"], control-classes = ["negative"], gate = false }
