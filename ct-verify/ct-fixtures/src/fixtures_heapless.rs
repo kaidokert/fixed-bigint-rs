@@ -88,7 +88,9 @@ macro_rules! emit_h_unbounded_shl {
     };
 }
 emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u8__N16, u8, 16);
+emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u16__N16, u16, 16);
 emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u32__N4, u32, 4);
+emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u32__N16, u32, 16);
 emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u64__N4, u64, 4);
 
 macro_rules! emit_h_unbounded_shr {
@@ -100,7 +102,9 @@ macro_rules! emit_h_unbounded_shr {
     };
 }
 emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u8__N16, u8, 16);
+emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u16__N16, u16, 16);
 emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u32__N4, u32, 4);
+emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u32__N16, u32, 16);
 emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u64__N4, u64, 4);
 
 // is_power_of_two (predicate, no shift), next_power_of_two (via ct_shl barrel).
@@ -113,7 +117,9 @@ macro_rules! emit_h_is_pow2 {
     };
 }
 emit_h_is_pow2!(ct_fix__HA__is_pow2__u8__N16, u8, 16);
+emit_h_is_pow2!(ct_fix__HA__is_pow2__u16__N16, u16, 16);
 emit_h_is_pow2!(ct_fix__HA__is_pow2__u32__N4, u32, 4);
+emit_h_is_pow2!(ct_fix__HA__is_pow2__u32__N16, u32, 16);
 emit_h_is_pow2!(ct_fix__HA__is_pow2__u64__N4, u64, 4);
 
 macro_rules! emit_h_next_pow2 {
@@ -125,7 +131,9 @@ macro_rules! emit_h_next_pow2 {
     };
 }
 emit_h_next_pow2!(ct_fix__HA__next_pow2__u8__N16, u8, 16);
+emit_h_next_pow2!(ct_fix__HA__next_pow2__u16__N16, u16, 16);
 emit_h_next_pow2!(ct_fix__HA__next_pow2__u32__N4, u32, 4);
+emit_h_next_pow2!(ct_fix__HA__next_pow2__u32__N16, u32, 16);
 emit_h_next_pow2!(ct_fix__HA__next_pow2__u64__N4, u64, 4);
 
 macro_rules! emit_h_midpoint {
@@ -138,7 +146,9 @@ macro_rules! emit_h_midpoint {
     };
 }
 emit_h_midpoint!(ct_fix__HC__midpoint__u8__N16, u8, 16);
+emit_h_midpoint!(ct_fix__HC__midpoint__u16__N16, u16, 16);
 emit_h_midpoint!(ct_fix__HC__midpoint__u32__N4, u32, 4);
+emit_h_midpoint!(ct_fix__HC__midpoint__u32__N16, u32, 16);
 emit_h_midpoint!(ct_fix__HC__midpoint__u64__N4, u64, 4);
 
 // =============================================================================

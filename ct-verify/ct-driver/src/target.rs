@@ -285,10 +285,12 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // only on those bounds (the value flows through branchless per-limb
     // arithmetic / masked selects / xor-folds).
     //
-    // Deliberately ABSENT: `fixed_bigint..heapless..shift`. The `<<`/`>>`
-    // operators are dual-use — reachable with a secret amount — so they are
-    // not attestable by symbol. Ops that route through them
-    // (is/next_power_of_two, midpoint) are left unfixtured, not allowlisted.
+    // Deliberately ABSENT: the `heapless::shift` `<<`/`>>` *operator* symbols.
+    // They are dual-use — reachable with a secret amount — so an operator
+    // symbol on its own is not attestable. The `Ct` arms instead route through
+    // the dedicated barrels `const_shl_ct`/`const_shr_ct` (allowlisted below),
+    // which take a public shift amount; the ops built on them
+    // (is/next_power_of_two, midpoint) ARE fixtured through those barrels.
 
     // Whole heapless per-limb modules — bitwise (Not/BitAnd/Or/Xor), cmp
     // (PartialEq/Ord/subtle ConstantTime*/ConditionallySelectable/CtIsZero),
