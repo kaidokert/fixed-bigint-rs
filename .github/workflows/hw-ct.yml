@@ -3,6 +3,8 @@
 name: hw-ct
 on:
   workflow_dispatch:            # manual gate — hardware runs are slow + serialized
+  pull_request:
+    types: [labeled]             # temporary bootstrap; removed after the first rig run
 
 concurrency:                    # don't queue two dispatches of THIS repo on the rig
   group: hw-ct-${{ github.repository }}
@@ -10,6 +12,7 @@ concurrency:                    # don't queue two dispatches of THIS repo on the
 
 jobs:
   cyccnt:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'hw-ct'
     runs-on: [self-hosted, rig-stm32f407-dwt]     # rig-type label
     env:
       RIG: stm32f407-dwt
