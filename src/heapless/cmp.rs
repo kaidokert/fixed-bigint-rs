@@ -88,7 +88,12 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Ord for HeaplessBigInt<T,
             // Shared full-width branchless scan (see `const_cmp_ct`); the two
             // operand slices are equal length (`n`).
             PersonalityTag::Ct => {
-                crate::fixeduint::const_cmp_ct(&self.limbs[..n], &other.limbs[..n])
+                // `get(..n)` not `[..n]`: `n = max(len) <= CAP` by invariant,
+                // so `None` is unreachable, but the checked form keeps the
+                // array-slice off the panic path at MSRV/`-Oz`.
+                let a = self.limbs.get(..n).unwrap_or(&self.limbs);
+                let b = other.limbs.get(..n).unwrap_or(&other.limbs);
+                crate::fixeduint::const_cmp_ct(a, b)
             }
         }
     }

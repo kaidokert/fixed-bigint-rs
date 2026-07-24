@@ -69,6 +69,12 @@ pub extern "C" fn nct_fix__neg__nct_ilog10__u32__N4(a_ptr: *const [u32; 4]) -> u
     core::hint::black_box(result)
 }
 
+#[cfg(feature = "ctgrind")]
+krabi_caliper::ctgrind_local!(
+    nct_fix__neg__nct_ilog10__u32__N4,
+    krabi_caliper::ctgrind_count!(nct_fix__neg__nct_ilog10__u32__N4, u32, 4);
+);
+
 // =============================================================================
 // nct_gcd: Stein's algorithm. Subtraction + comparison loop.
 // =============================================================================

@@ -88,6 +88,8 @@ macro_rules! emit_cond_select {
                 *out_ptr = result;
             }
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_cond_select!($name, $T, $N););
     };
 }
 emit_cond_select!(ct_fix__B__cond_select__u8__N16, u8, 16);

@@ -19,11 +19,13 @@ default = ["panic-handler"]
 # builds (every asm-grep target). Disabled by host-side consumers (ct-ctgrind)
 # that link ct-fixtures as rlib alongside std, which supplies its own.
 panic-handler = []
+ctgrind = ["dep:krabi-caliper"]
 
 [dependencies]
 fixed-bigint = { path = "../.." }
 const-num-traits = { version = "0.2.1", default-features = false, features = ["ct"] }
 num-integer = { version = "0.1", default-features = false }
 subtle = { version = "2.6", default-features = false }
+krabi-caliper = { version = "0.1", features = ["ctgrind"], optional = true }
 
 # Profile settings live at the workspace root (cargo only honors them there).
