@@ -30,13 +30,14 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
             out.len() >= byte_count,
             "HeaplessBigInt::to_be_bytes: out.len() < required ({byte_count} bytes)"
         );
-        for (chunk, word) in out[..byte_count]
-            .chunks_exact_mut(word_size)
-            .zip(self.limbs[..self.len as usize].iter().rev())
-        {
+        // `by_ref().zip` over a flat `iter_mut()` rather than
+        // `chunks_exact_mut(word_size)`, whose `size()` division by the
+        // chunk size retains a div-by-zero panic guard at MSRV/`-Oz`.
+        let mut dst = out[..byte_count].iter_mut();
+        for word in self.limbs[..self.len as usize].iter().rev() {
             let word_bytes = word.to_be_bytes();
-            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-                *dst = *src;
+            for (&src, slot) in word_bytes.as_ref().iter().zip(dst.by_ref()) {
+                *slot = src;
             }
         }
         &out[..byte_count]
@@ -51,13 +52,12 @@ impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P>
             out.len() >= byte_count,
             "HeaplessBigInt::to_le_bytes: out.len() < required ({byte_count} bytes)"
         );
-        for (chunk, word) in out[..byte_count]
-            .chunks_exact_mut(word_size)
-            .zip(self.limbs[..self.len as usize].iter())
-        {
+        // See `to_be_bytes` for why this avoids `chunks_exact_mut`.
+        let mut dst = out[..byte_count].iter_mut();
+        for word in self.limbs[..self.len as usize].iter() {
             let word_bytes = word.to_le_bytes();
-            for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-                *dst = *src;
+            for (&src, slot) in word_bytes.as_ref().iter().zip(dst.by_ref()) {
+                *slot = src;
             }
         }
         &out[..byte_count]

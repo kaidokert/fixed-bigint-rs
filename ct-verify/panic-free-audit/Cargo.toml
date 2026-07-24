@@ -6,9 +6,12 @@ rust-version = "1.86"
 publish = false
 description = "Linker-DCE audit: confirm `FixedUInt::*_bytes_fixed` synthesises no panic symbols."
 
+[features]
+neg-controls = []
+
 [lib]
-# staticlib so a cross-target build produces a `.a` that `cargo nm` can
-# read without needing a linker script or runtime. Same shape as
+# staticlib so a cross-target build produces a `.a` that krabi-caliper can
+# inspect without needing a linker script or runtime. Same shape as
 # `ct-verify/ct-fixtures`.
 crate-type = ["staticlib"]
 

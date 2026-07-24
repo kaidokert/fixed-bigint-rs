@@ -72,6 +72,8 @@ macro_rules! ct_fix_bin {
                 *out_ptr = result;
             }
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_bin!($name, $T, $N););
     };
 }
 
@@ -92,6 +94,8 @@ macro_rules! ct_fix_un {
                 *out_ptr = result;
             }
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_un!($name, $T, $N););
     };
 }
 
@@ -109,6 +113,8 @@ macro_rules! ct_fix_pred {
             let result: u8 = $body;
             core::hint::black_box(result)
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_pred!($name, $T, $N););
     };
 }
 
@@ -123,6 +129,8 @@ macro_rules! ct_fix_pred2 {
             let result: u8 = $body;
             core::hint::black_box(result)
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_pred2!($name, $T, $N););
     };
 }
 
@@ -139,6 +147,8 @@ macro_rules! ct_fix_count {
             let result: u32 = $body;
             core::hint::black_box(result)
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_count!($name, $T, $N););
     };
 }
 
@@ -160,6 +170,8 @@ macro_rules! ct_fix_shift {
                 *out_ptr = result;
             }
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_shift!($name, $T, $N, $NT););
     };
 }
 
@@ -187,6 +199,8 @@ macro_rules! ct_fix_checked_bin {
             }
             valid
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_checked_bin!($name, $T, $N););
     };
 }
 
@@ -209,6 +223,8 @@ macro_rules! ct_fix_checked_scalar {
             }
             valid
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_checked_scalar!($name, $T, $N, $ST););
     };
 }
 
@@ -229,5 +245,7 @@ macro_rules! ct_fix_checked_un {
             }
             valid
         }
+        #[cfg(feature = "ctgrind")]
+        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_checked_un!($name, $T, $N););
     };
 }

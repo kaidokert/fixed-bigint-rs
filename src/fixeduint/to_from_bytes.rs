@@ -123,14 +123,16 @@ pub(crate) fn holder_be_from_limbs<T: MachineWord, const N: usize>(
     let word_size = core::mem::size_of::<T>();
     // Guard against a future `as_byte_slice_mut` desync silently truncating.
     debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
-    for (chunk, word) in ret
-        .as_byte_slice_mut()
-        .chunks_exact_mut(word_size)
-        .zip(limbs.iter().rev())
-    {
+    // Advance one flat byte iterator `word_size` bytes per limb rather than
+    // `chunks_exact_mut(word_size)`: the latter's `size()` divides the slice
+    // length by the (runtime-field) chunk size, which rustc at MSRV can't
+    // prove non-zero, leaving a div-by-zero panic guard. `by_ref().zip` over a
+    // plain `iter_mut()` has no such division and stays panic-free at `-Oz`.
+    let mut dst = ret.as_byte_slice_mut().iter_mut();
+    for word in limbs.iter().rev() {
         let word_bytes = word.to_be_bytes();
-        for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-            *dst = *src;
+        for (&src, slot) in word_bytes.as_ref().iter().zip(dst.by_ref()) {
+            *slot = src;
         }
     }
     ret
@@ -143,14 +145,12 @@ pub(crate) fn holder_le_from_limbs<T: MachineWord, const N: usize>(
     let mut ret = BytesHolder::default();
     let word_size = core::mem::size_of::<T>();
     debug_assert_eq!(ret.as_byte_slice_mut().len(), N * word_size);
-    for (chunk, word) in ret
-        .as_byte_slice_mut()
-        .chunks_exact_mut(word_size)
-        .zip(limbs.iter())
-    {
+    // See `holder_be_from_limbs` for why this avoids `chunks_exact_mut`.
+    let mut dst = ret.as_byte_slice_mut().iter_mut();
+    for word in limbs.iter() {
         let word_bytes = word.to_le_bytes();
-        for (dst, src) in chunk.iter_mut().zip(word_bytes.as_ref()) {
-            *dst = *src;
+        for (&src, slot) in word_bytes.as_ref().iter().zip(dst.by_ref()) {
+            *slot = src;
         }
     }
     ret

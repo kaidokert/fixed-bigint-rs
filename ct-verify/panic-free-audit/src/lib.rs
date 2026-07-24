@@ -27,6 +27,9 @@
 #![no_std]
 #![allow(non_snake_case)]
 
+#[cfg(feature = "neg-controls")]
+mod neg_controls;
+
 use const_num_traits::{Ct, PrimBits};
 use core::hint::black_box;
 use fixed_bigint::{FixedUInt, HeaplessBigInt};
@@ -288,10 +291,9 @@ pub extern "C" fn panic_audit__num_traits_to_le_bytes__u64_32(
 //
 // Tests whether `div_nonzero` / `rem_nonzero` survive DCE without
 // dragging in `panic_fmt` from `FixedUInt`'s `Div`/`Rem` zero check.
-// The trait contract guarantees `d != 0`, but the underlying
-// `FixedUInt::Div` impl still has a runtime zero check internally —
-// the open question is whether LLVM proves it unreachable through the
-// `NonZeroFixedUInt` wrapper. Same DCE question as `*_bytes_fixed`.
+// The trait contract guarantees `d != 0`; lock down that the underlying
+// division implementation does not retain its otherwise-valid zero check
+// through the `NonZeroFixedUInt` wrapper.
 
 use const_num_traits::{DivNonZero, HasNonZero, Nct};
 use fixed_bigint::NonZeroFixedUInt;

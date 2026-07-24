@@ -56,4 +56,4 @@ jobs:
         # --error-exitcode=0 hands exit control back to the binary, which
         # decides pass/fail from per-fixture error-counter deltas. -q hides
         # Valgrind's own preamble; per-error reports still print.
-        run: valgrind --tool=memcheck --error-exitcode=0 -q target/release/ct-ctgrind
+        run: valgrind --tool=memcheck --error-exitcode=0 --error-limit=no -q target/release/ct-ctgrind
