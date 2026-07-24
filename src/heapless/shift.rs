@@ -10,56 +10,167 @@
 //!   enters; the words beyond `len` do not exist. A caller wanting the
 //!   shifted value to occupy more words constructs it at the wider width
 //!   first (as `div_rem` does).
-//! - `Shr`: `out_len = self.len.saturating_sub(bits / word_bits)`. The
+//! - `Shr`: `out_len = self.len.saturating_sub(bits / word_bits)` on `Nct`. The
 //!   top limb may become zero — that's fine under the zero-tail invariant
-//!   and downstream can trim explicitly if needed (NCT-only).
+//!   and downstream can trim explicitly if needed.
 //!
-//! Iteration count is derived from `self.len` + shift amount — both
-//! public — so the Nct and Ct arms share the same body.
+//! Personality dispatch: the `Nct` arms take the direct word/bit shift above
+//! (branching on the amount, fine for a public amount). The `Ct` arms route
+//! through the branchless barrels [`const_shl_ct`] / [`const_shr_ct`] so a
+//! secret shift amount never drives control flow — and `Ct` `Shr` is
+//! width-preserving, since a data-dependent `len` shrink would itself leak.
 
-use super::cmp::ct_select;
 use super::{HeaplessBigInt, zero};
 use crate::MachineWord;
-use const_num_traits::Personality;
+use const_num_traits::{Bounded, Personality, PersonalityTag};
 use core::marker::PhantomData;
 use core::ops::{Shl, ShlAssign, Shr, ShrAssign};
 
-/// Constant-time left shift by a **secret** `amount`: a barrel shifter.
-///
-/// The inherent `Shl<usize>` branches and cache-indexes on the shift amount
-/// (`word_shift`/`bit_shift`), so shifting by a secret leaks it. Here the
-/// secret never drives control flow: each stage `k` shifts by the **public**
-/// constant `2^k` and applies-or-not via a masked [`ct_select`] on bit `k` of
-/// `amount`. Amounts `>= self.len·word_bits` yield zero (masked). The only
-/// operations that touch `amount` are the arithmetic `>> k & 1` and the u32
-/// `>=` — no branch or memory access depends on it.
-///
-/// Cost is `O(width · log(width_bits))`. Result width is `self.len`, as `<<`.
-pub(crate) fn ct_shl<T, const CAP: usize, P: Personality>(
+/// Width-preserving left shift by a **public** `bits`: the raw word/bit-shift
+/// body, output `len == value.len`. Branches on `word_shift`/`bit_shift`, so it
+/// is only ever called with a public amount (the `Nct` operator arm, or a
+/// barrel stage `2^k`). The `Ct` operator arm routes through [`const_shl_ct`]
+/// instead so a secret amount never reaches this branchful body.
+fn shl_wp<T: MachineWord, const CAP: usize, P: Personality>(
     value: HeaplessBigInt<T, CAP, P>,
-    amount: u32,
-) -> HeaplessBigInt<T, CAP, P>
-where
-    T: MachineWord + subtle::ConditionallySelectable,
-{
-    let width = value.len();
-    let word_bits = core::mem::size_of::<T>() as u32 * 8;
-    let width_bits = width as u32 * word_bits;
-    let mut result = value;
-    // Public loop bound: stages cover bit positions `0..ceil(log2(width_bits))`.
-    let mut k = 0u32;
-    while (1u32 << k) < width_bits {
-        // Stage amount `2^k` stays in `u32` (< width_bits < 2^32) — `1usize << k`
-        // would overflow on a 16-bit-usize target once k >= 16. The `Shl<u32>`
-        // it routes through carries the same over-width cast guard as elsewhere.
-        let shifted = result << (1u32 << k); // fixed, public shift by 2^k
-        let bit_k = (amount >> k) & 1;
-        result = ct_select(&result, &shifted, bit_k != 0);
+    bits: usize,
+) -> HeaplessBigInt<T, CAP, P> {
+    let word_bits = core::mem::size_of::<T>() * 8;
+    let word_shift = bits / word_bits;
+    let bit_shift = bits % word_bits;
+    let out_len = value.len as usize;
+    let mut limbs = [zero::<T>(); CAP];
+    let mut i = 0;
+    while i < out_len {
+        let dst_lo = i + word_shift;
+        if dst_lo < out_len {
+            limbs[dst_lo] |= value.limbs[i] << bit_shift;
+            if bit_shift > 0 {
+                let dst_hi = dst_lo + 1;
+                if dst_hi < out_len {
+                    limbs[dst_hi] |= value.limbs[i] >> (word_bits - bit_shift);
+                }
+            }
+        }
+        i += 1;
+    }
+    HeaplessBigInt {
+        limbs,
+        len: value.len,
+        _p: PhantomData,
+    }
+}
+
+/// Width-preserving right shift by a **public** `bits`, output `len ==
+/// value.len` (the top limbs zero-fill rather than the `len` shrinking as the
+/// `Nct` `Shr` operator does). Same public-amount contract as [`shl_wp`]: the
+/// barrel stages and the `Ct` operator arm pass public amounts here, a secret
+/// amount goes through [`const_shr_ct`].
+fn shr_wp<T: MachineWord, const CAP: usize, P: Personality>(
+    value: HeaplessBigInt<T, CAP, P>,
+    bits: usize,
+) -> HeaplessBigInt<T, CAP, P> {
+    let word_bits = core::mem::size_of::<T>() * 8;
+    let word_shift = bits / word_bits;
+    let bit_shift = bits % word_bits;
+    let n = value.len as usize;
+    let mut limbs = [zero::<T>(); CAP];
+    let mut i = 0;
+    while i < n {
+        let src_lo = i + word_shift;
+        let lo = if src_lo < n {
+            value.limbs[src_lo] >> bit_shift
+        } else {
+            zero::<T>()
+        };
+        let hi = if bit_shift > 0 && src_lo + 1 < n {
+            value.limbs[src_lo + 1] << (word_bits - bit_shift)
+        } else {
+            zero::<T>()
+        };
+        limbs[i] = lo | hi;
+        i += 1;
+    }
+    HeaplessBigInt {
+        limbs,
+        len: value.len,
+        _p: PhantomData,
+    }
+}
+
+/// Full-`T` mask from bit 0 of a `black_box`'d choice: `0` when clear, `T::MAX`
+/// when set. Mirrors `FixedUInt::const_ct_select` — the `black_box` stops LLVM
+/// recognising the XOR-AND-XOR select and rewriting it into a secret-flag
+/// conditional move (which asm-grep can't see but ctgrind's taint pass can).
+#[inline]
+fn ct_mask<T: MachineWord>(choice_bit: u8) -> T {
+    let bit = core::hint::black_box(choice_bit & 1);
+    let bit_t = <T as core::convert::From<u8>>::from(bit);
+    <T as core::ops::Mul>::mul(bit_t, <T as Bounded>::max_value())
+}
+
+/// Constant-time left shift by a **secret** `bits`: a branchless barrel
+/// shifter, the heapless twin of `FixedUInt::const_shl_ct`. Each stage `k`
+/// shifts by the public constant `2^k` via [`shl_wp`] and applies-or-not with a
+/// per-limb masked XOR select on bit `k` of `bits`. The secret never drives
+/// control flow or a memory index. Result width is `value.len` (as `<<`).
+pub(crate) fn const_shl_ct<T: MachineWord, const CAP: usize, P: Personality>(
+    value: HeaplessBigInt<T, CAP, P>,
+    bits: usize,
+) -> HeaplessBigInt<T, CAP, P> {
+    let n = value.len as usize;
+    // `1usize << k` for `k < usize::BITS` stays in range; this covers every
+    // amount, over-width ones included (a stage that shifts past the width
+    // zeroes the operand, so the select folds to zero). Matches
+    // `FixedUInt::const_shl_ct`'s `layers`.
+    let layers = core::mem::size_of::<usize>() * 8;
+    let mut target = value;
+    let mut k = 0;
+    while k < layers {
+        let shifted = shl_wp(target, 1usize << k);
+        let mask = ct_mask::<T>(((bits >> k) & 1) as u8);
+        let mut i = 0;
+        while i < n {
+            let diff = target.limbs[i] ^ shifted.limbs[i];
+            target.limbs[i] ^= mask & diff;
+            i += 1;
+        }
         k += 1;
     }
-    // Over-width amount shifts everything out.
-    let zero_w = HeaplessBigInt::<T, CAP, P>::new_zero_with_len(width);
-    ct_select(&result, &zero_w, amount >= width_bits)
+    target
+}
+
+/// Constant-time right shift by a **secret** `bits`: mirror of
+/// [`const_shl_ct`] via [`shr_wp`]. Width-preserving (`len == value.len`).
+pub(crate) fn const_shr_ct<T: MachineWord, const CAP: usize, P: Personality>(
+    value: HeaplessBigInt<T, CAP, P>,
+    bits: usize,
+) -> HeaplessBigInt<T, CAP, P> {
+    let n = value.len as usize;
+    let layers = core::mem::size_of::<usize>() * 8;
+    let mut target = value;
+    let mut k = 0;
+    while k < layers {
+        let shifted = shr_wp(target, 1usize << k);
+        let mask = ct_mask::<T>(((bits >> k) & 1) as u8);
+        let mut i = 0;
+        while i < n {
+            let diff = target.limbs[i] ^ shifted.limbs[i];
+            target.limbs[i] ^= mask & diff;
+            i += 1;
+        }
+        k += 1;
+    }
+    target
+}
+
+/// Secret-amount left shift used by `ct_next_pow2`. Thin `u32` wrapper over
+/// [`const_shl_ct`].
+pub(crate) fn ct_shl<T: MachineWord, const CAP: usize, P: Personality>(
+    value: HeaplessBigInt<T, CAP, P>,
+    amount: u32,
+) -> HeaplessBigInt<T, CAP, P> {
+    const_shl_ct(value, amount as usize)
 }
 
 // `Shl<u32>` / `Shr<u32>` delegate to the `usize` impls, matching `FixedUInt`.
@@ -75,11 +186,20 @@ where
 impl<T: MachineWord, const CAP: usize, P: Personality> Shl<u32> for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
     fn shl(self, bits: u32) -> Self::Output {
-        let value_bits = self.len as u32 * (core::mem::size_of::<T>() as u32 * 8);
-        if bits >= value_bits {
-            Self::new_zero_with_len(self.len())
-        } else {
-            self << (bits as usize)
+        match P::TAG {
+            // Ct: the over-width guard would branch on the (secret) amount, so
+            // go straight to the barrel — it collapses over-width shifts to
+            // zero on its own. `bits as usize` never truncates a meaningful
+            // amount (over-width already yields zero).
+            PersonalityTag::Ct => const_shl_ct(self, bits as usize),
+            PersonalityTag::Nct => {
+                let value_bits = self.len as u32 * (core::mem::size_of::<T>() as u32 * 8);
+                if bits >= value_bits {
+                    Self::new_zero_with_len(self.len())
+                } else {
+                    self << (bits as usize)
+                }
+            }
         }
     }
 }
@@ -87,11 +207,16 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Shl<u32> for HeaplessBigI
 impl<T: MachineWord, const CAP: usize, P: Personality> Shr<u32> for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
     fn shr(self, bits: u32) -> Self::Output {
-        let value_bits = self.len as u32 * (core::mem::size_of::<T>() as u32 * 8);
-        if bits >= value_bits {
-            Self::new_zero_with_len(0)
-        } else {
-            self >> (bits as usize)
+        match P::TAG {
+            PersonalityTag::Ct => const_shr_ct(self, bits as usize),
+            PersonalityTag::Nct => {
+                let value_bits = self.len as u32 * (core::mem::size_of::<T>() as u32 * 8);
+                if bits >= value_bits {
+                    Self::new_zero_with_len(0)
+                } else {
+                    self >> (bits as usize)
+                }
+            }
         }
     }
 }
@@ -100,35 +225,12 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Shl<usize> for HeaplessBi
     type Output = Self;
 
     fn shl(self, bits: usize) -> Self::Output {
-        let word_bits = core::mem::size_of::<T>() * 8;
-        let word_shift = bits / word_bits;
-        let bit_shift = bits % word_bits;
-
-        // Width-preserving: out_len = self.len (see module doc).
-        let out_len = self.len as usize;
-        let mut limbs = [zero::<T>(); CAP];
-
-        let mut i = 0;
-        while i < out_len {
-            let dst_lo = i + word_shift;
-            if dst_lo < out_len {
-                let lo = self.limbs[i] << bit_shift;
-                limbs[dst_lo] |= lo;
-                if bit_shift > 0 {
-                    let dst_hi = dst_lo + 1;
-                    if dst_hi < out_len {
-                        let hi = self.limbs[i] >> (word_bits - bit_shift);
-                        limbs[dst_hi] |= hi;
-                    }
-                }
-            }
-            i += 1;
-        }
-
-        Self {
-            limbs,
-            len: out_len as u16,
-            _p: PhantomData,
+        // Ct routes a (possibly secret) amount through the branchless barrel;
+        // Nct takes the direct word/bit shift. `P::TAG` is a compile-time
+        // constant, so each monomorphisation keeps only its own arm.
+        match P::TAG {
+            PersonalityTag::Nct => shl_wp(self, bits),
+            PersonalityTag::Ct => const_shl_ct(self, bits),
         }
     }
 }
@@ -153,38 +255,47 @@ impl<T: MachineWord, const CAP: usize, P: Personality> Shr<usize> for HeaplessBi
     type Output = Self;
 
     fn shr(self, bits: usize) -> Self::Output {
-        let word_bits = core::mem::size_of::<T>() * 8;
-        let word_shift = bits / word_bits;
-        let bit_shift = bits % word_bits;
+        match P::TAG {
+            // Ct: branchless barrel, width-preserving (a data-dependent `len`
+            // shrink would itself leak a secret amount).
+            PersonalityTag::Ct => const_shr_ct(self, bits),
+            // Nct: direct shift, shrinking `out_len = len - word_shift` (the
+            // documented heapless `Shr` width behaviour).
+            PersonalityTag::Nct => {
+                let word_bits = core::mem::size_of::<T>() * 8;
+                let word_shift = bits / word_bits;
+                let bit_shift = bits % word_bits;
 
-        let mut limbs = [zero::<T>(); CAP];
-        if word_shift >= self.len as usize {
-            return Self {
-                limbs,
-                len: 0,
-                _p: PhantomData,
-            };
-        }
+                let mut limbs = [zero::<T>(); CAP];
+                if word_shift >= self.len as usize {
+                    return Self {
+                        limbs,
+                        len: 0,
+                        _p: PhantomData,
+                    };
+                }
 
-        let out_len = self.len as usize - word_shift;
+                let out_len = self.len as usize - word_shift;
 
-        let mut i = 0;
-        while i < out_len {
-            let src_lo = i + word_shift;
-            let lo = self.limbs[src_lo] >> bit_shift;
-            let hi = if bit_shift > 0 && src_lo + 1 < self.len as usize {
-                self.limbs[src_lo + 1] << (word_bits - bit_shift)
-            } else {
-                zero::<T>()
-            };
-            limbs[i] = lo | hi;
-            i += 1;
-        }
+                let mut i = 0;
+                while i < out_len {
+                    let src_lo = i + word_shift;
+                    let lo = self.limbs[src_lo] >> bit_shift;
+                    let hi = if bit_shift > 0 && src_lo + 1 < self.len as usize {
+                        self.limbs[src_lo + 1] << (word_bits - bit_shift)
+                    } else {
+                        zero::<T>()
+                    };
+                    limbs[i] = lo | hi;
+                    i += 1;
+                }
 
-        Self {
-            limbs,
-            len: out_len as u16,
-            _p: PhantomData,
+                Self {
+                    limbs,
+                    len: out_len as u16,
+                    _p: PhantomData,
+                }
+            }
         }
     }
 }

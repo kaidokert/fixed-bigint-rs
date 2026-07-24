@@ -262,6 +262,18 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // an `undecided` lock, no early return; loop bound is the operand
     // length (public). Backs FixedUInt's and HeaplessBigInt's Ct `Ord::cmp`.
     r"fixed_bigint9fixeduint12const_cmp_ct",
+    // HeaplessBigInt's dedicated Ct shift barrels — the heapless twins of
+    // FixedUInt's const_shl_ct / const_shr_ct / const_sh{l,r}_impl already
+    // allowlisted above. `const_sh{l,r}_ct` loop `usize::BITS` public stages
+    // with a per-limb black_box masked select on bit `k` of the secret amount;
+    // each stage's `sh{l,r}_wp` shifts by the public `2^k`. Loop bounds are
+    // `usize::BITS` and the operand `len` (public); the secret amount only
+    // feeds `>> k & 1`. The `Ct` `<<`/`>>` operator arms route here (their
+    // `match P::TAG` folds to just this call for the Ct monomorphisation).
+    r"fixed_bigint8heapless5shift12const_shl_ct",
+    r"fixed_bigint8heapless5shift12const_shr_ct",
+    r"fixed_bigint8heapless5shift6shl_wp",
+    r"fixed_bigint8heapless5shift6shr_wp",
     // ── HeaplessBigInt Ct helpers ──
     //
     // Heapless's width is a runtime `len` field, so its per-limb loops bound
@@ -351,6 +363,10 @@ const THUMBV6M_EXTRA_HELPERS: &[&str] = &[
     // `leading_zeros` above and inherit its branches on armv6m.
     r"fixed_bigint9fixeduint17power_of_two_impl.*next_power_of_two",
     r"fixed_bigint9fixeduint.*FixedUInt.*ct_checked_next_power_of_two",
+    // HeaplessBigInt's `NextPowerOfTwo::next_power_of_two` inlines the same
+    // primitive `leading_zeros` (via `ct_next_pow2`), inheriting the armv6m
+    // software-CLZ branches — same root cause as the FixedUInt row above.
+    r"fixed_bigint8heapless12power_of_two.*NextPowerOfTwo",
     // compiler_builtins' software division — pulled in transitively
     // by the armv6m `leading_zeros` polynomial. Branchful on size.
     r"compiler_builtins3int.*specialized_div_rem",

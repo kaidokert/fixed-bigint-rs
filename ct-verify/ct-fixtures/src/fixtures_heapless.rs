@@ -20,14 +20,10 @@
 //! width; each is attested public-bounded in ct-driver's `HELPER_ALLOWLIST`,
 //! so these fixtures are gated on every target like the FixedUInt set.
 //!
-//! Ops NOT fixtured here (a fixture would fail for the right reason, and they
-//! are tracked in the CT-coverage backlog):
-//!   - variable-amount shifts, and anything reaching the `<<`/`>>` operator —
-//!     `is_power_of_two` / `next_power_of_two` (via `ct_shl`) and `midpoint`
-//!     (`>> 1`). The heapless shift operators are dual-use (callable with a
-//!     secret amount), so their symbol can't be allowlisted; heapless lacks a
-//!     dedicated `const_shl_ct`/`const_shr_ct` the way FixedUInt has.
-//!   - `is_one` — the heapless `One::is_one` body has a data-dependent branch.
+//! Not fixtured: `is_one` — the heapless `One::is_one` body still has a
+//! data-dependent branch (tracked in the CT-coverage backlog). Everything else,
+//! shifts included, is covered: the `Ct` `<<`/`>>` operators now dispatch to
+//! branchless barrels (`const_shl_ct`/`const_shr_ct`).
 
 use core::ops::{BitAnd, BitOr, BitXor, Not};
 
@@ -38,15 +34,112 @@ use const_num_traits::Ct;
 use const_num_traits::CtNonZero;
 use const_num_traits::{
     AbsDiff, CarryingAdd, IsPowerOfTwo, Midpoint, NextPowerOfTwo, One, OverflowingAdd, PrimBits,
-    SaturatingAdd, SaturatingMul, SaturatingSub, WrappingMul, Zero,
+    SaturatingAdd, SaturatingMul, SaturatingSub, UnboundedShl, UnboundedShr, WrappingMul, Zero,
 };
 use fixed_bigint::HeaplessBigInt;
 use subtle::{ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess};
 
 use crate::{
     ct_fix_bin, ct_fix_checked_bin, ct_fix_checked_un, ct_fix_count, ct_fix_pred, ct_fix_pred2,
-    ct_fix_un,
+    ct_fix_shift, ct_fix_un,
 };
+
+// =============================================================================
+// Ct shifts — now branchless barrels (const_shl_ct / const_shr_ct). The
+// `<<`/`>>` operators dispatch on P::TAG, so a secret amount routes through the
+// barrel. is_power_of_two (no shift), next_power_of_two (via ct_shl), and
+// midpoint (>> 1) come along too.
+// =============================================================================
+
+macro_rules! emit_h_shl_usize {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, usize, |a, n| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            *(x << n).all_limbs()
+        });
+    };
+}
+emit_h_shl_usize!(ct_fix__HA__shl_usize__u8__N16, u8, 16);
+emit_h_shl_usize!(ct_fix__HA__shl_usize__u16__N16, u16, 16);
+emit_h_shl_usize!(ct_fix__HA__shl_usize__u32__N4, u32, 4);
+emit_h_shl_usize!(ct_fix__HA__shl_usize__u32__N16, u32, 16);
+emit_h_shl_usize!(ct_fix__HA__shl_usize__u64__N4, u64, 4);
+
+macro_rules! emit_h_shr_usize {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, usize, |a, n| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            *(x >> n).all_limbs()
+        });
+    };
+}
+emit_h_shr_usize!(ct_fix__HA__shr_usize__u8__N16, u8, 16);
+emit_h_shr_usize!(ct_fix__HA__shr_usize__u16__N16, u16, 16);
+emit_h_shr_usize!(ct_fix__HA__shr_usize__u32__N4, u32, 4);
+emit_h_shr_usize!(ct_fix__HA__shr_usize__u32__N16, u32, 16);
+emit_h_shr_usize!(ct_fix__HA__shr_usize__u64__N4, u64, 4);
+
+macro_rules! emit_h_unbounded_shl {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, u32, |a, n| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            *UnboundedShl::unbounded_shl(x, n).all_limbs()
+        });
+    };
+}
+emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u8__N16, u8, 16);
+emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u32__N4, u32, 4);
+emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u64__N4, u64, 4);
+
+macro_rules! emit_h_unbounded_shr {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, u32, |a, n| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            *UnboundedShr::unbounded_shr(x, n).all_limbs()
+        });
+    };
+}
+emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u8__N16, u8, 16);
+emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u32__N4, u32, 4);
+emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u64__N4, u64, 4);
+
+// is_power_of_two (predicate, no shift), next_power_of_two (via ct_shl barrel).
+macro_rules! emit_h_is_pow2 {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_pred!($name, $T, $N, |a| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            IsPowerOfTwo::is_power_of_two(x) as u8
+        });
+    };
+}
+emit_h_is_pow2!(ct_fix__HA__is_pow2__u8__N16, u8, 16);
+emit_h_is_pow2!(ct_fix__HA__is_pow2__u32__N4, u32, 4);
+emit_h_is_pow2!(ct_fix__HA__is_pow2__u64__N4, u64, 4);
+
+macro_rules! emit_h_next_pow2 {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_un!($name, $T, $N, |a| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            *NextPowerOfTwo::next_power_of_two(x).all_limbs()
+        });
+    };
+}
+emit_h_next_pow2!(ct_fix__HA__next_pow2__u8__N16, u8, 16);
+emit_h_next_pow2!(ct_fix__HA__next_pow2__u32__N4, u32, 4);
+emit_h_next_pow2!(ct_fix__HA__next_pow2__u64__N4, u64, 4);
+
+macro_rules! emit_h_midpoint {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_bin!($name, $T, $N, |a, b| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
+            *Midpoint::midpoint(x, y).all_limbs()
+        });
+    };
+}
+emit_h_midpoint!(ct_fix__HC__midpoint__u8__N16, u8, 16);
+emit_h_midpoint!(ct_fix__HC__midpoint__u32__N4, u32, 4);
+emit_h_midpoint!(ct_fix__HC__midpoint__u64__N4, u64, 4);
 
 // =============================================================================
 // Category HA: Ct arms dispatched via `match P::TAG`.
@@ -117,13 +210,6 @@ emit_h_abs_diff!(ct_fix__HA__abs_diff__u16__N16, u16, 16);
 emit_h_abs_diff!(ct_fix__HA__abs_diff__u32__N4, u32, 4);
 emit_h_abs_diff!(ct_fix__HA__abs_diff__u32__N16, u32, 16);
 emit_h_abs_diff!(ct_fix__HA__abs_diff__u64__N4, u64, 4);
-
-// NOTE: is_power_of_two / next_power_of_two are intentionally NOT fixtured.
-// Their Ct path reaches the heapless `<<`/`>>` *operator* (next_pow2 via
-// `ct_shl`), which is dual-use — also callable with a secret amount — so its
-// helper symbol can't be allowlisted without risking a false pass. Heapless
-// lacks a dedicated `const_shl_ct`/`const_shr_ct` primitive to route Ct shifts
-// through (unlike FixedUInt). Tracked in the CT-coverage backlog.
 
 // PrimBits::leading_zeros / trailing_zeros
 macro_rules! emit_h_lz {
@@ -392,10 +478,6 @@ emit_h_carrying_add!(ct_fix__HC__carrying_add__u16__N16, u16, 16);
 emit_h_carrying_add!(ct_fix__HC__carrying_add__u32__N4, u32, 4);
 emit_h_carrying_add!(ct_fix__HC__carrying_add__u32__N16, u32, 16);
 emit_h_carrying_add!(ct_fix__HC__carrying_add__u64__N4, u64, 4);
-
-// NOTE: midpoint is intentionally NOT fixtured — it reaches the heapless `>>`
-// operator (`>> 1`), which is the same dual-use symbol as the shifts above;
-// allowlisting it would risk a false pass. Tracked in the CT-coverage backlog.
 
 // Ord::cmp — folded to u8 (Less=0xFF, Equal=0, Greater=1).
 macro_rules! emit_h_cmp {
