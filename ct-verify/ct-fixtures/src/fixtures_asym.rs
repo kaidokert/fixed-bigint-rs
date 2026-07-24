@@ -65,7 +65,7 @@ macro_rules! emit_asym_one_shl {
             }
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_asym_shl_u32!($name, $T, $N););
+        fbx_ctgrind_asym_shl_u32!($name, $T, $N);
     };
 }
 
@@ -107,7 +107,7 @@ macro_rules! emit_asym_subtle_cond_select {
             }
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_asym_select_u8!($name, $T, $N););
+        fbx_ctgrind_asym_select_u8!($name, $T, $N);
     };
 }
 
@@ -145,7 +145,7 @@ macro_rules! emit_asym_pow_const_base {
             valid
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_asym_pow_u32!($name, $T, $N););
+        fbx_ctgrind_asym_pow_u32!($name, $T, $N);
     };
 }
 

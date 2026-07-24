@@ -361,18 +361,19 @@ macro_rules! emit_h_cond_select {
             let c = core::hint::black_box(choice);
             let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a_arr, $N as u16);
             let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b_arr, $N as u16);
-            let r = <HeaplessBigInt<$T, $N, Ct> as subtle::ConditionallySelectable>::conditional_select(
-                &x,
-                &y,
-                subtle::Choice::from(c),
-            );
+            let r =
+                <HeaplessBigInt<$T, $N, Ct> as subtle::ConditionallySelectable>::conditional_select(
+                    &x,
+                    &y,
+                    subtle::Choice::from(c),
+                );
             let result = core::hint::black_box(*r.all_limbs());
             unsafe {
                 *out_ptr = result;
             }
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_cond_select!($name, $T, $N););
+        fbx_ctgrind_cond_select!($name, $T, $N);
     };
 }
 emit_h_cond_select!(ct_fix__HB__cond_select__u8__N16, u8, 16);
@@ -507,7 +508,7 @@ macro_rules! emit_h_carrying_add {
             core::hint::black_box(co as u8)
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_carrying_add!($name, $T, $N););
+        fbx_ctgrind_carrying_add!($name, $T, $N);
     };
 }
 emit_h_carrying_add!(ct_fix__HC__carrying_add__u8__N16, u8, 16);
