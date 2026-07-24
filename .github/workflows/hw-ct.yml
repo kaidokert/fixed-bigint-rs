@@ -1,0 +1,54 @@
+# .github/workflows/hw-ct.yml — hardware constant-time run on a bench rig.
+# GENERIC across repos; change only the marked strings.
+name: hw-ct
+on:
+  workflow_dispatch:            # manual gate — hardware runs are slow + serialized
+
+concurrency:                    # don't queue two dispatches of THIS repo on the rig
+  group: hw-ct-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  cyccnt:
+    runs-on: [self-hosted, rig-stm32f407-dwt]     # rig-type label
+    env:
+      RIG: stm32f407-dwt
+      CAMPAIGN: fixed-bigint-jtrace-f407          # repo campaign key
+    steps:
+      - uses: actions/checkout@v4
+      - name: run krabi-caliper on the rig
+        shell: bash
+        working-directory: ct-verify/cyccnt-hardware
+        run: |
+          set -euo pipefail
+          # probe-rs + cargo krabi-caliper live in ~/.cargo/bin (off a non-login PATH)
+          export PATH="$HOME/.cargo/bin:$PATH"
+
+          # 1. provider: load the rig's physical facts (KRABI_*) so krabi-caliper can
+          #    expand ${KRABI_PROBE}. The .env is the only place a serial lives; it is
+          #    deployed to the bench, never committed to this repo.
+          env_file="$HOME/.config/krabi-caliper/rigs/$RIG.env"
+          [ -f "$env_file" ] || { echo "::error::rig '$RIG' has no env on this bench ($env_file)"; exit 1; }
+          set -a; source "$env_file"; set +a
+          : "${KRABI_PROBE:?rig $RIG did not export KRABI_PROBE}"
+          echo "bench=${KRABI_BENCH:-?} rig=${KRABI_RIG:-?} probe=$KRABI_PROBE"
+
+          # 2. hardware lock: host-local, per rig. Every repo/runner that can touch
+          #    this rig blocks here, so they serialize instead of racing for USB.
+          exec 9>"/run/lock/krabi-rig-$RIG"
+          flock -w 1800 9
+
+          # 3. recovery: power-cycle the rig if uhubctl + coords are available.
+          uhubctl_bin="$(command -v uhubctl || echo /usr/sbin/uhubctl)"
+          if [ -x "$uhubctl_bin" ] && [ -n "${KRABI_UHUBCTL:-}" ]; then
+            sudo -n "$uhubctl_bin" -a cycle -l "$KRABI_UHUBCTL" ${KRABI_UHUBCTL_PORT:+-p "$KRABI_UHUBCTL_PORT"} || true
+            sleep 2
+          fi
+
+          # 4. liveness: the declared probe must be attached to THIS bench, else fail
+          #    before flashing (declared != attached is the drift trap).
+          probe-rs list | grep -qF "$KRABI_PROBE" \
+            || { echo "::error::probe $KRABI_PROBE not attached to ${KRABI_BENCH:-this bench}"; exit 1; }
+
+          # 5. run — ${KRABI_PROBE} in the campaign args resolves from the now-live env.
+          cargo krabi-caliper run "$CAMPAIGN"
