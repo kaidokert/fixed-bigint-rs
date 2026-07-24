@@ -136,6 +136,39 @@ emit_shr_usize!(ct_fix__A__shr_usize__u32__N4, u32, 4);
 emit_shr_usize!(ct_fix__A__shr_usize__u32__N16, u32, 16);
 emit_shr_usize!(ct_fix__A__shr_usize__u64__N4, u64, 4);
 
+// `<<=` / `>>=` — the assign forms have their own P::TAG dispatch (distinct
+// impls from the by-value operators), routing the Ct arm through the same
+// const_shl_ct/const_shr_ct barrels.
+macro_rules! emit_shl_assign {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, usize, |a, n| {
+            let mut x = FixedUInt::<$T, $N, Ct>::from(a);
+            x <<= n;
+            *x.words()
+        });
+    };
+}
+emit_shl_assign!(ct_fix__A__shl_assign__u8__N16, u8, 16);
+emit_shl_assign!(ct_fix__A__shl_assign__u16__N16, u16, 16);
+emit_shl_assign!(ct_fix__A__shl_assign__u32__N4, u32, 4);
+emit_shl_assign!(ct_fix__A__shl_assign__u32__N16, u32, 16);
+emit_shl_assign!(ct_fix__A__shl_assign__u64__N4, u64, 4);
+
+macro_rules! emit_shr_assign {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, usize, |a, n| {
+            let mut x = FixedUInt::<$T, $N, Ct>::from(a);
+            x >>= n;
+            *x.words()
+        });
+    };
+}
+emit_shr_assign!(ct_fix__A__shr_assign__u8__N16, u8, 16);
+emit_shr_assign!(ct_fix__A__shr_assign__u16__N16, u16, 16);
+emit_shr_assign!(ct_fix__A__shr_assign__u32__N4, u32, 4);
+emit_shr_assign!(ct_fix__A__shr_assign__u32__N16, u32, 16);
+emit_shr_assign!(ct_fix__A__shr_assign__u64__N4, u64, 4);
+
 // =============================================================================
 // UnboundedShl::unbounded_shl / UnboundedShr::unbounded_shr
 // =============================================================================
