@@ -20,6 +20,12 @@ default = ["panic-handler"]
 # that link ct-fixtures as rlib alongside std, which supplies its own.
 panic-handler = []
 ctgrind = ["dep:krabi-caliper"]
+# HeaplessBigInt Ct fixtures. OFF by default: the runtime-`len` carrier's
+# helpers loop over a public-but-runtime width, so their public-parameter
+# branches (a register-bounded `cmp; b.lt`, not the immediate-bounded form
+# the allowlist recognizes) trip the asm-grep gate even though they leak no
+# secret. Kept as ready-to-run scaffolding until the gate can allowlist them.
+heapless = []
 
 [dependencies]
 fixed-bigint = { path = "../.." }
