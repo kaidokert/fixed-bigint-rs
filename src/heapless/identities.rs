@@ -168,6 +168,25 @@ impl<T: MachineWord, const CAP: usize, P: Personality> ConstOne for HeaplessBigI
 // `min = 0` (len 0). `max` is the capacity bound: every one of `CAP` limbs
 // saturated, `len = CAP`. This is the one answer `CAP` legitimately sets —
 // it is the widest value the storage can represent, not a value width.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use const_num_traits::Ct;
+
+    type Hc = HeaplessBigInt<u8, 4, Ct>;
+
+    // `One::is_one` on the `Ct` carrier folds through `const_is_one_ct` with no
+    // early return; it must still match the predicate exactly, including the
+    // `len == 0` (zero) guard and a `1` that sits in a higher limb.
+    #[test]
+    fn ct_is_one() {
+        assert!(<Hc as One>::is_one(&<Hc as One>::one()));
+        assert!(!<Hc as One>::is_one(&<Hc as Zero>::zero()));
+        assert!(!<Hc as One>::is_one(&Hc::from_limbs([2, 0, 0, 0], 1)));
+        assert!(!<Hc as One>::is_one(&Hc::from_limbs([0, 1, 0, 0], 2)));
+    }
+}
+
 impl<T: MachineWord, const CAP: usize, P: Personality> Bounded for HeaplessBigInt<T, CAP, P> {
     #[inline]
     fn min_value() -> Self {

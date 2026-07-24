@@ -2095,6 +2095,21 @@ mod tests {
         }
     }
 
+    // The `Ct` arm of `PartialEq::eq` folds every limb (via `const_eq_ct`)
+    // rather than short-circuiting; it must still agree with `==` bit-for-bit,
+    // whether the operands match, differ in a high limb, or differ in a low one.
+    #[test]
+    fn test_ct_eq() {
+        type C = Bn<u8, 4, const_num_traits::Ct>;
+        assert!(C::from(0x0102_0304u32) == C::from(0x0102_0304u32));
+        assert!(C::from(0u32) == C::from(0u32));
+        // high limb differs
+        assert!(C::from(0x0102_0304u32) != C::from(0x8102_0304u32));
+        // low limb differs (high limbs equal)
+        assert!(C::from(0x0102_0304u32) != C::from(0x0102_0384u32));
+        assert!(C::from(1u32) != C::from(0u32));
+    }
+
     #[test]
     fn test_const_cmp_shifted() {
         use core::cmp::Ordering;
