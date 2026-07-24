@@ -18,7 +18,7 @@ fn main() -> ExitCode {
             driver: DriverConfig {
                 workspace,
                 fixture_package: "ct-fixtures",
-                fixture_features: &[],
+                fixture_features: &["heapless"],
             },
             memory_class_negatives: &[],
         },

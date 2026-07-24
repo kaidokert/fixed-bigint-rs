@@ -20,6 +20,12 @@ default = ["panic-handler"]
 # that link ct-fixtures as rlib alongside std, which supplies its own.
 panic-handler = []
 ctgrind = ["dep:krabi-caliper"]
+# HeaplessBigInt Ct fixtures. The asm-grep driver (ct-driver) enables this;
+# the runtime-`len` carrier's per-limb helpers loop over a public-but-runtime
+# width, and each is attested public-bounded in ct-driver's HELPER_ALLOWLIST.
+# Kept as a feature so non-gate consumers can build ct-fixtures without the
+# heapless surface.
+heapless = []
 
 [dependencies]
 fixed-bigint = { path = "../.." }

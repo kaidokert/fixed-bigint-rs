@@ -14,6 +14,8 @@ path = "src/main.rs"
 # Link the fixtures as a Rust rlib so this binary can call each
 # `extern "C"` symbol directly. `default-features = false` disables
 # ct-fixtures' `#[panic_handler]` so std's panic handler is used.
-ct-fixtures = { path = "../ct-fixtures", default-features = false, features = ["ctgrind"] }
+# `heapless` pulls the HeaplessBigInt fixtures in too, so the taint check
+# independently cross-checks the helpers the asm-grep gate only attests.
+ct-fixtures = { path = "../ct-fixtures", default-features = false, features = ["ctgrind", "heapless"] }
 
 krabi-caliper = { version = "0.1", features = ["ctgrind"] }

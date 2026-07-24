@@ -11,7 +11,44 @@ use const_num_traits::{
 };
 use fixed_bigint::FixedUInt;
 
-use crate::{ct_fix_bin, ct_fix_count, ct_fix_pred, ct_fix_shift, ct_fix_un};
+use crate::{ct_fix_bin, ct_fix_count, ct_fix_pred, ct_fix_pred2, ct_fix_shift, ct_fix_un};
+
+// =============================================================================
+// Ord::cmp — `match P::TAG` Ct arm through `const_cmp_ct` (the MSB-to-LSB
+// masked scan). Fold the Ordering to u8 (Less=255, Equal=0, Greater=1).
+// =============================================================================
+
+macro_rules! emit_cmp {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_pred2!($name, $T, $N, |a, b| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            (x.cmp(&y) as i8) as u8
+        });
+    };
+}
+emit_cmp!(ct_fix__A__cmp__u8__N16, u8, 16);
+emit_cmp!(ct_fix__A__cmp__u16__N16, u16, 16);
+emit_cmp!(ct_fix__A__cmp__u32__N4, u32, 4);
+emit_cmp!(ct_fix__A__cmp__u32__N16, u32, 16);
+emit_cmp!(ct_fix__A__cmp__u64__N4, u64, 4);
+
+// PartialEq::eq — the `==` operator's own branchless Ct arm (XOR-fold), a
+// distinct code path from the `subtle::ct_eq` fixtured in category B.
+macro_rules! emit_eq {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_pred2!($name, $T, $N, |a, b| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            (x == y) as u8
+        });
+    };
+}
+emit_eq!(ct_fix__A__eq__u8__N16, u8, 16);
+emit_eq!(ct_fix__A__eq__u16__N16, u16, 16);
+emit_eq!(ct_fix__A__eq__u32__N4, u32, 4);
+emit_eq!(ct_fix__A__eq__u32__N16, u32, 16);
+emit_eq!(ct_fix__A__eq__u64__N4, u64, 4);
 
 // =============================================================================
 // SaturatingAdd / Sub / Mul
