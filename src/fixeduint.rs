@@ -1199,6 +1199,25 @@ c0nst::c0nst! {
         <T as Zero>::is_zero(&acc)
     }
 
+    /// CT equality: folds `(a[0] ^ b[0]) | (a[1] ^ b[1]) | ...` into one
+    /// accumulator, so timing does not depend on where the two arrays first
+    /// differ. Used by the `Ct`-personality arm of `PartialEq::eq`. Kept as a
+    /// named helper (like `const_cmp_ct`) so the fold's `N`-bounded loop lands
+    /// in one symbol the CT gate can attest, rather than inline in the operator.
+    pub(crate) c0nst fn const_eq_ct<T: [c0nst] ConstMachineWord, const N: usize>(
+        a: &[T; N],
+        b: &[T; N],
+    ) -> bool {
+        let mut diff = <T as ConstZero>::ZERO;
+        let mut i = 0;
+        while i < N {
+            let x = <T as core::ops::BitXor>::bitxor(a[i], b[i]);
+            diff = <T as core::ops::BitOr>::bitor(diff, x);
+            i += 1;
+        }
+        <T as Zero>::is_zero(&diff)
+    }
+
     /// Set a specific bit in the array.
     ///
     /// The array uses little-endian representation where index 0 contains
@@ -1532,16 +1551,7 @@ c0nst::c0nst! {
         fn eq(&self, other: &Self) -> bool {
             match P::TAG {
                 PersonalityTag::Nct => self.array == other.array,
-                PersonalityTag::Ct => {
-                    let mut diff = <T as ConstZero>::ZERO;
-                    let mut i = 0;
-                    while i < N {
-                        let x = <T as core::ops::BitXor>::bitxor(self.array[i], other.array[i]);
-                        diff = <T as core::ops::BitOr>::bitor(diff, x);
-                        i += 1;
-                    }
-                    <T as Zero>::is_zero(&diff)
-                }
+                PersonalityTag::Ct => const_eq_ct(&self.array, &other.array),
             }
         }
     }

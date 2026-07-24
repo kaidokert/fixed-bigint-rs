@@ -33,6 +33,23 @@ emit_cmp!(ct_fix__A__cmp__u32__N4, u32, 4);
 emit_cmp!(ct_fix__A__cmp__u32__N16, u32, 16);
 emit_cmp!(ct_fix__A__cmp__u64__N4, u64, 4);
 
+// PartialEq::eq — the `==` operator's own branchless Ct arm (XOR-fold), a
+// distinct code path from the `subtle::ct_eq` fixtured in category B.
+macro_rules! emit_eq {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_pred2!($name, $T, $N, |a, b| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            (x == y) as u8
+        });
+    };
+}
+emit_eq!(ct_fix__A__eq__u8__N16, u8, 16);
+emit_eq!(ct_fix__A__eq__u16__N16, u16, 16);
+emit_eq!(ct_fix__A__eq__u32__N4, u32, 4);
+emit_eq!(ct_fix__A__eq__u32__N16, u32, 16);
+emit_eq!(ct_fix__A__eq__u64__N4, u64, 4);
+
 // =============================================================================
 // SaturatingAdd / Sub / Mul
 // =============================================================================

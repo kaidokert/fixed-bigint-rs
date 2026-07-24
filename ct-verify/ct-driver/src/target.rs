@@ -172,6 +172,7 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // Loop bound is N (compile-time constant).
     r"fixed_bigint9fixeduint16const_is_zero_ct",
     r"fixed_bigint9fixeduint15const_is_one_ct",
+    r"fixed_bigint9fixeduint11const_eq_ct",
     r"fixed_bigint9fixeduint22const_leading_zeros_ct",
     r"fixed_bigint9fixeduint23const_trailing_zeros_ct",
     // Per-limb arithmetic — N-bounded loops.

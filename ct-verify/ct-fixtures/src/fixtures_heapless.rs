@@ -20,10 +20,10 @@
 //! width; each is attested public-bounded in ct-driver's `HELPER_ALLOWLIST`,
 //! so these fixtures are gated on every target like the FixedUInt set.
 //!
-//! Not fixtured: `is_one` — the heapless `One::is_one` body still has a
-//! data-dependent branch (tracked in the CT-coverage backlog). Everything else,
-//! shifts included, is covered: the `Ct` `<<`/`>>` operators now dispatch to
-//! branchless barrels (`const_shl_ct`/`const_shr_ct`).
+//! Shifts included: the `Ct` `<<`/`>>` operators dispatch to branchless
+//! barrels (`const_shl_ct`/`const_shr_ct`), and `is_one` folds through the
+//! out-of-line `const_is_one_ct` helper so its `len` loop lands in an
+//! attestable symbol rather than inlining into the fixture.
 
 use core::ops::{BitAnd, BitOr, BitXor, Not};
 
@@ -269,9 +269,22 @@ emit_h_is_one!(ct_fix__HA__is_one__u32__N4, u32, 4);
 emit_h_is_one!(ct_fix__HA__is_one__u32__N16, u32, 16);
 emit_h_is_one!(ct_fix__HA__is_one__u64__N4, u64, 4);
 
-// NOTE: is_one is intentionally NOT fixtured — the heapless `One::is_one`
-// body carries a data-dependent branch (fixture-level violation), so it is not
-// yet constant-time. Tracked in the CT-coverage backlog.
+// PartialEq::eq — the `==` operator's branchless Ct XOR-fold, distinct from
+// the `subtle::ct_eq` fixtured in category HB.
+macro_rules! emit_h_eq {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_pred2!($name, $T, $N, |a, b| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
+            (x == y) as u8
+        });
+    };
+}
+emit_h_eq!(ct_fix__HA__eq__u8__N16, u8, 16);
+emit_h_eq!(ct_fix__HA__eq__u16__N16, u16, 16);
+emit_h_eq!(ct_fix__HA__eq__u32__N4, u32, 4);
+emit_h_eq!(ct_fix__HA__eq__u32__N16, u32, 16);
+emit_h_eq!(ct_fix__HA__eq__u64__N4, u64, 4);
 
 // =============================================================================
 // Category HB: subtle::* trait impls.
