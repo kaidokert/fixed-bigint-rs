@@ -293,14 +293,16 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // (PartialEq/Ord/subtle ConstantTime*/ConditionallySelectable/CtIsZero),
     // parity (CtParity), the two bit-scan modules (leading/trailing_zeros,
     // count_ones, swap_bytes, reverse_bits — the zero scans route through the
-    // allowlisted const_*_ct helpers), and identities' Zero (is_zero). Each
-    // was audited: loops bound on `len`/`max(len)`, value flows through
-    // branchless per-limb arithmetic / masked selects / xor-folds. `bits.rs`
-    // holds the inherent `leading_zeros`; `cmp.rs` holds `Ord::cmp`
-    // (`limbs[..len]` slice then `const_cmp_ct`). NB: `heapless::shift` is
-    // deliberately excluded (dual-use operators, see above).
+    // allowlisted const_*_ct helpers), and identities' Zero (is_zero) plus the
+    // out-of-line `const_is_one_ct` fold behind One's is_one. Each was audited:
+    // loops bound on `len`/`max(len)`, value flows through branchless per-limb
+    // arithmetic / masked selects / xor-folds. `bits.rs` holds the inherent
+    // `leading_zeros`; `cmp.rs` holds `Ord::cmp` (`limbs[..len]` slice then
+    // `const_cmp_ct`). NB: `heapless::shift` is deliberately excluded (dual-use
+    // operators, see above).
     r"fixed_bigint\d*heapless(?:7bitwise|3cmp|6parity|9prim_bits|4bits)",
     r"fixed_bigint\d*heapless10identities.*(?:Const)?Zero",
+    r"fixed_bigint\d*heapless10identities15const_is_one_ct",
     // heapless arith. Div/Rem here are Nct-only and never reached from a Ct
     // fixture; every helper a Ct op does reach — saturating (ct_select),
     // carrying/borrowing, wrapping/overflowing, the CtChecked* traits, and the

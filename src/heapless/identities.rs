@@ -90,17 +90,33 @@ impl<T: MachineWord, const CAP: usize, P: Personality> One for HeaplessBigInt<T,
                 }
                 true
             }
-            PersonalityTag::Ct => {
-                let mut acc = self.limbs[0] ^ <T as ConstOne>::ONE;
-                let mut i = 1;
-                while i < n {
-                    acc |= self.limbs[i];
-                    i += 1;
-                }
-                super::is_zero(&acc)
-            }
+            PersonalityTag::Ct => const_is_one_ct(&self.limbs, n),
         }
     }
+}
+
+/// CT fold for [`One::is_one`]: `(limbs[0] ^ 1) | limbs[1] | … | limbs[n-1]`,
+/// zero iff the value is the canonical one. Timing depends only on the public
+/// `len` (`n`), never on where the value first diverges from one. Caller
+/// guarantees `n >= 1`.
+///
+/// Kept out-of-line so the fold's `len`-bounded loop lands in one attestable
+/// helper symbol rather than being inlined into its lone caller, where the same
+/// loop would read as an un-attestable branch to the CT gate. (FixedUInt's twin
+/// unrolls instead, because its bound is the const generic `N`; the heapless
+/// bound is a runtime field, so the loop stays a loop and must be attested.)
+#[inline(never)]
+pub(crate) fn const_is_one_ct<T: MachineWord, const CAP: usize>(
+    limbs: &[T; CAP],
+    n: usize,
+) -> bool {
+    let mut acc = limbs[0] ^ <T as ConstOne>::ONE;
+    let mut i = 1;
+    while i < n {
+        acc |= limbs[i];
+        i += 1;
+    }
+    super::is_zero(&acc)
 }
 
 impl<T: MachineWord, const CAP: usize, P: Personality> Default for HeaplessBigInt<T, CAP, P> {

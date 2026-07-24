@@ -255,6 +255,20 @@ emit_h_is_zero!(ct_fix__HA__is_zero__u32__N4, u32, 4);
 emit_h_is_zero!(ct_fix__HA__is_zero__u32__N16, u32, 16);
 emit_h_is_zero!(ct_fix__HA__is_zero__u64__N4, u64, 4);
 
+macro_rules! emit_h_is_one {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_pred!($name, $T, $N, |a| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            <HeaplessBigInt<$T, $N, Ct> as One>::is_one(&x) as u8
+        });
+    };
+}
+emit_h_is_one!(ct_fix__HA__is_one__u8__N16, u8, 16);
+emit_h_is_one!(ct_fix__HA__is_one__u16__N16, u16, 16);
+emit_h_is_one!(ct_fix__HA__is_one__u32__N4, u32, 4);
+emit_h_is_one!(ct_fix__HA__is_one__u32__N16, u32, 16);
+emit_h_is_one!(ct_fix__HA__is_one__u64__N4, u64, 4);
+
 // NOTE: is_one is intentionally NOT fixtured — the heapless `One::is_one`
 // body carries a data-dependent branch (fixture-level violation), so it is not
 // yet constant-time. Tracked in the CT-coverage backlog.
