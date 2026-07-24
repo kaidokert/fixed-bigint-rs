@@ -45,10 +45,10 @@ use crate::{
 };
 
 // =============================================================================
-// Ct shifts — now branchless barrels (const_shl_ct / const_shr_ct). The
-// `<<`/`>>` operators dispatch on P::TAG, so a secret amount routes through the
-// barrel. is_power_of_two (no shift), next_power_of_two (via ct_shl), and
-// midpoint (>> 1) come along too.
+// Ct shifts. The `<<`/`>>` operators dispatch on P::TAG, so a secret amount
+// routes through the branchless barrels (const_shl_ct / const_shr_ct). Also
+// covers is_power_of_two (no shift), next_power_of_two (via ct_shl), and
+// midpoint (>> 1).
 // =============================================================================
 
 macro_rules! emit_h_shl_usize {

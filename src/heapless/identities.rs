@@ -100,11 +100,9 @@ impl<T: MachineWord, const CAP: usize, P: Personality> One for HeaplessBigInt<T,
 /// `len` (`n`), never on where the value first diverges from one. Caller
 /// guarantees `n >= 1`.
 ///
-/// Kept out-of-line so the fold's `len`-bounded loop lands in one attestable
-/// helper symbol rather than being inlined into its lone caller, where the same
-/// loop would read as an un-attestable branch to the CT gate. (FixedUInt's twin
-/// unrolls instead, because its bound is the const generic `N`; the heapless
-/// bound is a runtime field, so the loop stays a loop and must be attested.)
+/// `#[inline(never)]` so the fold's `len`-bounded loop lands in one attestable
+/// helper symbol; inlined into its lone fixture caller, the runtime-`len` loop
+/// would read as an un-attestable branch to the CT gate.
 #[inline(never)]
 pub(crate) fn const_is_one_ct<T: MachineWord, const CAP: usize>(
     limbs: &[T; CAP],
@@ -163,11 +161,6 @@ impl<T: MachineWord, const CAP: usize, P: Personality> ConstOne for HeaplessBigI
     const ONE: Self = Self::const_one();
 }
 
-// ── const_num_traits::Bounded ──
-//
-// `min = 0` (len 0). `max` is the capacity bound: every one of `CAP` limbs
-// saturated, `len = CAP`. This is the one answer `CAP` legitimately sets —
-// it is the widest value the storage can represent, not a value width.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,6 +180,11 @@ mod tests {
     }
 }
 
+// ── const_num_traits::Bounded ──
+//
+// `min = 0` (len 0). `max` is the capacity bound: every one of `CAP` limbs
+// saturated, `len = CAP`. This is the one answer `CAP` legitimately sets —
+// it is the widest value the storage can represent, not a value width.
 impl<T: MachineWord, const CAP: usize, P: Personality> Bounded for HeaplessBigInt<T, CAP, P> {
     #[inline]
     fn min_value() -> Self {

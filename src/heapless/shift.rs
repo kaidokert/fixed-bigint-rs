@@ -63,9 +63,8 @@ fn shl_wp<T: MachineWord, const CAP: usize, P: Personality>(
 
 /// Width-preserving right shift by a **public** `bits`, output `len ==
 /// value.len` (the top limbs zero-fill rather than the `len` shrinking as the
-/// `Nct` `Shr` operator does). Same public-amount contract as [`shl_wp`]: the
-/// barrel stages and the `Ct` operator arm pass public amounts here, a secret
-/// amount goes through [`const_shr_ct`].
+/// `Nct` `Shr` operator does). Public-only, like [`shl_wp`]; a secret amount
+/// goes through [`const_shr_ct`].
 fn shr_wp<T: MachineWord, const CAP: usize, P: Personality>(
     value: HeaplessBigInt<T, CAP, P>,
     bits: usize,
@@ -110,10 +109,10 @@ fn ct_mask<T: MachineWord>(choice_bit: u8) -> T {
 }
 
 /// Constant-time left shift by a **secret** `bits`: a branchless barrel
-/// shifter, the heapless twin of `FixedUInt::const_shl_ct`. Each stage `k`
-/// shifts by the public constant `2^k` via [`shl_wp`] and applies-or-not with a
-/// per-limb masked XOR select on bit `k` of `bits`. The secret never drives
-/// control flow or a memory index. Result width is `value.len` (as `<<`).
+/// shifter, the heapless twin of `FixedUInt::const_shl_ct`. Each public stage
+/// `2^k` is applied-or-not via a per-limb masked XOR select on bit `k` of
+/// `bits`, so the secret never drives control flow or a memory index. Result
+/// width is `value.len` (as `<<`).
 pub(crate) fn const_shl_ct<T: MachineWord, const CAP: usize, P: Personality>(
     value: HeaplessBigInt<T, CAP, P>,
     bits: usize,

@@ -297,12 +297,9 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // parity (CtParity), the two bit-scan modules (leading/trailing_zeros,
     // count_ones, swap_bytes, reverse_bits — the zero scans route through the
     // allowlisted const_*_ct helpers), and identities' Zero (is_zero) plus the
-    // out-of-line `const_is_one_ct` fold behind One's is_one. Each was audited:
-    // loops bound on `len`/`max(len)`, value flows through branchless per-limb
-    // arithmetic / masked selects / xor-folds. `bits.rs` holds the inherent
-    // `leading_zeros`; `cmp.rs` holds `Ord::cmp` (`limbs[..len]` slice then
-    // `const_cmp_ct`). NB: `heapless::shift` is deliberately excluded (dual-use
-    // operators, see above).
+    // out-of-line `const_is_one_ct` fold behind One's is_one. `bits.rs` holds
+    // the inherent `leading_zeros`; `cmp.rs` holds `Ord::cmp` (`limbs[..len]`
+    // slice then `const_cmp_ct`).
     r"fixed_bigint\d*heapless(?:7bitwise|3cmp|6parity|9prim_bits|4bits)",
     r"fixed_bigint\d*heapless10identities.*(?:Const)?Zero",
     r"fixed_bigint\d*heapless10identities15const_is_one_ct",

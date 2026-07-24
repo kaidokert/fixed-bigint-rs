@@ -1199,11 +1199,11 @@ c0nst::c0nst! {
         <T as Zero>::is_zero(&acc)
     }
 
-    /// CT equality: folds `(a[0] ^ b[0]) | (a[1] ^ b[1]) | ...` into one
-    /// accumulator, so timing does not depend on where the two arrays first
-    /// differ. Used by the `Ct`-personality arm of `PartialEq::eq`. Kept as a
-    /// named helper (like `const_cmp_ct`) so the fold's `N`-bounded loop lands
-    /// in one symbol the CT gate can attest, rather than inline in the operator.
+    /// CT equality for the `Ct` arm of `PartialEq::eq`: folds
+    /// `(a[0] ^ b[0]) | (a[1] ^ b[1]) | ...` into one accumulator, so timing
+    /// does not depend on where the two arrays first differ. Kept as a named
+    /// helper (like `const_cmp_ct`) so the fold's `N`-bounded loop lands in one
+    /// symbol the CT gate can attest, rather than inline in the operator.
     pub(crate) c0nst fn const_eq_ct<T: [c0nst] ConstMachineWord, const N: usize>(
         a: &[T; N],
         b: &[T; N],
