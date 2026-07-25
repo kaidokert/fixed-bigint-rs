@@ -1,3 +1,5 @@
+#![no_std]
+
 //! Client-owned workload catalog.
 //!
 //! Each Ct operation is declared **once** as a carrier-generic function; the
@@ -22,11 +24,12 @@ use const_num_traits::ops::ct::{
     CtCheckedAdd, CtCheckedMul, CtCheckedSub, CtIsPowerOfTwo, CtIsZero, CtParity,
 };
 use const_num_traits::{
-    AbsDiff, BorrowingSub, CarryingAdd, CarryingMul, Ct, IsPowerOfTwo, Midpoint, NextPowerOfTwo,
-    One, OverflowingAdd, OverflowingMul, OverflowingSub, PrimBits, SaturatingAdd, SaturatingMul,
-    SaturatingSub, UnboundedShl, UnboundedShr, WrappingAdd, WrappingMul, WrappingSub, Zero,
+    AbsDiff, BorrowingSub, CarryingAdd, CarryingMul, Ct, Ilog10, IsPowerOfTwo, Midpoint,
+    NextPowerOfTwo, One, OverflowingAdd, OverflowingMul, OverflowingSub, PrimBits, SaturatingAdd,
+    SaturatingMul, SaturatingSub, UnboundedShl, UnboundedShr, WrappingAdd, WrappingMul,
+    WrappingSub, Zero,
 };
-use core::ops::{BitAnd, BitOr, BitXor, Not, Shl, ShlAssign, Shr, ShrAssign};
+use core::ops::{BitAnd, BitOr, BitXor, Div, Not, Shl, ShlAssign, Shr, ShrAssign};
 use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
 use subtle::{
     Choice, ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess,
@@ -306,95 +309,42 @@ pub fn cios_mul_acc_shift_row<C: modmath_cios::CiosRowOps>(
     (acc, c)
 }
 
-/// `bin`-shape adapter: `(a, b) -> out`. Generates the `extern "C"` fixture
-/// (and, under the `ctgrind` feature, its taint registration) for one
-/// op × carrier × width by constructing the carrier through [`FixtureCarrier`],
-/// calling the shared catalog op, and reading the result back. The op and its
-/// input values are single-sourced; only the carrier + width vary here.
-#[macro_export]
-macro_rules! emit_wl_bin {
-    ($sym:ident, $op:path, $carrier:ty, $T:ty, $N:literal) => {
-        $crate::ct_fix_bin!($sym, $T, $N, |aw, bw| {
-            let a = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(aw);
-            let b = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(bw);
-            <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::to_words(&$op(a, b))
-        });
-    };
+// ── Ops used only by the DWT hardware suite (single-carrier, not fixtured on
+// both carriers, but the workload body still lives here so the rig calls the
+// same catalog as the emulated backends). ──
+
+/// Scalar checked shift/pow — inherent methods on `FixedUInt` (Heapless has no
+/// equivalent), wrapped in a trait so a workload can call them generically.
+pub trait CtScalarChecked: Sized {
+    fn wl_ct_checked_shl(self, n: u32) -> subtle::CtOption<Self>;
+    fn wl_ct_checked_pow(self, exp: u32) -> subtle::CtOption<Self>;
+}
+impl<T: MachineWord, const N: usize> CtScalarChecked for FixedUInt<T, N, Ct> {
+    #[inline(always)]
+    fn wl_ct_checked_shl(self, n: u32) -> subtle::CtOption<Self> {
+        self.ct_checked_shl(n)
+    }
+    #[inline(always)]
+    fn wl_ct_checked_pow(self, exp: u32) -> subtle::CtOption<Self> {
+        self.ct_checked_pow(exp)
+    }
+}
+#[inline(always)]
+pub fn ct_checked_shl<C: CtScalarChecked>(a: C, n: u32) -> subtle::CtOption<C> {
+    a.wl_ct_checked_shl(n)
+}
+#[inline(always)]
+pub fn ct_checked_pow<C: CtScalarChecked>(a: C, exp: u32) -> subtle::CtOption<C> {
+    a.wl_ct_checked_pow(exp)
 }
 
-/// `un` shape: `(a) -> out`.
-#[macro_export]
-macro_rules! emit_wl_un {
-    ($sym:ident, $op:path, $carrier:ty, $T:ty, $N:literal) => {
-        $crate::ct_fix_un!($sym, $T, $N, |aw| {
-            let a = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(aw);
-            <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::to_words(&$op(a))
-        });
-    };
+/// Negative-control ops (variable-time on `Nct` carriers): plain division and
+/// base-10 log. Generic over the op trait, so the rig drives an `Nct` carrier.
+#[inline(always)]
+pub fn nct_div<C: Div<Output = C>>(a: C, b: C) -> C {
+    a / b
 }
-
-/// `count` shape: `(a) -> u32`.
-#[macro_export]
-macro_rules! emit_wl_count {
-    ($sym:ident, $op:path, $carrier:ty, $T:ty, $N:literal) => {
-        $crate::ct_fix_count!($sym, $T, $N, |aw| {
-            let a = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(aw);
-            $op(a)
-        });
-    };
-}
-
-/// `pred` shape: `(a) -> u8`.
-#[macro_export]
-macro_rules! emit_wl_pred {
-    ($sym:ident, $op:path, $carrier:ty, $T:ty, $N:literal) => {
-        $crate::ct_fix_pred!($sym, $T, $N, |aw| {
-            let a = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(aw);
-            $op(a)
-        });
-    };
-}
-
-/// `pred2` shape: `(a, b) -> u8`.
-#[macro_export]
-macro_rules! emit_wl_pred2 {
-    ($sym:ident, $op:path, $carrier:ty, $T:ty, $N:literal) => {
-        $crate::ct_fix_pred2!($sym, $T, $N, |aw, bw| {
-            let a = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(aw);
-            let b = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(bw);
-            $op(a, b)
-        });
-    };
-}
-
-/// `shift` shape: `(a, amount) -> out`. `$NT` is the amount type (`usize`/`u32`).
-#[macro_export]
-macro_rules! emit_wl_shift {
-    ($sym:ident, $op:path, $carrier:ty, $T:ty, $N:literal, $NT:ty) => {
-        $crate::ct_fix_shift!($sym, $T, $N, $NT, |aw, n| {
-            let a = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(aw);
-            <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::to_words(&$op(a, n))
-        });
-    };
-}
-
-/// `checked_bin` shape: `(a, b) -> (out, u8)`. The op returns a `CtOption`;
-/// this splits it into the value (zero fallback) and the validity byte.
-#[macro_export]
-macro_rules! emit_wl_checked_bin {
-    ($sym:ident, $op:path, $carrier:ty, $T:ty, $N:literal) => {
-        $crate::ct_fix_checked_bin!($sym, $T, $N, |aw, bw| {
-            let a = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(aw);
-            let b = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(bw);
-            let res = $op(a, b);
-            let valid = res.is_some().unwrap_u8();
-            let value = res.unwrap_or(
-                <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words([0; $N]),
-            );
-            (
-                <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::to_words(&value),
-                valid,
-            )
-        });
-    };
+#[inline(always)]
+pub fn nct_ilog10<C: Ilog10>(a: C) -> u32 {
+    Ilog10::ilog10(a)
 }

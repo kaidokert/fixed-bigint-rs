@@ -1,0 +1,16 @@
+[package]
+name = "ct-workload"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.86"
+publish = false
+description = "Carrier-generic Ct workload ops shared by the CT-verify fixtures and the DWT hardware suite."
+
+[features]
+cios = ["dep:modmath-cios"]
+
+[dependencies]
+fixed-bigint = { path = "../..", default-features = false }
+const-num-traits = { version = "0.2.1", default-features = false, features = ["ct"] }
+subtle = { version = "2.6", default-features = false }
+modmath-cios = { version = "0.1.2", default-features = false, optional = true }
