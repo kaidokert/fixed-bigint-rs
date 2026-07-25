@@ -4,7 +4,25 @@ members = [
     "ct-verify/ct-fixtures",
     "ct-verify/ct-driver",
     "ct-verify/ct-ctgrind",
+    "ct-verify/cyccnt-hardware",
     "ct-verify/panic-free-audit",
+]
+# Default set = only the crates that host-compile, so a plain
+# `cargo build`/`check`/`test` at the root Just Works. The three excluded
+# members are cross-target only and are always built explicitly by their
+# consumers, never as part of a host default build:
+#   - cyccnt-hardware: bare-metal (thumbv7em, cortex-m-rt, memory.x); built by
+#     krabi-caliper with `--target thumbv7em-none-eabihf`.
+#   - ct-fixtures: no_std staticlib whose `panic-handler` feature defines a
+#     `#[panic_handler]` that clashes with std on host; built cross-target by
+#     ct-driver, and consumed no-default-features by ct-ctgrind (which IS here).
+#   - panic-free-audit: no_std staticlib (`panic = "abort"`), built by its own
+#     CI job with an explicit target.
+# `--workspace` still reaches all six; this covers the default invocation only.
+default-members = [
+    ".",
+    "ct-verify/ct-driver",
+    "ct-verify/ct-ctgrind",
 ]
 resolver = "2"
 

@@ -1,0 +1,18 @@
+[package]
+name = "fixed-bigint-cyccnt-hardware"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+carrier-u32x8 = []
+carrier-u32x16 = []
+carrier-u8x32 = []
+
+[dependencies]
+const-num-traits = { version = "0.2", default-features = false, features = ["ct"] }
+cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7"
+krabi-caliper = { version = "0.1", features = ["cortex-m-dwt", "paired", "rtt"] }
+fixed-bigint = { path = "../..", default-features = false }
+subtle = { version = "2.6", default-features = false }
