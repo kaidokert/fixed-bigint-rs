@@ -26,9 +26,14 @@ ctgrind = ["dep:krabi-caliper"]
 # Kept as a feature so non-gate consumers can build ct-fixtures without the
 # heapless surface.
 heapless = []
+# CiosRowOps (Montgomery row-op kernels) fixtures. Enables fixed-bigint's
+# `cios` feature and pulls modmath-cios in to name the trait. The driver turns
+# this on alongside `heapless` so both carriers' row ops are gated.
+cios = ["fixed-bigint/cios", "dep:modmath-cios"]
 
 [dependencies]
 fixed-bigint = { path = "../.." }
+modmath-cios = { version = "0.1.2", default-features = false, optional = true }
 const-num-traits = { version = "0.2.1", default-features = false, features = ["ct"] }
 num-integer = { version = "0.1", default-features = false }
 subtle = { version = "2.6", default-features = false }

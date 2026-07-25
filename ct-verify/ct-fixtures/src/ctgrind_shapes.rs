@@ -259,6 +259,40 @@ macro_rules! fbx_ctgrind_carrying_mul {
     };
 }
 
+/// CIOS row op: `(mult:[T,N], acc:[T,N], scalar:T, carry:T) → acc'[T,N] + T`.
+/// Two single-limb `T` scalar secrets alongside two arrays — another shape
+/// unique to ct-fixtures, added locally.
+#[macro_export]
+macro_rules! fbx_ctgrind_mul_acc {
+    ($name:ident, $T:ty, $N:literal) => {
+        krabi_caliper::ctgrind_fixture!($name, {
+            unsafe extern "C" {
+                fn $name(
+                    mult: *const [$T; $N],
+                    acc: *const [$T; $N],
+                    scalar: $T,
+                    carry: $T,
+                    out: *mut [$T; $N],
+                ) -> $T;
+            }
+            let mult: [$T; $N] = [0; $N];
+            let acc: [$T; $N] = [0; $N];
+            let scalar: $T = ::core::hint::black_box(0);
+            let carry: $T = ::core::hint::black_box(0);
+            let mut out: [$T; $N] = [0; $N];
+            krabi_caliper::host::ctgrind::taint(&mult);
+            krabi_caliper::host::ctgrind::taint(&acc);
+            krabi_caliper::host::ctgrind::taint_val(&scalar);
+            krabi_caliper::host::ctgrind::taint_val(&carry);
+            let r = unsafe { $name(&mult, &acc, scalar, carry, &mut out) };
+            krabi_caliper::host::ctgrind::untaint(&out);
+            krabi_caliper::host::ctgrind::untaint_val(&r);
+            let _ = ::core::hint::black_box(out);
+            let _ = ::core::hint::black_box(r);
+        });
+    };
+}
+
 /// Carrying add: `(T,N) × (T,N) × bool → (T,N) + u8`.
 #[macro_export]
 macro_rules! fbx_ctgrind_carrying_add {

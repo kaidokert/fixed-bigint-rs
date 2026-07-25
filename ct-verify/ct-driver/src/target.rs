@@ -189,6 +189,15 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // bound survives. Reached by the `carrying_mul` fixtures.
     r"fixed_bigint9fixeduint23extended_precision_impl14schoolbook_mul",
     r"fixed_bigint9fixeduint23extended_precision_impl126.*carrying_mul",
+    // CIOS Montgomery row ops (`mul_acc_row`, `mul_acc_shift_row`). One body
+    // generic over `P`, looping `j < N` over const N (the shift row's
+    // `carrying_add`-based bool→word fold is branchless — no `if` on the
+    // secret carry bit). Reached by the `cios_*` fixtures. Whole-symbol
+    // exemption here rests on the taint axis for the value-branch check: the
+    // `cios_*` fixtures taint scalar/carry/acc, so a re-introduced secret
+    // branch (e.g. the old `if top_hi_bit`) trips ctgrind, as the analogous
+    // `heapless::arith` carry-tail leak did in PR #180.
+    r"fixed_bigint9fixeduint17cios_row_ops_impl.*mul_acc",
     // ct_checked_pow's square-and-multiply ladder iterates u32::BITS
     // times.
     r"fixed_bigint9fixeduint.*ct_checked_pow",
@@ -317,6 +326,11 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // schoolbook multiply (`mul_slice`/CarryingMul, nested loops bounded on
     // public a_n/b_n/out_n) — is public-bounded.
     r"fixed_bigint\d*heapless5arith",
+    // heapless CIOS row ops (`mul_acc_row`, `mul_acc_shift_row`): per-limb
+    // loops bound on the public `multiplicand.len`, value through
+    // `carrying_mul`/`carrying_add`. The shift row folds its final carry bool
+    // to a word via `carrying_add(0, 0, bit)` — branchless, not `if bit`.
+    r"fixed_bigint\d*heapless4cios.*mul_acc",
     // heapless construction (`from_limbs`/`all_limbs`/`limbs[..len]`) and the
     // core adapters it pulls in — `Zip`, array `IntoIter`, `RangeTo`
     // slice-index, array `Index`. All bounded by public array/slice lengths;
