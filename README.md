@@ -20,7 +20,7 @@ The arithmetic operands ( +, -, .add() ) panic on overflow, just like native int
 
 In addition to basic arithmetic, two main traits are implemented: [num_traits::PrimInt](https://docs.rs/num-traits/latest/num_traits/int/trait.PrimInt.html) and [num_integer::Integer](https://docs.rs/num/latest/num/integer/trait.Integer.html).
 
-An optional `zeroize` feature implements the `Zeroize` trait, so sensitive values can be cleared explicitly with `.zeroize()`, or wiped on scope exit by wrapping them in `zeroize::Zeroizing`. (The integer types are `Copy`, so they do not wipe on drop by themselves.)
+An optional `zeroize` feature implements the [Zeroize](https://docs.rs/zeroize/latest/zeroize/trait.Zeroize.html) trait, so sensitive values can be cleared explicitly with `.zeroize()`, or wiped on scope exit by wrapping them in `zeroize::Zeroizing`. (The integer types are `Copy`, so they do not wipe on drop by themselves.)
 
 ## Const Support
 
@@ -29,10 +29,6 @@ Most arithmetic operations are const-compatible via the [c0nst](https://crates.i
 ## Constant time
 
 Constant-time execution is implemented for a subset of core operations. Ct mode is selected by a type parameter, allowing individual calling contexts to use either mode. This is purely experimental, not audited or thoroughly verified.
-
-_Note:_ This crate is mostly written as an exercise for learning the Rust type system and understanding how well it works on microcontrollers, its fitness for any particular purpose or quality has precisely zero guarantees.
-
-If you are looking for production quality implementation with `no_std`, fixed-size bigint, suitable for crypto, please check out [crypto-bigint](https://github.com/RustCrypto/crypto-bigint) or [bnum](https://crates.io/crates/bnum) crate.
 
 ## Contributing
 
