@@ -1,4 +1,4 @@
-//! Client-owned workload catalog (proof-of-concept slice).
+//! Client-owned workload catalog.
 //!
 //! Each Ct operation is declared **once** as a carrier-generic function; the
 //! backend adapters (asm-grep `extern "C"`, ctgrind taint, and — later — the
@@ -7,9 +7,16 @@
 //! words and reading it back — lives in [`FixtureCarrier`], not in every
 //! fixture.
 //!
-//! This slice covers the `bin` shape via `sat_add` on both carriers, to prove
-//! one op body feeds both the `A` (FixedUInt) and `HA` (Heapless) fixtures.
-//! Remaining shapes/ops are migrated on top of this.
+//! Every operation present on **both** carriers (FixedUInt `A/B/C/CT` and
+//! Heapless `HA/HB/HC/HCT`) routes through here: the `bin`/`un`/`count`/`pred`/
+//! `pred2`/`shift`/`checked_bin` shapes via the `emit_wl_*` adapters, plus the
+//! bespoke-ABI ops (carrying/borrowing, carrying_mul, cond_select, cios row
+//! ops) whose custom fixtures call the shared op body directly.
+//!
+//! Ops that live on only one carrier stay in their fixture file — the catalog
+//! removes cross-carrier duplication, and there is none to remove for
+//! `forget_ct`, `asym_*`, or the FixedUInt-only inherent `ct_checked_shl/shr/
+//! pow/next_power_of_two`.
 
 use const_num_traits::ops::ct::{
     CtCheckedAdd, CtCheckedMul, CtCheckedSub, CtIsPowerOfTwo, CtIsZero, CtParity,
