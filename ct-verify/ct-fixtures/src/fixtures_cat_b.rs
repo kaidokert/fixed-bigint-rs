@@ -18,11 +18,7 @@ use crate::{
 
 macro_rules! emit_ct_eq {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            x.ct_eq(&y).unwrap_u8()
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::ct_eq, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_ct_eq!(ct_fix__B__ct_eq__u8__N16, u8, 16);
@@ -33,11 +29,7 @@ emit_ct_eq!(ct_fix__B__ct_eq__u64__N4, u64, 4);
 
 macro_rules! emit_ct_gt {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            x.ct_gt(&y).unwrap_u8()
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::ct_gt, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_ct_gt!(ct_fix__B__ct_gt__u8__N16, u8, 16);
@@ -48,11 +40,7 @@ emit_ct_gt!(ct_fix__B__ct_gt__u64__N4, u64, 4);
 
 macro_rules! emit_ct_lt {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            x.ct_lt(&y).unwrap_u8()
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::ct_lt, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_ct_lt!(ct_fix__B__ct_lt__u8__N16, u8, 16);

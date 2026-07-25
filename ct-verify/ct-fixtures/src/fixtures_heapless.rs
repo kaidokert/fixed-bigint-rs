@@ -54,10 +54,7 @@ use crate::{
 
 macro_rules! emit_h_shl_usize {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, usize, |a, n| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            *(x << n).all_limbs()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::shl_usize, HeaplessBigInt<$T, $N, Ct>, $T, $N, usize);
     };
 }
 emit_h_shl_usize!(ct_fix__HA__shl_usize__u8__N16, u8, 16);
@@ -68,10 +65,7 @@ emit_h_shl_usize!(ct_fix__HA__shl_usize__u64__N4, u64, 4);
 
 macro_rules! emit_h_shr_usize {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, usize, |a, n| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            *(x >> n).all_limbs()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::shr_usize, HeaplessBigInt<$T, $N, Ct>, $T, $N, usize);
     };
 }
 emit_h_shr_usize!(ct_fix__HA__shr_usize__u8__N16, u8, 16);
@@ -84,11 +78,7 @@ emit_h_shr_usize!(ct_fix__HA__shr_usize__u64__N4, u64, 4);
 // routing the Ct arm through the same barrels as `<<`/`>>`.
 macro_rules! emit_h_shl_assign {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, usize, |a, n| {
-            let mut x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            x <<= n;
-            *x.all_limbs()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::shl_assign, HeaplessBigInt<$T, $N, Ct>, $T, $N, usize);
     };
 }
 emit_h_shl_assign!(ct_fix__HA__shl_assign__u8__N16, u8, 16);
@@ -99,11 +89,7 @@ emit_h_shl_assign!(ct_fix__HA__shl_assign__u64__N4, u64, 4);
 
 macro_rules! emit_h_shr_assign {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, usize, |a, n| {
-            let mut x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            x >>= n;
-            *x.all_limbs()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::shr_assign, HeaplessBigInt<$T, $N, Ct>, $T, $N, usize);
     };
 }
 emit_h_shr_assign!(ct_fix__HA__shr_assign__u8__N16, u8, 16);
@@ -120,10 +106,7 @@ emit_h_shr_assign!(ct_fix__HA__shr_assign__u64__N4, u64, 4);
 
 macro_rules! emit_h_unbounded_shl {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, u32, |a, n| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            *UnboundedShl::unbounded_shl(x, n).all_limbs()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::unbounded_shl, HeaplessBigInt<$T, $N, Ct>, $T, $N, u32);
     };
 }
 emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u8__N16, u8, 16);
@@ -134,10 +117,7 @@ emit_h_unbounded_shl!(ct_fix__HA__unbounded_shl__u64__N4, u64, 4);
 
 macro_rules! emit_h_unbounded_shr {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, u32, |a, n| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            *UnboundedShr::unbounded_shr(x, n).all_limbs()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::unbounded_shr, HeaplessBigInt<$T, $N, Ct>, $T, $N, u32);
     };
 }
 emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u8__N16, u8, 16);
@@ -149,10 +129,7 @@ emit_h_unbounded_shr!(ct_fix__HA__unbounded_shr__u64__N4, u64, 4);
 // is_power_of_two (predicate, no shift), next_power_of_two (via ct_shl barrel).
 macro_rules! emit_h_is_pow2 {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            IsPowerOfTwo::is_power_of_two(x) as u8
-        });
+        crate::emit_wl_pred!($name, crate::catalog::is_pow2, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_is_pow2!(ct_fix__HA__is_pow2__u8__N16, u8, 16);
@@ -163,10 +140,7 @@ emit_h_is_pow2!(ct_fix__HA__is_pow2__u64__N4, u64, 4);
 
 macro_rules! emit_h_next_pow2 {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            *NextPowerOfTwo::next_power_of_two(x).all_limbs()
-        });
+        crate::emit_wl_un!($name, crate::catalog::next_pow2, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_next_pow2!(ct_fix__HA__next_pow2__u8__N16, u8, 16);
@@ -179,10 +153,7 @@ emit_h_next_pow2!(ct_fix__HA__next_pow2__u64__N4, u64, 4);
 // (ZERO on overflow, not MAX).
 macro_rules! emit_h_wrapping_next_pow2 {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            *NextPowerOfTwo::wrapping_next_power_of_two(x).all_limbs()
-        });
+        crate::emit_wl_un!($name, crate::catalog::wrapping_next_pow2, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_wrapping_next_pow2!(ct_fix__HA__wrapping_next_pow2__u8__N16, u8, 16);
@@ -286,10 +257,7 @@ emit_h_tz!(ct_fix__HA__trailing_zeros__u64__N4, u64, 4);
 // Zero::is_zero / One::is_one
 macro_rules! emit_h_is_zero {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            <HeaplessBigInt<$T, $N, Ct> as Zero>::is_zero(&x) as u8
-        });
+        crate::emit_wl_pred!($name, crate::catalog::is_zero, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_is_zero!(ct_fix__HA__is_zero__u8__N16, u8, 16);
@@ -300,10 +268,7 @@ emit_h_is_zero!(ct_fix__HA__is_zero__u64__N4, u64, 4);
 
 macro_rules! emit_h_is_one {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            <HeaplessBigInt<$T, $N, Ct> as One>::is_one(&x) as u8
-        });
+        crate::emit_wl_pred!($name, crate::catalog::is_one, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_is_one!(ct_fix__HA__is_one__u8__N16, u8, 16);
@@ -316,11 +281,7 @@ emit_h_is_one!(ct_fix__HA__is_one__u64__N4, u64, 4);
 // the `subtle::ct_eq` fixtured in category HB.
 macro_rules! emit_h_eq {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
-            (x == y) as u8
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::eq, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_eq!(ct_fix__HA__eq__u8__N16, u8, 16);
@@ -335,11 +296,7 @@ emit_h_eq!(ct_fix__HA__eq__u64__N4, u64, 4);
 
 macro_rules! emit_h_ct_eq {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
-            x.ct_eq(&y).unwrap_u8()
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::ct_eq, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_ct_eq!(ct_fix__HB__ct_eq__u8__N16, u8, 16);
@@ -350,11 +307,7 @@ emit_h_ct_eq!(ct_fix__HB__ct_eq__u64__N4, u64, 4);
 
 macro_rules! emit_h_ct_gt {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
-            x.ct_gt(&y).unwrap_u8()
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::ct_gt, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_ct_gt!(ct_fix__HB__ct_gt__u8__N16, u8, 16);
@@ -365,11 +318,7 @@ emit_h_ct_gt!(ct_fix__HB__ct_gt__u64__N4, u64, 4);
 
 macro_rules! emit_h_ct_lt {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
-            x.ct_lt(&y).unwrap_u8()
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::ct_lt, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_ct_lt!(ct_fix__HB__ct_lt__u8__N16, u8, 16);
@@ -466,11 +415,7 @@ emit_h_nz_cond_select!(ct_fix__HB__nz_cond_select__u64__N4, u64, 4);
 // Bitwise: Not / BitAnd / BitOr / BitXor
 macro_rules! emit_h_not {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let r = Not::not(x);
-            *r.all_limbs()
-        });
+        crate::emit_wl_un!($name, crate::catalog::not, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_not!(ct_fix__HC__not__u8__N16, u8, 16);
@@ -676,11 +621,7 @@ emit_h_carrying_mul!(ct_fix__HC__carrying_mul__u64__N4, u64, 4);
 // Ord::cmp — folded to u8 (Less=0xFF, Equal=0, Greater=1).
 macro_rules! emit_h_cmp {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
-            (x.cmp(&y) as i8) as u8
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::cmp, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_cmp!(ct_fix__HC__cmp__u8__N16, u8, 16);
@@ -692,10 +633,7 @@ emit_h_cmp!(ct_fix__HC__cmp__u64__N4, u64, 4);
 // Bit counts: count_ones / swap_bytes / reverse_bits
 macro_rules! emit_h_count_ones {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_count!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            PrimBits::count_ones(x)
-        });
+        crate::emit_wl_count!($name, crate::catalog::count_ones, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_count_ones!(ct_fix__HC__count_ones__u8__N16, u8, 16);
@@ -706,11 +644,7 @@ emit_h_count_ones!(ct_fix__HC__count_ones__u64__N4, u64, 4);
 
 macro_rules! emit_h_swap_bytes {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let r = PrimBits::swap_bytes(x);
-            *r.all_limbs()
-        });
+        crate::emit_wl_un!($name, crate::catalog::swap_bytes, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_swap_bytes!(ct_fix__HC__swap_bytes__u8__N16, u8, 16);
@@ -721,11 +655,7 @@ emit_h_swap_bytes!(ct_fix__HC__swap_bytes__u64__N4, u64, 4);
 
 macro_rules! emit_h_reverse_bits {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let r = PrimBits::reverse_bits(x);
-            *r.all_limbs()
-        });
+        crate::emit_wl_un!($name, crate::catalog::reverse_bits, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_reverse_bits!(ct_fix__HC__reverse_bits__u8__N16, u8, 16);

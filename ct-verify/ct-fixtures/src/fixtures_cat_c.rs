@@ -21,11 +21,7 @@ use crate::{ct_fix_bin, ct_fix_count, ct_fix_un};
 
 macro_rules! emit_not {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = Not::not(x);
-            *r.words()
-        });
+        crate::emit_wl_un!($name, crate::catalog::not, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_not!(ct_fix__C__not__u8__N16, u8, 16);
@@ -259,10 +255,7 @@ emit_midpoint!(ct_fix__C__midpoint__u64__N4, u64, 4);
 
 macro_rules! emit_count_ones {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_count!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            PrimBits::count_ones(x)
-        });
+        crate::emit_wl_count!($name, crate::catalog::count_ones, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_count_ones!(ct_fix__C__count_ones__u8__N16, u8, 16);
@@ -272,11 +265,7 @@ emit_count_ones!(ct_fix__C__count_ones__u64__N4, u64, 4);
 
 macro_rules! emit_swap_bytes {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = PrimBits::swap_bytes(x);
-            *r.words()
-        });
+        crate::emit_wl_un!($name, crate::catalog::swap_bytes, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_swap_bytes!(ct_fix__C__swap_bytes__u8__N16, u8, 16);
@@ -286,11 +275,7 @@ emit_swap_bytes!(ct_fix__C__swap_bytes__u64__N4, u64, 4);
 
 macro_rules! emit_reverse_bits {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = PrimBits::reverse_bits(x);
-            *r.words()
-        });
+        crate::emit_wl_un!($name, crate::catalog::reverse_bits, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_reverse_bits!(ct_fix__C__reverse_bits__u8__N16, u8, 16);
