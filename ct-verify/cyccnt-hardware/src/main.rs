@@ -189,6 +189,88 @@ fn fixture_h_shl_usize(a: &Words, amount: usize) -> bool {
     true
 }
 
+// ── modmath secret-path primitives: the CT ops the live crypto stack runs on
+// secret residues/exponents but which the smoke tier never measures. RSA's
+// blinded modexp drives ct_lt/ct_is_zero/ct_is_odd (CIOS reduce + safegcd_ct
+// inverse), borrowing_sub (CIOS final conditional −modulus), and cios_mul_acc_row
+// (the non-shift CIOS row, run every Montgomery multiply); ed25519's FieldCt
+// add/sub drives wrapping_add/wrapping_sub/overflowing_add on secret scalars.
+// A/B pairs flip the branch a non-CT impl would take (zero↔dense, even↔odd,
+// minimal↔maximal borrow/carry propagation).
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_ct_lt(a: &Words, b: &Words) -> bool {
+    let _ = black_box(catalog::ct_lt(
+        CtUInt::from(black_box(*a)),
+        CtUInt::from(black_box(*b)),
+    ));
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_ct_is_zero(a: &Words) -> bool {
+    let _ = black_box(catalog::ct_is_zero(CtUInt::from(black_box(*a))));
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_ct_is_odd(a: &Words) -> bool {
+    let _ = black_box(catalog::ct_is_odd(CtUInt::from(black_box(*a))));
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_borrowing_sub(a: &Words, b: &Words, borrow: bool) -> bool {
+    let (diff, bout) = catalog::borrowing_sub(
+        CtUInt::from(black_box(*a)),
+        CtUInt::from(black_box(*b)),
+        black_box(borrow),
+    );
+    let _ = black_box((*diff.words(), bout));
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_cios_row(mult: &Words, acc: &Words, scalar: Word, carry: Word) -> bool {
+    let (acc2, cout) = catalog::cios_mul_acc_row(
+        black_box(scalar),
+        CtUInt::from(black_box(*mult)),
+        CtUInt::from(black_box(*acc)),
+        black_box(carry),
+    );
+    let _ = black_box((*acc2.words(), cout));
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_wrapping_add(a: &Words, b: &Words) -> bool {
+    let r = catalog::wrapping_add(CtUInt::from(black_box(*a)), CtUInt::from(black_box(*b)));
+    let _ = black_box(*r.words());
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_wrapping_sub(a: &Words, b: &Words) -> bool {
+    let r = catalog::wrapping_sub(CtUInt::from(black_box(*a)), CtUInt::from(black_box(*b)));
+    let _ = black_box(*r.words());
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_overflowing_add(a: &Words, b: &Words) -> bool {
+    let r = catalog::overflowing_add(CtUInt::from(black_box(*a)), CtUInt::from(black_box(*b)));
+    let _ = black_box(*r.words());
+    true
+}
+
 #[entry]
 fn main() -> ! {
     let mut reporter = krabi_caliper::protocol::rtt::init_ct_compatible();
@@ -346,6 +428,59 @@ fn main() -> ! {
                 &(&sparse, 1usize),
                 &(&sparse, max_shift),
                 |&(a, amount)| fixture_h_shl_usize(a, amount),
+            )
+            .unwrap();
+
+        // modmath secret-path primitives (see fixture comment above).
+        suite
+            .positive("ct_lt", &(&zero, &dense), &(&dense, &zero), |&(a, b)| {
+                fixture_ct_lt(a, b)
+            })
+            .unwrap();
+        suite
+            .positive("ct_is_zero", &zero, &dense, fixture_ct_is_zero)
+            .unwrap();
+        suite
+            .positive("ct_is_odd", &zero, &one, fixture_ct_is_odd)
+            .unwrap();
+        suite
+            .positive(
+                "borrowing_sub",
+                &(&zero, &zero, false),
+                &(&dense, &dense, true),
+                |&(a, b, borrow)| fixture_borrowing_sub(a, b, borrow),
+            )
+            .unwrap();
+        suite
+            .positive(
+                "cios_mul_acc_row",
+                &(&sparse, &zero, 3 as Word, 0 as Word),
+                &(&dense, &dense, Word::MAX, Word::MAX),
+                |&(m, a, s, c)| fixture_cios_row(m, a, s, c),
+            )
+            .unwrap();
+        suite
+            .positive(
+                "wrapping_add",
+                &(&zero, &zero),
+                &(&dense, &dense),
+                |&(a, b)| fixture_wrapping_add(a, b),
+            )
+            .unwrap();
+        suite
+            .positive(
+                "wrapping_sub",
+                &(&dense, &zero),
+                &(&zero, &dense),
+                |&(a, b)| fixture_wrapping_sub(a, b),
+            )
+            .unwrap();
+        suite
+            .positive(
+                "overflowing_add",
+                &(&zero, &zero),
+                &(&dense, &dense),
+                |&(a, b)| fixture_overflowing_add(a, b),
             )
             .unwrap();
     }
