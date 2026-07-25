@@ -16,6 +16,11 @@ jobs:
     # advertises this rig; the runner must be registered with it (gen-runners.sh).
     runs-on: [self-hosted, rig-stm32f407-dwt]
 
+    # The job only reads the repo; the rig image runs repo build scripts, so keep
+    # the token least-privilege and don't leave it persisted in the checkout.
+    permissions:
+      contents: read
+
     # Dedicated hardware image from the bench's local registry. --privileged plus
     # the /dev/bus/usb mount give probe access; /run/lock is the HOST's, so the
     # flock below serializes across every container that can touch this rig; the
@@ -35,6 +40,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: krabi-caliper on the rig
         shell: bash

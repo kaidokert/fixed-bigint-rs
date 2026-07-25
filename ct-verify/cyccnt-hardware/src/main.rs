@@ -107,7 +107,7 @@ fn fixture_checked_pow(exp: u32) -> bool {
 #[inline(never)]
 fn fixture_is_zero(a: &Words) -> bool {
     let value = CtUInt::from(black_box(*a));
-    let _ = black_box(<CtUInt as Zero>::is_zero(&value));
+    let _ = black_box(value.is_zero());
     true
 }
 
