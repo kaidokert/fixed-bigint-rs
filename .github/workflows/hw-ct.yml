@@ -60,19 +60,10 @@ jobs:
           exec 9>"/run/lock/krabi-rig-$RIG"
           flock -w 1800 9
 
-          # 3. recovery — best-effort power-cycle if uhubctl + coords are present.
-          #    (uhubctl walks host /sys; flaky in a container — real recovery is
-          #    host-side. Harmless no-op if unavailable.)
-          uhubctl_bin="$(command -v uhubctl || echo /usr/sbin/uhubctl)"
-          if [ -x "$uhubctl_bin" ] && [ -n "${KRABI_UHUBCTL:-}" ]; then
-            "$uhubctl_bin" -a cycle -l "$KRABI_UHUBCTL" ${KRABI_UHUBCTL_PORT:+-p "$KRABI_UHUBCTL_PORT"} || true
-            sleep 2
-          fi
-
-          # 4. liveness — the declared probe must actually be attached to this
+          # 3. liveness — the declared probe must actually be attached to this
           #    bench, else fail before flashing (declared != attached).
           probe-rs list | grep -qF "$KRABI_PROBE" \
             || { echo "::error::probe $KRABI_PROBE not attached to ${KRABI_BENCH:-this bench}"; exit 1; }
 
-          # 5. run — ${KRABI_PROBE} in the campaign args resolves from the live env.
+          # 4. run — ${KRABI_PROBE} in the campaign args resolves from the live env.
           cargo krabi-caliper run "$CAMPAIGN"
