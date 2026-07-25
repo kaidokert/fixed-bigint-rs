@@ -2,4 +2,9 @@
 target = "thumbv7em-none-eabihf"
 
 [target.thumbv7em-none-eabihf]
-runner = "probe-rs run --chip STM32F407VGTx --protocol swd --probe 1366:1020:001224000224"
+# No committed probe serial — auto-detect covers a single-probe dev desk. On a
+# multi-probe host (e.g. the bench) `cargo run` errors "multiple probes"; select
+# one via the env override rather than baking a serial in:
+#   CARGO_TARGET_THUMBV7EM_NONE_EABIHF_RUNNER="probe-rs run --chip STM32F407VGTx --protocol swd --probe $KRABI_PROBE"
+# (The CI campaign drives its own probe binding through krabi-caliper.toml.)
+runner = "probe-rs run --chip STM32F407VGTx --protocol swd"
