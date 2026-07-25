@@ -15,6 +15,8 @@ mod harness;
 mod arithmetic;
 #[path = "carrier_generic/bits_and_compare.rs"]
 mod bits_and_compare;
+#[path = "carrier_generic/ct_checked.rs"]
+mod ct_checked;
 #[path = "carrier_generic/numeric.rs"]
 mod numeric;
 #[path = "carrier_generic/serialization.rs"]
