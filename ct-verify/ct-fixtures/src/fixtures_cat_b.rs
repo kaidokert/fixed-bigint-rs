@@ -70,7 +70,7 @@ macro_rules! emit_cond_select {
             let c = core::hint::black_box(choice);
             let x = FixedUInt::<$T, $N, Ct>::from(a_arr);
             let y = FixedUInt::<$T, $N, Ct>::from(b_arr);
-            let r = FixedUInt::<$T, $N, Ct>::conditional_select(&x, &y, subtle::Choice::from(c));
+            let r = crate::catalog::cond_select(x, y, c);
             let result = core::hint::black_box(*r.words());
             unsafe {
                 *out_ptr = result;
@@ -137,14 +137,7 @@ emit_nz_cond_select!(ct_fix__B__nz_cond_select__u64__N4, u64, 4);
 
 macro_rules! emit_ct_checked_add {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_checked_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let res = x.ct_checked_add(&y);
-            let valid = res.is_some().unwrap_u8();
-            let value = res.unwrap_or(FixedUInt::<$T, $N, Ct>::from([0; $N]));
-            (*value.words(), valid)
-        });
+        crate::emit_wl_checked_bin!($name, crate::catalog::ct_checked_add, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_ct_checked_add!(ct_fix__B__ct_checked_add__u8__N16, u8, 16);
@@ -155,14 +148,7 @@ emit_ct_checked_add!(ct_fix__B__ct_checked_add__u64__N4, u64, 4);
 
 macro_rules! emit_ct_checked_sub {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_checked_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let res = x.ct_checked_sub(&y);
-            let valid = res.is_some().unwrap_u8();
-            let value = res.unwrap_or(FixedUInt::<$T, $N, Ct>::from([0; $N]));
-            (*value.words(), valid)
-        });
+        crate::emit_wl_checked_bin!($name, crate::catalog::ct_checked_sub, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_ct_checked_sub!(ct_fix__B__ct_checked_sub__u8__N16, u8, 16);
@@ -173,14 +159,7 @@ emit_ct_checked_sub!(ct_fix__B__ct_checked_sub__u64__N4, u64, 4);
 
 macro_rules! emit_ct_checked_mul {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_checked_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let res = x.ct_checked_mul(&y);
-            let valid = res.is_some().unwrap_u8();
-            let value = res.unwrap_or(FixedUInt::<$T, $N, Ct>::from([0; $N]));
-            (*value.words(), valid)
-        });
+        crate::emit_wl_checked_bin!($name, crate::catalog::ct_checked_mul, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_ct_checked_mul!(ct_fix__B__ct_checked_mul__u8__N16, u8, 16);

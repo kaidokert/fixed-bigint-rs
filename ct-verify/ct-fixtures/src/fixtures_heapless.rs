@@ -497,7 +497,7 @@ macro_rules! emit_h_carrying_add {
             let c = core::hint::black_box(carry);
             let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a_arr, $N as u16);
             let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b_arr, $N as u16);
-            let (r, co) = CarryingAdd::carrying_add(x, y, c);
+            let (r, co) = crate::catalog::carrying_add(x, y, c);
             let result = core::hint::black_box(*r.all_limbs());
             unsafe {
                 *out_ptr = result;
@@ -529,7 +529,7 @@ macro_rules! emit_h_borrowing_sub {
             let bin = core::hint::black_box(borrow);
             let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a_arr, $N as u16);
             let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b_arr, $N as u16);
-            let (r, bo) = BorrowingSub::borrowing_sub(x, y, bin);
+            let (r, bo) = crate::catalog::borrowing_sub(x, y, bin);
             let result = core::hint::black_box(*r.all_limbs());
             unsafe {
                 *out_ptr = result;
@@ -603,7 +603,7 @@ macro_rules! emit_h_carrying_mul {
             let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
             let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
             let cin = HeaplessBigInt::<$T, $N, Ct>::from_limbs(cy, $N as u16);
-            let (lo, hi) = CarryingMul::carrying_mul(x, y, cin);
+            let (lo, hi) = crate::catalog::carrying_mul(x, y, cin);
             unsafe {
                 *lo_ptr = core::hint::black_box(*lo.all_limbs());
                 *hi_ptr = core::hint::black_box(*hi.all_limbs());
@@ -671,10 +671,7 @@ emit_h_reverse_bits!(ct_fix__HC__reverse_bits__u64__N4, u64, 4);
 // CtParity::ct_is_odd
 macro_rules! emit_h_ct_is_odd {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            x.ct_is_odd().unwrap_u8()
-        });
+        crate::emit_wl_pred!($name, crate::catalog::ct_is_odd, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_ct_is_odd!(ct_fix__HCT__ct_is_odd__u8__N16, u8, 16);
@@ -686,10 +683,7 @@ emit_h_ct_is_odd!(ct_fix__HCT__ct_is_odd__u64__N4, u64, 4);
 // CtIsZero::ct_is_zero
 macro_rules! emit_h_ct_is_zero {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            CtIsZero::ct_is_zero(&x).unwrap_u8()
-        });
+        crate::emit_wl_pred!($name, crate::catalog::ct_is_zero, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_ct_is_zero!(ct_fix__HCT__ct_is_zero__u8__N16, u8, 16);
@@ -701,10 +695,7 @@ emit_h_ct_is_zero!(ct_fix__HCT__ct_is_zero__u64__N4, u64, 4);
 // CtIsPowerOfTwo::ct_is_power_of_two
 macro_rules! emit_h_ct_is_pow2 {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            x.ct_is_power_of_two().unwrap_u8()
-        });
+        crate::emit_wl_pred!($name, crate::catalog::ct_is_pow2, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_ct_is_pow2!(ct_fix__HCT__ct_is_pow2__u8__N16, u8, 16);
@@ -716,14 +707,7 @@ emit_h_ct_is_pow2!(ct_fix__HCT__ct_is_pow2__u64__N4, u64, 4);
 // CtCheckedAdd / CtCheckedSub / CtCheckedMul (CtOption-returning)
 macro_rules! emit_h_ct_checked_add {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_checked_bin!($name, $T, $N, |a, b| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
-            let res = <HeaplessBigInt<$T, $N, Ct> as CtCheckedAdd>::ct_checked_add(&x, &y);
-            let valid = res.is_some().unwrap_u8();
-            let value = res.unwrap_or(HeaplessBigInt::<$T, $N, Ct>::from_limbs([0; $N], $N as u16));
-            (*value.all_limbs(), valid)
-        });
+        crate::emit_wl_checked_bin!($name, crate::catalog::ct_checked_add, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_ct_checked_add!(ct_fix__HCT__ct_checked_add__u8__N16, u8, 16);
@@ -734,14 +718,7 @@ emit_h_ct_checked_add!(ct_fix__HCT__ct_checked_add__u64__N4, u64, 4);
 
 macro_rules! emit_h_ct_checked_sub {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_checked_bin!($name, $T, $N, |a, b| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
-            let res = <HeaplessBigInt<$T, $N, Ct> as CtCheckedSub>::ct_checked_sub(&x, &y);
-            let valid = res.is_some().unwrap_u8();
-            let value = res.unwrap_or(HeaplessBigInt::<$T, $N, Ct>::from_limbs([0; $N], $N as u16));
-            (*value.all_limbs(), valid)
-        });
+        crate::emit_wl_checked_bin!($name, crate::catalog::ct_checked_sub, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_ct_checked_sub!(ct_fix__HCT__ct_checked_sub__u8__N16, u8, 16);
@@ -752,14 +729,7 @@ emit_h_ct_checked_sub!(ct_fix__HCT__ct_checked_sub__u64__N4, u64, 4);
 
 macro_rules! emit_h_ct_checked_mul {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_checked_bin!($name, $T, $N, |a, b| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
-            let res = <HeaplessBigInt<$T, $N, Ct> as CtCheckedMul>::ct_checked_mul(&x, &y);
-            let valid = res.is_some().unwrap_u8();
-            let value = res.unwrap_or(HeaplessBigInt::<$T, $N, Ct>::from_limbs([0; $N], $N as u16));
-            (*value.all_limbs(), valid)
-        });
+        crate::emit_wl_checked_bin!($name, crate::catalog::ct_checked_mul, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_ct_checked_mul!(ct_fix__HCT__ct_checked_mul__u8__N16, u8, 16);

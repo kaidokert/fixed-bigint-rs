@@ -11,14 +11,19 @@
 //! one op body feeds both the `A` (FixedUInt) and `HA` (Heapless) fixtures.
 //! Remaining shapes/ops are migrated on top of this.
 
+use const_num_traits::ops::ct::{
+    CtCheckedAdd, CtCheckedMul, CtCheckedSub, CtIsPowerOfTwo, CtIsZero, CtParity,
+};
 use const_num_traits::{
-    AbsDiff, Ct, IsPowerOfTwo, Midpoint, NextPowerOfTwo, One, OverflowingAdd, OverflowingMul,
-    OverflowingSub, PrimBits, SaturatingAdd, SaturatingMul, SaturatingSub, UnboundedShl,
-    UnboundedShr, WrappingAdd, WrappingMul, WrappingSub, Zero,
+    AbsDiff, BorrowingSub, CarryingAdd, CarryingMul, Ct, IsPowerOfTwo, Midpoint, NextPowerOfTwo,
+    One, OverflowingAdd, OverflowingMul, OverflowingSub, PrimBits, SaturatingAdd, SaturatingMul,
+    SaturatingSub, UnboundedShl, UnboundedShr, WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
 use core::ops::{BitAnd, BitOr, BitXor, Not, Shl, ShlAssign, Shr, ShrAssign};
 use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
-use subtle::{ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess};
+use subtle::{
+    Choice, ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess,
+};
 
 /// Build a Ct carrier from an `[T; N]` word array and read it back. This is the
 /// only per-carrier plumbing a workload needs; everything else is generic.
@@ -215,6 +220,85 @@ pub fn unbounded_shr<C: UnboundedShr<Output = C>>(a: C, n: u32) -> C {
     UnboundedShr::unbounded_shr(a, n)
 }
 
+/// `pred` shape via the masked-`Choice` `Ct*` traits.
+#[inline(always)]
+pub fn ct_is_odd<C: CtParity>(a: C) -> u8 {
+    a.ct_is_odd().unwrap_u8()
+}
+#[inline(always)]
+pub fn ct_is_zero<C: CtIsZero>(a: C) -> u8 {
+    a.ct_is_zero().unwrap_u8()
+}
+#[inline(always)]
+pub fn ct_is_pow2<C: CtIsPowerOfTwo>(a: C) -> u8 {
+    a.ct_is_power_of_two().unwrap_u8()
+}
+
+/// `checked_bin` shape: returns the masked `CtOption`; the adapter splits it
+/// into (value, validity) with a zero fallback.
+#[inline(always)]
+pub fn ct_checked_add<C: CtCheckedAdd>(a: C, b: C) -> subtle::CtOption<C> {
+    a.ct_checked_add(&b)
+}
+#[inline(always)]
+pub fn ct_checked_sub<C: CtCheckedSub>(a: C, b: C) -> subtle::CtOption<C> {
+    a.ct_checked_sub(&b)
+}
+#[inline(always)]
+pub fn ct_checked_mul<C: CtCheckedMul>(a: C, b: C) -> subtle::CtOption<C> {
+    a.ct_checked_mul(&b)
+}
+
+// ── Bespoke-ABI ops: op body single-sourced here; the fixtures keep their
+// custom `extern "C"` wrappers but call these so both carriers share the body.
+
+/// `(a, b, carry) -> (sum, carry_out)`.
+#[inline(always)]
+pub fn carrying_add<C: CarryingAdd<Output = C>>(a: C, b: C, carry: bool) -> (C, bool) {
+    CarryingAdd::carrying_add(a, b, carry)
+}
+/// `(a, b, borrow) -> (diff, borrow_out)`.
+#[inline(always)]
+pub fn borrowing_sub<C: BorrowingSub<Output = C>>(a: C, b: C, borrow: bool) -> (C, bool) {
+    BorrowingSub::borrowing_sub(a, b, borrow)
+}
+/// Widening `(a, b, carry) -> (lo, hi)`.
+#[inline(always)]
+pub fn carrying_mul<C: CarryingMul<Unsigned = C, Output = C>>(a: C, b: C, carry: C) -> (C, C) {
+    CarryingMul::carrying_mul(a, b, carry)
+}
+/// Branchless select of `a`/`b` on `choice`'s low bit.
+#[inline(always)]
+pub fn cond_select<C: ConditionallySelectable>(a: C, b: C, choice: u8) -> C {
+    C::conditional_select(&a, &b, Choice::from(choice))
+}
+
+/// CIOS Montgomery row ops. `acc` is taken by value and returned (the fixture
+/// then writes it out) alongside the carry word, so the op stays a plain
+/// value→value function callable from any backend.
+#[cfg(feature = "cios")]
+#[inline(always)]
+pub fn cios_mul_acc_row<C: modmath_cios::CiosRowOps>(
+    scalar: C::Word,
+    mult: C,
+    mut acc: C,
+    carry: C::Word,
+) -> (C, C::Word) {
+    let c = <C as modmath_cios::CiosRowOps>::mul_acc_row(scalar, &mult, &mut acc, carry);
+    (acc, c)
+}
+#[cfg(feature = "cios")]
+#[inline(always)]
+pub fn cios_mul_acc_shift_row<C: modmath_cios::CiosRowOps>(
+    scalar: C::Word,
+    mult: C,
+    mut acc: C,
+    acc_hi: C::Word,
+) -> (C, C::Word) {
+    let c = <C as modmath_cios::CiosRowOps>::mul_acc_shift_row(scalar, &mult, &mut acc, acc_hi);
+    (acc, c)
+}
+
 /// `bin`-shape adapter: `(a, b) -> out`. Generates the `extern "C"` fixture
 /// (and, under the `ctgrind` feature, its taint registration) for one
 /// op × carrier × width by constructing the carrier through [`FixtureCarrier`],
@@ -283,6 +367,27 @@ macro_rules! emit_wl_shift {
         $crate::ct_fix_shift!($sym, $T, $N, $NT, |aw, n| {
             let a = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(aw);
             <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::to_words(&$op(a, n))
+        });
+    };
+}
+
+/// `checked_bin` shape: `(a, b) -> (out, u8)`. The op returns a `CtOption`;
+/// this splits it into the value (zero fallback) and the validity byte.
+#[macro_export]
+macro_rules! emit_wl_checked_bin {
+    ($sym:ident, $op:path, $carrier:ty, $T:ty, $N:literal) => {
+        $crate::ct_fix_checked_bin!($sym, $T, $N, |aw, bw| {
+            let a = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(aw);
+            let b = <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words(bw);
+            let res = $op(a, b);
+            let valid = res.is_some().unwrap_u8();
+            let value = res.unwrap_or(
+                <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::from_words([0; $N]),
+            );
+            (
+                <$carrier as $crate::catalog::FixtureCarrier<$T, $N>>::to_words(&value),
+                valid,
+            )
         });
     };
 }

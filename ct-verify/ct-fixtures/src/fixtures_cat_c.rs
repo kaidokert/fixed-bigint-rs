@@ -114,7 +114,7 @@ macro_rules! emit_carrying_add {
             let c = core::hint::black_box(carry);
             let x = FixedUInt::<$T, $N, Ct>::from(a_arr);
             let y = FixedUInt::<$T, $N, Ct>::from(b_arr);
-            let (r, co) = CarryingAdd::carrying_add(x, y, c);
+            let (r, co) = crate::catalog::carrying_add(x, y, c);
             let result = core::hint::black_box(*r.words());
             unsafe {
                 *out_ptr = result;
@@ -146,7 +146,7 @@ macro_rules! emit_borrowing_sub {
             let bin = core::hint::black_box(borrow);
             let x = FixedUInt::<$T, $N, Ct>::from(a_arr);
             let y = FixedUInt::<$T, $N, Ct>::from(b_arr);
-            let (r, bo) = BorrowingSub::borrowing_sub(x, y, bin);
+            let (r, bo) = crate::catalog::borrowing_sub(x, y, bin);
             let result = core::hint::black_box(*r.words());
             unsafe {
                 *out_ptr = result;
@@ -220,7 +220,7 @@ macro_rules! emit_carrying_mul {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
             let y = FixedUInt::<$T, $N, Ct>::from(b);
             let cin = FixedUInt::<$T, $N, Ct>::from(cy);
-            let (lo, hi) = CarryingMul::carrying_mul(x, y, cin);
+            let (lo, hi) = crate::catalog::carrying_mul(x, y, cin);
             unsafe {
                 *lo_ptr = core::hint::black_box(*lo.words());
                 *hi_ptr = core::hint::black_box(*hi.words());
