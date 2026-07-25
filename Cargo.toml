@@ -1,6 +1,7 @@
 [workspace]
 members = [
     ".",
+    "ct-verify/ct-workload",
     "ct-verify/ct-fixtures",
     "ct-verify/ct-driver",
     "ct-verify/ct-ctgrind",
@@ -21,6 +22,7 @@ members = [
 # `--workspace` still reaches all six; this covers the default invocation only.
 default-members = [
     ".",
+    "ct-verify/ct-workload",
     "ct-verify/ct-driver",
     "ct-verify/ct-ctgrind",
 ]

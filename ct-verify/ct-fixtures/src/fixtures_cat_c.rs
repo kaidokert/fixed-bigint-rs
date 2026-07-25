@@ -21,11 +21,7 @@ use crate::{ct_fix_bin, ct_fix_count, ct_fix_un};
 
 macro_rules! emit_not {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = Not::not(x);
-            *r.words()
-        });
+        crate::emit_wl_un!($name, crate::catalog::not, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_not!(ct_fix__C__not__u8__N16, u8, 16);
@@ -35,12 +31,7 @@ emit_not!(ct_fix__C__not__u64__N4, u64, 4);
 
 macro_rules! emit_bitand {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = BitAnd::bitand(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::bitand, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_bitand!(ct_fix__C__bitand__u8__N16, u8, 16);
@@ -50,12 +41,7 @@ emit_bitand!(ct_fix__C__bitand__u64__N4, u64, 4);
 
 macro_rules! emit_bitor {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = BitOr::bitor(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::bitor, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_bitor!(ct_fix__C__bitor__u8__N16, u8, 16);
@@ -65,12 +51,7 @@ emit_bitor!(ct_fix__C__bitor__u64__N4, u64, 4);
 
 macro_rules! emit_bitxor {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = BitXor::bitxor(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::bitxor, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_bitxor!(ct_fix__C__bitxor__u8__N16, u8, 16);
@@ -101,12 +82,7 @@ emit_overflowing_add!(ct_fix__C__overflowing_add__u64__N4, u64, 4);
 
 macro_rules! emit_wrapping_mul {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = WrappingMul::wrapping_mul(&x, &y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::wrapping_mul, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_wrapping_mul!(ct_fix__C__wrapping_mul__u8__N16, u8, 16);
@@ -138,7 +114,7 @@ macro_rules! emit_carrying_add {
             let c = core::hint::black_box(carry);
             let x = FixedUInt::<$T, $N, Ct>::from(a_arr);
             let y = FixedUInt::<$T, $N, Ct>::from(b_arr);
-            let (r, co) = CarryingAdd::carrying_add(x, y, c);
+            let (r, co) = crate::catalog::carrying_add(x, y, c);
             let result = core::hint::black_box(*r.words());
             unsafe {
                 *out_ptr = result;
@@ -170,7 +146,7 @@ macro_rules! emit_borrowing_sub {
             let bin = core::hint::black_box(borrow);
             let x = FixedUInt::<$T, $N, Ct>::from(a_arr);
             let y = FixedUInt::<$T, $N, Ct>::from(b_arr);
-            let (r, bo) = BorrowingSub::borrowing_sub(x, y, bin);
+            let (r, bo) = crate::catalog::borrowing_sub(x, y, bin);
             let result = core::hint::black_box(*r.words());
             unsafe {
                 *out_ptr = result;
@@ -191,11 +167,7 @@ emit_borrowing_sub!(ct_fix__C__borrowing_sub__u64__N4, u64, 4);
 // forms discard the flag; the body's branch-freeness is what's scanned.
 macro_rules! emit_wrapping_add {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            *WrappingAdd::wrapping_add(&x, &y).words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::wrapping_add, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_wrapping_add!(ct_fix__C__wrapping_add__u8__N16, u8, 16);
@@ -204,11 +176,7 @@ emit_wrapping_add!(ct_fix__C__wrapping_add__u64__N4, u64, 4);
 
 macro_rules! emit_wrapping_sub {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            *WrappingSub::wrapping_sub(&x, &y).words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::wrapping_sub, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_wrapping_sub!(ct_fix__C__wrapping_sub__u8__N16, u8, 16);
@@ -217,12 +185,7 @@ emit_wrapping_sub!(ct_fix__C__wrapping_sub__u64__N4, u64, 4);
 
 macro_rules! emit_overflowing_sub {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let (r, _ov) = OverflowingSub::overflowing_sub(&x, &y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::overflowing_sub, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_overflowing_sub!(ct_fix__C__overflowing_sub__u8__N16, u8, 16);
@@ -231,12 +194,7 @@ emit_overflowing_sub!(ct_fix__C__overflowing_sub__u64__N4, u64, 4);
 
 macro_rules! emit_overflowing_mul {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let (r, _ov) = OverflowingMul::overflowing_mul(&x, &y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::overflowing_mul, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_overflowing_mul!(ct_fix__C__overflowing_mul__u8__N16, u8, 16);
@@ -262,7 +220,7 @@ macro_rules! emit_carrying_mul {
             let x = FixedUInt::<$T, $N, Ct>::from(a);
             let y = FixedUInt::<$T, $N, Ct>::from(b);
             let cin = FixedUInt::<$T, $N, Ct>::from(cy);
-            let (lo, hi) = CarryingMul::carrying_mul(x, y, cin);
+            let (lo, hi) = crate::catalog::carrying_mul(x, y, cin);
             unsafe {
                 *lo_ptr = core::hint::black_box(*lo.words());
                 *hi_ptr = core::hint::black_box(*hi.words());
@@ -283,12 +241,7 @@ emit_carrying_mul!(ct_fix__C__carrying_mul__u64__N4, u64, 4);
 
 macro_rules! emit_midpoint {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = Midpoint::midpoint(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::midpoint, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_midpoint!(ct_fix__C__midpoint__u8__N16, u8, 16);
@@ -302,10 +255,7 @@ emit_midpoint!(ct_fix__C__midpoint__u64__N4, u64, 4);
 
 macro_rules! emit_count_ones {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_count!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            PrimBits::count_ones(x)
-        });
+        crate::emit_wl_count!($name, crate::catalog::count_ones, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_count_ones!(ct_fix__C__count_ones__u8__N16, u8, 16);
@@ -315,11 +265,7 @@ emit_count_ones!(ct_fix__C__count_ones__u64__N4, u64, 4);
 
 macro_rules! emit_swap_bytes {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = PrimBits::swap_bytes(x);
-            *r.words()
-        });
+        crate::emit_wl_un!($name, crate::catalog::swap_bytes, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_swap_bytes!(ct_fix__C__swap_bytes__u8__N16, u8, 16);
@@ -329,11 +275,7 @@ emit_swap_bytes!(ct_fix__C__swap_bytes__u64__N4, u64, 4);
 
 macro_rules! emit_reverse_bits {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = PrimBits::reverse_bits(x);
-            *r.words()
-        });
+        crate::emit_wl_un!($name, crate::catalog::reverse_bits, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_reverse_bits!(ct_fix__C__reverse_bits__u8__N16, u8, 16);

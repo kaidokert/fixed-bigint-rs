@@ -29,6 +29,14 @@
 #[macro_use]
 mod ctgrind_shapes;
 
+// The workload catalog (carrier-generic op fns + `FixtureCarrier`) lives in the
+// standalone `ct-workload` crate so the no_std DWT hardware suite can share it;
+// re-exported here as `catalog` so fixtures keep referencing `crate::catalog::*`.
+pub use ct_workload as catalog;
+
+// `emit_wl_*` adapters that turn a catalog op into an extern-C fixture.
+mod wl_shapes;
+
 mod fixtures_asym;
 mod fixtures_cat_a;
 mod fixtures_cat_b;

@@ -20,11 +20,7 @@ use crate::{ct_fix_bin, ct_fix_count, ct_fix_pred, ct_fix_pred2, ct_fix_shift, c
 
 macro_rules! emit_cmp {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            (x.cmp(&y) as i8) as u8
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::cmp, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_cmp!(ct_fix__A__cmp__u8__N16, u8, 16);
@@ -37,11 +33,7 @@ emit_cmp!(ct_fix__A__cmp__u64__N4, u64, 4);
 // distinct code path from the `subtle::ct_eq` fixtured in category B.
 macro_rules! emit_eq {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred2!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            (x == y) as u8
-        });
+        crate::emit_wl_pred2!($name, crate::catalog::eq, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_eq!(ct_fix__A__eq__u8__N16, u8, 16);
@@ -54,14 +46,11 @@ emit_eq!(ct_fix__A__eq__u64__N4, u64, 4);
 // SaturatingAdd / Sub / Mul
 // =============================================================================
 
+// Migrated to the workload catalog: the op body (`catalog::sat_add`) is shared
+// with the Heapless `HA` fixture and, later, the DWT hardware suite.
 macro_rules! emit_sat_add {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = SaturatingAdd::saturating_add(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::sat_add, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_sat_add!(ct_fix__A__sat_add__u8__N16, u8, 16);
@@ -72,12 +61,7 @@ emit_sat_add!(ct_fix__A__sat_add__u64__N4, u64, 4);
 
 macro_rules! emit_sat_sub {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = SaturatingSub::saturating_sub(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::sat_sub, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_sat_sub!(ct_fix__A__sat_sub__u8__N16, u8, 16);
@@ -88,12 +72,7 @@ emit_sat_sub!(ct_fix__A__sat_sub__u64__N4, u64, 4);
 
 macro_rules! emit_sat_mul {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = SaturatingMul::saturating_mul(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::sat_mul, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_sat_mul!(ct_fix__A__sat_mul__u8__N16, u8, 16);
@@ -108,11 +87,7 @@ emit_sat_mul!(ct_fix__A__sat_mul__u64__N4, u64, 4);
 
 macro_rules! emit_shl_usize {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, usize, |a, n| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = x << n;
-            *r.words()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::shl_usize, FixedUInt<$T, $N, Ct>, $T, $N, usize);
     };
 }
 emit_shl_usize!(ct_fix__A__shl_usize__u8__N16, u8, 16);
@@ -123,11 +98,7 @@ emit_shl_usize!(ct_fix__A__shl_usize__u64__N4, u64, 4);
 
 macro_rules! emit_shr_usize {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, usize, |a, n| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = x >> n;
-            *r.words()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::shr_usize, FixedUInt<$T, $N, Ct>, $T, $N, usize);
     };
 }
 emit_shr_usize!(ct_fix__A__shr_usize__u8__N16, u8, 16);
@@ -141,11 +112,7 @@ emit_shr_usize!(ct_fix__A__shr_usize__u64__N4, u64, 4);
 // const_shl_ct/const_shr_ct barrels.
 macro_rules! emit_shl_assign {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, usize, |a, n| {
-            let mut x = FixedUInt::<$T, $N, Ct>::from(a);
-            x <<= n;
-            *x.words()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::shl_assign, FixedUInt<$T, $N, Ct>, $T, $N, usize);
     };
 }
 emit_shl_assign!(ct_fix__A__shl_assign__u8__N16, u8, 16);
@@ -156,11 +123,7 @@ emit_shl_assign!(ct_fix__A__shl_assign__u64__N4, u64, 4);
 
 macro_rules! emit_shr_assign {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, usize, |a, n| {
-            let mut x = FixedUInt::<$T, $N, Ct>::from(a);
-            x >>= n;
-            *x.words()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::shr_assign, FixedUInt<$T, $N, Ct>, $T, $N, usize);
     };
 }
 emit_shr_assign!(ct_fix__A__shr_assign__u8__N16, u8, 16);
@@ -175,11 +138,7 @@ emit_shr_assign!(ct_fix__A__shr_assign__u64__N4, u64, 4);
 
 macro_rules! emit_unbounded_shl {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, u32, |a, n| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = UnboundedShl::unbounded_shl(x, n);
-            *r.words()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::unbounded_shl, FixedUInt<$T, $N, Ct>, $T, $N, u32);
     };
 }
 emit_unbounded_shl!(ct_fix__A__unbounded_shl__u8__N16, u8, 16);
@@ -190,11 +149,7 @@ emit_unbounded_shl!(ct_fix__A__unbounded_shl__u64__N4, u64, 4);
 
 macro_rules! emit_unbounded_shr {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, u32, |a, n| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = UnboundedShr::unbounded_shr(x, n);
-            *r.words()
-        });
+        crate::emit_wl_shift!($name, crate::catalog::unbounded_shr, FixedUInt<$T, $N, Ct>, $T, $N, u32);
     };
 }
 emit_unbounded_shr!(ct_fix__A__unbounded_shr__u8__N16, u8, 16);
@@ -209,12 +164,7 @@ emit_unbounded_shr!(ct_fix__A__unbounded_shr__u64__N4, u64, 4);
 
 macro_rules! emit_abs_diff {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = AbsDiff::abs_diff(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::abs_diff, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_abs_diff!(ct_fix__A__abs_diff__u8__N16, u8, 16);
@@ -229,10 +179,7 @@ emit_abs_diff!(ct_fix__A__abs_diff__u64__N4, u64, 4);
 
 macro_rules! emit_is_pow2 {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            IsPowerOfTwo::is_power_of_two(x) as u8
-        });
+        crate::emit_wl_pred!($name, crate::catalog::is_pow2, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_is_pow2!(ct_fix__A__is_pow2__u8__N16, u8, 16);
@@ -247,11 +194,7 @@ emit_is_pow2!(ct_fix__A__is_pow2__u64__N4, u64, 4);
 
 macro_rules! emit_next_pow2 {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let r = NextPowerOfTwo::next_power_of_two(x);
-            *r.words()
-        });
+        crate::emit_wl_un!($name, crate::catalog::next_pow2, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_next_pow2!(ct_fix__A__next_pow2__u8__N16, u8, 16);
@@ -265,10 +208,7 @@ emit_next_pow2!(ct_fix__A__next_pow2__u64__N4, u64, 4);
 // (not MAX) via its own const_ct_select chain.
 macro_rules! emit_wrapping_next_pow2 {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_un!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            *NextPowerOfTwo::wrapping_next_power_of_two(x).words()
-        });
+        crate::emit_wl_un!($name, crate::catalog::wrapping_next_pow2, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u8__N16, u8, 16);
@@ -315,10 +255,7 @@ emit_tz!(ct_fix__A__trailing_zeros__u64__N4, u64, 4);
 
 macro_rules! emit_is_zero {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            <FixedUInt<$T, $N, Ct> as Zero>::is_zero(&x) as u8
-        });
+        crate::emit_wl_pred!($name, crate::catalog::is_zero, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_is_zero!(ct_fix__A__is_zero__u8__N16, u8, 16);
@@ -329,10 +266,7 @@ emit_is_zero!(ct_fix__A__is_zero__u64__N4, u64, 4);
 
 macro_rules! emit_is_one {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            <FixedUInt<$T, $N, Ct> as One>::is_one(&x) as u8
-        });
+        crate::emit_wl_pred!($name, crate::catalog::is_one, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_is_one!(ct_fix__A__is_one__u8__N16, u8, 16);

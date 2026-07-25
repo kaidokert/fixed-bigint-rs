@@ -34,8 +34,8 @@ macro_rules! emit_cios_mul_acc_row {
             let s = core::hint::black_box(scalar);
             let c = core::hint::black_box(carry);
             let mult = FixedUInt::<$T, $N, Ct>::from(mult_arr);
-            let mut acc = FixedUInt::<$T, $N, Ct>::from(acc_arr);
-            let cout = <FixedUInt<$T, $N, Ct> as CiosRowOps>::mul_acc_row(s, &mult, &mut acc, c);
+            let acc = FixedUInt::<$T, $N, Ct>::from(acc_arr);
+            let (acc, cout) = crate::catalog::cios_mul_acc_row(s, mult, acc, c);
             unsafe {
                 *out_ptr = core::hint::black_box(*acc.words());
             }
@@ -65,9 +65,8 @@ macro_rules! emit_cios_mul_acc_shift_row {
             let s = core::hint::black_box(scalar);
             let hi = core::hint::black_box(acc_hi);
             let mult = FixedUInt::<$T, $N, Ct>::from(mult_arr);
-            let mut acc = FixedUInt::<$T, $N, Ct>::from(acc_arr);
-            let cout =
-                <FixedUInt<$T, $N, Ct> as CiosRowOps>::mul_acc_shift_row(s, &mult, &mut acc, hi);
+            let acc = FixedUInt::<$T, $N, Ct>::from(acc_arr);
+            let (acc, cout) = crate::catalog::cios_mul_acc_shift_row(s, mult, acc, hi);
             unsafe {
                 *out_ptr = core::hint::black_box(*acc.words());
             }
@@ -104,9 +103,8 @@ mod heapless_cios {
                 let s = core::hint::black_box(scalar);
                 let c = core::hint::black_box(carry);
                 let mult = HeaplessBigInt::<$T, $N, Ct>::from_limbs(mult_arr, $N as u16);
-                let mut acc = HeaplessBigInt::<$T, $N, Ct>::from_limbs(acc_arr, $N as u16);
-                let cout =
-                    <HeaplessBigInt<$T, $N, Ct> as CiosRowOps>::mul_acc_row(s, &mult, &mut acc, c);
+                let acc = HeaplessBigInt::<$T, $N, Ct>::from_limbs(acc_arr, $N as u16);
+                let (acc, cout) = crate::catalog::cios_mul_acc_row(s, mult, acc, c);
                 unsafe {
                     *out_ptr = core::hint::black_box(*acc.all_limbs());
                 }
@@ -136,10 +134,8 @@ mod heapless_cios {
                 let s = core::hint::black_box(scalar);
                 let hi = core::hint::black_box(acc_hi);
                 let mult = HeaplessBigInt::<$T, $N, Ct>::from_limbs(mult_arr, $N as u16);
-                let mut acc = HeaplessBigInt::<$T, $N, Ct>::from_limbs(acc_arr, $N as u16);
-                let cout = <HeaplessBigInt<$T, $N, Ct> as CiosRowOps>::mul_acc_shift_row(
-                    s, &mult, &mut acc, hi,
-                );
+                let acc = HeaplessBigInt::<$T, $N, Ct>::from_limbs(acc_arr, $N as u16);
+                let (acc, cout) = crate::catalog::cios_mul_acc_shift_row(s, mult, acc, hi);
                 unsafe {
                     *out_ptr = core::hint::black_box(*acc.all_limbs());
                 }

@@ -35,10 +35,7 @@ use crate::{ct_fix_bin, ct_fix_checked_bin, ct_fix_checked_un, ct_fix_pred};
 
 macro_rules! emit_ct_is_odd {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            x.ct_is_odd().unwrap_u8()
-        });
+        crate::emit_wl_pred!($name, crate::catalog::ct_is_odd, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_ct_is_odd!(ct_fix__CT__ct_is_odd__u8__N16, u8, 16);
@@ -53,10 +50,7 @@ emit_ct_is_odd!(ct_fix__CT__ct_is_odd__u64__N4, u64, 4);
 
 macro_rules! emit_ct_is_zero {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            x.ct_is_zero().unwrap_u8()
-        });
+        crate::emit_wl_pred!($name, crate::catalog::ct_is_zero, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_ct_is_zero!(ct_fix__CT__ct_is_zero__u8__N16, u8, 16);
@@ -71,10 +65,7 @@ emit_ct_is_zero!(ct_fix__CT__ct_is_zero__u64__N4, u64, 4);
 
 macro_rules! emit_ct_is_pow2 {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_pred!($name, $T, $N, |a| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            x.ct_is_power_of_two().unwrap_u8()
-        });
+        crate::emit_wl_pred!($name, crate::catalog::ct_is_pow2, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_ct_is_pow2!(ct_fix__CT__ct_is_pow2__u8__N16, u8, 16);

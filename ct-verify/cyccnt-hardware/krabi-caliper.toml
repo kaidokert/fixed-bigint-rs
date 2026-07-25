@@ -26,19 +26,19 @@ artifact-extension = ""
 [[case-sets.fixed-bigint-cyccnt]]
 name = "u32x8"
 binary = "fixed-bigint-cyccnt-hardware"
-features = ["carrier-u32x8"]
+features = ["carrier-u32x8", "hardware-regressions"]
 expected-suite = "fixed-bigint-cyccnt"
 
 [[case-sets.fixed-bigint-cyccnt]]
 name = "u32x16"
 binary = "fixed-bigint-cyccnt-hardware"
-features = ["carrier-u32x16"]
+features = ["carrier-u32x16", "hardware-regressions"]
 expected-suite = "fixed-bigint-cyccnt"
 
 [[case-sets.fixed-bigint-cyccnt]]
 name = "u8x32"
 binary = "fixed-bigint-cyccnt-hardware"
-features = ["carrier-u8x32"]
+features = ["carrier-u8x32", "hardware-regressions"]
 expected-suite = "fixed-bigint-cyccnt"
 
 [campaigns.fixed-bigint-jtrace-f407]
