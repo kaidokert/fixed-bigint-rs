@@ -18,7 +18,7 @@
 
 use super::{HeaplessBigInt, zero};
 use crate::MachineWord;
-use const_num_traits::{CarryingAdd, CarryingMul, ConstOne, Personality};
+use const_num_traits::{CarryingAdd, CarryingMul, Personality};
 
 impl<T, const CAP: usize, P: Personality> modmath_cios::CiosRowOps for HeaplessBigInt<T, CAP, P>
 where
@@ -84,10 +84,65 @@ where
         if n > 0 {
             acc.limbs[n - 1] = top_low;
         }
-        if top_hi_bit {
-            <T as ConstOne>::ONE
-        } else {
-            zero()
-        }
+        // Convert the carry bool to a T-word branchlessly, matching
+        // `FixedUInt::mul_acc_shift_row`. An `if top_hi_bit { … }` would
+        // branch on a secret-derived carry bit under a `Ct` carrier; there is
+        // no generic `bool as T`, so fold it through `carrying_add`.
+        <T as CarryingAdd>::carrying_add(zero(), zero(), top_hi_bit).0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use const_num_traits::{Ct, Nct};
+    use modmath_cios::CiosRowOps;
+
+    /// The final carry word is produced by a branchless `carrying_add`
+    /// fold (not an `if`); it must still be exactly 0 or 1. Covers both the
+    /// no-overflow and the overflow (former `if top_hi_bit`) paths.
+    #[test]
+    fn mul_acc_shift_row_carry_bit_is_0_or_1() {
+        type H = HeaplessBigInt<u8, 2, Ct>;
+        // Tiny product, small acc_hi → no top overflow → 0.
+        let mult = H::from_limbs([1, 0], 2);
+        let mut acc = H::from_limbs([2, 0], 2);
+        assert_eq!(
+            <H as CiosRowOps>::mul_acc_shift_row(1, &mult, &mut acc, 3),
+            0
+        );
+        // Maximal product carry + maximal acc_hi → top overflows a byte → 1.
+        let mult = H::from_limbs([0xFF, 0xFF], 2);
+        let mut acc = H::from_limbs([0, 0], 2);
+        assert_eq!(
+            <H as CiosRowOps>::mul_acc_shift_row(0xFF, &mult, &mut acc, 0xFF),
+            1
+        );
+    }
+
+    /// Both personalities run the same body and must agree bit-for-bit,
+    /// including the branchless carry fold.
+    #[test]
+    fn row_ops_ct_matches_nct() {
+        type HN = HeaplessBigInt<u8, 4, Nct>;
+        type HC = HeaplessBigInt<u8, 4, Ct>;
+        let m = [0xAB, 0xCD, 0x12, 0x34];
+        let a = [0x10, 0x20, 0x30, 0x40];
+
+        let mut acc_n = HN::from_limbs(a, 4);
+        let cn = <HN as CiosRowOps>::mul_acc_row(0x7, &HN::from_limbs(m, 4), &mut acc_n, 0x11);
+        let mut acc_c = HC::from_limbs(a, 4);
+        let cc = <HC as CiosRowOps>::mul_acc_row(0x7, &HC::from_limbs(m, 4), &mut acc_c, 0x11);
+        assert_eq!(acc_n.all_limbs(), acc_c.all_limbs());
+        assert_eq!(cn, cc);
+
+        let mut sacc_n = HN::from_limbs(a, 4);
+        let sn =
+            <HN as CiosRowOps>::mul_acc_shift_row(0x9, &HN::from_limbs(m, 4), &mut sacc_n, 0xEE);
+        let mut sacc_c = HC::from_limbs(a, 4);
+        let sc =
+            <HC as CiosRowOps>::mul_acc_shift_row(0x9, &HC::from_limbs(m, 4), &mut sacc_c, 0xEE);
+        assert_eq!(sacc_n.all_limbs(), sacc_c.all_limbs());
+        assert_eq!(sn, sc);
     }
 }

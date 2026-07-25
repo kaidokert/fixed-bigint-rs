@@ -33,6 +33,8 @@ mod fixtures_asym;
 mod fixtures_cat_a;
 mod fixtures_cat_b;
 mod fixtures_cat_c;
+#[cfg(feature = "cios")]
+mod fixtures_cios;
 mod fixtures_ct_traits;
 #[cfg(feature = "heapless")]
 mod fixtures_heapless;
