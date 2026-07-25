@@ -59,11 +59,27 @@ fn prim_bits_bit_vocabulary() {
             PrimBits::rotate_right(C::from_u32(1), 1),
             C::from_u32(0x8000_0000)
         );
-        // shifts (unsigned == signed on an unsigned carrier)
+        // shifts: unsigned_shr is logical, signed_shr sign-extends from the
+        // MSB (#156). Run for both carriers, so fixed/heapless stay in parity.
         assert_eq!(PrimBits::unsigned_shl(C::from_u32(1), 4), C::from_u32(16));
         assert_eq!(PrimBits::unsigned_shr(C::from_u32(0x10), 4), C::from_u32(1));
         assert_eq!(PrimBits::signed_shl(C::from_u32(1), 4), C::from_u32(16));
+        // MSB clear → same as logical.
         assert_eq!(PrimBits::signed_shr(C::from_u32(0x10), 4), C::from_u32(1));
+        // MSB set → fills ones: 0x8000_0000 >> 1 == 0xC000_0000, >> 31 == all ones.
+        assert_eq!(
+            PrimBits::signed_shr(C::from_u32(0x8000_0000), 1),
+            C::from_u32(0xC000_0000)
+        );
+        assert_eq!(
+            PrimBits::signed_shr(C::from_u32(0x8000_0000), 31),
+            C::from_u32(0xFFFF_FFFF)
+        );
+        // unsigned_shr on the same input stays logical (does not sign-extend).
+        assert_eq!(
+            PrimBits::unsigned_shr(C::from_u32(0x8000_0000), 1),
+            C::from_u32(0x4000_0000)
+        );
         // byte / bit order
         assert_eq!(
             PrimBits::swap_bytes(C::from_u32(0x1234_5678)),
