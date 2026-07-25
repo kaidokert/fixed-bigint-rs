@@ -1,14 +1,17 @@
 #![no_main]
 #![no_std]
 
-use const_num_traits::{Ct, Ilog10, Nct, Zero};
+use const_num_traits::{Ct, Nct};
 use core::hint::black_box;
 use cortex_m_rt::entry;
+// Every measured op body comes from the shared workload catalog — the same
+// definitions the emulated (asm-grep / ctgrind) backends drive. This file only
+// constructs inputs, calls the catalog op, and consumes the result.
+use ct_workload as catalog;
 use fixed_bigint::FixedUInt;
 use krabi_caliper::cortex_m::DwtMeasurementPlatform;
 use krabi_caliper::report::Field;
 use krabi_caliper::suite::{PairedSuite, PairedSuiteConfig, PairedSuiteFields};
-use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
 const TRIALS: usize = 4;
 const BATCHES: usize = 16;
@@ -47,11 +50,14 @@ type Words = [Word; N];
 type CtUInt = FixedUInt<Word, N, Ct>;
 type NctUInt = FixedUInt<Word, N, Nct>;
 
+// The `is_some().unwrap_u8()` / `unwrap_or(zero)` split of a checked op's
+// `CtOption` is the measurement harness's concern (write value, keep validity),
+// so it stays here; the op itself is `catalog::ct_checked_*`.
 #[inline(never)]
 fn fixture_ct_eq(a: &Words, b: &Words) -> bool {
     let x = CtUInt::from(black_box(*a));
     let y = CtUInt::from(black_box(*b));
-    let _ = black_box(x.ct_eq(&y).unwrap_u8());
+    let _ = black_box(catalog::ct_eq(x, y));
     true
 }
 
@@ -61,14 +67,14 @@ fn fixture_conditional_select(choice: u8) -> bool {
     let mut one_words = [0; N];
     one_words[0] = 1;
     let one = CtUInt::from(one_words);
-    let selected = CtUInt::conditional_select(&zero, &one, Choice::from(black_box(choice)));
+    let selected = catalog::cond_select(zero, one, black_box(choice));
     let _ = black_box(*selected.words());
     true
 }
 
 #[inline(never)]
 fn fixture_checked_add(a: &Words, b: &Words) -> bool {
-    let result = CtUInt::from(black_box(*a)).ct_checked_add(&CtUInt::from(black_box(*b)));
+    let result = catalog::ct_checked_add(CtUInt::from(black_box(*a)), CtUInt::from(black_box(*b)));
     let valid = result.is_some().unwrap_u8();
     let value = result.unwrap_or(CtUInt::from([0; N]));
     let _ = black_box((*value.words(), valid));
@@ -77,7 +83,7 @@ fn fixture_checked_add(a: &Words, b: &Words) -> bool {
 
 #[inline(never)]
 fn fixture_checked_mul(a: &Words, b: &Words) -> bool {
-    let result = CtUInt::from(black_box(*a)).ct_checked_mul(&CtUInt::from(black_box(*b)));
+    let result = catalog::ct_checked_mul(CtUInt::from(black_box(*a)), CtUInt::from(black_box(*b)));
     let valid = result.is_some().unwrap_u8();
     let value = result.unwrap_or(CtUInt::from([0; N]));
     let _ = black_box((*value.words(), valid));
@@ -86,7 +92,7 @@ fn fixture_checked_mul(a: &Words, b: &Words) -> bool {
 
 #[inline(never)]
 fn fixture_checked_shl(a: &Words, amount: u32) -> bool {
-    let result = CtUInt::from(black_box(*a)).ct_checked_shl(black_box(amount));
+    let result = catalog::ct_checked_shl(CtUInt::from(black_box(*a)), black_box(amount));
     let valid = result.is_some().unwrap_u8();
     let value = result.unwrap_or(CtUInt::from([0; N]));
     let _ = black_box((*value.words(), valid));
@@ -97,7 +103,7 @@ fn fixture_checked_shl(a: &Words, amount: u32) -> bool {
 fn fixture_checked_pow(exp: u32) -> bool {
     let mut base_words = [0; N];
     base_words[0] = 2;
-    let result = CtUInt::from(base_words).ct_checked_pow(black_box(exp));
+    let result = catalog::ct_checked_pow(CtUInt::from(base_words), black_box(exp));
     let valid = result.is_some().unwrap_u8();
     let value = result.unwrap_or(CtUInt::from([0; N]));
     let _ = black_box((*value.words(), valid));
@@ -106,22 +112,20 @@ fn fixture_checked_pow(exp: u32) -> bool {
 
 #[inline(never)]
 fn fixture_is_zero(a: &Words) -> bool {
-    let value = CtUInt::from(black_box(*a));
-    let _ = black_box(value.is_zero());
+    let _ = black_box(catalog::is_zero(CtUInt::from(black_box(*a))));
     true
 }
 
 #[inline(never)]
 fn fixture_nct_div(a: &Words, b: &Words) -> bool {
-    let value = NctUInt::from(black_box(*a)) / NctUInt::from(black_box(*b));
+    let value = catalog::nct_div(NctUInt::from(black_box(*a)), NctUInt::from(black_box(*b)));
     let _ = black_box(*value.words());
     true
 }
 
 #[inline(never)]
 fn fixture_nct_ilog10(a: &Words) -> bool {
-    let value = NctUInt::from(black_box(*a));
-    let _ = black_box(Ilog10::ilog10(value));
+    let _ = black_box(catalog::nct_ilog10(NctUInt::from(black_box(*a))));
     true
 }
 
