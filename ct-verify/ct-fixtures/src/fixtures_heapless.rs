@@ -111,35 +111,11 @@ emit_h_shr_assign!(ct_fix__HA__shr_assign__u32__N4, u32, 4);
 emit_h_shr_assign!(ct_fix__HA__shr_assign__u32__N16, u32, 16);
 emit_h_shr_assign!(ct_fix__HA__shr_assign__u64__N4, u64, 4);
 
-// `Shl<u32>` / `Shr<u32>` — the u32 operator forms delegate to the usize
-// impls; fixtured here since the FixedUInt side only covers `<< u32` (asym).
-macro_rules! emit_h_shl_u32 {
-    ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, u32, |a, n| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            *(x << n).all_limbs()
-        });
-    };
-}
-emit_h_shl_u32!(ct_fix__HA__shl_u32__u8__N16, u8, 16);
-emit_h_shl_u32!(ct_fix__HA__shl_u32__u16__N16, u16, 16);
-emit_h_shl_u32!(ct_fix__HA__shl_u32__u32__N4, u32, 4);
-emit_h_shl_u32!(ct_fix__HA__shl_u32__u32__N16, u32, 16);
-emit_h_shl_u32!(ct_fix__HA__shl_u32__u64__N4, u64, 4);
-
-macro_rules! emit_h_shr_u32 {
-    ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_shift!($name, $T, $N, u32, |a, n| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            *(x >> n).all_limbs()
-        });
-    };
-}
-emit_h_shr_u32!(ct_fix__HA__shr_u32__u8__N16, u8, 16);
-emit_h_shr_u32!(ct_fix__HA__shr_u32__u16__N16, u16, 16);
-emit_h_shr_u32!(ct_fix__HA__shr_u32__u32__N4, u32, 4);
-emit_h_shr_u32!(ct_fix__HA__shr_u32__u32__N16, u32, 16);
-emit_h_shr_u32!(ct_fix__HA__shr_u32__u64__N4, u64, 4);
+// `Shl<u32>` / `Shr<u32>` are intentionally NOT fixtured: they delegate to the
+// `usize` impls and compile to code identical to `shl_usize` / `unbounded_shl`
+// (all route through the `const_shl_ct` barrel), so identical-code-folding
+// aliases their symbols onto those already-gated blocks — separate fixtures
+// would add names but no distinct scanned coverage.
 
 macro_rules! emit_h_unbounded_shl {
     ($name:ident, $T:ty, $N:literal) => {
