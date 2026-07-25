@@ -13,7 +13,7 @@ concurrency:                # don't let two dispatches of this repo queue on the
 jobs:
   cyccnt:
     # CHANGE 1 — the rig-type label. Routes the job to any bench whose runner
-    # advertises this rig; the runner must be registered with it (gen-runners.sh).
+    # advertises this rig; the runner must be registered with this label.
     runs-on: [self-hosted, rig-stm32f407-dwt]
 
     # The job only reads the repo; the rig image runs repo build scripts, so keep

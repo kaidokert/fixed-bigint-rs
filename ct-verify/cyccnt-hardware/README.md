@@ -31,13 +31,15 @@ cargo run --release --features carrier-u8x32
 RTT output uses `krabi-caliper` schema version 1. It emits an `EM_BEGIN`
 record with qualified target and 16 MHz counter metadata, every individual A/B
 sample as `EM_SAMPLE`, each policy decision as `EM_RESULT`, and a final
-`EM_SUMMARY`. During migration it also mirrors the existing `CT_BEGIN`,
-`CT_RESULT`, and `CT_SUMMARY` records. The reporter uses a blocking RTT channel
-so machine evidence cannot be silently truncated.
+`EM_SUMMARY`. It also mirrors the legacy `CT_BEGIN`, `CT_RESULT`, and
+`CT_SUMMARY` records for consumers still on that schema. The reporter uses a
+blocking RTT channel so machine evidence cannot be silently truncated.
 
 This is a timing-regression layer, not a replacement for ctgrind or the
 cross-target conditional-branch audit.
 
-Initial STM32F407/J-Trace calibration passed all nine fixtures on every
-carrier. Positive combined spreads were 0–12 cycles per batch; the Nct
-controls separated by approximately 1.74–14.6 million cycles per batch.
+On the STM32F407/J-Trace rig every fixture passes on all three carriers:
+positive combined spreads sit in the low tens of cycles per batch (the policy
+limit is 32), while the Nct controls separate by millions of cycles — a signal
+margin of roughly six orders of magnitude between the constant-time and
+variable-time paths.
