@@ -3,8 +3,8 @@
 //! Includes the inherent `ct_checked_*` methods, the four `subtle::*`
 //! trait impls, and `forget_ct` (the Ct → Nct explicit downgrade).
 
-use const_num_traits::{Ct, Nct};
-use fixed_bigint::FixedUInt;
+use const_num_traits::{Ct, CtNonZero, Nct};
+use fixed_bigint::{FixedUInt, NonZeroFixedUInt};
 use subtle::{ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess};
 
 use crate::{
@@ -97,6 +97,51 @@ emit_cond_select!(ct_fix__B__cond_select__u16__N16, u16, 16);
 emit_cond_select!(ct_fix__B__cond_select__u32__N4, u32, 4);
 emit_cond_select!(ct_fix__B__cond_select__u32__N16, u32, 16);
 emit_cond_select!(ct_fix__B__cond_select__u64__N4, u64, 4);
+
+// NonZero conditional_select — `Ct`-only `ConditionallySelectable` on the
+// NonZero newtype, distinct from the plain-type select above (it delegates to
+// the inner carrier's gated select). Inputs are forced non-zero (OR 1 into the
+// low limb, constant-time) so `into_nonzero_ct` always yields `Some`; the
+// wrapper is extracted branchlessly via `unwrap_or`.
+macro_rules! emit_nz_cond_select {
+    ($name:ident, $T:ty, $N:literal) => {
+        #[no_mangle]
+        pub extern "C" fn $name(
+            a_ptr: *const [$T; $N],
+            b_ptr: *const [$T; $N],
+            choice: u8,
+            out_ptr: *mut [$T; $N],
+        ) {
+            let mut a_arr = core::hint::black_box(unsafe { *a_ptr });
+            let mut b_arr = core::hint::black_box(unsafe { *b_ptr });
+            a_arr[0] |= 1;
+            b_arr[0] |= 1;
+            let c = core::hint::black_box(choice);
+            let na = FixedUInt::<$T, $N, Ct>::from(a_arr)
+                .into_nonzero_ct()
+                .unwrap_or(NonZeroFixedUInt::<$T, $N, Ct>::default());
+            let nb = FixedUInt::<$T, $N, Ct>::from(b_arr)
+                .into_nonzero_ct()
+                .unwrap_or(NonZeroFixedUInt::<$T, $N, Ct>::default());
+            let r = NonZeroFixedUInt::<$T, $N, Ct>::conditional_select(
+                &na,
+                &nb,
+                subtle::Choice::from(c),
+            );
+            let result = core::hint::black_box(*r.get().words());
+            unsafe {
+                *out_ptr = result;
+            }
+        }
+        #[cfg(feature = "ctgrind")]
+        fbx_ctgrind_cond_select!($name, $T, $N);
+    };
+}
+emit_nz_cond_select!(ct_fix__B__nz_cond_select__u8__N16, u8, 16);
+emit_nz_cond_select!(ct_fix__B__nz_cond_select__u16__N16, u16, 16);
+emit_nz_cond_select!(ct_fix__B__nz_cond_select__u32__N4, u32, 4);
+emit_nz_cond_select!(ct_fix__B__nz_cond_select__u32__N16, u32, 16);
+emit_nz_cond_select!(ct_fix__B__nz_cond_select__u64__N4, u64, 4);
 
 // =============================================================================
 // ct_checked_add / sub / mul

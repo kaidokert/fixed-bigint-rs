@@ -260,6 +260,23 @@ emit_next_pow2!(ct_fix__A__next_pow2__u32__N4, u32, 4);
 emit_next_pow2!(ct_fix__A__next_pow2__u32__N16, u32, 16);
 emit_next_pow2!(ct_fix__A__next_pow2__u64__N4, u64, 4);
 
+// NextPowerOfTwo::wrapping_next_power_of_two — distinct Ct arm from
+// next_power_of_two: same branchless body but selects ZERO on overflow
+// (not MAX) via its own const_ct_select chain.
+macro_rules! emit_wrapping_next_pow2 {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_un!($name, $T, $N, |a| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            *NextPowerOfTwo::wrapping_next_power_of_two(x).words()
+        });
+    };
+}
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u8__N16, u8, 16);
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u16__N16, u16, 16);
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u32__N4, u32, 4);
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u32__N16, u32, 16);
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u64__N4, u64, 4);
+
 // =============================================================================
 // PrimBits::leading_zeros / trailing_zeros
 // =============================================================================

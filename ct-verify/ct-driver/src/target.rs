@@ -181,6 +181,14 @@ const HELPER_ALLOWLIST: &[&str] = &[
     r"fixed_bigint9fixeduint9const_mul",
     r"fixed_bigint9fixeduint8add_impl",
     r"fixed_bigint9fixeduint8sub_impl",
+    // Widening carrying multiply: schoolbook full product + the CarryingMul
+    // impl tail. Nested `i,j < N` loops over const N; `get_at`/`set_at` branch
+    // on `pos = i+j < N` / `< 2N` (public counters), inlined here. The Ct
+    // monomorph carries only the full-sweep carry tail (`while p < 2*N`) — the
+    // Nct early-exit (`while carry && …`) folds away — so no secret-dependent
+    // bound survives. Reached by the `carrying_mul` fixtures.
+    r"fixed_bigint9fixeduint23extended_precision_impl14schoolbook_mul",
+    r"fixed_bigint9fixeduint23extended_precision_impl126.*carrying_mul",
     // ct_checked_pow's square-and-multiply ladder iterates u32::BITS
     // times.
     r"fixed_bigint9fixeduint.*ct_checked_pow",
@@ -365,10 +373,14 @@ const THUMBV6M_EXTRA_HELPERS: &[&str] = &[
     // `leading_zeros` above and inherit its branches on armv6m.
     r"fixed_bigint9fixeduint17power_of_two_impl.*next_power_of_two",
     r"fixed_bigint9fixeduint.*FixedUInt.*ct_checked_next_power_of_two",
-    // HeaplessBigInt's `NextPowerOfTwo::next_power_of_two` inlines the same
-    // primitive `leading_zeros` (via `ct_next_pow2`), inheriting the armv6m
-    // software-CLZ branches — same root cause as the FixedUInt row above.
+    // HeaplessBigInt's `NextPowerOfTwo::{next,wrapping_next}_power_of_two`
+    // share the branchless `ct_next_pow2` helper, whose `leading_zeros`
+    // lowers to armv6m software CLZ — same root cause as the FixedUInt row
+    // above. With both callers present LLVM outlines `ct_next_pow2` into its
+    // own symbol (with one caller it inlined into the trait method), so both
+    // the trait-method and the free-helper symbol are attested here.
     r"fixed_bigint8heapless12power_of_two.*NextPowerOfTwo",
+    r"fixed_bigint8heapless12power_of_two12ct_next_pow2",
     // compiler_builtins' software division — pulled in transitively
     // by the armv6m `leading_zeros` polynomial. Branchful on size.
     r"compiler_builtins3int.*specialized_div_rem",
