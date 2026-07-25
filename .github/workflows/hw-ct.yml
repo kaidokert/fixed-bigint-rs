@@ -5,8 +5,6 @@ name: hw-ct
 
 on:
   workflow_dispatch:        # hardware runs are slow + serialized; trigger by hand
-  push:
-    branches: [agent/cyccnt-hardware-followup]   # temporary bootstrap; remove after validation
 
 concurrency:                # don't let two dispatches of this repo queue on the rig
   group: hw-ct-${{ github.repository }}
