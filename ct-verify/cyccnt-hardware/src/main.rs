@@ -129,6 +129,66 @@ fn fixture_nct_ilog10(a: &Words) -> bool {
     true
 }
 
+// ── hardware-regressions tier: the paths where leaks were found or nearly
+// found. A/B pairs are chosen so a non-CT implementation would separate in
+// cycles (small vs large shift amount, minimal vs maximal carry propagation,
+// no-overflow vs overflow in the cios shift row). All use the shared catalog.
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_shl_usize(a: &Words, amount: usize) -> bool {
+    let r = catalog::shl_usize(CtUInt::from(black_box(*a)), black_box(amount));
+    let _ = black_box(*r.words());
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_carrying_mul(a: &Words, b: &Words, carry: &Words) -> bool {
+    let (lo, hi) = catalog::carrying_mul(
+        CtUInt::from(black_box(*a)),
+        CtUInt::from(black_box(*b)),
+        CtUInt::from(black_box(*carry)),
+    );
+    let _ = black_box((*lo.words(), *hi.words()));
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_cios_shift(mult: &Words, acc: &Words, scalar: Word, acc_hi: Word) -> bool {
+    let (acc2, cout) = catalog::cios_mul_acc_shift_row(
+        black_box(scalar),
+        CtUInt::from(black_box(*mult)),
+        CtUInt::from(black_box(*acc)),
+        black_box(acc_hi),
+    );
+    let _ = black_box((*acc2.words(), cout));
+    true
+}
+
+// HeaplessBigInt — the carrier the smoke tier never touches. Held full-width
+// (`len == N`) so it matches `FixedUInt<Word, N>`.
+#[cfg(feature = "hardware-regressions")]
+type HUInt = fixed_bigint::HeaplessBigInt<Word, N, Ct>;
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_h_sat_add(a: &Words, b: &Words) -> bool {
+    let x = HUInt::from_limbs(black_box(*a), N as u16);
+    let y = HUInt::from_limbs(black_box(*b), N as u16);
+    let _ = black_box(*catalog::sat_add(x, y).all_limbs());
+    true
+}
+
+#[cfg(feature = "hardware-regressions")]
+#[inline(never)]
+fn fixture_h_shl_usize(a: &Words, amount: usize) -> bool {
+    let x = HUInt::from_limbs(black_box(*a), N as u16);
+    let _ = black_box(*catalog::shl_usize(x, black_box(amount)).all_limbs());
+    true
+}
+
 #[entry]
 fn main() -> ! {
     let mut reporter = krabi_caliper::protocol::rtt::init_ct_compatible();
@@ -244,6 +304,52 @@ fn main() -> ! {
             fixture_nct_ilog10,
         )
         .unwrap();
+
+    #[cfg(feature = "hardware-regressions")]
+    {
+        let max_shift = (N * Word::BITS as usize) - 1;
+        suite
+            .positive(
+                "shl_usize",
+                &(&sparse, 1usize),
+                &(&sparse, max_shift),
+                |&(a, amount)| fixture_shl_usize(a, amount),
+            )
+            .unwrap();
+        suite
+            .positive(
+                "carrying_mul",
+                &(&zero, &zero, &zero),
+                &(&dense, &dense, &dense),
+                |&(a, b, c)| fixture_carrying_mul(a, b, c),
+            )
+            .unwrap();
+        suite
+            .positive(
+                "cios_mul_acc_shift_row",
+                &(&sparse, &zero, 3 as Word, 0 as Word),
+                &(&dense, &dense, Word::MAX, Word::MAX),
+                |&(m, a, s, h)| fixture_cios_shift(m, a, s, h),
+            )
+            .unwrap();
+        suite
+            .positive(
+                "h_sat_add",
+                &(&zero, &zero),
+                &(&sparse, &dense),
+                |&(a, b)| fixture_h_sat_add(a, b),
+            )
+            .unwrap();
+        suite
+            .positive(
+                "h_shl_usize",
+                &(&sparse, 1usize),
+                &(&sparse, max_shift),
+                |&(a, amount)| fixture_h_shl_usize(a, amount),
+            )
+            .unwrap();
+    }
+
     suite.finish().unwrap();
     loop {
         cortex_m::asm::nop();

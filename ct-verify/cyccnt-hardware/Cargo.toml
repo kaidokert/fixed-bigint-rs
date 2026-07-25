@@ -7,10 +7,13 @@ publish = false
 [features]
 default = ["hardware-smoke"]
 # Coverage tiers. `hardware-smoke` is the representative baseline set (7
-# positives + 2 negative controls) run on every dispatch. A `hardware-regressions`
-# tier (carrying_mul, cios, shifts, heapless) rides on top in a later step —
-# the ops already exist in the catalog, so it's a tag + input vectors.
+# positives + 2 negative controls) run on every dispatch. `hardware-regressions`
+# adds the paths where leaks were found or nearly found — the shift barrel,
+# carrying_mul's carry tail, the cios shift row (the #184 `if top_hi_bit` fix),
+# and the HeaplessBigInt carrier the smoke tier never exercises. All reuse the
+# shared catalog; cios pulls its op in via `ct-workload/cios`.
 hardware-smoke = []
+hardware-regressions = ["ct-workload/cios", "fixed-bigint/cios"]
 carrier-u32x8 = []
 carrier-u32x16 = []
 carrier-u8x32 = []
