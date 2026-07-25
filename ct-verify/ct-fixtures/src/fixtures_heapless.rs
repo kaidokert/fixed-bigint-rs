@@ -79,6 +79,44 @@ emit_h_shr_usize!(ct_fix__HA__shr_usize__u32__N4, u32, 4);
 emit_h_shr_usize!(ct_fix__HA__shr_usize__u32__N16, u32, 16);
 emit_h_shr_usize!(ct_fix__HA__shr_usize__u64__N4, u64, 4);
 
+// `<<=` / `>>=` — distinct assign impls with their own P::TAG dispatch,
+// routing the Ct arm through the same barrels as `<<`/`>>`.
+macro_rules! emit_h_shl_assign {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, usize, |a, n| {
+            let mut x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            x <<= n;
+            *x.all_limbs()
+        });
+    };
+}
+emit_h_shl_assign!(ct_fix__HA__shl_assign__u8__N16, u8, 16);
+emit_h_shl_assign!(ct_fix__HA__shl_assign__u16__N16, u16, 16);
+emit_h_shl_assign!(ct_fix__HA__shl_assign__u32__N4, u32, 4);
+emit_h_shl_assign!(ct_fix__HA__shl_assign__u32__N16, u32, 16);
+emit_h_shl_assign!(ct_fix__HA__shl_assign__u64__N4, u64, 4);
+
+macro_rules! emit_h_shr_assign {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, usize, |a, n| {
+            let mut x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            x >>= n;
+            *x.all_limbs()
+        });
+    };
+}
+emit_h_shr_assign!(ct_fix__HA__shr_assign__u8__N16, u8, 16);
+emit_h_shr_assign!(ct_fix__HA__shr_assign__u16__N16, u16, 16);
+emit_h_shr_assign!(ct_fix__HA__shr_assign__u32__N4, u32, 4);
+emit_h_shr_assign!(ct_fix__HA__shr_assign__u32__N16, u32, 16);
+emit_h_shr_assign!(ct_fix__HA__shr_assign__u64__N4, u64, 4);
+
+// `Shl<u32>` / `Shr<u32>` are intentionally NOT fixtured: they delegate to the
+// `usize` impls and compile to code identical to `shl_usize` / `unbounded_shl`
+// (all route through the `const_shl_ct` barrel), so identical-code-folding
+// aliases their symbols onto those already-gated blocks — separate fixtures
+// would add names but no distinct scanned coverage.
+
 macro_rules! emit_h_unbounded_shl {
     ($name:ident, $T:ty, $N:literal) => {
         ct_fix_shift!($name, $T, $N, u32, |a, n| {
