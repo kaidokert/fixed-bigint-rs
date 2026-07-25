@@ -188,12 +188,27 @@ fn prim_int() {
         assert_eq!(PrimInt::pow(C::at32(2), 10), C::at32(1024));
         assert_eq!(PrimInt::pow(C::at32(7), 3), C::at32(343));
 
-        // Shifts (delegated via PrimBits): unsigned == signed for the unsigned
-        // carrier, and both stay fixed-width.
+        // Shifts (delegated via PrimBits): unsigned_shr is logical, signed_shr
+        // sign-extends from the MSB (#156). Both stay fixed-width, and the
+        // assertions run for both carriers so fixed/heapless stay in parity.
         assert_eq!(PrimInt::unsigned_shl(C::at32(1), 31), C::at32(0x8000_0000));
         assert_eq!(PrimInt::unsigned_shr(C::at32(0x8000_0000), 31), C::at32(1));
         assert_eq!(PrimInt::signed_shl(C::at32(1), 31), C::at32(0x8000_0000));
-        assert_eq!(PrimInt::signed_shr(C::at32(0x8000_0000), 31), C::at32(1));
+        // MSB set → arithmetic shift fills ones: -2^31 >> 31 == -1, and
+        // >> 1 == 0xC000_0000 (the issue's acceptance criterion).
+        assert_eq!(
+            PrimInt::signed_shr(C::at32(0x8000_0000), 31),
+            C::at32(0xFFFF_FFFF)
+        );
+        assert_eq!(
+            PrimInt::signed_shr(C::at32(0x8000_0000), 1),
+            C::at32(0xC000_0000)
+        );
+        // MSB clear → identical to the logical shift.
+        assert_eq!(
+            PrimInt::signed_shr(C::at32(0x4000_0000), 1),
+            C::at32(0x2000_0000)
+        );
 
         // Endianness conversions round-trip.
         let v = C::at32(0x1234_5678);

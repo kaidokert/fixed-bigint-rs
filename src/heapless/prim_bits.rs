@@ -17,7 +17,7 @@
 
 use super::{HeaplessBigInt, is_zero, zero};
 use crate::MachineWord;
-use const_num_traits::{Personality, PersonalityTag, PrimBits};
+use const_num_traits::{Bounded, Personality, PersonalityTag, PrimBits};
 use core::marker::PhantomData;
 
 /// Value width in bits (`len·word_bits`) — the width every PrimBits member
@@ -179,9 +179,36 @@ impl<T: MachineWord, const CAP: usize, P: Personality> PrimBits for HeaplessBigI
     }
 
     fn signed_shr(self, n: u32) -> Self {
-        // Unsigned carrier: heapless mirrors FixedUInt, which shifts logically
-        // (treats the value as unsigned), keeping the two carriers bit-for-bit.
-        <Self as PrimBits>::unsigned_shr(self, n)
+        // Arithmetic (sign-extending) right shift over the value width
+        // (`len·word_bits`), matching FixedUInt: the vacated top bits take the
+        // MSB. Branchless on the value — the sign bit is spread to a full-width
+        // mask via `bit * MAX` — and width-preserving, like `unsigned_shr`. The
+        // fill `sign_full ^ (sign_full >> n)` is the top-`n` sign bits when the
+        // MSB is set and zero otherwise, so a non-negative value shifts
+        // identically to `unsigned_shr`.
+        let logical = <Self as PrimBits>::unsigned_shr(self, n);
+        let len = self.len as usize;
+        if len == 0 {
+            return logical;
+        }
+        let word_bits = core::mem::size_of::<T>() * 8;
+        let sign_bit = self.limbs[len - 1] >> (word_bits - 1);
+        let mask_word = <T as core::ops::Mul>::mul(sign_bit, <T as Bounded>::max_value());
+        let mut sign_full = self;
+        let mut i = 0;
+        while i < len {
+            sign_full.limbs[i] = mask_word;
+            i += 1;
+        }
+        let sf_shr = <Self as PrimBits>::unsigned_shr(sign_full, n);
+        let mut result = logical;
+        let mut i = 0;
+        while i < len {
+            let fill = mask_word ^ sf_shr.limbs[i];
+            result.limbs[i] = logical.limbs[i] | fill;
+            i += 1;
+        }
+        result
     }
 
     // Little-endian host: in-memory order already matches, so to/from_le are

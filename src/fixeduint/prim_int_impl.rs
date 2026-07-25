@@ -4,7 +4,7 @@ use super::{
 };
 use crate::machineword::ConstMachineWord;
 use const_num_traits::PrimBits;
-use const_num_traits::{Nct, Personality, PersonalityTag};
+use const_num_traits::{Bounded, Nct, Personality, PersonalityTag};
 
 c0nst::c0nst! {
     c0nst impl<T: [c0nst] ConstMachineWord + MachineWord, const N: usize, P: Personality> PrimBits for FixedUInt<T, N, P> {
@@ -85,10 +85,38 @@ c0nst::c0nst! {
             core::ops::Shl::<u32>::shl(self, n)
         }
         fn signed_shr(self, n: u32) -> Self {
-            // For unsigned types the sign bit is always 0, so the
-            // arithmetic (sign-extending) right shift produces the
-            // same result as the logical right shift.
-            core::ops::Shr::<u32>::shr(self, n)
+            // Arithmetic (sign-extending) right shift: the vacated top bits
+            // take the carrier's MSB, per the `PrimBits`/`PrimInt` contract
+            // (`(self as signed) >> n`). Branchless on the value — the sign
+            // bit is spread to a full-width mask via `bit * MAX` (the CT
+            // barrel's trick), so a `Ct` carrier never branches on the value;
+            // both shifts route through the `Shr` operator, which barrels a
+            // secret amount on `Ct`. The fill `sign_full ^ (sign_full >> n)`
+            // is the top-`n` sign bits when the MSB is set and zero otherwise,
+            // so a non-negative value shifts identically to `unsigned_shr`.
+            let logical = core::ops::Shr::<u32>::shr(self, n);
+            if N == 0 {
+                return logical;
+            }
+            let word_bits = FixedUInt::<T, N>::WORD_BITS;
+            let sign_bit = self.array[N - 1] >> (word_bits - 1);
+            let mask_word =
+                <T as core::ops::Mul>::mul(sign_bit, <T as Bounded>::max_value());
+            let mut sign_full = self;
+            let mut i = 0;
+            while i < N {
+                sign_full.array[i] = mask_word;
+                i += 1;
+            }
+            let sf_shr = core::ops::Shr::<u32>::shr(sign_full, n);
+            let mut result = logical;
+            let mut i = 0;
+            while i < N {
+                let fill = <T as core::ops::BitXor>::bitxor(mask_word, sf_shr.array[i]);
+                result.array[i] = <T as core::ops::BitOr>::bitor(logical.array[i], fill);
+                i += 1;
+            }
+            result
         }
         fn reverse_bits(self) -> Self {
             let mut ret = <Self as const_num_traits::ConstZero>::ZERO;
@@ -190,7 +218,9 @@ impl<T: MachineWord, const N: usize> num_traits::PrimInt for FixedUInt<T, N, Nct
         <Self as num_traits::PrimInt>::unsigned_shl(self, bits)
     }
     fn signed_shr(self, bits: u32) -> Self {
-        <Self as num_traits::PrimInt>::unsigned_shr(self, bits)
+        // Sign-extending shift, delegated to the single `PrimBits` body so both
+        // the num-traits and const-num-traits surfaces agree.
+        <Self as PrimBits>::signed_shr(self, bits)
     }
     fn unsigned_shl(self, bits: u32) -> Self {
         self << bits
@@ -331,7 +361,9 @@ mod tests {
             assert_eq!(USHL.array, [16, 0]);
             assert_eq!(USHR.array, [0xFF, 0x0F]);
             assert_eq!(SSHL.array, [16, 0]);
-            assert_eq!(SSHR.array, [0xFF, 0x0F]);
+            // V_FULL (0xFFFF) has its MSB set, so the arithmetic shift fills
+            // ones: -1 >> 4 == -1 == 0xFFFF (vs the logical 0x0FFF above).
+            assert_eq!(SSHR.array, [0xFF, 0xFF]);
             assert_eq!(REV.array, [0, 0x80]);
             assert_eq!(TO_BE.array, [0, 1]);
             assert_eq!(TO_LE.array, [1, 0]);
