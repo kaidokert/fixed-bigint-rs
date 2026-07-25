@@ -224,6 +224,41 @@ macro_rules! fbx_ctgrind_cond_select {
     };
 }
 
+/// Widening carrying mul: `(T,N) × (T,N) × (T,N) → (T,N) lo + (T,N) hi`.
+/// A two-array-output shape unique to ct-fixtures — the kind that used to
+/// require a harness release before the adapters moved local.
+#[macro_export]
+macro_rules! fbx_ctgrind_carrying_mul {
+    ($name:ident, $T:ty, $N:literal) => {
+        krabi_caliper::ctgrind_fixture!($name, {
+            unsafe extern "C" {
+                fn $name(
+                    a: *const [$T; $N],
+                    b: *const [$T; $N],
+                    carry: *const [$T; $N],
+                    lo: *mut [$T; $N],
+                    hi: *mut [$T; $N],
+                );
+            }
+            let a: [$T; $N] = [0; $N];
+            let b: [$T; $N] = [0; $N];
+            let carry: [$T; $N] = [0; $N];
+            let mut lo: [$T; $N] = [0; $N];
+            let mut hi: [$T; $N] = [0; $N];
+            krabi_caliper::host::ctgrind::taint(&a);
+            krabi_caliper::host::ctgrind::taint(&b);
+            krabi_caliper::host::ctgrind::taint(&carry);
+            unsafe {
+                $name(&a, &b, &carry, &mut lo, &mut hi);
+            }
+            krabi_caliper::host::ctgrind::untaint(&lo);
+            krabi_caliper::host::ctgrind::untaint(&hi);
+            let _ = ::core::hint::black_box(lo);
+            let _ = ::core::hint::black_box(hi);
+        });
+    };
+}
+
 /// Carrying add: `(T,N) × (T,N) × bool → (T,N) + u8`.
 #[macro_export]
 macro_rules! fbx_ctgrind_carrying_add {

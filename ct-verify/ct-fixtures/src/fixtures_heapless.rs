@@ -33,10 +33,11 @@ use const_num_traits::ops::ct::{
 use const_num_traits::Ct;
 use const_num_traits::CtNonZero;
 use const_num_traits::{
-    AbsDiff, CarryingAdd, IsPowerOfTwo, Midpoint, NextPowerOfTwo, One, OverflowingAdd, PrimBits,
-    SaturatingAdd, SaturatingMul, SaturatingSub, UnboundedShl, UnboundedShr, WrappingMul, Zero,
+    AbsDiff, BorrowingSub, CarryingAdd, CarryingMul, IsPowerOfTwo, Midpoint, NextPowerOfTwo, One,
+    OverflowingAdd, OverflowingMul, OverflowingSub, PrimBits, SaturatingAdd, SaturatingMul,
+    SaturatingSub, UnboundedShl, UnboundedShr, WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
-use fixed_bigint::HeaplessBigInt;
+use fixed_bigint::{HeaplessBigInt, NonZeroHeaplessBigInt};
 use subtle::{ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess};
 
 use crate::{
@@ -173,6 +174,22 @@ emit_h_next_pow2!(ct_fix__HA__next_pow2__u16__N16, u16, 16);
 emit_h_next_pow2!(ct_fix__HA__next_pow2__u32__N4, u32, 4);
 emit_h_next_pow2!(ct_fix__HA__next_pow2__u32__N16, u32, 16);
 emit_h_next_pow2!(ct_fix__HA__next_pow2__u64__N4, u64, 4);
+
+// wrapping_next_power_of_two — distinct Ct arm from next_power_of_two
+// (ZERO on overflow, not MAX).
+macro_rules! emit_h_wrapping_next_pow2 {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_un!($name, $T, $N, |a| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            *NextPowerOfTwo::wrapping_next_power_of_two(x).all_limbs()
+        });
+    };
+}
+emit_h_wrapping_next_pow2!(ct_fix__HA__wrapping_next_pow2__u8__N16, u8, 16);
+emit_h_wrapping_next_pow2!(ct_fix__HA__wrapping_next_pow2__u16__N16, u16, 16);
+emit_h_wrapping_next_pow2!(ct_fix__HA__wrapping_next_pow2__u32__N4, u32, 4);
+emit_h_wrapping_next_pow2!(ct_fix__HA__wrapping_next_pow2__u32__N16, u32, 16);
+emit_h_wrapping_next_pow2!(ct_fix__HA__wrapping_next_pow2__u64__N4, u64, 4);
 
 macro_rules! emit_h_midpoint {
     ($name:ident, $T:ty, $N:literal) => {
@@ -420,6 +437,50 @@ emit_h_cond_select!(ct_fix__HB__cond_select__u32__N4, u32, 4);
 emit_h_cond_select!(ct_fix__HB__cond_select__u32__N16, u32, 16);
 emit_h_cond_select!(ct_fix__HB__cond_select__u64__N4, u64, 4);
 
+// NonZero conditional_select — the `Ct`-only `ConditionallySelectable` on the
+// NonZero newtype (delegates to the inner carrier's gated select). Inputs are
+// forced non-zero (OR 1 into the low limb, constant-time) so `into_nonzero_ct`
+// always yields `Some`; the wrapper is extracted branchlessly via `unwrap_or`.
+macro_rules! emit_h_nz_cond_select {
+    ($name:ident, $T:ty, $N:literal) => {
+        #[no_mangle]
+        pub extern "C" fn $name(
+            a_ptr: *const [$T; $N],
+            b_ptr: *const [$T; $N],
+            choice: u8,
+            out_ptr: *mut [$T; $N],
+        ) {
+            let mut a_arr = core::hint::black_box(unsafe { *a_ptr });
+            let mut b_arr = core::hint::black_box(unsafe { *b_ptr });
+            a_arr[0] |= 1;
+            b_arr[0] |= 1;
+            let c = core::hint::black_box(choice);
+            let na = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a_arr, $N as u16)
+                .into_nonzero_ct()
+                .unwrap_or(NonZeroHeaplessBigInt::<$T, $N, Ct>::default());
+            let nb = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b_arr, $N as u16)
+                .into_nonzero_ct()
+                .unwrap_or(NonZeroHeaplessBigInt::<$T, $N, Ct>::default());
+            let r = <NonZeroHeaplessBigInt<$T, $N, Ct> as subtle::ConditionallySelectable>::conditional_select(
+                &na,
+                &nb,
+                subtle::Choice::from(c),
+            );
+            let result = core::hint::black_box(*r.get().all_limbs());
+            unsafe {
+                *out_ptr = result;
+            }
+        }
+        #[cfg(feature = "ctgrind")]
+        fbx_ctgrind_cond_select!($name, $T, $N);
+    };
+}
+emit_h_nz_cond_select!(ct_fix__HB__nz_cond_select__u8__N16, u8, 16);
+emit_h_nz_cond_select!(ct_fix__HB__nz_cond_select__u16__N16, u16, 16);
+emit_h_nz_cond_select!(ct_fix__HB__nz_cond_select__u32__N4, u32, 4);
+emit_h_nz_cond_select!(ct_fix__HB__nz_cond_select__u32__N16, u32, 16);
+emit_h_nz_cond_select!(ct_fix__HB__nz_cond_select__u64__N4, u64, 4);
+
 // =============================================================================
 // Category HC: always-CT-by-construction ops (regression watch).
 // =============================================================================
@@ -554,6 +615,128 @@ emit_h_carrying_add!(ct_fix__HC__carrying_add__u16__N16, u16, 16);
 emit_h_carrying_add!(ct_fix__HC__carrying_add__u32__N4, u32, 4);
 emit_h_carrying_add!(ct_fix__HC__carrying_add__u32__N16, u32, 16);
 emit_h_carrying_add!(ct_fix__HC__carrying_add__u64__N4, u64, 4);
+
+// Borrowing sub — CT counterpart of carrying_add; same ABI, reuses the shape.
+macro_rules! emit_h_borrowing_sub {
+    ($name:ident, $T:ty, $N:literal) => {
+        #[no_mangle]
+        pub extern "C" fn $name(
+            a_ptr: *const [$T; $N],
+            b_ptr: *const [$T; $N],
+            borrow: bool,
+            out_ptr: *mut [$T; $N],
+        ) -> u8 {
+            let a_arr = core::hint::black_box(unsafe { *a_ptr });
+            let b_arr = core::hint::black_box(unsafe { *b_ptr });
+            let bin = core::hint::black_box(borrow);
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a_arr, $N as u16);
+            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b_arr, $N as u16);
+            let (r, bo) = BorrowingSub::borrowing_sub(x, y, bin);
+            let result = core::hint::black_box(*r.all_limbs());
+            unsafe {
+                *out_ptr = result;
+            }
+            core::hint::black_box(bo as u8)
+        }
+        #[cfg(feature = "ctgrind")]
+        fbx_ctgrind_carrying_add!($name, $T, $N);
+    };
+}
+emit_h_borrowing_sub!(ct_fix__HC__borrowing_sub__u8__N16, u8, 16);
+emit_h_borrowing_sub!(ct_fix__HC__borrowing_sub__u16__N16, u16, 16);
+emit_h_borrowing_sub!(ct_fix__HC__borrowing_sub__u32__N4, u32, 4);
+emit_h_borrowing_sub!(ct_fix__HC__borrowing_sub__u32__N16, u32, 16);
+emit_h_borrowing_sub!(ct_fix__HC__borrowing_sub__u64__N4, u64, 4);
+
+// Regression-watch bins — always-CT by construction, pinned against a future
+// branch. Overflowing forms discard the flag.
+macro_rules! emit_h_wrapping_add {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_bin!($name, $T, $N, |a, b| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
+            *WrappingAdd::wrapping_add(&x, &y).all_limbs()
+        });
+    };
+}
+emit_h_wrapping_add!(ct_fix__HC__wrapping_add__u8__N16, u8, 16);
+emit_h_wrapping_add!(ct_fix__HC__wrapping_add__u32__N4, u32, 4);
+emit_h_wrapping_add!(ct_fix__HC__wrapping_add__u64__N4, u64, 4);
+
+macro_rules! emit_h_wrapping_sub {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_bin!($name, $T, $N, |a, b| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
+            *WrappingSub::wrapping_sub(&x, &y).all_limbs()
+        });
+    };
+}
+emit_h_wrapping_sub!(ct_fix__HC__wrapping_sub__u8__N16, u8, 16);
+emit_h_wrapping_sub!(ct_fix__HC__wrapping_sub__u32__N4, u32, 4);
+emit_h_wrapping_sub!(ct_fix__HC__wrapping_sub__u64__N4, u64, 4);
+
+macro_rules! emit_h_overflowing_sub {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_bin!($name, $T, $N, |a, b| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
+            let (r, _ov) = OverflowingSub::overflowing_sub(&x, &y);
+            *r.all_limbs()
+        });
+    };
+}
+emit_h_overflowing_sub!(ct_fix__HC__overflowing_sub__u8__N16, u8, 16);
+emit_h_overflowing_sub!(ct_fix__HC__overflowing_sub__u32__N4, u32, 4);
+emit_h_overflowing_sub!(ct_fix__HC__overflowing_sub__u64__N4, u64, 4);
+
+macro_rules! emit_h_overflowing_mul {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_bin!($name, $T, $N, |a, b| {
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
+            let (r, _ov) = OverflowingMul::overflowing_mul(&x, &y);
+            *r.all_limbs()
+        });
+    };
+}
+emit_h_overflowing_mul!(ct_fix__HC__overflowing_mul__u8__N16, u8, 16);
+emit_h_overflowing_mul!(ct_fix__HC__overflowing_mul__u32__N4, u32, 4);
+emit_h_overflowing_mul!(ct_fix__HC__overflowing_mul__u64__N4, u64, 4);
+
+// Widening carrying mul — `(a, b, carry) → (lo, hi)`. Pins the full-width
+// carry tail of the schoolbook multiply directly (the `carrying_mul_add` path
+// #180 fixed; this gates it head-on, not just via saturating/checked mul).
+macro_rules! emit_h_carrying_mul {
+    ($name:ident, $T:ty, $N:literal) => {
+        #[no_mangle]
+        pub extern "C" fn $name(
+            a_ptr: *const [$T; $N],
+            b_ptr: *const [$T; $N],
+            carry_ptr: *const [$T; $N],
+            lo_ptr: *mut [$T; $N],
+            hi_ptr: *mut [$T; $N],
+        ) {
+            let a = core::hint::black_box(unsafe { *a_ptr });
+            let b = core::hint::black_box(unsafe { *b_ptr });
+            let cy = core::hint::black_box(unsafe { *carry_ptr });
+            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
+            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
+            let cin = HeaplessBigInt::<$T, $N, Ct>::from_limbs(cy, $N as u16);
+            let (lo, hi) = CarryingMul::carrying_mul(x, y, cin);
+            unsafe {
+                *lo_ptr = core::hint::black_box(*lo.all_limbs());
+                *hi_ptr = core::hint::black_box(*hi.all_limbs());
+            }
+        }
+        #[cfg(feature = "ctgrind")]
+        fbx_ctgrind_carrying_mul!($name, $T, $N);
+    };
+}
+emit_h_carrying_mul!(ct_fix__HC__carrying_mul__u8__N16, u8, 16);
+emit_h_carrying_mul!(ct_fix__HC__carrying_mul__u32__N4, u32, 4);
+emit_h_carrying_mul!(ct_fix__HC__carrying_mul__u32__N16, u32, 16);
+emit_h_carrying_mul!(ct_fix__HC__carrying_mul__u64__N4, u64, 4);
 
 // Ord::cmp — folded to u8 (Less=0xFF, Equal=0, Greater=1).
 macro_rules! emit_h_cmp {
