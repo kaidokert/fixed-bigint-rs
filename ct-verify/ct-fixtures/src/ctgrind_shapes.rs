@@ -323,8 +323,10 @@ macro_rules! fbx_ctgrind_carrying_add {
 }
 
 /// Pointer-based secret shift amount → array. `(*const u32) → (T,N)`.
+/// Direction-agnostic: the shape is identical for a secret-amount `<<` or
+/// `>>` (public value baked into the fixture body, only the amount tainted).
 #[macro_export]
-macro_rules! fbx_ctgrind_asym_shl_u32 {
+macro_rules! fbx_ctgrind_asym_shift_u32 {
     ($name:ident, $T:ty, $N:literal) => {
         krabi_caliper::ctgrind_fixture!($name, {
             unsafe extern "C" {

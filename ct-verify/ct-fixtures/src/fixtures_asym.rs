@@ -65,7 +65,7 @@ macro_rules! emit_asym_one_shl {
             }
         }
         #[cfg(feature = "ctgrind")]
-        fbx_ctgrind_asym_shl_u32!($name, $T, $N);
+        fbx_ctgrind_asym_shift_u32!($name, $T, $N);
     };
 }
 
@@ -74,6 +74,41 @@ emit_asym_one_shl!(ct_fix__ASYM__one_shl__u16__N16, u16, 16);
 emit_asym_one_shl!(ct_fix__ASYM__one_shl__u32__N4, u32, 4);
 emit_asym_one_shl!(ct_fix__ASYM__one_shl__u32__N16, u32, 16);
 emit_asym_one_shl!(ct_fix__ASYM__one_shl__u64__N4, u64, 4);
+
+// =============================================================================
+// `Self::max_value() >> tainted_amount`
+//
+// The right-shift twin of `one_shl`: routes through `Shr<u32>` → `Shr<usize>`
+// → `const_shr_ct`, exercising the barrel's `black_box(bit_k)` select and the
+// per-layer cross-limb bit merge on a secret amount. This is the exact shape
+// the modexp ladder (`exp >> i`) and Montgomery REDC drive on secret data, so
+// it earns the same amount-only isolation as the left shift. `max_value` (all
+// bits set) is the public LHS so every amount produces a distinct result,
+// stressing the merge a degenerate `1 >> n` would not.
+// =============================================================================
+
+macro_rules! emit_asym_max_shr {
+    ($name:ident, $T:ty, $N:literal) => {
+        #[no_mangle]
+        pub extern "C" fn $name(amount_ptr: *const u32, out_ptr: *mut [$T; $N]) {
+            let amount = core::hint::black_box(unsafe { *amount_ptr });
+            let max = FixedUInt::<$T, $N, Ct>::from([<$T>::MAX; $N]);
+            let shifted = max >> amount;
+            let result = core::hint::black_box(*shifted.words());
+            unsafe {
+                *out_ptr = result;
+            }
+        }
+        #[cfg(feature = "ctgrind")]
+        fbx_ctgrind_asym_shift_u32!($name, $T, $N);
+    };
+}
+
+emit_asym_max_shr!(ct_fix__ASYM__max_shr__u8__N16, u8, 16);
+emit_asym_max_shr!(ct_fix__ASYM__max_shr__u16__N16, u16, 16);
+emit_asym_max_shr!(ct_fix__ASYM__max_shr__u32__N4, u32, 4);
+emit_asym_max_shr!(ct_fix__ASYM__max_shr__u32__N16, u32, 16);
+emit_asym_max_shr!(ct_fix__ASYM__max_shr__u64__N4, u64, 4);
 
 // =============================================================================
 // `subtle::ConditionallySelectable::conditional_select(zero, one, tainted_choice)`
