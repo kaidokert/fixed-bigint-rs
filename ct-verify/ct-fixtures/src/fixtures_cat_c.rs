@@ -35,12 +35,7 @@ emit_not!(ct_fix__C__not__u64__N4, u64, 4);
 
 macro_rules! emit_bitand {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = BitAnd::bitand(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::bitand, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_bitand!(ct_fix__C__bitand__u8__N16, u8, 16);
@@ -50,12 +45,7 @@ emit_bitand!(ct_fix__C__bitand__u64__N4, u64, 4);
 
 macro_rules! emit_bitor {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = BitOr::bitor(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::bitor, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_bitor!(ct_fix__C__bitor__u8__N16, u8, 16);
@@ -65,12 +55,7 @@ emit_bitor!(ct_fix__C__bitor__u64__N4, u64, 4);
 
 macro_rules! emit_bitxor {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = BitXor::bitxor(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::bitxor, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_bitxor!(ct_fix__C__bitxor__u8__N16, u8, 16);
@@ -101,12 +86,7 @@ emit_overflowing_add!(ct_fix__C__overflowing_add__u64__N4, u64, 4);
 
 macro_rules! emit_wrapping_mul {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = WrappingMul::wrapping_mul(&x, &y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::wrapping_mul, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_wrapping_mul!(ct_fix__C__wrapping_mul__u8__N16, u8, 16);
@@ -191,11 +171,7 @@ emit_borrowing_sub!(ct_fix__C__borrowing_sub__u64__N4, u64, 4);
 // forms discard the flag; the body's branch-freeness is what's scanned.
 macro_rules! emit_wrapping_add {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            *WrappingAdd::wrapping_add(&x, &y).words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::wrapping_add, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_wrapping_add!(ct_fix__C__wrapping_add__u8__N16, u8, 16);
@@ -204,11 +180,7 @@ emit_wrapping_add!(ct_fix__C__wrapping_add__u64__N4, u64, 4);
 
 macro_rules! emit_wrapping_sub {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            *WrappingSub::wrapping_sub(&x, &y).words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::wrapping_sub, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_wrapping_sub!(ct_fix__C__wrapping_sub__u8__N16, u8, 16);
@@ -217,12 +189,7 @@ emit_wrapping_sub!(ct_fix__C__wrapping_sub__u64__N4, u64, 4);
 
 macro_rules! emit_overflowing_sub {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let (r, _ov) = OverflowingSub::overflowing_sub(&x, &y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::overflowing_sub, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_overflowing_sub!(ct_fix__C__overflowing_sub__u8__N16, u8, 16);
@@ -231,12 +198,7 @@ emit_overflowing_sub!(ct_fix__C__overflowing_sub__u64__N4, u64, 4);
 
 macro_rules! emit_overflowing_mul {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let (r, _ov) = OverflowingMul::overflowing_mul(&x, &y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::overflowing_mul, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_overflowing_mul!(ct_fix__C__overflowing_mul__u8__N16, u8, 16);
@@ -283,12 +245,7 @@ emit_carrying_mul!(ct_fix__C__carrying_mul__u64__N4, u64, 4);
 
 macro_rules! emit_midpoint {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = Midpoint::midpoint(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::midpoint, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_midpoint!(ct_fix__C__midpoint__u8__N16, u8, 16);

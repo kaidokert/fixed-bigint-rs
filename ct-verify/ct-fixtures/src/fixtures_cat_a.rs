@@ -69,12 +69,7 @@ emit_sat_add!(ct_fix__A__sat_add__u64__N4, u64, 4);
 
 macro_rules! emit_sat_sub {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = SaturatingSub::saturating_sub(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::sat_sub, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_sat_sub!(ct_fix__A__sat_sub__u8__N16, u8, 16);
@@ -85,12 +80,7 @@ emit_sat_sub!(ct_fix__A__sat_sub__u64__N4, u64, 4);
 
 macro_rules! emit_sat_mul {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = SaturatingMul::saturating_mul(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::sat_mul, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_sat_mul!(ct_fix__A__sat_mul__u8__N16, u8, 16);
@@ -206,12 +196,7 @@ emit_unbounded_shr!(ct_fix__A__unbounded_shr__u64__N4, u64, 4);
 
 macro_rules! emit_abs_diff {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = AbsDiff::abs_diff(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::abs_diff, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_abs_diff!(ct_fix__A__abs_diff__u8__N16, u8, 16);

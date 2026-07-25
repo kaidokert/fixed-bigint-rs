@@ -11,7 +11,11 @@
 //! one op body feeds both the `A` (FixedUInt) and `HA` (Heapless) fixtures.
 //! Remaining shapes/ops are migrated on top of this.
 
-use const_num_traits::{Ct, SaturatingAdd};
+use const_num_traits::{
+    AbsDiff, Ct, Midpoint, OverflowingAdd, OverflowingMul, OverflowingSub, SaturatingAdd,
+    SaturatingMul, SaturatingSub, WrappingAdd, WrappingMul, WrappingSub,
+};
+use core::ops::{BitAnd, BitOr, BitXor};
 use fixed_bigint::{FixedUInt, HeaplessBigInt, MachineWord};
 
 /// Build a Ct carrier from an `[T; N]` word array and read it back. This is the
@@ -48,10 +52,64 @@ impl<T: MachineWord, const N: usize> FixtureCarrier<T, N> for HeaplessBigInt<T, 
 // These are also the exact entry points the DWT hardware suite calls, so the
 // workload body exists in exactly one place.
 
-/// `a.saturating_add(b)` at the operand width.
+/// `bin` shape: `(C, C) -> C`. One definition each, shared by both carriers.
 #[inline(always)]
 pub fn sat_add<C: SaturatingAdd<Output = C>>(a: C, b: C) -> C {
     SaturatingAdd::saturating_add(a, b)
+}
+#[inline(always)]
+pub fn sat_sub<C: SaturatingSub<Output = C>>(a: C, b: C) -> C {
+    SaturatingSub::saturating_sub(a, b)
+}
+#[inline(always)]
+pub fn sat_mul<C: SaturatingMul<Output = C>>(a: C, b: C) -> C {
+    SaturatingMul::saturating_mul(a, b)
+}
+#[inline(always)]
+pub fn abs_diff<C: AbsDiff<Output = C>>(a: C, b: C) -> C {
+    AbsDiff::abs_diff(a, b)
+}
+#[inline(always)]
+pub fn midpoint<C: Midpoint<Output = C>>(a: C, b: C) -> C {
+    Midpoint::midpoint(a, b)
+}
+#[inline(always)]
+pub fn bitand<C: BitAnd<Output = C>>(a: C, b: C) -> C {
+    BitAnd::bitand(a, b)
+}
+#[inline(always)]
+pub fn bitor<C: BitOr<Output = C>>(a: C, b: C) -> C {
+    BitOr::bitor(a, b)
+}
+#[inline(always)]
+pub fn bitxor<C: BitXor<Output = C>>(a: C, b: C) -> C {
+    BitXor::bitxor(a, b)
+}
+#[inline(always)]
+pub fn wrapping_add<C: WrappingAdd<Output = C>>(a: C, b: C) -> C {
+    WrappingAdd::wrapping_add(a, b)
+}
+#[inline(always)]
+pub fn wrapping_sub<C: WrappingSub<Output = C>>(a: C, b: C) -> C {
+    WrappingSub::wrapping_sub(a, b)
+}
+#[inline(always)]
+pub fn wrapping_mul<C: WrappingMul<Output = C>>(a: C, b: C) -> C {
+    WrappingMul::wrapping_mul(a, b)
+}
+/// Overflowing forms discard the flag — the fixture checks the value path's
+/// branch-freeness, and the ABI stays `bin`.
+#[inline(always)]
+pub fn overflowing_add<C: OverflowingAdd<Output = C>>(a: C, b: C) -> C {
+    OverflowingAdd::overflowing_add(a, b).0
+}
+#[inline(always)]
+pub fn overflowing_sub<C: OverflowingSub<Output = C>>(a: C, b: C) -> C {
+    OverflowingSub::overflowing_sub(a, b).0
+}
+#[inline(always)]
+pub fn overflowing_mul<C: OverflowingMul<Output = C>>(a: C, b: C) -> C {
+    OverflowingMul::overflowing_mul(a, b).0
 }
 
 /// `bin`-shape adapter: `(a, b) -> out`. Generates the `extern "C"` fixture
