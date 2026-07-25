@@ -192,7 +192,11 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // CIOS Montgomery row ops (`mul_acc_row`, `mul_acc_shift_row`). One body
     // generic over `P`, looping `j < N` over const N (the shift row's
     // `carrying_add`-based bool→word fold is branchless — no `if` on the
-    // secret carry bit). Reached by the `cios_*` fixtures.
+    // secret carry bit). Reached by the `cios_*` fixtures. Whole-symbol
+    // exemption here rests on the taint axis for the value-branch check: the
+    // `cios_*` fixtures taint scalar/carry/acc, so a re-introduced secret
+    // branch (e.g. the old `if top_hi_bit`) trips ctgrind, as the analogous
+    // `heapless::arith` carry-tail leak did in PR #180.
     r"fixed_bigint9fixeduint17cios_row_ops_impl.*mul_acc",
     // ct_checked_pow's square-and-multiply ladder iterates u32::BITS
     // times.
