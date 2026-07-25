@@ -7,7 +7,10 @@
 use core::ops::{BitAnd, BitOr, BitXor, Not};
 
 use const_num_traits::Ct;
-use const_num_traits::{CarryingAdd, Midpoint, OverflowingAdd, PrimBits, WrappingMul};
+use const_num_traits::{
+    BorrowingSub, CarryingAdd, CarryingMul, Midpoint, OverflowingAdd, OverflowingMul,
+    OverflowingSub, PrimBits, WrappingAdd, WrappingMul, WrappingSub,
+};
 use fixed_bigint::FixedUInt;
 
 use crate::{ct_fix_bin, ct_fix_count, ct_fix_un};
@@ -143,13 +146,136 @@ macro_rules! emit_carrying_add {
             core::hint::black_box(co as u8)
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_carrying_add!($name, $T, $N););
+        fbx_ctgrind_carrying_add!($name, $T, $N);
     };
 }
 emit_carrying_add!(ct_fix__C__carrying_add__u8__N16, u8, 16);
 emit_carrying_add!(ct_fix__C__carrying_add__u32__N4, u32, 4);
 emit_carrying_add!(ct_fix__C__carrying_add__u32__N16, u32, 16);
 emit_carrying_add!(ct_fix__C__carrying_add__u64__N4, u64, 4);
+
+// Borrowing sub — the CT counterpart of `carrying_add`; identical ABI
+// (a, b, borrow) → (out, borrow_out), so it reuses the carrying_add shape.
+macro_rules! emit_borrowing_sub {
+    ($name:ident, $T:ty, $N:literal) => {
+        #[no_mangle]
+        pub extern "C" fn $name(
+            a_ptr: *const [$T; $N],
+            b_ptr: *const [$T; $N],
+            borrow: bool,
+            out_ptr: *mut [$T; $N],
+        ) -> u8 {
+            let a_arr = core::hint::black_box(unsafe { *a_ptr });
+            let b_arr = core::hint::black_box(unsafe { *b_ptr });
+            let bin = core::hint::black_box(borrow);
+            let x = FixedUInt::<$T, $N, Ct>::from(a_arr);
+            let y = FixedUInt::<$T, $N, Ct>::from(b_arr);
+            let (r, bo) = BorrowingSub::borrowing_sub(x, y, bin);
+            let result = core::hint::black_box(*r.words());
+            unsafe {
+                *out_ptr = result;
+            }
+            core::hint::black_box(bo as u8)
+        }
+        #[cfg(feature = "ctgrind")]
+        fbx_ctgrind_carrying_add!($name, $T, $N);
+    };
+}
+emit_borrowing_sub!(ct_fix__C__borrowing_sub__u8__N16, u8, 16);
+emit_borrowing_sub!(ct_fix__C__borrowing_sub__u32__N4, u32, 4);
+emit_borrowing_sub!(ct_fix__C__borrowing_sub__u32__N16, u32, 16);
+emit_borrowing_sub!(ct_fix__C__borrowing_sub__u64__N4, u64, 4);
+
+// Regression-watch bins — always-CT by construction (no `P::TAG` split), but
+// pinned so a future change can't silently introduce a branch. Overflowing
+// forms discard the flag; the body's branch-freeness is what's scanned.
+macro_rules! emit_wrapping_add {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_bin!($name, $T, $N, |a, b| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            *WrappingAdd::wrapping_add(&x, &y).words()
+        });
+    };
+}
+emit_wrapping_add!(ct_fix__C__wrapping_add__u8__N16, u8, 16);
+emit_wrapping_add!(ct_fix__C__wrapping_add__u32__N4, u32, 4);
+emit_wrapping_add!(ct_fix__C__wrapping_add__u64__N4, u64, 4);
+
+macro_rules! emit_wrapping_sub {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_bin!($name, $T, $N, |a, b| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            *WrappingSub::wrapping_sub(&x, &y).words()
+        });
+    };
+}
+emit_wrapping_sub!(ct_fix__C__wrapping_sub__u8__N16, u8, 16);
+emit_wrapping_sub!(ct_fix__C__wrapping_sub__u32__N4, u32, 4);
+emit_wrapping_sub!(ct_fix__C__wrapping_sub__u64__N4, u64, 4);
+
+macro_rules! emit_overflowing_sub {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_bin!($name, $T, $N, |a, b| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            let (r, _ov) = OverflowingSub::overflowing_sub(&x, &y);
+            *r.words()
+        });
+    };
+}
+emit_overflowing_sub!(ct_fix__C__overflowing_sub__u8__N16, u8, 16);
+emit_overflowing_sub!(ct_fix__C__overflowing_sub__u32__N4, u32, 4);
+emit_overflowing_sub!(ct_fix__C__overflowing_sub__u64__N4, u64, 4);
+
+macro_rules! emit_overflowing_mul {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_bin!($name, $T, $N, |a, b| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            let (r, _ov) = OverflowingMul::overflowing_mul(&x, &y);
+            *r.words()
+        });
+    };
+}
+emit_overflowing_mul!(ct_fix__C__overflowing_mul__u8__N16, u8, 16);
+emit_overflowing_mul!(ct_fix__C__overflowing_mul__u32__N4, u32, 4);
+emit_overflowing_mul!(ct_fix__C__overflowing_mul__u64__N4, u64, 4);
+
+// Widening carrying mul — `(a, b, carry) → (lo, hi)`. Pins the full-width
+// carry-propagation tail of the schoolbook multiply *directly*, not just
+// transitively through wrapping/saturating mul. Two array outputs (lo, hi).
+macro_rules! emit_carrying_mul {
+    ($name:ident, $T:ty, $N:literal) => {
+        #[no_mangle]
+        pub extern "C" fn $name(
+            a_ptr: *const [$T; $N],
+            b_ptr: *const [$T; $N],
+            carry_ptr: *const [$T; $N],
+            lo_ptr: *mut [$T; $N],
+            hi_ptr: *mut [$T; $N],
+        ) {
+            let a = core::hint::black_box(unsafe { *a_ptr });
+            let b = core::hint::black_box(unsafe { *b_ptr });
+            let cy = core::hint::black_box(unsafe { *carry_ptr });
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            let cin = FixedUInt::<$T, $N, Ct>::from(cy);
+            let (lo, hi) = CarryingMul::carrying_mul(x, y, cin);
+            unsafe {
+                *lo_ptr = core::hint::black_box(*lo.words());
+                *hi_ptr = core::hint::black_box(*hi.words());
+            }
+        }
+        #[cfg(feature = "ctgrind")]
+        fbx_ctgrind_carrying_mul!($name, $T, $N);
+    };
+}
+emit_carrying_mul!(ct_fix__C__carrying_mul__u8__N16, u8, 16);
+emit_carrying_mul!(ct_fix__C__carrying_mul__u32__N4, u32, 4);
+emit_carrying_mul!(ct_fix__C__carrying_mul__u32__N16, u32, 16);
+emit_carrying_mul!(ct_fix__C__carrying_mul__u64__N4, u64, 4);
 
 // =============================================================================
 // Midpoint

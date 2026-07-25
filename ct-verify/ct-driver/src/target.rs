@@ -172,6 +172,7 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // Loop bound is N (compile-time constant).
     r"fixed_bigint9fixeduint16const_is_zero_ct",
     r"fixed_bigint9fixeduint15const_is_one_ct",
+    r"fixed_bigint9fixeduint11const_eq_ct",
     r"fixed_bigint9fixeduint22const_leading_zeros_ct",
     r"fixed_bigint9fixeduint23const_trailing_zeros_ct",
     // Per-limb arithmetic — N-bounded loops.
@@ -180,6 +181,23 @@ const HELPER_ALLOWLIST: &[&str] = &[
     r"fixed_bigint9fixeduint9const_mul",
     r"fixed_bigint9fixeduint8add_impl",
     r"fixed_bigint9fixeduint8sub_impl",
+    // Widening carrying multiply: schoolbook full product + the CarryingMul
+    // impl tail. Nested `i,j < N` loops over const N; `get_at`/`set_at` branch
+    // on `pos = i+j < N` / `< 2N` (public counters), inlined here. The Ct
+    // monomorph carries only the full-sweep carry tail (`while p < 2*N`) — the
+    // Nct early-exit (`while carry && …`) folds away — so no secret-dependent
+    // bound survives. Reached by the `carrying_mul` fixtures.
+    r"fixed_bigint9fixeduint23extended_precision_impl14schoolbook_mul",
+    r"fixed_bigint9fixeduint23extended_precision_impl126.*carrying_mul",
+    // CIOS Montgomery row ops (`mul_acc_row`, `mul_acc_shift_row`). One body
+    // generic over `P`, looping `j < N` over const N (the shift row's
+    // `carrying_add`-based bool→word fold is branchless — no `if` on the
+    // secret carry bit). Reached by the `cios_*` fixtures. Whole-symbol
+    // exemption here rests on the taint axis for the value-branch check: the
+    // `cios_*` fixtures taint scalar/carry/acc, so a re-introduced secret
+    // branch (e.g. the old `if top_hi_bit`) trips ctgrind, as the analogous
+    // `heapless::arith` carry-tail leak did in PR #180.
+    r"fixed_bigint9fixeduint17cios_row_ops_impl.*mul_acc",
     // ct_checked_pow's square-and-multiply ladder iterates u32::BITS
     // times.
     r"fixed_bigint9fixeduint.*ct_checked_pow",
@@ -258,6 +276,74 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // are on the shift count, which our Ct shift helpers always pass
     // as a public-bounded `1 << k` from a public iteration counter.
     r"^__(?:ashl|ashr|lshr)[dt]i3$",
+    // The shared full-width compare scan `const_cmp_ct`. MSB-to-LSB with
+    // an `undecided` lock, no early return; loop bound is the operand
+    // length (public). Backs FixedUInt's and HeaplessBigInt's Ct `Ord::cmp`.
+    r"fixed_bigint9fixeduint12const_cmp_ct",
+    // HeaplessBigInt's dedicated Ct shift barrels — the heapless twins of
+    // FixedUInt's const_shl_ct / const_shr_ct / const_sh{l,r}_impl already
+    // allowlisted above. `const_sh{l,r}_ct` loop `usize::BITS` public stages
+    // with a per-limb black_box masked select on bit `k` of the secret amount;
+    // each stage's `sh{l,r}_wp` shifts by the public `2^k`. Loop bounds are
+    // `usize::BITS` and the operand `len` (public); the secret amount only
+    // feeds `>> k & 1`. The `Ct` `<<`/`>>` operator arms route here (their
+    // `match P::TAG` folds to just this call for the Ct monomorphisation).
+    r"fixed_bigint8heapless5shift12const_shl_ct",
+    r"fixed_bigint8heapless5shift12const_shr_ct",
+    r"fixed_bigint8heapless5shift6shl_wp",
+    r"fixed_bigint8heapless5shift6shr_wp",
+    // ── HeaplessBigInt Ct helpers ──
+    //
+    // Heapless's width is a runtime `len` field, so its per-limb loops bound
+    // on `len` / `max(len)` / `CAP` — all PUBLIC shape parameters — and
+    // compile to a *register*-bounded `cmp; b.lt` rather than FixedUInt's
+    // immediate-bounded form. The source-semantic property is identical: a
+    // public-bounded loop. Each impl below was read and confirmed to branch
+    // only on those bounds (the value flows through branchless per-limb
+    // arithmetic / masked selects / xor-folds).
+    //
+    // Deliberately ABSENT: the `heapless::shift` `<<`/`>>` *operator* symbols.
+    // They are dual-use — reachable with a secret amount — so an operator
+    // symbol on its own is not attestable. The `Ct` arms instead route through
+    // the dedicated barrels `const_shl_ct`/`const_shr_ct` (allowlisted below),
+    // which take a public shift amount; the ops built on them
+    // (is/next_power_of_two, midpoint) ARE fixtured through those barrels.
+
+    // Whole heapless per-limb modules — bitwise (Not/BitAnd/Or/Xor), cmp
+    // (PartialEq/Ord/subtle ConstantTime*/ConditionallySelectable/CtIsZero),
+    // parity (CtParity), the two bit-scan modules (leading/trailing_zeros,
+    // count_ones, swap_bytes, reverse_bits — the zero scans route through the
+    // allowlisted const_*_ct helpers), and identities' Zero (is_zero) plus the
+    // out-of-line `const_is_one_ct` fold behind One's is_one. `bits.rs` holds
+    // the inherent `leading_zeros`; `cmp.rs` holds `Ord::cmp` (`limbs[..len]`
+    // slice then `const_cmp_ct`).
+    r"fixed_bigint\d*heapless(?:7bitwise|3cmp|6parity|9prim_bits|4bits)",
+    r"fixed_bigint\d*heapless10identities.*(?:Const)?Zero",
+    r"fixed_bigint\d*heapless10identities15const_is_one_ct",
+    // heapless arith. Div/Rem here are Nct-only and never reached from a Ct
+    // fixture; every helper a Ct op does reach — saturating (ct_select),
+    // carrying/borrowing, wrapping/overflowing, the CtChecked* traits, and the
+    // schoolbook multiply (`mul_slice`/CarryingMul, nested loops bounded on
+    // public a_n/b_n/out_n) — is public-bounded.
+    r"fixed_bigint\d*heapless5arith",
+    // heapless CIOS row ops (`mul_acc_row`, `mul_acc_shift_row`): per-limb
+    // loops bound on the public `multiplicand.len`, value through
+    // `carrying_mul`/`carrying_add`. The shift row folds its final carry bool
+    // to a word via `carrying_add(0, 0, bit)` — branchless, not `if bit`.
+    r"fixed_bigint\d*heapless4cios.*mul_acc",
+    // heapless construction (`from_limbs`/`all_limbs`/`limbs[..len]`) and the
+    // core adapters it pulls in — `Zip`, array `IntoIter`, `RangeTo`
+    // slice-index, array `Index`. All bounded by public array/slice lengths;
+    // no fixture ever indexes by a secret. ctgrind independently taint-checks
+    // secret-dependent access on its supported targets.
+    r"fixed_bigint\d*heapless.*HeaplessBigInt.*(?:new_zero_with_len|7widened)",
+    r"core\.\.iter\.\.adapters\.\.zip\.\.Zip",
+    r"core\.\.array\.\.iter\.\.IntoIter",
+    r"core\.\.ops\.\.range\.\.RangeTo.*slice\.\.index",
+    r"core5array\d*_\$LT\$impl.*ops\.\.index\.\.Index",
+    // subtle's primitive `<u{8,16,64} as ConstantTimeGreater>::ct_gt` reached
+    // from heapless ConstantTimeGreater (the u32 form is already above).
+    r"\$LT\$u(?:8|16|64)\$u20\$as\$u20\$subtle\.\.ConstantTimeGreater\$GT\$5ct_gt",
 ];
 
 /// Thumbv6m-specific extras layered onto `HELPER_ALLOWLIST`.
@@ -301,6 +387,14 @@ const THUMBV6M_EXTRA_HELPERS: &[&str] = &[
     // `leading_zeros` above and inherit its branches on armv6m.
     r"fixed_bigint9fixeduint17power_of_two_impl.*next_power_of_two",
     r"fixed_bigint9fixeduint.*FixedUInt.*ct_checked_next_power_of_two",
+    // HeaplessBigInt's `NextPowerOfTwo::{next,wrapping_next}_power_of_two`
+    // share the branchless `ct_next_pow2` helper, whose `leading_zeros`
+    // lowers to armv6m software CLZ — same root cause as the FixedUInt row
+    // above. With both callers present LLVM outlines `ct_next_pow2` into its
+    // own symbol (with one caller it inlined into the trait method), so both
+    // the trait-method and the free-helper symbol are attested here.
+    r"fixed_bigint8heapless12power_of_two.*NextPowerOfTwo",
+    r"fixed_bigint8heapless12power_of_two12ct_next_pow2",
     // compiler_builtins' software division — pulled in transitively
     // by the armv6m `leading_zeros` polynomial. Branchful on size.
     r"compiler_builtins3int.*specialized_div_rem",

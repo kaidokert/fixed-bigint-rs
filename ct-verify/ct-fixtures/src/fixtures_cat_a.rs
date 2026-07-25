@@ -11,7 +11,44 @@ use const_num_traits::{
 };
 use fixed_bigint::FixedUInt;
 
-use crate::{ct_fix_bin, ct_fix_count, ct_fix_pred, ct_fix_shift, ct_fix_un};
+use crate::{ct_fix_bin, ct_fix_count, ct_fix_pred, ct_fix_pred2, ct_fix_shift, ct_fix_un};
+
+// =============================================================================
+// Ord::cmp — `match P::TAG` Ct arm through `const_cmp_ct` (the MSB-to-LSB
+// masked scan). Fold the Ordering to u8 (Less=255, Equal=0, Greater=1).
+// =============================================================================
+
+macro_rules! emit_cmp {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_pred2!($name, $T, $N, |a, b| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            (x.cmp(&y) as i8) as u8
+        });
+    };
+}
+emit_cmp!(ct_fix__A__cmp__u8__N16, u8, 16);
+emit_cmp!(ct_fix__A__cmp__u16__N16, u16, 16);
+emit_cmp!(ct_fix__A__cmp__u32__N4, u32, 4);
+emit_cmp!(ct_fix__A__cmp__u32__N16, u32, 16);
+emit_cmp!(ct_fix__A__cmp__u64__N4, u64, 4);
+
+// PartialEq::eq — the `==` operator's own branchless Ct arm (XOR-fold), a
+// distinct code path from the `subtle::ct_eq` fixtured in category B.
+macro_rules! emit_eq {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_pred2!($name, $T, $N, |a, b| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            let y = FixedUInt::<$T, $N, Ct>::from(b);
+            (x == y) as u8
+        });
+    };
+}
+emit_eq!(ct_fix__A__eq__u8__N16, u8, 16);
+emit_eq!(ct_fix__A__eq__u16__N16, u16, 16);
+emit_eq!(ct_fix__A__eq__u32__N4, u32, 4);
+emit_eq!(ct_fix__A__eq__u32__N16, u32, 16);
+emit_eq!(ct_fix__A__eq__u64__N4, u64, 4);
 
 // =============================================================================
 // SaturatingAdd / Sub / Mul
@@ -98,6 +135,39 @@ emit_shr_usize!(ct_fix__A__shr_usize__u16__N16, u16, 16);
 emit_shr_usize!(ct_fix__A__shr_usize__u32__N4, u32, 4);
 emit_shr_usize!(ct_fix__A__shr_usize__u32__N16, u32, 16);
 emit_shr_usize!(ct_fix__A__shr_usize__u64__N4, u64, 4);
+
+// `<<=` / `>>=` — the assign forms have their own P::TAG dispatch (distinct
+// impls from the by-value operators), routing the Ct arm through the same
+// const_shl_ct/const_shr_ct barrels.
+macro_rules! emit_shl_assign {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, usize, |a, n| {
+            let mut x = FixedUInt::<$T, $N, Ct>::from(a);
+            x <<= n;
+            *x.words()
+        });
+    };
+}
+emit_shl_assign!(ct_fix__A__shl_assign__u8__N16, u8, 16);
+emit_shl_assign!(ct_fix__A__shl_assign__u16__N16, u16, 16);
+emit_shl_assign!(ct_fix__A__shl_assign__u32__N4, u32, 4);
+emit_shl_assign!(ct_fix__A__shl_assign__u32__N16, u32, 16);
+emit_shl_assign!(ct_fix__A__shl_assign__u64__N4, u64, 4);
+
+macro_rules! emit_shr_assign {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_shift!($name, $T, $N, usize, |a, n| {
+            let mut x = FixedUInt::<$T, $N, Ct>::from(a);
+            x >>= n;
+            *x.words()
+        });
+    };
+}
+emit_shr_assign!(ct_fix__A__shr_assign__u8__N16, u8, 16);
+emit_shr_assign!(ct_fix__A__shr_assign__u16__N16, u16, 16);
+emit_shr_assign!(ct_fix__A__shr_assign__u32__N4, u32, 4);
+emit_shr_assign!(ct_fix__A__shr_assign__u32__N16, u32, 16);
+emit_shr_assign!(ct_fix__A__shr_assign__u64__N4, u64, 4);
 
 // =============================================================================
 // UnboundedShl::unbounded_shl / UnboundedShr::unbounded_shr
@@ -189,6 +259,23 @@ emit_next_pow2!(ct_fix__A__next_pow2__u16__N16, u16, 16);
 emit_next_pow2!(ct_fix__A__next_pow2__u32__N4, u32, 4);
 emit_next_pow2!(ct_fix__A__next_pow2__u32__N16, u32, 16);
 emit_next_pow2!(ct_fix__A__next_pow2__u64__N4, u64, 4);
+
+// NextPowerOfTwo::wrapping_next_power_of_two — distinct Ct arm from
+// next_power_of_two: same branchless body but selects ZERO on overflow
+// (not MAX) via its own const_ct_select chain.
+macro_rules! emit_wrapping_next_pow2 {
+    ($name:ident, $T:ty, $N:literal) => {
+        ct_fix_un!($name, $T, $N, |a| {
+            let x = FixedUInt::<$T, $N, Ct>::from(a);
+            *NextPowerOfTwo::wrapping_next_power_of_two(x).words()
+        });
+    };
+}
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u8__N16, u8, 16);
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u16__N16, u16, 16);
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u32__N4, u32, 4);
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u32__N16, u32, 16);
+emit_wrapping_next_pow2!(ct_fix__A__wrapping_next_pow2__u64__N4, u64, 4);
 
 // =============================================================================
 // PrimBits::leading_zeros / trailing_zeros

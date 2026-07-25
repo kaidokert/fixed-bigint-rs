@@ -1057,12 +1057,32 @@ where
                 cin = c;
                 i += 1;
             }
+            // Propagate the fold carry into the hi half. `Nct` may stop the
+            // moment the carry dies; `Ct` must sweep the full width so timing
+            // is independent of where — or whether — the carry chain
+            // terminates (a secret-dependent bound here leaks the operands,
+            // which the taint gate catches). A `false` carry-in makes each
+            // step a constant-time no-op.
             let mut i = 0;
-            while cin && i < w {
-                let (sum, c) = <T as CarryingAdd>::carrying_add(hi_limbs[i], zero::<T>(), true);
-                hi_limbs[i] = sum;
-                cin = c;
-                i += 1;
+            match P::TAG {
+                PersonalityTag::Nct => {
+                    while cin && i < w {
+                        let (sum, c) =
+                            <T as CarryingAdd>::carrying_add(hi_limbs[i], zero::<T>(), true);
+                        hi_limbs[i] = sum;
+                        cin = c;
+                        i += 1;
+                    }
+                }
+                PersonalityTag::Ct => {
+                    while i < w {
+                        let (sum, c) =
+                            <T as CarryingAdd>::carrying_add(hi_limbs[i], zero::<T>(), cin);
+                        hi_limbs[i] = sum;
+                        cin = c;
+                        i += 1;
+                    }
+                }
             }
         }
 

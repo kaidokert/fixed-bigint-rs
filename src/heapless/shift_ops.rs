@@ -16,7 +16,8 @@ use super::HeaplessBigInt;
 use crate::MachineWord;
 use const_num_traits::{
     CheckedShl, CheckedShr, FunnelShl, FunnelShr, OverflowingShl, OverflowingShr, Personality,
-    PrimBits, ShlExact, ShrExact, UnboundedShl, UnboundedShr, WrappingShl, WrappingShr,
+    PersonalityTag, PrimBits, ShlExact, ShrExact, UnboundedShl, UnboundedShr, WrappingShl,
+    WrappingShr,
 };
 
 impl<T: MachineWord, const CAP: usize, P: Personality> HeaplessBigInt<T, CAP, P> {
@@ -97,10 +98,17 @@ impl<T: MachineWord, const CAP: usize, P: Personality> CheckedShr for HeaplessBi
 impl<T: MachineWord, const CAP: usize, P: Personality> UnboundedShl for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
     fn unbounded_shl(self, rhs: u32) -> Self {
-        if rhs >= self.value_bits() {
-            Self::new_zero_with_len(self.len())
-        } else {
-            self << (rhs as usize)
+        match P::TAG {
+            // Ct: the over-width guard would branch on the (secret) amount;
+            // the Ct `<<` barrel already collapses over-width shifts to zero.
+            PersonalityTag::Ct => self << (rhs as usize),
+            PersonalityTag::Nct => {
+                if rhs >= self.value_bits() {
+                    Self::new_zero_with_len(self.len())
+                } else {
+                    self << (rhs as usize)
+                }
+            }
         }
     }
 }
@@ -108,10 +116,15 @@ impl<T: MachineWord, const CAP: usize, P: Personality> UnboundedShl for Heapless
 impl<T: MachineWord, const CAP: usize, P: Personality> UnboundedShr for HeaplessBigInt<T, CAP, P> {
     type Output = Self;
     fn unbounded_shr(self, rhs: u32) -> Self {
-        if rhs >= self.value_bits() {
-            Self::new_zero_with_len(self.len())
-        } else {
-            self >> (rhs as usize)
+        match P::TAG {
+            PersonalityTag::Ct => self >> (rhs as usize),
+            PersonalityTag::Nct => {
+                if rhs >= self.value_bits() {
+                    Self::new_zero_with_len(self.len())
+                } else {
+                    self >> (rhs as usize)
+                }
+            }
         }
     }
 }

@@ -90,17 +90,31 @@ impl<T: MachineWord, const CAP: usize, P: Personality> One for HeaplessBigInt<T,
                 }
                 true
             }
-            PersonalityTag::Ct => {
-                let mut acc = self.limbs[0] ^ <T as ConstOne>::ONE;
-                let mut i = 1;
-                while i < n {
-                    acc |= self.limbs[i];
-                    i += 1;
-                }
-                super::is_zero(&acc)
-            }
+            PersonalityTag::Ct => const_is_one_ct(&self.limbs, n),
         }
     }
+}
+
+/// CT fold for [`One::is_one`]: `(limbs[0] ^ 1) | limbs[1] | … | limbs[n-1]`,
+/// zero iff the value is the canonical one. Timing depends only on the public
+/// `len` (`n`), never on where the value first diverges from one. Caller
+/// guarantees `n >= 1`.
+///
+/// `#[inline(never)]` so the fold's `len`-bounded loop lands in one attestable
+/// helper symbol; inlined into its lone fixture caller, the runtime-`len` loop
+/// would read as an un-attestable branch to the CT gate.
+#[inline(never)]
+pub(crate) fn const_is_one_ct<T: MachineWord, const CAP: usize>(
+    limbs: &[T; CAP],
+    n: usize,
+) -> bool {
+    let mut acc = limbs[0] ^ <T as ConstOne>::ONE;
+    let mut i = 1;
+    while i < n {
+        acc |= limbs[i];
+        i += 1;
+    }
+    super::is_zero(&acc)
 }
 
 impl<T: MachineWord, const CAP: usize, P: Personality> Default for HeaplessBigInt<T, CAP, P> {
@@ -145,6 +159,25 @@ impl<T: MachineWord, const CAP: usize, P: Personality> ConstZero for HeaplessBig
 
 impl<T: MachineWord, const CAP: usize, P: Personality> ConstOne for HeaplessBigInt<T, CAP, P> {
     const ONE: Self = Self::const_one();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use const_num_traits::Ct;
+
+    type Hc = HeaplessBigInt<u8, 4, Ct>;
+
+    // `One::is_one` on the `Ct` carrier folds through `const_is_one_ct` with no
+    // early return; it must still match the predicate exactly, including the
+    // `len == 0` (zero) guard and a `1` that sits in a higher limb.
+    #[test]
+    fn ct_is_one() {
+        assert!(<Hc as One>::is_one(&<Hc as One>::one()));
+        assert!(!<Hc as One>::is_one(&<Hc as Zero>::zero()));
+        assert!(!<Hc as One>::is_one(&Hc::from_limbs([2, 0, 0, 0], 1)));
+        assert!(!<Hc as One>::is_one(&Hc::from_limbs([0, 1, 0, 0], 2)));
+    }
 }
 
 // ── const_num_traits::Bounded ──

@@ -23,11 +23,21 @@
 #![allow(non_snake_case)]
 #![cfg_attr(not(test), allow(unused_imports))]
 
+// ct-fixtures owns its own fixture ABI, so the per-shape ctgrind adapters
+// (built on caliper's generic `ctgrind_fixture!`) live here, not in the harness.
+#[cfg(feature = "ctgrind")]
+#[macro_use]
+mod ctgrind_shapes;
+
 mod fixtures_asym;
 mod fixtures_cat_a;
 mod fixtures_cat_b;
 mod fixtures_cat_c;
+#[cfg(feature = "cios")]
+mod fixtures_cios;
 mod fixtures_ct_traits;
+#[cfg(feature = "heapless")]
+mod fixtures_heapless;
 mod fixtures_neg;
 
 /// No-op Rust-visible anchor. Host-side consumers (ct-ctgrind) call this
@@ -73,7 +83,7 @@ macro_rules! ct_fix_bin {
             }
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_bin!($name, $T, $N););
+        fbx_ctgrind_bin!($name, $T, $N);
     };
 }
 
@@ -95,7 +105,7 @@ macro_rules! ct_fix_un {
             }
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_un!($name, $T, $N););
+        fbx_ctgrind_un!($name, $T, $N);
     };
 }
 
@@ -114,7 +124,7 @@ macro_rules! ct_fix_pred {
             core::hint::black_box(result)
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_pred!($name, $T, $N););
+        fbx_ctgrind_pred!($name, $T, $N);
     };
 }
 
@@ -130,7 +140,7 @@ macro_rules! ct_fix_pred2 {
             core::hint::black_box(result)
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_pred2!($name, $T, $N););
+        fbx_ctgrind_pred2!($name, $T, $N);
     };
 }
 
@@ -148,7 +158,7 @@ macro_rules! ct_fix_count {
             core::hint::black_box(result)
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_count!($name, $T, $N););
+        fbx_ctgrind_count!($name, $T, $N);
     };
 }
 
@@ -171,7 +181,7 @@ macro_rules! ct_fix_shift {
             }
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_shift!($name, $T, $N, $NT););
+        fbx_ctgrind_shift!($name, $T, $N, $NT);
     };
 }
 
@@ -200,7 +210,7 @@ macro_rules! ct_fix_checked_bin {
             valid
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_checked_bin!($name, $T, $N););
+        fbx_ctgrind_checked_bin!($name, $T, $N);
     };
 }
 
@@ -224,7 +234,7 @@ macro_rules! ct_fix_checked_scalar {
             valid
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_checked_scalar!($name, $T, $N, $ST););
+        fbx_ctgrind_checked_scalar!($name, $T, $N, $ST);
     };
 }
 
@@ -246,6 +256,6 @@ macro_rules! ct_fix_checked_un {
             valid
         }
         #[cfg(feature = "ctgrind")]
-        krabi_caliper::ctgrind_local!($name, krabi_caliper::ctgrind_checked_un!($name, $T, $N););
+        fbx_ctgrind_checked_un!($name, $T, $N);
     };
 }
