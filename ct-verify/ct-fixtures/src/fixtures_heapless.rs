@@ -211,14 +211,11 @@ emit_h_midpoint!(ct_fix__HC__midpoint__u64__N4, u64, 4);
 // =============================================================================
 
 // SaturatingAdd / Sub / Mul
+// Migrated to the workload catalog: same `catalog::sat_add` op body as the
+// FixedUInt `A` fixture — one definition, both carriers.
 macro_rules! emit_h_sat_add {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = HeaplessBigInt::<$T, $N, Ct>::from_limbs(a, $N as u16);
-            let y = HeaplessBigInt::<$T, $N, Ct>::from_limbs(b, $N as u16);
-            let r = SaturatingAdd::saturating_add(x, y);
-            *r.all_limbs()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::sat_add, HeaplessBigInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_h_sat_add!(ct_fix__HA__sat_add__u8__N16, u8, 16);

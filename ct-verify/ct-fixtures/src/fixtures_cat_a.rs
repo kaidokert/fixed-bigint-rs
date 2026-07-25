@@ -54,14 +54,11 @@ emit_eq!(ct_fix__A__eq__u64__N4, u64, 4);
 // SaturatingAdd / Sub / Mul
 // =============================================================================
 
+// Migrated to the workload catalog: the op body (`catalog::sat_add`) is shared
+// with the Heapless `HA` fixture and, later, the DWT hardware suite.
 macro_rules! emit_sat_add {
     ($name:ident, $T:ty, $N:literal) => {
-        ct_fix_bin!($name, $T, $N, |a, b| {
-            let x = FixedUInt::<$T, $N, Ct>::from(a);
-            let y = FixedUInt::<$T, $N, Ct>::from(b);
-            let r = SaturatingAdd::saturating_add(x, y);
-            *r.words()
-        });
+        crate::emit_wl_bin!($name, crate::catalog::sat_add, FixedUInt<$T, $N, Ct>, $T, $N);
     };
 }
 emit_sat_add!(ct_fix__A__sat_add__u8__N16, u8, 16);

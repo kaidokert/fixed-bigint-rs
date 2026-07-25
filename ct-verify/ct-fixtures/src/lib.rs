@@ -29,6 +29,10 @@
 #[macro_use]
 mod ctgrind_shapes;
 
+// Client-owned workload catalog: each op declared once, carrier-generic, with
+// the backend adapters (extern-C here, ctgrind, DWT hardware) driving it.
+pub mod catalog;
+
 mod fixtures_asym;
 mod fixtures_cat_a;
 mod fixtures_cat_b;
