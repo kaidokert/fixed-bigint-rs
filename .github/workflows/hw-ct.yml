@@ -44,6 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="/usr/local/cargo/bin:$HOME/.cargo/bin:$PATH"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
           # 1. provider — load the rig's physical facts (KRABI_*) so the campaign
           #    can expand ${KRABI_PROBE}. The serial lives only in this mounted
