@@ -4,9 +4,11 @@
 name: hw-ct
 
 on:
-  workflow_dispatch:        # hardware runs are slow + serialized; trigger by hand
+  push:
+    branches: [main]
+  pull_request:
 
-concurrency:                # don't let two dispatches of this repo queue on the rig
+concurrency:
   group: hw-ct-${{ github.repository }}
   cancel-in-progress: false
 
