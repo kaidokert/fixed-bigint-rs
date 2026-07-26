@@ -29,7 +29,7 @@ cargo run --release --features carrier-u8x32
 ```
 
 RTT output uses `krabi-caliper` schema version 1. It emits an `EM_BEGIN`
-record with qualified target and 16 MHz counter metadata, every individual A/B
+record with qualified target and 30 MHz counter metadata, every individual A/B
 sample as `EM_SAMPLE`, each policy decision as `EM_RESULT`, and a final
 `EM_SUMMARY`. It also mirrors the legacy `CT_BEGIN`, `CT_RESULT`, and
 `CT_SUMMARY` records for consumers still on that schema. The reporter uses a
