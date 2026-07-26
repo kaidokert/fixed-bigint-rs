@@ -1,72 +1,17 @@
-# .github/workflows/hw-ct.yml
-# Hardware constant-time measurement on a bench rig (probe-rs + krabi-caliper).
-# GENERIC across repos — only the two strings marked "CHANGE" differ per repo.
 name: hw-ct
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'feature/**'
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  cyccnt:
-    # CHANGE 1 — the rig-type label. Routes the job to any bench whose runner
-    # advertises this rig; the runner must be registered with this label.
-    runs-on: [self-hosted, rig-stm32f407-dwt]
-
-    # The job only reads the repo; the rig image runs repo build scripts, so keep
-    # the token least-privilege and don't leave it persisted in the checkout.
-    permissions:
-      contents: read
-
-    # Dedicated hardware image from the bench's local registry. --privileged plus
-    # the /dev/bus/usb mount give probe access; /run/lock is the HOST's, so the
-    # flock below serializes across every container that can touch this rig; the
-    # rig .env (the only place a probe serial lives) is mounted read-only.
-    container:
-      image: 127.0.0.1:5000/pi-hw-runner:latest
-      options: --privileged
-      volumes:
-        - /dev/bus/usb:/dev/bus/usb
-        - /run/lock:/run/lock
-        - /srv/krabi-caliper/rigs:/rigs:ro
-
-    env:
-      RIG: stm32f407-dwt                   # CHANGE 1 again (same value, without "rig-")
-      CAMPAIGN: fixed-bigint-jtrace-f407   # CHANGE 2 — campaign key in this repo's krabi-caliper.toml
-      KRABI_RIG_DIR: /rigs                 # where the rig .env is mounted (leave as-is)
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: krabi-caliper on the rig
-        shell: bash
-        working-directory: ct-verify/cyccnt-hardware
-        run: |
-          set -euo pipefail
-          export PATH="/usr/local/cargo/bin:$HOME/.cargo/bin:$PATH"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-          # 1. provider — load the rig's physical facts (KRABI_*) so the campaign
-          #    can expand ${KRABI_PROBE}. The serial lives only in this mounted
-          #    .env, never in the repo.
-          env_file="${KRABI_RIG_DIR:-$HOME/.config/krabi-caliper/rigs}/$RIG.env"
-          [ -f "$env_file" ] || { echo "::error::rig '$RIG' has no env on this bench ($env_file)"; exit 1; }
-          set -a; source "$env_file"; set +a
-          : "${KRABI_PROBE:?rig $RIG did not export KRABI_PROBE}"
-          echo "bench=${KRABI_BENCH:-?} rig=${KRABI_RIG:-?} probe=$KRABI_PROBE"
-
-          # 2. hardware lock — host-local, per rig. Every repo/container that can
-          #    touch this rig blocks here instead of racing for the USB probe.
-          exec 9>"/run/lock/krabi-rig-$RIG"
-          flock -w 1800 9
-
-          # 3. liveness — the declared probe must actually be attached to this
-          #    bench, else fail before flashing (declared != attached).
-          probe-rs list | grep -qF "$KRABI_PROBE" \
-            || { echo "::error::probe $KRABI_PROBE not attached to ${KRABI_BENCH:-this bench}"; exit 1; }
-
-          # 4. run — ${KRABI_PROBE} in the campaign args resolves from the live env.
-          cargo krabi-caliper run "$CAMPAIGN"
+  hardware:
+    uses: ./.github/workflows/reusable-hw-ct.yml
+    with:
+      campaigns-json: '["fixed-bigint-jtrace-f407"]'
+      working-directory: ct-verify/cyccnt-hardware
+      prepared: true
