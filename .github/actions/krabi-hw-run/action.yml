@@ -52,6 +52,10 @@ runs:
         export PATH="/usr/local/cargo/bin:$HOME/.cargo/bin:$PATH"
         git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+        [[ "$KRABI_ACTION_CALIPER_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || {
+          echo "::error::invalid krabi-caliper version: $KRABI_ACTION_CALIPER_VERSION"
+          exit 1
+        }
         expected="krabi-caliper v${KRABI_ACTION_CALIPER_VERSION}:"
         cargo install --list | grep -Fx "$expected" >/dev/null || {
           echo "::error::runner does not provide $expected"

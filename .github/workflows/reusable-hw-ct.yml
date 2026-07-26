@@ -45,7 +45,7 @@ on:
       timeout-minutes:
         description: Overall hardware-job timeout
         required: false
-        default: 30
+        default: 60
         type: number
       lock-timeout-seconds:
         description: Maximum wait for the host-local rig lock
@@ -99,10 +99,16 @@ jobs:
 
       - name: Install krabi-caliper CLI
         if: steps.caliper-cli-cache.outputs.cache-hit != 'true'
+        env:
+          CALIPER_VERSION: ${{ inputs.caliper-version }}
         run: |
+          [[ "$CALIPER_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || {
+            echo "::error::invalid krabi-caliper version: $CALIPER_VERSION"
+            exit 1
+          }
           cargo install \
             krabi-caliper \
-            --version "=${{ inputs.caliper-version }}" \
+            --version "=$CALIPER_VERSION" \
             --locked \
             --features cli,campaign
 
