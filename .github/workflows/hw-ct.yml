@@ -10,8 +10,9 @@ on:
 
 jobs:
   hardware:
-    uses: ./.github/workflows/reusable-hw-ct.yml
+    uses: kaidokert/krabi-caliper-rs/.github/workflows/hw-ct.yml@hw-ct-v1
     with:
+      invocation-name: fixed-bigint
       campaigns-json: '["fixed-bigint-jtrace-f407"]'
       working-directory: ct-verify/cyccnt-hardware
       prepared: true
