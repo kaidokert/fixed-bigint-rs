@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.86"
+          toolchain: "1.88"
           targets: ${{ matrix.triple }}
           components: llvm-tools-preview
       - name: Install krabi-caliper
@@ -46,34 +46,33 @@ jobs:
         include:
           # Priority 1: Cortex-M3/M4
           - triple: thumbv7em-none-eabi
-            toolchain: "1.86"
+            toolchain: "1.88"
           - triple: thumbv7m-none-eabi
-            toolchain: "1.86"
+            toolchain: "1.88"
           # Priority 2: Cortex-M0
           - triple: thumbv6m-none-eabi
-            toolchain: "1.86"
+            toolchain: "1.88"
           # Priority 3: 32-bit RISC-V
           - triple: riscv32imc-unknown-none-elf
-            toolchain: "1.86"
+            toolchain: "1.88"
           - triple: riscv32imac-unknown-none-elf
-            toolchain: "1.86"
+            toolchain: "1.88"
           # Priority 5: aarch64
           - triple: aarch64-unknown-linux-gnu
-            toolchain: "1.86"
+            toolchain: "1.88"
           # Priority 6: x86_64. +lzcnt,+bmi1 mirrors ct-ctgrind.yml:
           # baseline-x86_64 lowers `u32::leading_zeros()` to
           # `test/je/bsr` (bsr undefined on zero, hence the `je`), a
           # real data-dependent branch in the std intrinsic. BMI1 is
           # on Haswell+ (2013) and every GitHub Actions x86_64 runner.
           - triple: x86_64-unknown-linux-gnu
-            toolchain: "1.86"
+            toolchain: "1.88"
             extra_rustflags: "-C target-feature=+lzcnt,+bmi1"
           # Priority 4: AVR (nightly-only, needs build-std + target-cpu).
-          # Bare `nightly` because rust-std for avr-none isn't published
-          # on every nightly date — a pinned date risks the AVR job
-          # failing at component install rather than at verification.
+          # Pinned nightly; see #197. Must match the avr toolchain in
+          # ct-driver's target.rs.
           - triple: avr-none
-            toolchain: nightly
+            toolchain: nightly-2026-08-05
             extra_components: rust-src
             extra_rustflags: "-C target-cpu=atmega328p"
     runs-on: ubuntu-latest

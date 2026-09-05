@@ -2,7 +2,7 @@
 name = "ct-workload"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.86"
+rust-version.workspace = true
 publish = false
 description = "Carrier-generic Ct workload ops shared by the CT-verify fixtures and the DWT hardware suite."
 

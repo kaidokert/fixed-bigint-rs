@@ -28,6 +28,11 @@ default-members = [
 ]
 resolver = "2"
 
+# Single source of truth for the MSRV — members inherit via
+# `rust-version.workspace = true`. Bump it here, not per-crate.
+[workspace.package]
+rust-version = "1.88"
+
 # Pinned release profile: deterministic codegen so a passing PR locks
 # the inspection output.
 [profile.release]
@@ -46,7 +51,7 @@ version = "0.6.1"
 authors = ["kaidokert <kaidokert@gmail.com>"]
 documentation = "https://docs.rs/fixed-bigint"
 edition = "2024"
-rust-version = "1.86"
+rust-version.workspace = true
 description = """
 Fixed-size big integer implementation for Rust
 """
