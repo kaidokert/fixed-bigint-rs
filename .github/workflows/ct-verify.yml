@@ -69,11 +69,14 @@ jobs:
             toolchain: "1.88"
             extra_rustflags: "-C target-feature=+lzcnt,+bmi1"
           # Priority 4: AVR (nightly-only, needs build-std + target-cpu).
-          # Bare `nightly` because rust-std for avr-none isn't published
-          # on every nightly date — a pinned date risks the AVR job
-          # failing at component install rather than at verification.
+          # Pinned to the last LLVM-22 nightly: LLVM 23 (nightly-2026-08-06+,
+          # rust-lang/rust #158734) regressed the AVR backend to lower our
+          # branch-free constant-time selects/compares — and subtle's — as
+          # conditional branches, tripping the gate. rust-src + llvm-tools are
+          # published for this date so build-std still works. Must match the avr
+          # `toolchain` in ct-driver's target.rs. Bump when fixed upstream.
           - triple: avr-none
-            toolchain: nightly
+            toolchain: nightly-2026-08-05
             extra_components: rust-src
             extra_rustflags: "-C target-cpu=atmega328p"
     runs-on: ubuntu-latest
