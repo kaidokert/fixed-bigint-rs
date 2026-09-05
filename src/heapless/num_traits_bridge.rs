@@ -92,10 +92,9 @@ impl<T: MachineWord, const CAP: usize, P: Personality> num_traits::FromPrimitive
         // a u64 the carrier is >= 64 bits wide, so every u64 fits.
         if let Some(max) =
             num_traits::ToPrimitive::to_u64(&<Self as num_traits::Bounded>::max_value())
+            && input > max
         {
-            if input > max {
-                return None;
-            }
+            return None;
         }
         // Construct at natural width: trim trailing zero bytes so a small
         // value in a small-`CAP` carrier stays in bounds. (Unlike `From`,

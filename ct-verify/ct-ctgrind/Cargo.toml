@@ -2,7 +2,7 @@
 name = "ct-ctgrind"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.86"
+rust-version.workspace = true
 publish = false
 description = "Valgrind taint-based CT verifier for fixed-bigint primitives."
 
