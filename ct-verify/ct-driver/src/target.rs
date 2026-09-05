@@ -80,8 +80,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "avr-none",
         priority: 4,
-        // Pinned to the last LLVM-22 nightly; LLVM 23 regressed AVR codegen and
-        // trips this gate. See #197. Keep in sync with ct-verify.yml's avr row.
+        // Pinned nightly; see #197. Keep in sync with ct-verify.yml's avr row.
         toolchain: "nightly-2026-08-05",
         forbidden: mnemonics::AVR_FORBIDDEN,
         allowed_cmov: &[],
