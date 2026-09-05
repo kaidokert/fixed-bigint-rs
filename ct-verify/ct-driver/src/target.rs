@@ -80,12 +80,8 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "avr-none",
         priority: 4,
-        // Pinned to the last LLVM-22 nightly. LLVM 23 (rustc nightly-2026-08-06+,
-        // via rust-lang/rust #158734) regressed the AVR backend to lower
-        // branch-free constant-time selects/compares — ours and subtle's
-        // ct_eq/ct_gt/conditional_select — as conditional branches, which trips
-        // this gate (109 helper violations, none of them real leaks). Bump once
-        // the AVR backend is fixed upstream.
+        // Pinned to the last LLVM-22 nightly; LLVM 23 regressed AVR codegen and
+        // trips this gate. See #197. Keep in sync with ct-verify.yml's avr row.
         toolchain: "nightly-2026-08-05",
         forbidden: mnemonics::AVR_FORBIDDEN,
         allowed_cmov: &[],
