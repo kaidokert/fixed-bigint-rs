@@ -4,13 +4,17 @@
 use krabi_caliper::host::ct_asm::WholeSurfaceTarget as TargetSpec;
 use krabi_caliper::host::isa as mnemonics;
 
+/// MSRV toolchain the stable targets cross-build with — the workspace
+/// `rust-version`. avr pins `"nightly"` (needs `build-std`), so it opts out.
+const MSRV: &str = "1.88";
+
 /// All targets we know how to verify, in priority order.
 pub const TARGETS: &[TargetSpec] = &[
     // Priority 1: Cortex-M3/M4
     TargetSpec {
         triple: "thumbv7em-none-eabi",
         priority: 1,
-        toolchain: "1.88",
+        toolchain: MSRV,
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: true,
@@ -22,7 +26,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "thumbv7m-none-eabi",
         priority: 1,
-        toolchain: "1.88",
+        toolchain: MSRV,
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: true,
@@ -35,7 +39,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "thumbv6m-none-eabi",
         priority: 2,
-        toolchain: "1.88",
+        toolchain: MSRV,
         forbidden: mnemonics::THUMB_FORBIDDEN,
         allowed_cmov: mnemonics::THUMB_ALLOWED,
         thumb_it_blocks: false, // armv6m has no IT; no allowlist needed
@@ -48,7 +52,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "riscv32imc-unknown-none-elf",
         priority: 3,
-        toolchain: "1.88",
+        toolchain: MSRV,
         forbidden: mnemonics::RISCV_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
@@ -60,7 +64,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "riscv32imac-unknown-none-elf",
         priority: 3,
-        toolchain: "1.88",
+        toolchain: MSRV,
         forbidden: mnemonics::RISCV_FORBIDDEN,
         allowed_cmov: &[],
         thumb_it_blocks: false,
@@ -89,7 +93,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "aarch64-unknown-linux-gnu",
         priority: 5,
-        toolchain: "1.88",
+        toolchain: MSRV,
         forbidden: mnemonics::AARCH64_FORBIDDEN,
         allowed_cmov: mnemonics::AARCH64_ALLOWED,
         thumb_it_blocks: false,
@@ -102,7 +106,7 @@ pub const TARGETS: &[TargetSpec] = &[
     TargetSpec {
         triple: "x86_64-unknown-linux-gnu",
         priority: 6,
-        toolchain: "1.88",
+        toolchain: MSRV,
         forbidden: mnemonics::X86_64_FORBIDDEN,
         allowed_cmov: mnemonics::X86_64_ALLOWED,
         thumb_it_blocks: false,

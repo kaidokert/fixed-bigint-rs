@@ -2,7 +2,7 @@
 name = "panic-free-audit"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.88"
+rust-version.workspace = true
 publish = false
 description = "Linker-DCE audit: confirm `FixedUInt::*_bytes_fixed` synthesises no panic symbols."
 
