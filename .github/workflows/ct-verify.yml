@@ -69,8 +69,8 @@ jobs:
             toolchain: "1.88"
             extra_rustflags: "-C target-feature=+lzcnt,+bmi1"
           # Priority 4: AVR (nightly-only, needs build-std + target-cpu).
-          # Pinned nightly; see #197.
-          # Must match the avr toolchain in ct-driver's target.rs.
+          # Pinned nightly; see #197. Must match the avr toolchain in
+          # ct-driver's target.rs.
           - triple: avr-none
             toolchain: nightly-2026-08-05
             extra_components: rust-src
