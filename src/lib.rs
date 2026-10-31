@@ -60,6 +60,19 @@
 //! driver), not `/` / `%`. Every operator not in the omitted rows has one body
 //! shared by both personalities.
 //!
+//! `Ct` bodies are written branch-free, but the guarantee is only as good as
+//! the backend's lowering. Targets without a conditional-select instruction
+//! turn some comparisons and carries back into branches, so these
+//! combinations are not covered:
+//!
+//! | target | not covered |
+//! |---|---|
+//! | Cortex-M0/M0+ (`thumbv6m`) | any limb: subtraction and borrow, comparison, `abs_diff`, leading/trailing zeros, power-of-two ops, overflowing shifts, `subtle` equality |
+//! | 32-bit RISC-V without Zicond | `u64` limbs (`u32` limbs are covered) |
+//! | AVR | `u64` limbs; any limb: equality and zero tests, addition and subtraction carries, comparison, saturating ops, `abs_diff`, `midpoint`, power-of-two ops |
+//!
+//! Everything else is checked in CI at opt-levels `"s"` and `"z"`.
+//!
 //! Basic usage:
 //! ```
 //! use fixed_bigint::FixedUInt;

@@ -1296,10 +1296,13 @@ c0nst::c0nst! {
             let here_nz_mask = core::hint::black_box(((here != 0) as u8).wrapping_neg());
             decided |= here_nz_mask;
         }
-        match result {
-            2 => core::cmp::Ordering::Greater,
-            1 => core::cmp::Ordering::Less,
-            _ => core::cmp::Ordering::Equal,
+        // Decoding `gt - lt` (in -1..=1, default arm on 1) folds to selects;
+        // matching on `result` directly lowers to a branch on targets
+        // without a conditional select (riscv32).
+        match ((result >> 1) & 1) as i8 - (result & 1) as i8 {
+            -1 => core::cmp::Ordering::Less,
+            0 => core::cmp::Ordering::Equal,
+            _ => core::cmp::Ordering::Greater,
         }
     }
 

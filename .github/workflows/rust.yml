@@ -6,6 +6,8 @@ on:
       - main
       - 'feature/**'
   pull_request:
+  schedule:
+    - cron: "23 4 * * 1"
 
 env:
   CARGO_TERM_COLOR: always

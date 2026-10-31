@@ -116,3 +116,6 @@ cios = ["dep:modmath-cios"]
 num-traits = ["dep:num-traits", "dep:num-integer"]
 zeroize = ["dep:zeroize"]
 default = ["num-traits"]
+
+[patch.crates-io]
+krabi-caliper = { git = "https://github.com/kaidokert/krabi-caliper-rs", tag = "v0.2.0-alpha.1" }

@@ -17,7 +17,11 @@
 //!   - `nct_gcd`: Stein's algorithm — magnitude-comparing branches
 //!     plus secret-dependent shift-by-trailing-zeros
 //!
-//! All three are guaranteed to emit conditional branches on any target
+//!   - `value_loop`: a limb scan whose only secret branch is a loop exit,
+//!     so it trips only if counted-loop acceptance rejects a loop decided
+//!     by loaded data
+//!
+//! All of them are guaranteed to emit conditional branches on any target
 //! we care about. If any of them passes the gate, fix the gate.
 
 use const_num_traits::Nct;
@@ -71,6 +75,25 @@ pub extern "C" fn nct_fix__neg__nct_ilog10__u32__N4(a_ptr: *const [u32; 4]) -> u
 
 #[cfg(feature = "ctgrind")]
 crate::fbx_ctgrind_count!(nct_fix__neg__nct_ilog10__u32__N4, u32, 4);
+
+// =============================================================================
+// value_loop: index of the first zero limb. The `i < N` exit is a counted
+// loop the gate accepts; the `a[i] != 0` exit is decided by loaded data and
+// must still trip.
+// =============================================================================
+
+#[no_mangle]
+pub extern "C" fn nct_fix__neg__value_loop__u32__N4(a_ptr: *const [u32; 4]) -> u32 {
+    let a = core::hint::black_box(unsafe { *a_ptr });
+    let mut i = 0;
+    while i < 4 && a[i] != 0 {
+        i += 1;
+    }
+    core::hint::black_box(i as u32)
+}
+
+#[cfg(feature = "ctgrind")]
+crate::fbx_ctgrind_count!(nct_fix__neg__value_loop__u32__N4, u32, 4);
 
 // =============================================================================
 // nct_gcd: Stein's algorithm. Subtraction + comparison loop.

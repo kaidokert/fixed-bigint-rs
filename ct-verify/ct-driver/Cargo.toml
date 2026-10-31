@@ -11,6 +11,6 @@ name = "ct-driver"
 path = "src/main.rs"
 
 [dependencies]
-krabi-caliper = { version = "0.1", features = ["host"] }
+krabi-caliper = { version = "0.2", features = ["host"] }
 
 [dev-dependencies]
