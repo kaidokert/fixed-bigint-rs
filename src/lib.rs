@@ -67,11 +67,13 @@
 //!
 //! | target | not covered |
 //! |---|---|
-//! | Cortex-M0/M0+ (`thumbv6m`) | any limb: subtraction and borrow, comparison, `abs_diff`, leading/trailing zeros, power-of-two ops, overflowing shifts, `subtle` equality |
+//! | Cortex-M0/M0+ (`thumbv6m`) | any limb: subtraction and borrow, comparison, `abs_diff`, leading/trailing zeros, power-of-two ops, overflowing shifts, `subtle` equality; `u64` limbs: CIOS row multiply |
 //! | 32-bit RISC-V without Zicond | `u64` limbs (`u32` limbs are covered) |
+//! | x86-64 without LZCNT/BMI1 | leading/trailing zeros and power-of-two ops |
 //! | AVR | `u64` limbs; any limb: equality and zero tests, addition and subtraction carries, comparison, saturating ops, `abs_diff`, `midpoint`, power-of-two ops |
 //!
-//! Everything else is checked in CI at opt-levels `"s"` and `"z"`.
+//! Everything else is checked in CI at opt-levels `"s"` and `"z"`, at the
+//! limb counts the fixtures instantiate.
 //!
 //! Basic usage:
 //! ```
