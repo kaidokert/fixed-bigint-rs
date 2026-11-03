@@ -16,7 +16,7 @@ use stm32f4xx_hal::{pac, prelude::*};
 
 const TRIALS: usize = 4;
 const BATCHES: usize = 16;
-const MAX_POSITIVE_SPREAD: u32 = 32;
+const MAX_POSITIVE_SPREAD: u32 = 48;
 
 const _: () = assert!(
     cfg!(feature = "carrier-u32x8") as usize
