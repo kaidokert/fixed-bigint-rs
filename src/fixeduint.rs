@@ -1431,17 +1431,17 @@ c0nst::c0nst! {
         }
     }
 
-    /// Divide an array in place by a divisor that fits in one word.
+    /// Divide words in place by a divisor that fits in one word.
     ///
-    /// The dividend becomes the quotient and the returned array contains the
-    /// remainder. The caller guarantees that `divisor` is non-zero. Since the
-    /// rolling remainder is smaller than the divisor, appending one input word
-    /// fits in `ConstDoubleWord` and produces one quotient word.
+    /// The dividend becomes the quotient and the remainder is returned. The
+    /// caller guarantees that `divisor` is non-zero. Since the rolling
+    /// remainder is smaller than the divisor, appending one input word fits
+    /// in `ConstDoubleWord` and produces one quotient word.
     #[cfg(feature = "fast-div")]
-    pub(crate) c0nst fn const_div_word<T: [c0nst] ConstMachineWord, const N: usize>(
-        dividend: &mut [T; N],
+    pub(crate) c0nst fn const_div_word<T: [c0nst] ConstMachineWord>(
+        dividend: &mut [T],
         divisor: T,
-    ) -> [T; N] {
+    ) -> T {
         let word_bits = const_word_bits::<T>();
         let divisor = <T as ConstMachineWord>::to_double(divisor);
         let mut remainder = <T as ConstMachineWord>::to_double(<T as ConstZero>::ZERO);
@@ -1449,9 +1449,9 @@ c0nst::c0nst! {
             // The public division entry point rejects zero, while the
             // unchecked entry point is only used with a NonZero proof.
             // Keep this private helper total without adding a panic path.
-            return [<T as ConstZero>::ZERO; N];
+            return <T as ConstZero>::ZERO;
         }
-        let mut index = N;
+        let mut index = dividend.len();
 
         while index > 0 {
             index -= 1;
@@ -1462,11 +1462,7 @@ c0nst::c0nst! {
             remainder = partial - quotient * divisor;
         }
 
-        let mut remainder_array = [<T as ConstZero>::ZERO; N];
-        if N > 0 {
-            remainder_array[0] = <T as ConstMachineWord>::from_double(remainder);
-        }
-        remainder_array
+        <T as ConstMachineWord>::from_double(remainder)
     }
 
     /// In-place division: dividend becomes quotient, returns remainder.
@@ -1512,7 +1508,9 @@ c0nst::c0nst! {
 
         #[cfg(feature = "fast-div")]
         if divisor_bits > 0 && divisor_bits <= const_word_bits::<T>() {
-            return const_div_word(dividend, divisor[0]);
+            let mut remainder = [<T as ConstZero>::ZERO; N];
+            remainder[0] = const_div_word::<T>(dividend, divisor[0]);
+            return remainder;
         }
 
         let mut bit_pos = if dividend_bits >= divisor_bits {

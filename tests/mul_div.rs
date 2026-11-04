@@ -15,6 +15,7 @@
 
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
+use fixed_bigint::HeaplessBigInt;
 
 use num_traits::{FromPrimitive, ToPrimitive};
 use std::ops::{Div, Mul};
@@ -113,7 +114,10 @@ fn test_div() {
 // sweep both against native `u64` division.
 #[test]
 fn test_div_rem_against_u64() {
-    fn check<BN: num_traits::PrimInt + FromPrimitive + core::fmt::Debug>(word_bits: u32) {
+    fn check<BN>(word_bits: u32)
+    where
+        BN: FromPrimitive + ToPrimitive + Clone + Div<Output = BN> + core::ops::Rem<Output = BN>,
+    {
         let mut state = 0x9e37_79b9_7f4a_7c15u64;
         let mut next = || {
             state = state
@@ -131,7 +135,7 @@ fn test_div_rem_against_u64() {
                 };
                 let b = (next() & mask).max(1);
                 let (fa, fb) = (BN::from_u64(a).unwrap(), BN::from_u64(b).unwrap());
-                assert_eq!((fa / fb).to_u64(), Some(a / b), "{a} / {b}");
+                assert_eq!((fa.clone() / fb.clone()).to_u64(), Some(a / b), "{a} / {b}");
                 assert_eq!((fa % fb).to_u64(), Some(a % b), "{a} % {b}");
             }
         }
@@ -140,6 +144,10 @@ fn test_div_rem_against_u64() {
     check::<Bn<u16, 4>>(16);
     check::<Bn<u32, 2>>(32);
     check::<Bn<u64, 1>>(64);
+    check::<HeaplessBigInt<u8, 8>>(8);
+    check::<HeaplessBigInt<u16, 4>>(16);
+    check::<HeaplessBigInt<u32, 2>>(32);
+    check::<HeaplessBigInt<u64, 1>>(64);
 }
 #[test]
 fn test_rem() {
