@@ -149,6 +149,97 @@ fn test_div_rem_against_u64() {
     check::<HeaplessBigInt<u32, 2>>(32);
     check::<HeaplessBigInt<u64, 1>>(64);
 }
+// Multi-word divisors go through Knuth's Algorithm D under `fast-div`.
+// Sweep against native `u128` with divisors of every bit length, and with
+// words of all zeros or all ones, which exercise the quotient-estimate
+// corrections and the add-back step.
+trait U128Io: Sized + Clone + Div<Output = Self> + core::ops::Rem<Output = Self> {
+    fn from_u128(x: u128) -> Self;
+    fn to_u128(&self) -> u128;
+}
+macro_rules! u128_io {
+    ($($t:ty),*) => {$(
+        impl U128Io for Bn<$t, { 16 / core::mem::size_of::<$t>() }> {
+            fn from_u128(x: u128) -> Self {
+                Self::from_le_bytes(&x.to_le_bytes())
+            }
+            fn to_u128(&self) -> u128 {
+                let mut out = [0u8; 16];
+                self.to_le_bytes(&mut out).unwrap();
+                u128::from_le_bytes(out)
+            }
+        }
+        impl U128Io for HeaplessBigInt<$t, { 16 / core::mem::size_of::<$t>() }> {
+            fn from_u128(x: u128) -> Self {
+                Self::from_le_bytes(&x.to_le_bytes())
+            }
+            fn to_u128(&self) -> u128 {
+                let mut out = [0u8; 16];
+                let n = self.to_le_bytes(&mut out).len();
+                out[n..].fill(0);
+                u128::from_le_bytes(out)
+            }
+        }
+    )*};
+}
+u128_io!(u8, u16, u32, u64);
+
+#[test]
+fn test_div_rem_against_u128() {
+    struct Lcg(u64);
+    impl Lcg {
+        fn next(&mut self) -> u64 {
+            self.0 = self
+                .0
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            self.0
+        }
+        // Random 128 bits with some 16-bit chunks forced to all zeros or
+        // all ones.
+        fn patterned(&mut self) -> u128 {
+            let mut x = ((self.next() as u128) << 64) | self.next() as u128;
+            for chunk in 0..8 {
+                match self.next() % 4 {
+                    0 => x &= !(0xffffu128 << (chunk * 16)),
+                    1 => x |= 0xffffu128 << (chunk * 16),
+                    _ => {}
+                }
+            }
+            x
+        }
+    }
+    fn check<BN: U128Io>() {
+        let mut rng = Lcg(0x2545_f491_4f6c_dd1d);
+        for _ in 0..250 {
+            let a = rng.patterned();
+            for bits in 1..=128u32 {
+                let mask = if bits == 128 {
+                    u128::MAX
+                } else {
+                    (1u128 << bits) - 1
+                };
+                let b = (rng.patterned() & mask) | (1u128 << (bits - 1));
+                let (fa, fb) = (BN::from_u128(a), BN::from_u128(b));
+                assert_eq!(
+                    (fa.clone() / fb.clone()).to_u128(),
+                    a / b,
+                    "{a:#x} / {b:#x}"
+                );
+                assert_eq!((fa % fb).to_u128(), a % b, "{a:#x} % {b:#x}");
+            }
+        }
+    }
+    check::<Bn<u8, 16>>();
+    check::<Bn<u16, 8>>();
+    check::<Bn<u32, 4>>();
+    check::<Bn<u64, 2>>();
+    check::<HeaplessBigInt<u8, 16>>();
+    check::<HeaplessBigInt<u16, 8>>();
+    check::<HeaplessBigInt<u32, 4>>();
+    check::<HeaplessBigInt<u64, 2>>();
+}
+
 #[test]
 fn test_rem() {
     fn test_rem_1<BN: num_traits::PrimInt + num_traits::FromPrimitive>() {

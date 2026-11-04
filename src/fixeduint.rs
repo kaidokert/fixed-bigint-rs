@@ -1437,7 +1437,6 @@ c0nst::c0nst! {
     /// caller guarantees that `divisor` is non-zero. Since the rolling
     /// remainder is smaller than the divisor, appending one input word fits
     /// in `ConstDoubleWord` and produces one quotient word.
-    #[cfg(feature = "fast-div")]
     pub(crate) c0nst fn const_div_word<T: [c0nst] ConstMachineWord>(
         dividend: &mut [T],
         divisor: T,
@@ -1463,6 +1462,122 @@ c0nst::c0nst! {
         }
 
         <T as ConstMachineWord>::from_double(remainder)
+    }
+
+    /// Knuth's Algorithm D (TAOCP 4.3.1): divide the low `ul` words of `u`
+    /// by the low `n` words of `v`.
+    ///
+    /// Requires `n >= 2`, `v[n - 1] != 0` and `ul >= n`. `u` becomes the
+    /// remainder, the zeroed `q` receives the `ul - n + 1` quotient words,
+    /// and `vn` is `n` words of scratch for the normalized divisor. The word
+    /// shifted out of `u` by normalization is kept in `top`.
+    pub(crate) c0nst fn const_div_knuth<T: [c0nst] ConstMachineWord>(
+        u: &mut [T],
+        ul: usize,
+        v: &[T],
+        n: usize,
+        vn: &mut [T],
+        q: &mut [T],
+    ) {
+        let w = const_word_bits::<T>();
+        let zero = <T as ConstMachineWord>::to_double(<T as ConstZero>::ZERO);
+        let one = <T as ConstMachineWord>::to_double(<T as ConstOne>::ONE);
+        let base = one << w;
+        let mask = base - one;
+
+        // Normalize so the divisor's top bit is set, which bounds the
+        // quotient estimate below to at most two corrections.
+        let s = <T as PrimBits>::leading_zeros(v[n - 1]) as usize;
+        let mut i = n;
+        while i > 0 {
+            i -= 1;
+            let hi = <T as ConstMachineWord>::to_double(v[i]) << s;
+            let lo = if i > 0 { (<T as ConstMachineWord>::to_double(v[i - 1]) << s) >> w } else { zero };
+            vn[i] = <T as ConstMachineWord>::from_double(hi | lo);
+        }
+        let mut top = <T as ConstMachineWord>::from_double((<T as ConstMachineWord>::to_double(u[ul - 1]) << s) >> w);
+        i = ul;
+        while i > 0 {
+            i -= 1;
+            let hi = <T as ConstMachineWord>::to_double(u[i]) << s;
+            let lo = if i > 0 { (<T as ConstMachineWord>::to_double(u[i - 1]) << s) >> w } else { zero };
+            u[i] = <T as ConstMachineWord>::from_double(hi | lo);
+        }
+
+        let v_hi = <T as ConstMachineWord>::to_double(vn[n - 1]);
+        let v_next = <T as ConstMachineWord>::to_double(vn[n - 2]);
+        let mut j = ul - n + 1;
+        while j > 0 {
+            j -= 1;
+            let u_hi = if j + n == ul { top } else { u[j + n] };
+            let num = (<T as ConstMachineWord>::to_double(u_hi) << w) | <T as ConstMachineWord>::to_double(u[j + n - 1]);
+            let mut qhat = num / v_hi;
+            let mut rhat = num - qhat * v_hi;
+            while qhat >= base
+                || qhat * v_next > ((rhat << w) | <T as ConstMachineWord>::to_double(u[j + n - 2]))
+            {
+                qhat = qhat - one;
+                rhat += v_hi;
+                if rhat >= base {
+                    break;
+                }
+            }
+
+            // u[j..=j + n] -= qhat * vn
+            let mut carry = zero;
+            let mut borrow = zero;
+            i = 0;
+            while i < n {
+                let p = qhat * <T as ConstMachineWord>::to_double(vn[i]) + carry;
+                carry = p >> w;
+                let sub = (p & mask) + borrow;
+                let cur = <T as ConstMachineWord>::to_double(u[i + j]);
+                if cur >= sub {
+                    u[i + j] = <T as ConstMachineWord>::from_double(cur - sub);
+                    borrow = zero;
+                } else {
+                    u[i + j] = <T as ConstMachineWord>::from_double(cur + base - sub);
+                    borrow = one;
+                }
+                i += 1;
+            }
+            let sub = carry + borrow;
+            let cur = <T as ConstMachineWord>::to_double(u_hi);
+            let negative = cur < sub;
+            let mut new_hi = if negative { cur + base - sub } else { cur - sub };
+
+            // The estimate was one too large: add the divisor back.
+            if negative {
+                qhat = qhat - one;
+                let mut c = zero;
+                i = 0;
+                while i < n {
+                    let t = <T as ConstMachineWord>::to_double(u[i + j]) + <T as ConstMachineWord>::to_double(vn[i]) + c;
+                    u[i + j] = <T as ConstMachineWord>::from_double(t);
+                    c = t >> w;
+                    i += 1;
+                }
+                new_hi = (new_hi + c) & mask;
+            }
+            if j + n == ul {
+                top = <T as ConstMachineWord>::from_double(new_hi);
+            } else {
+                u[j + n] = <T as ConstMachineWord>::from_double(new_hi);
+            }
+            q[j] = <T as ConstMachineWord>::from_double(qhat);
+        }
+
+        // Undo the normalization; the remainder fits in the low `n` words.
+        i = 0;
+        while i < n {
+            let next = if i + 1 < n { <T as ConstMachineWord>::to_double(u[i + 1]) } else { zero };
+            u[i] = <T as ConstMachineWord>::from_double(((next << w) | <T as ConstMachineWord>::to_double(u[i])) >> s);
+            i += 1;
+        }
+        while i < ul {
+            u[i] = <T as ConstZero>::ZERO;
+            i += 1;
+        }
     }
 
     /// In-place division: dividend becomes quotient, returns remainder.
@@ -1506,10 +1621,25 @@ c0nst::c0nst! {
         let dividend_bits = const_bit_length::<T, N>(dividend);
         let divisor_bits = const_bit_length::<T, N>(divisor);
 
-        #[cfg(feature = "fast-div")]
-        if divisor_bits > 0 && divisor_bits <= const_word_bits::<T>() {
+        if cfg!(feature = "fast-div") && divisor_bits > 0 {
+            let w = const_word_bits::<T>();
             let mut remainder = [<T as ConstZero>::ZERO; N];
-            remainder[0] = const_div_word::<T>(dividend, divisor[0]);
+            if divisor_bits <= w {
+                remainder[0] = const_div_word::<T>(dividend, divisor[0]);
+            } else {
+                let mut scratch = [<T as ConstZero>::ZERO; N];
+                const_div_knuth::<T>(
+                    dividend,
+                    dividend_bits.div_ceil(w),
+                    divisor,
+                    divisor_bits.div_ceil(w),
+                    &mut scratch,
+                    &mut remainder,
+                );
+                // Knuth leaves the remainder in `dividend` and the quotient
+                // in the second buffer.
+                core::mem::swap(dividend, &mut remainder);
+            }
             return remainder;
         }
 
