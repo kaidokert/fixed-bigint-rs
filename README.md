@@ -22,13 +22,11 @@ In addition to basic arithmetic, two main traits are implemented: [num_traits::P
 
 An optional `zeroize` feature implements the [Zeroize](https://docs.rs/zeroize/latest/zeroize/trait.Zeroize.html) trait, so sensitive values can be cleared explicitly with `.zeroize()`, or wiped on scope exit by wrapping them in `zeroize::Zeroizing`. (The integer types are `Copy`, so they do not wipe on drop by themselves.)
 
+An optional `fast-div` feature speeds up division by single-limb divisors, at the cost of larger code on targets without a hardware divider.
+
 ## Const Support
 
 Most arithmetic operations are const-compatible via the [c0nst](https://crates.io/crates/c0nst) crate. On nightly Rust with `--features nightly`, operations can be used in `const` contexts. On stable Rust, the same code compiles but without const evaluation.
-
-## Code size
-
-Division uses compact bit-by-bit long division. The optional `fast-div` feature divides by a single-limb divisor with the target's double-width division instead, which is over 100 times faster. On targets without that division in hardware it pulls in the compiler's 64- or 128-bit division routines, adding up to about 12 KB on AVR with `u64` limbs.
 
 ## Constant time
 
