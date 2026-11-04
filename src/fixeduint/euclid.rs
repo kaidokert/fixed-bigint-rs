@@ -149,6 +149,14 @@ mod tests {
             assert_eq!(REM_RESULT, FixedUInt::from_array([10, 0]));
             assert_eq!(CHECKED_DIV, Some(FixedUInt::from_array([3, 0])));
             assert_eq!(CHECKED_REM, Some(FixedUInt::from_array([10, 0])));
+
+            // A two-limb divisor, which `fast-div` routes through Algorithm D.
+            const WIDE_A: FixedUInt<u8, 4> = FixedUInt::from_array([0x78, 0x56, 0x34, 0x12]);
+            const WIDE_B: FixedUInt<u8, 4> = FixedUInt::from_array([0x34, 0x12, 0, 0]);
+            const WIDE_DIV: FixedUInt<u8, 4> = const_div_euclid(&WIDE_A, &WIDE_B);
+            const WIDE_REM: FixedUInt<u8, 4> = const_rem_euclid(&WIDE_A, &WIDE_B);
+            assert_eq!(WIDE_DIV, FixedUInt::from_array([0x04, 0x00, 0x01, 0]));
+            assert_eq!(WIDE_REM, FixedUInt::from_array([0xa8, 0x0d, 0, 0]));
         }
     }
 }
