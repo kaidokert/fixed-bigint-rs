@@ -41,3 +41,8 @@ jobs:
     - name: Run tests with all features
       if: startsWith(matrix.rust, 'nightly')
       run: cargo test --verbose --all-features
+    - name: Check docs
+      if: matrix.rust == 'stable'
+      env:
+        RUSTDOCFLAGS: -D warnings
+      run: cargo doc --no-deps --features cios,zeroize,use-unsafe
