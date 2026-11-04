@@ -60,9 +60,9 @@
 //! A third parameter, `Nct` (default) or `Ct`, selects constant-time bodies.
 //! `Ct` leaves out operations that can only be written with data-dependent
 //! control flow, such as division, `ilog`, `isqrt` and string parsing, so
-//! using them is a compile error. Targets without a conditional-select
-//! instruction (Cortex-M0, AVR, `u64` limbs on 32-bit RISC-V) are not covered
-//! by the constant-time checks.
+//! using them is a compile error. On targets without a conditional-select
+//! instruction (Cortex-M0, AVR, and `u64` limbs on 32-bit RISC-V), some
+//! operations are not covered by the constant-time checks.
 
 /// Fixed-size big integer implementation
 pub mod fixeduint;

@@ -41,7 +41,7 @@ This is a timing-regression layer, not a replacement for ctgrind or the
 cross-target conditional-branch audit.
 
 On the STM32F407/J-Trace rig every fixture passes on all three carriers:
-positive combined spreads sit in the low tens of cycles per batch (the policy
-limit is 32), while the Nct controls separate by millions of cycles — a signal
+positive combined spreads stay under the 48-cycle limit, with the longest
+fixtures reaching the mid-30s, while the Nct controls separate by millions of cycles — a signal
 margin of roughly six orders of magnitude between the constant-time and
 variable-time paths.
