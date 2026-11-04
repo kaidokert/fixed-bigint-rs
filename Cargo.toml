@@ -115,6 +115,7 @@ nightly = ["c0nst/nightly", "const-num-traits/nightly"]
 cios = ["dep:modmath-cios"]
 num-traits = ["dep:num-traits", "dep:num-integer"]
 zeroize = ["dep:zeroize"]
+fast-div = []
 default = ["num-traits"]
 
 [patch.crates-io]

@@ -1437,6 +1437,7 @@ c0nst::c0nst! {
     /// remainder. The caller guarantees that `divisor` is non-zero. Since the
     /// rolling remainder is smaller than the divisor, appending one input word
     /// fits in `ConstDoubleWord` and produces one quotient word.
+    #[cfg(feature = "fast-div")]
     pub(crate) c0nst fn const_div_word<T: [c0nst] ConstMachineWord, const N: usize>(
         dividend: &mut [T; N],
         divisor: T,
@@ -1509,6 +1510,7 @@ c0nst::c0nst! {
         let dividend_bits = const_bit_length::<T, N>(dividend);
         let divisor_bits = const_bit_length::<T, N>(divisor);
 
+        #[cfg(feature = "fast-div")]
         if divisor_bits > 0 && divisor_bits <= const_word_bits::<T>() {
             return const_div_word(dividend, divisor[0]);
         }

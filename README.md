@@ -26,6 +26,10 @@ An optional `zeroize` feature implements the [Zeroize](https://docs.rs/zeroize/l
 
 Most arithmetic operations are const-compatible via the [c0nst](https://crates.io/crates/c0nst) crate. On nightly Rust with `--features nightly`, operations can be used in `const` contexts. On stable Rust, the same code compiles but without const evaluation.
 
+## Code size
+
+Division uses compact bit-by-bit long division. The optional `fast-div` feature divides by a single-limb divisor with the target's double-width division instead, which is over 100 times faster. On targets without that division in hardware it pulls in the compiler's 64- or 128-bit division routines, adding up to about 12 KB on AVR with `u64` limbs.
+
 ## Constant time
 
 Constant-time execution is implemented for a subset of core operations. Ct mode is selected by a type parameter, allowing individual calling contexts to use either mode. This is purely experimental, not audited or thoroughly verified.
