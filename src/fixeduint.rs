@@ -1431,6 +1431,40 @@ c0nst::c0nst! {
         }
     }
 
+    /// Divide words in place by a divisor that fits in one word.
+    ///
+    /// The dividend becomes the quotient and the remainder is returned. The
+    /// caller guarantees that `divisor` is non-zero. Since the rolling
+    /// remainder is smaller than the divisor, appending one input word fits
+    /// in `ConstDoubleWord` and produces one quotient word.
+    #[cfg(feature = "fast-div")]
+    pub(crate) c0nst fn const_div_word<T: [c0nst] ConstMachineWord>(
+        dividend: &mut [T],
+        divisor: T,
+    ) -> T {
+        let word_bits = const_word_bits::<T>();
+        let divisor = <T as ConstMachineWord>::to_double(divisor);
+        let mut remainder = <T as ConstMachineWord>::to_double(<T as ConstZero>::ZERO);
+        if divisor == remainder {
+            // The public division entry point rejects zero, while the
+            // unchecked entry point is only used with a NonZero proof.
+            // Keep this private helper total without adding a panic path.
+            return <T as ConstZero>::ZERO;
+        }
+        let mut index = dividend.len();
+
+        while index > 0 {
+            index -= 1;
+            let word = <T as ConstMachineWord>::to_double(dividend[index]);
+            let partial = (remainder << word_bits) | word;
+            let quotient = partial / divisor;
+            dividend[index] = <T as ConstMachineWord>::from_double(quotient);
+            remainder = partial - quotient * divisor;
+        }
+
+        <T as ConstMachineWord>::from_double(remainder)
+    }
+
     /// In-place division: dividend becomes quotient, returns remainder.
     ///
     /// Low-level const-compatible division on arrays.
@@ -1471,6 +1505,13 @@ c0nst::c0nst! {
         // Calculate initial bit position
         let dividend_bits = const_bit_length::<T, N>(dividend);
         let divisor_bits = const_bit_length::<T, N>(divisor);
+
+        #[cfg(feature = "fast-div")]
+        if divisor_bits > 0 && divisor_bits <= const_word_bits::<T>() {
+            let mut remainder = [<T as ConstZero>::ZERO; N];
+            remainder[0] = const_div_word::<T>(dividend, divisor[0]);
+            return remainder;
+        }
 
         let mut bit_pos = if dividend_bits >= divisor_bits {
             dividend_bits - divisor_bits

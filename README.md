@@ -22,6 +22,8 @@ In addition to basic arithmetic, two main traits are implemented: [num_traits::P
 
 An optional `zeroize` feature implements the [Zeroize](https://docs.rs/zeroize/latest/zeroize/trait.Zeroize.html) trait, so sensitive values can be cleared explicitly with `.zeroize()`, or wiped on scope exit by wrapping them in `zeroize::Zeroizing`. (The integer types are `Copy`, so they do not wipe on drop by themselves.)
 
+An optional `fast-div` feature speeds up division by single-limb divisors, at the cost of larger code on targets without a hardware divider.
+
 ## Const Support
 
 Most arithmetic operations are const-compatible via the [c0nst](https://crates.io/crates/c0nst) crate. On nightly Rust with `--features nightly`, operations can be used in `const` contexts. On stable Rust, the same code compiles but without const evaluation.

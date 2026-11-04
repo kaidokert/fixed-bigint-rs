@@ -15,6 +15,7 @@
 
 #[cfg(test)]
 use fixed_bigint::FixedUInt as Bn;
+use fixed_bigint::HeaplessBigInt;
 
 use num_traits::{FromPrimitive, ToPrimitive};
 use std::ops::{Div, Mul};
@@ -107,6 +108,46 @@ fn test_div() {
     test_div_1::<Bn<u8, 8>>();
     test_div_1::<Bn<u16, 4>>();
     test_div_1::<Bn<u32, 2>>();
+}
+
+// Divisors that fit in one word take a different path from wider ones, so
+// sweep both against native `u64` division.
+#[test]
+fn test_div_rem_against_u64() {
+    fn check<BN>(word_bits: u32)
+    where
+        BN: FromPrimitive + ToPrimitive + Clone + Div<Output = BN> + core::ops::Rem<Output = BN>,
+    {
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut next = || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            state
+        };
+        for _ in 0..2000 {
+            let a = next();
+            for bits in [1, word_bits / 2, word_bits, word_bits + 1, 63, 64] {
+                let mask = if bits >= 64 {
+                    u64::MAX
+                } else {
+                    (1u64 << bits) - 1
+                };
+                let b = (next() & mask).max(1);
+                let (fa, fb) = (BN::from_u64(a).unwrap(), BN::from_u64(b).unwrap());
+                assert_eq!((fa.clone() / fb.clone()).to_u64(), Some(a / b), "{a} / {b}");
+                assert_eq!((fa % fb).to_u64(), Some(a % b), "{a} % {b}");
+            }
+        }
+    }
+    check::<Bn<u8, 8>>(8);
+    check::<Bn<u16, 4>>(16);
+    check::<Bn<u32, 2>>(32);
+    check::<Bn<u64, 1>>(64);
+    check::<HeaplessBigInt<u8, 8>>(8);
+    check::<HeaplessBigInt<u16, 4>>(16);
+    check::<HeaplessBigInt<u32, 2>>(32);
+    check::<HeaplessBigInt<u64, 1>>(64);
 }
 #[test]
 fn test_rem() {

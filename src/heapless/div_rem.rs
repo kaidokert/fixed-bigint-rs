@@ -9,8 +9,8 @@
 //! the highest bit position where it might fit into the remaining
 //! dividend, subtract when it does, set the corresponding quotient bit.
 //! Uses only ops HeaplessBigInt already exposes (`Shl<usize>`,
-//! `wrapping_sub`, `wrapping_add`, `cmp`, `bit_length`) — no direct
-//! limb access, no new bit-poke helpers.
+//! `wrapping_sub`, `wrapping_add`, `cmp`, `bit_length`). With `fast-div`,
+//! a one-limb divisor instead takes `FixedUInt`'s word-at-a-time path.
 
 use super::HeaplessBigInt;
 use crate::MachineWord;
@@ -53,6 +53,16 @@ where
 
     let d_bits = dividend.bit_length();
     let dv_bits = divisor.bit_length();
+
+    #[cfg(feature = "fast-div")]
+    if dv_bits <= core::mem::size_of::<T>() * 8 {
+        let mut quotient = dividend.widened(work_len);
+        let words = &mut quotient.limbs[..dividend.len() as usize];
+        let word_rem = crate::fixeduint::const_div_word::<T>(words, divisor.limbs[0]);
+        let mut rem = <HeaplessBigInt<T, CAP, Nct> as Zero>::zero().widened(work_len);
+        rem.limbs[0] = word_rem;
+        return (quotient, rem);
+    }
     let mut shift = d_bits - dv_bits;
 
     // `Shl` is width-preserving, so the divisor and the quotient-bit unit
