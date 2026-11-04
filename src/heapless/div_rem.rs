@@ -54,13 +54,27 @@ where
     let d_bits = dividend.bit_length();
     let dv_bits = divisor.bit_length();
 
-    #[cfg(feature = "fast-div")]
-    if dv_bits <= core::mem::size_of::<T>() * 8 {
-        let mut quotient = dividend.widened(work_len);
-        let words = &mut quotient.limbs[..dividend.len() as usize];
-        let word_rem = crate::fixeduint::const_div_word::<T>(words, divisor.limbs[0]);
-        let mut rem = <HeaplessBigInt<T, CAP, Nct> as Zero>::zero().widened(work_len);
-        rem.limbs[0] = word_rem;
+    if cfg!(feature = "fast-div") {
+        let w = core::mem::size_of::<T>() * 8;
+        if dv_bits <= w {
+            let mut quotient = dividend.widened(work_len);
+            let words = &mut quotient.limbs[..dividend.len() as usize];
+            let word_rem = crate::fixeduint::const_div_word::<T>(words, divisor.limbs[0]);
+            let mut rem = <HeaplessBigInt<T, CAP, Nct> as Zero>::zero().widened(work_len);
+            rem.limbs[0] = word_rem;
+            return (quotient, rem);
+        }
+        let mut quotient = <HeaplessBigInt<T, CAP, Nct> as Zero>::zero().widened(work_len);
+        let mut rem = dividend.widened(work_len);
+        let mut scratch = [<T as Zero>::zero(); CAP];
+        crate::fixeduint::const_div_knuth::<T>(
+            &mut rem.limbs,
+            d_bits.div_ceil(w),
+            &divisor.limbs,
+            dv_bits.div_ceil(w),
+            &mut scratch,
+            &mut quotient.limbs,
+        );
         return (quotient, rem);
     }
     let mut shift = d_bits - dv_bits;
