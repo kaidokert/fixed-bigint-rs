@@ -13,6 +13,13 @@ and the skip-if-bit family on AVR, `b.<cond>`/`cbz`/`tbz` on AArch64,
 non-CT operations and are required to trip the gate — they're the
 harness's self-test.
 
+CI runs every target at opt-level `"s"` and `"z"`. To reproduce, set
+`CARGO_PROFILE_RELEASE_OPT_LEVEL` plus the per-target `RUSTFLAGS` from
+`.github/workflows/ct-verify.yml` (x86-64 builds with `+lzcnt,+bmi1`). Loops over public bounds
+are accepted structurally, since inlining moves them into the fixtures.
+Fixtures for the combinations the crate docs list as uncovered are
+excluded per target in `ct-driver/src/target.rs`.
+
 To run it: `cargo run --release -p ct-driver` checks the host target;
 `--target <triple>` checks a cross target (you'll need the matching
 `rustup target add` first, plus the `llvm-tools-preview` component for

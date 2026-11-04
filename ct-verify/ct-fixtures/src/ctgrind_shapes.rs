@@ -15,9 +15,28 @@
 //! Adding a new shape (e.g. a widening `carrying_mul` with two outputs) means
 //! adding one macro here; the harness never changes.
 //!
-//! `black_box(0)` on the scalar secrets is required: without it release-LTO
-//! constant-propagates the literal past `taint_val` (which sets Valgrind
-//! metadata, not memory) and the taint never reaches the primitive.
+//! Every secret must reach the fixture through tainted memory. `taint`/
+//! `taint_val` set Valgrind metadata, not memory, and fat LTO inlines most
+//! fixtures into their run body, so a plain `&a` to a `[0; N]` local lets the
+//! optimizer use the constant directly and the taint never reaches the
+//! primitive (seen at opt-level "s"). [`taint_ptr`] hands the fixture a
+//! pointer laundered through `black_box`, which it must load through;
+//! [`taint_scalar`] re-reads a by-value scalar from its tainted slot.
+
+/// Taint `value` and return a pointer to it the optimizer cannot trace back
+/// to the local, so the fixture loads the tainted bytes.
+pub(crate) fn taint_ptr<T>(value: &T) -> *const T {
+    krabi_caliper::host::ctgrind::taint_val(value);
+    core::hint::black_box(value as *const T)
+}
+
+/// Taint a by-value secret and re-read it from the tainted slot.
+pub(crate) fn taint_scalar<T: Copy>(value: T) -> T {
+    let slot = value;
+    krabi_caliper::host::ctgrind::taint_val(&slot);
+    // SAFETY: `slot` is a live, initialised local.
+    unsafe { core::ptr::read_volatile(&slot) }
+}
 
 /// Binary: `(T,N) × (T,N) → (T,N)`.
 #[macro_export]
@@ -30,10 +49,10 @@ macro_rules! fbx_ctgrind_bin {
             let a: [$T; $N] = [0; $N];
             let b: [$T; $N] = [0; $N];
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            krabi_caliper::host::ctgrind::taint(&b);
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let b = $crate::ctgrind_shapes::taint_ptr(&b);
             unsafe {
-                $name(&a, &b, &mut out);
+                $name(a, b, &mut out);
             }
             krabi_caliper::host::ctgrind::untaint(&out);
             let _ = ::core::hint::black_box(out);
@@ -51,9 +70,9 @@ macro_rules! fbx_ctgrind_un {
             }
             let a: [$T; $N] = [0; $N];
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
             unsafe {
-                $name(&a, &mut out);
+                $name(a, &mut out);
             }
             krabi_caliper::host::ctgrind::untaint(&out);
             let _ = ::core::hint::black_box(out);
@@ -70,8 +89,8 @@ macro_rules! fbx_ctgrind_pred {
                 fn $name(a: *const [$T; $N]) -> u8;
             }
             let a: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            let r = unsafe { $name(&a) };
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let r = unsafe { $name(a) };
             krabi_caliper::host::ctgrind::untaint_val(&r);
             let _ = ::core::hint::black_box(r);
         });
@@ -88,9 +107,9 @@ macro_rules! fbx_ctgrind_pred2 {
             }
             let a: [$T; $N] = [0; $N];
             let b: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            krabi_caliper::host::ctgrind::taint(&b);
-            let r = unsafe { $name(&a, &b) };
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let b = $crate::ctgrind_shapes::taint_ptr(&b);
+            let r = unsafe { $name(a, b) };
             krabi_caliper::host::ctgrind::untaint_val(&r);
             let _ = ::core::hint::black_box(r);
         });
@@ -106,8 +125,8 @@ macro_rules! fbx_ctgrind_count {
                 fn $name(a: *const [$T; $N]) -> u32;
             }
             let a: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            let r = unsafe { $name(&a) };
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let r = unsafe { $name(a) };
             krabi_caliper::host::ctgrind::untaint_val(&r);
             let _ = ::core::hint::black_box(r);
         });
@@ -123,12 +142,12 @@ macro_rules! fbx_ctgrind_shift {
                 fn $name(a: *const [$T; $N], n: $NT, out: *mut [$T; $N]);
             }
             let a: [$T; $N] = [0; $N];
-            let n: $NT = ::core::hint::black_box(0);
+            let n: $NT = 0;
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            krabi_caliper::host::ctgrind::taint_val(&n);
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let n = $crate::ctgrind_shapes::taint_scalar(n);
             unsafe {
-                $name(&a, n, &mut out);
+                $name(a, n, &mut out);
             }
             krabi_caliper::host::ctgrind::untaint(&out);
             let _ = ::core::hint::black_box(out);
@@ -147,9 +166,9 @@ macro_rules! fbx_ctgrind_checked_bin {
             let a: [$T; $N] = [0; $N];
             let b: [$T; $N] = [0; $N];
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            krabi_caliper::host::ctgrind::taint(&b);
-            let r = unsafe { $name(&a, &b, &mut out) };
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let b = $crate::ctgrind_shapes::taint_ptr(&b);
+            let r = unsafe { $name(a, b, &mut out) };
             krabi_caliper::host::ctgrind::untaint(&out);
             krabi_caliper::host::ctgrind::untaint_val(&r);
             let _ = ::core::hint::black_box(out);
@@ -167,11 +186,11 @@ macro_rules! fbx_ctgrind_checked_scalar {
                 fn $name(a: *const [$T; $N], s: $ST, out: *mut [$T; $N]) -> u8;
             }
             let a: [$T; $N] = [0; $N];
-            let s: $ST = ::core::hint::black_box(0);
+            let s: $ST = 0;
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            krabi_caliper::host::ctgrind::taint_val(&s);
-            let r = unsafe { $name(&a, s, &mut out) };
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let s = $crate::ctgrind_shapes::taint_scalar(s);
+            let r = unsafe { $name(a, s, &mut out) };
             krabi_caliper::host::ctgrind::untaint(&out);
             krabi_caliper::host::ctgrind::untaint_val(&r);
             let _ = ::core::hint::black_box(out);
@@ -190,8 +209,8 @@ macro_rules! fbx_ctgrind_checked_un {
             }
             let a: [$T; $N] = [0; $N];
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            let r = unsafe { $name(&a, &mut out) };
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let r = unsafe { $name(a, &mut out) };
             krabi_caliper::host::ctgrind::untaint(&out);
             krabi_caliper::host::ctgrind::untaint_val(&r);
             let _ = ::core::hint::black_box(out);
@@ -210,13 +229,13 @@ macro_rules! fbx_ctgrind_cond_select {
             }
             let a: [$T; $N] = [0; $N];
             let b: [$T; $N] = [0; $N];
-            let choice: u8 = ::core::hint::black_box(0);
+            let choice: u8 = 0;
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            krabi_caliper::host::ctgrind::taint(&b);
-            krabi_caliper::host::ctgrind::taint_val(&choice);
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let b = $crate::ctgrind_shapes::taint_ptr(&b);
+            let choice = $crate::ctgrind_shapes::taint_scalar(choice);
             unsafe {
-                $name(&a, &b, choice, &mut out);
+                $name(a, b, choice, &mut out);
             }
             krabi_caliper::host::ctgrind::untaint(&out);
             let _ = ::core::hint::black_box(out);
@@ -245,11 +264,11 @@ macro_rules! fbx_ctgrind_carrying_mul {
             let carry: [$T; $N] = [0; $N];
             let mut lo: [$T; $N] = [0; $N];
             let mut hi: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            krabi_caliper::host::ctgrind::taint(&b);
-            krabi_caliper::host::ctgrind::taint(&carry);
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let b = $crate::ctgrind_shapes::taint_ptr(&b);
+            let carry = $crate::ctgrind_shapes::taint_ptr(&carry);
             unsafe {
-                $name(&a, &b, &carry, &mut lo, &mut hi);
+                $name(a, b, carry, &mut lo, &mut hi);
             }
             krabi_caliper::host::ctgrind::untaint(&lo);
             krabi_caliper::host::ctgrind::untaint(&hi);
@@ -277,14 +296,14 @@ macro_rules! fbx_ctgrind_mul_acc {
             }
             let mult: [$T; $N] = [0; $N];
             let acc: [$T; $N] = [0; $N];
-            let scalar: $T = ::core::hint::black_box(0);
-            let carry: $T = ::core::hint::black_box(0);
+            let scalar: $T = 0;
+            let carry: $T = 0;
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&mult);
-            krabi_caliper::host::ctgrind::taint(&acc);
-            krabi_caliper::host::ctgrind::taint_val(&scalar);
-            krabi_caliper::host::ctgrind::taint_val(&carry);
-            let r = unsafe { $name(&mult, &acc, scalar, carry, &mut out) };
+            let mult = $crate::ctgrind_shapes::taint_ptr(&mult);
+            let acc = $crate::ctgrind_shapes::taint_ptr(&acc);
+            let scalar = $crate::ctgrind_shapes::taint_scalar(scalar);
+            let carry = $crate::ctgrind_shapes::taint_scalar(carry);
+            let r = unsafe { $name(mult, acc, scalar, carry, &mut out) };
             krabi_caliper::host::ctgrind::untaint(&out);
             krabi_caliper::host::ctgrind::untaint_val(&r);
             let _ = ::core::hint::black_box(out);
@@ -308,12 +327,12 @@ macro_rules! fbx_ctgrind_carrying_add {
             }
             let a: [$T; $N] = [0; $N];
             let b: [$T; $N] = [0; $N];
-            let carry: bool = ::core::hint::black_box(false);
+            let carry: bool = false;
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint(&a);
-            krabi_caliper::host::ctgrind::taint(&b);
-            krabi_caliper::host::ctgrind::taint_val(&carry);
-            let r = unsafe { $name(&a, &b, carry, &mut out) };
+            let a = $crate::ctgrind_shapes::taint_ptr(&a);
+            let b = $crate::ctgrind_shapes::taint_ptr(&b);
+            let carry = $crate::ctgrind_shapes::taint_scalar(carry);
+            let r = unsafe { $name(a, b, carry, &mut out) };
             krabi_caliper::host::ctgrind::untaint(&out);
             krabi_caliper::host::ctgrind::untaint_val(&r);
             let _ = ::core::hint::black_box(out);
@@ -332,11 +351,11 @@ macro_rules! fbx_ctgrind_asym_shift_u32 {
             unsafe extern "C" {
                 fn $name(amount: *const u32, out: *mut [$T; $N]);
             }
-            let amount: u32 = ::core::hint::black_box(0);
+            let amount: u32 = 0;
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint_val(&amount);
+            let amount = $crate::ctgrind_shapes::taint_ptr(&amount);
             unsafe {
-                $name(&amount, &mut out);
+                $name(amount, &mut out);
             }
             krabi_caliper::host::ctgrind::untaint(&out);
             let _ = ::core::hint::black_box(out);
@@ -352,11 +371,11 @@ macro_rules! fbx_ctgrind_asym_select_u8 {
             unsafe extern "C" {
                 fn $name(choice: *const u8, out: *mut [$T; $N]);
             }
-            let choice: u8 = ::core::hint::black_box(0);
+            let choice: u8 = 0;
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint_val(&choice);
+            let choice = $crate::ctgrind_shapes::taint_ptr(&choice);
             unsafe {
-                $name(&choice, &mut out);
+                $name(choice, &mut out);
             }
             krabi_caliper::host::ctgrind::untaint(&out);
             let _ = ::core::hint::black_box(out);
@@ -373,10 +392,10 @@ macro_rules! fbx_ctgrind_asym_pow_u32 {
             unsafe extern "C" {
                 fn $name(exp: *const u32, out: *mut [$T; $N]) -> u8;
             }
-            let exp: u32 = ::core::hint::black_box(0);
+            let exp: u32 = 0;
             let mut out: [$T; $N] = [0; $N];
-            krabi_caliper::host::ctgrind::taint_val(&exp);
-            let r = unsafe { $name(&exp, &mut out) };
+            let exp = $crate::ctgrind_shapes::taint_ptr(&exp);
+            let r = unsafe { $name(exp, &mut out) };
             krabi_caliper::host::ctgrind::untaint(&out);
             krabi_caliper::host::ctgrind::untaint_val(&r);
             let _ = ::core::hint::black_box(out);

@@ -32,33 +32,7 @@
 
 //! A fixed-size big integer implementation, unsigned only.
 //!
-//! `FixedUInt<T, N, P>` is `N` limbs of a primitive `T` (`u8`/`u16`/`u32`/`u64`)
-//! with a compile-time `Personality` (`Nct` or `Ct`) that selects between
-//! value-dependent and constant-time impl bodies at every operator.
-//!
-//! ## Personality and constant-time operations
-//!
-//! `P` is a typestate: `Nct` (non-constant-time, the default) or `Ct`
-//! (constant-time). `Nct` bodies may branch on operand *values*; `Ct` bodies
-//! may not. Operations whose only sensible implementation has **data-dependent
-//! control flow** are therefore provided for `Nct` only — the `Ct` type simply
-//! does not implement the trait, so a misuse is a compile-time *"trait bound
-//! not satisfied"* error, never a silent timing leak. That error names the
-//! missing std/`num-traits` trait (e.g. `FixedUInt<u8, 4, Ct>: Div is not
-//! satisfied`); this table is the explanation, since a custom `#[diagnostic]`
-//! message cannot be attached to a trait defined in another crate.
-//!
-//! | operation | `Nct` | `Ct` | why `Ct` omits it |
-//! |---|---|---|---|
-//! | `+` `-` `*`, `wrapping`/`overflowing`/`carrying`, bit ops, shifts, compare, byte I/O | ✅ | ✅ | branchless |
-//! | `/` `%` (`Div`/`Rem`/`*Assign`), `CheckedDiv`, `Euclid` | ✅ | — | long division early-exits on operand bits |
-//! | `Ilog`/`Ilog2`/`Ilog10`, `Isqrt` | ✅ | — | data-dependent iteration / division |
-//! | `Num::from_str_radix`, `FromStr` | ✅ | — | parse length and digit branches depend on the input |
-//! | `CheckedAdd`/`CheckedMul` on `HeaplessBigInt` | ✅ | — | value-aware overflow report scans content |
-//!
-//! A `Ct` value that needs `x mod modulus` uses Montgomery reduction (the CIOS
-//! driver), not `/` / `%`. Every operator not in the omitted rows has one body
-//! shared by both personalities.
+//! `FixedUInt<T, N>` is `N` limbs of a primitive `T` (`u8`/`u16`/`u32`/`u64`).
 //!
 //! Basic usage:
 //! ```
@@ -82,6 +56,13 @@
 //! assert_eq!( a.lcm( &(440u16.into() )) , 4400u16.into() );
 //! # }
 //! ```
+//!
+//! A third parameter, `Nct` (default) or `Ct`, selects constant-time bodies.
+//! `Ct` leaves out operations that can only be written with data-dependent
+//! control flow, such as division, `ilog`, `isqrt` and string parsing, so
+//! using them is a compile error. On targets without a conditional-select
+//! instruction (Cortex-M0, AVR, and `u64` limbs on 32-bit RISC-V), some
+//! operations are not covered by the constant-time checks.
 
 /// Fixed-size big integer implementation
 pub mod fixeduint;
