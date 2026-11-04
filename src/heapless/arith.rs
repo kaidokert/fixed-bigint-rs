@@ -237,8 +237,8 @@ impl<T: MachineWord + CarryingMul<Unsigned = T, Output = T>, const CAP: usize, P
 {
     /// Wrapping multiplication at the operands' width `max(a.len, b.len)`:
     /// keeps the low `width` words (`a·b mod 2^(width·word_bits)`),
-    /// exactly like `FixedUInt<T, width>::wrapping_mul`. [`WideMul`] returns
-    /// both halves.
+    /// exactly like `FixedUInt<T, width>::wrapping_mul`.
+    /// [`CarryingMul`] returns both halves.
     pub fn wrapping_mul(&self, other: &Self) -> Self {
         let out_len = core::cmp::max(self.len as usize, other.len as usize);
         let mut out = Self::new_zero_with_len(out_len as u16);

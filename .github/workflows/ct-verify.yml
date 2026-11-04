@@ -6,6 +6,8 @@ on:
       - main
       - 'feature/**'
   pull_request:
+  schedule:
+    - cron: "23 4 * * 1"
 
 env:
   CARGO_TERM_COLOR: always
@@ -43,47 +45,45 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # "z" is the pinned profile; downstream deployments build at "s",
+        # where inlining moves helper bodies into the fixtures.
+        opt: ["s", "z"]
+        triple:
+          - thumbv7em-none-eabi # Priority 1: Cortex-M3/M4
+          - thumbv7m-none-eabi
+          - thumbv6m-none-eabi # Priority 2: Cortex-M0
+          - riscv32imc-unknown-none-elf # Priority 3: 32-bit RISC-V
+          - riscv32imac-unknown-none-elf
+          - avr-none # Priority 4
+          - aarch64-unknown-linux-gnu # Priority 5
+          - x86_64-unknown-linux-gnu # Priority 6
         include:
-          # Priority 1: Cortex-M3/M4
-          - triple: thumbv7em-none-eabi
-            toolchain: "1.88"
-          - triple: thumbv7m-none-eabi
-            toolchain: "1.88"
-          # Priority 2: Cortex-M0
-          - triple: thumbv6m-none-eabi
-            toolchain: "1.88"
-          # Priority 3: 32-bit RISC-V
-          - triple: riscv32imc-unknown-none-elf
-            toolchain: "1.88"
-          - triple: riscv32imac-unknown-none-elf
-            toolchain: "1.88"
-          # Priority 5: aarch64
-          - triple: aarch64-unknown-linux-gnu
-            toolchain: "1.88"
-          # Priority 6: x86_64. +lzcnt,+bmi1 mirrors ct-ctgrind.yml:
-          # baseline-x86_64 lowers `u32::leading_zeros()` to
-          # `test/je/bsr` (bsr undefined on zero, hence the `je`), a
-          # real data-dependent branch in the std intrinsic. BMI1 is
-          # on Haswell+ (2013) and every GitHub Actions x86_64 runner.
+          # +lzcnt,+bmi1 mirrors ct-ctgrind.yml: baseline-x86_64 lowers
+          # `u32::leading_zeros()` to `test/je/bsr` (bsr undefined on
+          # zero, hence the `je`), a real data-dependent branch in the std
+          # intrinsic. BMI1 is on Haswell+ (2013) and every GitHub Actions
+          # x86_64 runner.
           - triple: x86_64-unknown-linux-gnu
-            toolchain: "1.88"
             extra_rustflags: "-C target-feature=+lzcnt,+bmi1"
-          # Priority 4: AVR (nightly-only, needs build-std + target-cpu).
-          # Pinned nightly; see #197. Must match the avr toolchain in
-          # ct-driver's target.rs.
+          # AVR is nightly-only (build-std + target-cpu). Pinned nightly;
+          # see #197. Must match the avr toolchain in ct-driver's target.rs.
+          # Nightly defaults to v0 symbol mangling; the helper allowlist is
+          # written against the legacy form stable still emits.
           - triple: avr-none
             toolchain: nightly-2026-08-05
             extra_components: rust-src
-            extra_rustflags: "-C target-cpu=atmega328p"
+            extra_rustflags: "-C target-cpu=atmega328p -Z unstable-options -C symbol-mangling-version=legacy"
     runs-on: ubuntu-latest
-    name: ${{ matrix.triple }}
+    name: ${{ matrix.triple }} (opt ${{ matrix.opt }})
+    env:
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: ${{ matrix.opt }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: ${{ matrix.toolchain || '1.88' }}
           # AVR is tier 3 — rust-std isn't published as a downloadable
           # component, so `rustup target add avr-none` fails. We build
           # core from source via -Z build-std=core (see rust-src below)
@@ -99,7 +99,7 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ct-verify-${{ matrix.triple }}
+          key: ct-verify-${{ matrix.triple }}-${{ matrix.opt }}
 
       - name: Scope per-target RUSTFLAGS to the cross-build
         # Cargo recognises CARGO_TARGET_<TRIPLE>_RUSTFLAGS (triple
@@ -113,12 +113,12 @@ jobs:
           echo "$name=${{ matrix.extra_rustflags }}" >> "$GITHUB_ENV"
 
       - name: Run ct-driver
-        run: cargo run --release -p ct-driver -- --target ${{ matrix.triple }} --json-out target/ct-report/${{ matrix.triple }}.json
+        run: cargo run --release -p ct-driver -- --target ${{ matrix.triple }} --json-out target/ct-report/${{ matrix.triple }}-${{ matrix.opt }}.json
 
       - name: Upload report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ct-report-${{ matrix.triple }}
+          name: ct-report-${{ matrix.triple }}-${{ matrix.opt }}
           path: target/ct-report/
           retention-days: 30

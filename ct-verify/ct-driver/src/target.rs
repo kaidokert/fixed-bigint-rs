@@ -87,7 +87,7 @@ pub const TARGETS: &[TargetSpec] = &[
         thumb_it_blocks: false,
         call_mnemonics: mnemonics::AVR_CALL,
         allowed_helpers: HELPER_ALLOWLIST,
-        extra_allowed_helpers: &[],
+        extra_allowed_helpers: AVR_EXTRA_HELPERS,
         extra_cargo_args: &["-Z", "build-std=core"],
     },
     // Priority 5: aarch64
@@ -325,6 +325,13 @@ const HELPER_ALLOWLIST: &[&str] = &[
     r"fixed_bigint\d*heapless(?:7bitwise|3cmp|6parity|9prim_bits|4bits)",
     r"fixed_bigint\d*heapless10identities.*(?:Const)?Zero",
     r"fixed_bigint\d*heapless10identities15const_is_one_ct",
+    // heapless power_of_two: `IsPowerOfTwo`, the Ct `NextPowerOfTwo` and the
+    // `ct_next_pow2` it shares. With the zero scan, `widened` and slice bounds
+    // inlined (opt-level "s"), every forward branch reads the public `len`:
+    // zero-length skip, `len <= CAP` bound, `widened` assert. The value path
+    // is masked selects and `clz` (software CLZ on armv6m, which branches on
+    // the value; that gap is recorded in THUMBV6M_EXTRA_HELPERS).
+    r"fixed_bigint\d*heapless12power_of_two(?:.*(?:IsPowerOfTwo|NextPowerOfTwo)|12ct_next_pow2)",
     // heapless arith. Div/Rem here are Nct-only and never reached from a Ct
     // fixture; every helper a Ct op does reach — saturating (ct_select),
     // carrying/borrowing, wrapping/overflowing, the CtChecked* traits, and the
@@ -343,6 +350,8 @@ const HELPER_ALLOWLIST: &[&str] = &[
     // secret-dependent access on its supported targets.
     r"fixed_bigint\d*heapless.*HeaplessBigInt.*(?:new_zero_with_len|7widened)",
     r"core\.\.iter\.\.adapters\.\.zip\.\.Zip",
+    r"core4iter6traits8iterator8Iterator3zip",
+    r"core\.\.ops\.\.index_range\.\.IndexRange.*Iterator\$GT\$4next",
     r"core\.\.array\.\.iter\.\.IntoIter",
     r"core\.\.ops\.\.range\.\.RangeTo.*slice\.\.index",
     r"core5array\d*_\$LT\$impl.*ops\.\.index\.\.Index",
@@ -413,4 +422,60 @@ const THUMBV6M_EXTRA_HELPERS: &[&str] = &[
     r"^__clz[sd]i2$",
     r"^__udivmodsi4$",
     r"^__aeabi_l?ls[lr]$",
+    // FixedUInt ops whose borrow or comparison result becomes a bool through
+    // a branch (`cmp; movs #1; blo; movs #0`) once the primitive
+    // `borrowing_sub` above is inlined into them.
+    NO_SELECT_FIXEDUINT_CMP,
+    NO_SELECT_FIXEDUINT_SUB,
+    r"fixed_bigint9fixeduint13abs_diff_impl.*AbsDiff",
+    r"fixed_bigint9fixeduint17power_of_two_impl.*IsPowerOfTwo",
 ];
+
+const NO_SELECT_FIXEDUINT_CMP: &str =
+    r"fixed_bigint\.\.fixeduint\.\.FixedUInt.*core\.\.cmp\.\.Ord\$GT\$3cmp";
+const NO_SELECT_FIXEDUINT_SUB: &str =
+    r"fixed_bigint9fixeduint12add_sub_impl.*(?:SaturatingSub|OverflowingSub)";
+
+/// AVR-specific extras layered onto `HELPER_ALLOWLIST`. AVR has no
+/// conditional select and an 8-bit word, so it carries thumbv6m's
+/// bool-materialisation branches on every limb plus multi-byte carry and
+/// compare chains (`cp; cpc; brlo`).
+const AVR_EXTRA_HELPERS: &[&str] = &[
+    NO_SELECT_FIXEDUINT_CMP,
+    NO_SELECT_FIXEDUINT_SUB,
+    r"fixed_bigint9fixeduint12add_sub_impl.*(?:SaturatingAdd|OverflowingAdd)",
+    r"fixed_bigint9fixeduint13abs_diff_impl.*AbsDiff",
+    r"fixed_bigint9fixeduint13midpoint_impl.*Midpoint",
+    r"fixed_bigint9fixeduint17power_of_two_impl.*(?:IsPowerOfTwo|next_power_of_two)",
+    r"fixed_bigint9fixeduint.*FixedUInt.*ct_checked_next_power_of_two",
+    // subtle's primitive `ct_eq`: sign bit of the folded word tested by branch.
+    r"\$LT\$u(?:8|16|32|64)\$.*subtle\.\.ConstantTimeEq.*5ct_eq",
+    // Panic formatting, entered only after a failed bounds check on a
+    // public length (heapless slice helpers, `Range` indexing); never returns.
+    r"^_ZN4core5slice5index16slice_index_fail",
+];
+
+/// Fixtures left out per target: the Ct guarantee does not cover these
+/// (target, limb, op) combinations. Each is a value branch the backend emits
+/// for lack of a conditional select; fixing them would cost codegen on the
+/// targets that have one.
+pub fn excluded_fixtures(triple: &str) -> &'static [&'static str] {
+    match triple {
+        // Only u64 limbs: double-word carry and compare lower to
+        // `beq` on the high words. u32 limbs are covered.
+        "riscv32imc-unknown-none-elf" | "riscv32imac-unknown-none-elf" => &[r"__u64__"],
+        // Borrow-to-bool branch on every limb width.
+        "thumbv6m-none-eabi" => &[
+            r"^ct_fix__C__(?:borrowing|overflowing|wrapping)_sub__",
+            r"^ct_fix__C__cios_mul_acc_row__u64__",
+        ],
+        "avr-none" => &[
+            r"__u64__",
+            // Accumulator-to-bool branch in the equality family.
+            r"^ct_fix__H?A__(?:eq|is_one|is_zero)__",
+            // Carry/borrow chains.
+            r"^ct_fix__C__(?:borrowing_sub|carrying_add|overflowing_sub|wrapping_add|wrapping_sub|cios_mul_acc_row)__",
+        ],
+        _ => &[],
+    }
+}

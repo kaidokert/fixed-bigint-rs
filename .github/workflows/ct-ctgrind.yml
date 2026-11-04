@@ -6,6 +6,8 @@ on:
       - main
       - 'feature/**'
   pull_request:
+  schedule:
+    - cron: "23 4 * * 1"
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,6 +17,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # "z" is the pinned profile; downstream deployments build at "s".
+        opt: ["s", "z"]
+        arch: [x86_64-linux, aarch64-linux]
         include:
           # x86_64 needs +lzcnt (BMI1) so that `u32::leading_zeros()`
           # lowers to `lzcnt` instead of `test/je/bsr`. The `je` handling
@@ -31,8 +36,10 @@ jobs:
             arch: aarch64-linux
             target: aarch64-unknown-linux-gnu
             rustflags: ""
-    name: ${{ matrix.arch }} ctgrind
+    name: ${{ matrix.arch }} ctgrind (opt ${{ matrix.opt }})
     runs-on: ${{ matrix.runner }}
+    env:
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: ${{ matrix.opt }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,7 +57,7 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ct-ctgrind-${{ matrix.arch }}
+          key: ct-ctgrind-${{ matrix.arch }}-${{ matrix.opt }}
 
       - name: Build ct-ctgrind
         env:
