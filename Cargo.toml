@@ -117,6 +117,3 @@ num-traits = ["dep:num-traits", "dep:num-integer"]
 zeroize = ["dep:zeroize"]
 fast-div = []
 default = ["num-traits"]
-
-[patch.crates-io]
-krabi-caliper = { git = "https://github.com/kaidokert/krabi-caliper-rs", rev = "ffa37fb3d9835f605e5fe053f43f2efc3f8b1a32" }
